@@ -1,0 +1,30 @@
+{
+  "name": "@fabrolabs/story-player",
+  "version": "0.1.0",
+  "description": "Dependency-free browser performer and v0 tooling contracts for Storylang bundles.",
+  "type": "module",
+  "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/FabroLabs/story-player.git"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "files": [
+    "browser/",
+    "tooling/"
+  ],
+  "exports": {
+    "./host": "./browser/host.mjs",
+    "./v0/tooling": "./tooling/v0.mjs"
+  },
+  "scripts": {
+    "test": "node --test \"tests/*.test.mjs\"",
+    "verify:package": "node scripts/verify-package.mjs"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com",
+    "access": "restricted"
+  }
+}

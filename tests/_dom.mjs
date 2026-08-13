@@ -1,0 +1,174 @@
+/**
+ * The smallest DOM `StageRenderer` will accept, so the renderer can be tested.
+ *
+ * It had no test file at all. Every other player module is unit-tested against
+ * its own seam, but the one that decides how big a character is drawn, where
+ * their feet land and who covers whom was reachable only through a browser —
+ * and this branch shipped FOUR bugs into it that a fully green suite called
+ * fine (a registry iterated with a Map API it lacks, two board projections
+ * dropping `zone`, crowding spreading in line order, and a cross-band move
+ * that never resized). Three were caught by eye; the fourth by an audit,
+ * weeks later.
+ *
+ * NOT a general DOM. It implements exactly the calls `stage-renderer.mjs`
+ * makes — a fake that answered more than the real thing is asked would let a
+ * test pass on behaviour the browser never runs. If the renderer starts
+ * calling something new, this file fails loudly rather than silently
+ * returning undefined, which is the point: `style` and `classList` are the
+ * only bags of arbitrary keys, and everything else is an explicit method.
+ */
+
+function fakeStyle() {
+  // A plain bag, plus the one method the renderer uses on it. Reading a style
+  // back is how the tests assert size and position, so it must behave like an
+  // ordinary object.
+  return {
+    setProperty(name, value) {
+      this[name] = String(value);
+    },
+  };
+}
+
+function fakeClassList(element) {
+  const held = new Set();
+  return {
+    add: (...names) => names.forEach((name) => held.add(name)),
+    remove: (...names) => names.forEach((name) => held.delete(name)),
+    toggle: (name, force) => (force ? held.add(name) : held.delete(name)),
+    contains: (name) => held.has(name),
+    get size() {
+      return held.size;
+    },
+    // for assertions
+    values: () => [...held],
+    element,
+  };
+}
+
+export function fakeElement(tag = 'div') {
+  const listeners = new Map();
+  const element = {
+    tag,
+    className: '',
+    hidden: false,
+    parent: null,
+    children: [],
+    attributes: {},
+    removed: false,
+    // video-only, harmless elsewhere
+    paused: true,
+    currentTime: 0,
+    src: '',
+  };
+  element.style = fakeStyle();
+  element.classList = fakeClassList(element);
+  element.append = (...kids) => {
+    for (const kid of kids) {
+      kid.parent = element;
+      element.children.push(kid);
+    }
+  };
+  element.remove = () => {
+    const at = element.parent ? element.parent.children.indexOf(element) : -1;
+    if (at >= 0) element.parent.children.splice(at, 1);
+    element.removed = true;
+  };
+  element.setAttribute = (name, value) => {
+    element.attributes[name] = String(value);
+  };
+  element.getAttribute = (name) => element.attributes[name] ?? null;
+  // The renderer reads this only to force a style flush before starting a
+  // transition; the numbers are the logical stage, so `#fitStage` computes a
+  // scale of exactly 1.
+  element.getBoundingClientRect = () => ({
+    width: 1920, height: 1080, top: 0, left: 0, right: 1920, bottom: 1080, x: 0, y: 0,
+  });
+  element.addEventListener = (type, handler) => {
+    if (!listeners.has(type)) listeners.set(type, new Set());
+    listeners.get(type).add(handler);
+  };
+  element.removeEventListener = (type, handler) => {
+    listeners.get(type)?.delete(handler);
+  };
+  /** Fire a listener the browser would have fired. Returns how many ran. */
+  element.dispatch = (type, event = {}) => {
+    const held = [...(listeners.get(type) ?? [])];
+    for (const handler of held) handler({ type, target: element, ...event });
+    return held.length;
+  };
+  element.listenerCount = (type) => listeners.get(type)?.size ?? 0;
+  element.pause = () => {
+    element.paused = true;
+  };
+  element.play = () => {
+    element.paused = false;
+    return Promise.resolve();
+  };
+  element.load = () => {};
+  return element;
+}
+
+/** The element bag `new StageRenderer(elements)` destructures. */
+export function fakeStageElements() {
+  return {
+    frame: fakeElement(),
+    stage: fakeElement(),
+    camera: fakeElement(),
+    plate: fakeElement(),
+    sprites: fakeElement(),
+    poster: fakeElement(),
+    video: fakeElement('video'),
+    subtitle: fakeElement(),
+    mediaNote: fakeElement(),
+    end: fakeElement(),
+  };
+}
+
+/**
+ * Install the globals the renderer reaches for, and return the undo.
+ *
+ * `requestAnimationFrame` is deliberately a no-op that never schedules: the
+ * frame loop is `startAnimation`'s business and a test that started one would
+ * never finish. `Image` resolves nothing by itself — a test that wants a
+ * sprite to load calls `.dispatch('load')` on it through `lastImage()`.
+ */
+export function installDom() {
+  const saved = {
+    document: globalThis.document,
+    ResizeObserver: globalThis.ResizeObserver,
+    Image: globalThis.Image,
+    requestAnimationFrame: globalThis.requestAnimationFrame,
+    cancelAnimationFrame: globalThis.cancelAnimationFrame,
+  };
+  const images = [];
+  globalThis.document = { createElement: (tag) => fakeElement(tag) };
+  globalThis.ResizeObserver = class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  };
+  globalThis.Image = class {
+    constructor() {
+      const element = fakeElement('img');
+      images.push(element);
+      return element;
+    }
+  };
+  globalThis.requestAnimationFrame = () => 0;
+  globalThis.cancelAnimationFrame = () => {};
+  return {
+    lastImage: () => images.at(-1),
+    restore() {
+      for (const [name, value] of Object.entries(saved)) {
+        if (value === undefined) delete globalThis[name];
+        else globalThis[name] = value;
+      }
+    },
+  };
+}
+
+/** px off an element's style, as a number — the tests compare sizes. */
+export function px(value) {
+  const number = Number.parseFloat(String(value ?? '').replace('px', ''));
+  return Number.isFinite(number) ? number : null;
+}

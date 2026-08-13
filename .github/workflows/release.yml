@@ -1,0 +1,35 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          registry-url: https://npm.pkg.github.com
+          scope: '@fabrolabs'
+      - name: Verify release tag
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: node -e "if (process.env.RELEASE_TAG !== 'v' + require('./package.json').version) process.exit(1)"
+      - run: npm ci --ignore-scripts
+      - run: node --test "tests/*.test.mjs"
+      - run: npm pack --dry-run --json
+      - run: npm pack --json
+      - run: node scripts/verify-package.mjs
+      - run: npm publish --ignore-scripts
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#08091a">
+  <meta name="storytime-asset-base" content="__STORYTIME_ASSET_BASE__">
+  <title>story player</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <main class="player-shell">
+    <header class="player-header">
+      <div class="brand" aria-label="story player">
+        <span class="brand-moon" aria-hidden="true"></span>
+        <span>storytime</span>
+      </div>
+      <button class="quiet-button" id="subtitle-toggle" type="button" aria-label="hide subtitles" aria-controls="subtitle-area" aria-pressed="true">
+        <span aria-hidden="true">cc</span>
+      </button>
+      <button class="quiet-button" id="debug-toggle" type="button" aria-label="open event log" aria-controls="debug-panel" aria-expanded="false">
+        <span aria-hidden="true">log</span>
+      </button>
+    </header>
+
+    <section class="stage-frame" id="stage-frame" aria-label="story stage">
+      <div class="stage-letterbox" aria-hidden="true"></div>
+      <div class="logical-stage" id="logical-stage">
+        <div class="camera-layer" id="camera-layer">
+          <div class="drift-layer">
+            <div class="plate-layer" id="plate-layer">
+              <div class="plate-poster" id="plate-poster"></div>
+              <video class="plate-video" id="plate-video" muted loop playsinline preload="metadata"></video>
+            </div>
+            <div class="sprite-layer" id="sprite-layer"></div>
+          </div>
+        </div>
+        <div class="stage-vignette" aria-hidden="true"></div>
+      </div>
+
+      <div class="start-ceremony" id="start-ceremony">
+        <div class="ceremony-glow" aria-hidden="true"></div>
+        <p class="eyebrow">a bedtime story</p>
+        <h1 id="story-title">preparing your story…</h1>
+        <button class="start-button" id="start-button" type="button" disabled>
+          <span class="play-mark" aria-hidden="true"></span>
+          <span>begin story</span>
+        </button>
+        <p class="load-status" id="load-status" role="status">loading the story bundle</p>
+      </div>
+
+      <div class="subtitle-wrap" id="subtitle-area" aria-live="polite" aria-atomic="true">
+        <p class="subtitle" id="subtitle"></p>
+        <p class="media-note" id="media-note"></p>
+      </div>
+
+      <div class="end-overlay" id="end-overlay" hidden>
+        <span class="end-moon" aria-hidden="true"></span>
+        <p>the end</p>
+        <span>sleep well</span>
+      </div>
+    </section>
+  </main>
+
+  <aside class="debug-panel" id="debug-panel" aria-label="event log" aria-hidden="true" inert>
+    <header>
+      <div>
+        <p class="eyebrow">playback trace</p>
+        <h2>event log</h2>
+      </div>
+      <button class="icon-button" id="debug-close" type="button" aria-label="close event log">×</button>
+    </header>
+    <div class="debug-actions">
+      <button type="button" id="copy-log">copy json</button>
+      <button type="button" id="download-log">download</button>
+      <span id="debug-status" role="status"></span>
+    </div>
+    <ol class="event-list" id="event-list"></ol>
+  </aside>
+
+  <script type="module" src="./shell/main.mjs"></script>
+</body>
+</html>
