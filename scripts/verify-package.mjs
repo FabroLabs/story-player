@@ -29,10 +29,6 @@ assert.ok(fs.existsSync(tarball), `tarball does not exist: ${tarball}`);
 const [npmExecutable, npmArguments] = npmInvocation(['pack', '--dry-run', '--json']);
 const dryRun = run(npmExecutable, npmArguments, {
   cwd: ROOT,
-  env: {
-    ...process.env,
-    NODE_AUTH_TOKEN: process.env.NODE_AUTH_TOKEN ?? 'verification-placeholder',
-  },
 });
 const packReport = parsePackReport(dryRun.stdout);
 const packedFiles = packReport.files.map(({ path: packedPath }) => normalize(packedPath)).sort();
@@ -64,6 +60,7 @@ for (const required of [
   'tooling/v0.mjs',
   'package.json',
   'README.md',
+  'LICENSE',
 ]) {
   assert.ok(packedFiles.includes(required), `npm pack omitted required file: ${required}`);
 }
@@ -152,6 +149,7 @@ function normalize(value) {
 function isAllowlisted(packedPath) {
   return packedPath === 'package.json'
     || packedPath === 'README.md'
+    || packedPath === 'LICENSE'
     || packedPath.startsWith('browser/')
     || packedPath.startsWith('tooling/');
 }

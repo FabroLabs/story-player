@@ -55,31 +55,34 @@ test('the tarball verifier rejects an archive whose file bytes differ from sourc
 test('the manifest contract refuses release-blocking or misrouted metadata', () => {
   const valid = {
     name: '@fabrolabs/story-player',
-    version: '0.1.0',
-    license: 'UNLICENSED',
+    version: '0.1.1',
+    license: 'MIT',
     repository: { type: 'git', url: 'git+https://github.com/FabroLabs/story-player.git' },
     files: ['browser/', 'tooling/'],
     exports: {
       './host': './browser/host.mjs',
       './v0/tooling': './tooling/v0.mjs',
     },
-    publishConfig: { registry: 'https://npm.pkg.github.com', access: 'restricted' },
   };
 
-  assert.doesNotThrow(() => assertManifestContract(valid, '0.1.0'));
+  assert.doesNotThrow(() => assertManifestContract(valid, '0.1.1'));
   assert.throws(
-    () => assertManifestContract({ ...valid, private: true }, '0.1.0'),
+    () => assertManifestContract({ ...valid, private: true }, '0.1.1'),
     /must not set private/,
   );
   assert.throws(
-    () => assertManifestContract({ ...valid, dependencies: { leftpad: '1.0.0' } }, '0.1.0'),
+    () => assertManifestContract({ ...valid, dependencies: { leftpad: '1.0.0' } }, '0.1.1'),
     /must not declare runtime dependencies/,
+  );
+  assert.throws(
+    () => assertManifestContract({ ...valid, license: 'UNLICENSED' }, '0.1.1'),
+    /MIT/,
   );
   assert.throws(
     () => assertManifestContract({
       ...valid,
-      publishConfig: { registry: 'https://registry.npmjs.org', access: 'public' },
-    }, '0.1.0'),
-    /publishConfig/,
+      publishConfig: { registry: 'https://npm.pkg.github.com', access: 'restricted' },
+    }, '0.1.1'),
+    /must not set publishConfig/,
   );
 });

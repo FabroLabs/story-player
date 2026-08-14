@@ -5,8 +5,13 @@ import path from 'node:path';
 export function assertManifestContract(manifest, expectedVersion) {
   assert.equal(manifest.name, '@fabrolabs/story-player');
   assert.equal(manifest.version, expectedVersion);
-  assert.equal(manifest.license, 'UNLICENSED');
+  assert.equal(manifest.license, 'MIT');
   assert.equal(Object.hasOwn(manifest, 'private'), false, 'package must not set private');
+  assert.equal(
+    Object.hasOwn(manifest, 'publishConfig'),
+    false,
+    'package must not set publishConfig',
+  );
   assert.equal(
     Object.hasOwn(manifest, 'dependencies'),
     false,
@@ -21,11 +26,6 @@ export function assertManifestContract(manifest, expectedVersion) {
     './host': './browser/host.mjs',
     './v0/tooling': './tooling/v0.mjs',
   });
-  assert.deepEqual(
-    manifest.publishConfig,
-    { registry: 'https://npm.pkg.github.com', access: 'restricted' },
-    'package publishConfig must remain private GitHub Packages',
-  );
 }
 
 export function assertUnpackedContents(unpacked, source, expectedFiles) {

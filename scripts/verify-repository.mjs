@@ -8,8 +8,6 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(
   process.argv[2] ?? path.dirname(path.dirname(fileURLToPath(import.meta.url))),
 );
-const EXPECTED_NPMRC = '@fabrolabs:registry=https://npm.pkg.github.com\n'
-  + '//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}\n';
 const SECRET_CONTENT = [
   /\bgh[pousr]_[A-Za-z0-9]{20,}\b/,
   /\bgithub_pat_[A-Za-z0-9_]{20,}\b/,
@@ -18,11 +16,10 @@ const SECRET_CONTENT = [
 ];
 
 try {
-  const npmrc = fs.readFileSync(path.join(ROOT, '.npmrc'), 'utf8').replaceAll('\r\n', '\n');
   assert.equal(
-    npmrc,
-    EXPECTED_NPMRC,
-    '.npmrc must reference NODE_AUTH_TOKEN without containing a credential',
+    fs.existsSync(path.join(ROOT, '.npmrc')),
+    false,
+    'repository must not contain .npmrc',
   );
   const release = read('.github/workflows/release.yml');
   assert.match(
@@ -32,13 +29,13 @@ try {
   );
   assert.match(
     release,
-    /^permissions:\n  contents: read\n  packages: write\n$/m,
-    'release workflow permissions must be contents read and packages write',
+    /^permissions:\n  contents: write\n$/m,
+    'release workflow permissions must be top-level contents write only',
   );
   assert.equal(
     [...release.matchAll(/^\s*permissions:$/gm)].length,
     1,
-    'release workflow may define permissions only once at top level',
+    'release workflow permissions must be top-level contents write only',
   );
   assert.match(release, /^          node-version: 22$/m, 'release workflow must pin Node 22');
   assert.ok(
@@ -55,12 +52,37 @@ try {
   requireUsesSteps(
     release,
     ['actions/checkout@v4', 'actions/setup-node@v4'],
-    'release workflow must use one checkout followed by one Node setup',
+    "release workflow must check out and validate the event's exact tag",
   );
   assert.match(
     release,
     /- name: Verify release tag\n        env:\n          RELEASE_TAG: \$\{\{ github\.event\.release\.tag_name \}\}\n        run:/,
     "release workflow must check out and validate the event's exact tag",
+  );
+  assert.doesNotMatch(
+    release,
+    /npm publish|npm\.pkg\.github|NODE_AUTH_TOKEN|registry-url:|scope:/,
+    'release workflow must upload the public tgz without npm registry publication',
+  );
+  assert.ok(
+    release.includes(
+      '- name: Upload public release artifact\n'
+        + '        env:\n'
+        + '          GH_TOKEN: ${{ github.token }}\n'
+        + '          RELEASE_TAG: ${{ github.event.release.tag_name }}\n'
+        + '        run: gh release upload "$RELEASE_TAG" ./fabrolabs-story-player-*.tgz',
+    ),
+    'release upload must use only the ephemeral GitHub Actions token',
+  );
+  assert.doesNotMatch(
+    release,
+    /gh release upload[^\n]*--clobber/,
+    'release workflow must not overwrite an immutable release asset',
+  );
+  assert.match(
+    release,
+    /- name: Verify anonymous release install\n        env:\n          RELEASE_TAG: \$\{\{ github\.event\.release\.tag_name \}\}\n        run: node scripts\/verify-install\.mjs "https:\/\/github\.com\/\$\{\{ github\.repository \}\}\/releases\/download\/\$\{RELEASE_TAG\}\/fabrolabs-story-player-\$\{RELEASE_TAG#v\}\.tgz"/,
+    'anonymous release verification must not receive credentials',
   );
   requireRunSteps(release, [
     'node -e "if (process.env.RELEASE_TAG !== \'v\' + require(\'./package.json\').version) process.exit(1)"',
@@ -69,8 +91,10 @@ try {
     'npm pack --dry-run --json',
     'npm pack --json',
     'node scripts/verify-package.mjs',
-    'npm publish --ignore-scripts',
-  ], 'release workflow must run every package proof before npm publish');
+    'node scripts/verify-install.mjs ./fabrolabs-story-player-*.tgz',
+    'gh release upload "$RELEASE_TAG" ./fabrolabs-story-player-*.tgz',
+    'node scripts/verify-install.mjs "https://github.com/${{ github.repository }}/releases/download/${RELEASE_TAG}/fabrolabs-story-player-${RELEASE_TAG#v}.tgz"',
+  ], 'release workflow must prove the package before uploading it');
   assert.doesNotMatch(
     release,
     /^\s*continue-on-error:/m,
@@ -78,14 +102,6 @@ try {
   );
   assert.doesNotMatch(release, /^\s*if:/m, 'release steps may not be conditional');
   assert.doesNotMatch(release, /^\s*shell:/m, 'release steps may not override their shell');
-  assert.ok(
-    release.includes(
-      '- run: npm publish --ignore-scripts\n'
-        + '        env:\n'
-        + '          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}',
-    ),
-    'npm publish must use only the ephemeral GitHub Actions token',
-  );
   const ci = read('.github/workflows/ci.yml');
   assert.match(
     ci,
@@ -103,12 +119,18 @@ try {
     'CI must use one checkout followed by one Node setup',
   );
   assert.match(ci, /^          node-version: 22$/m, 'CI must pin Node 22');
+  assert.doesNotMatch(
+    ci,
+    /npm\.pkg\.github|NODE_AUTH_TOKEN|registry-url:|scope:/,
+    'CI must not configure npm registry authentication',
+  );
   requireRunSteps(ci, [
     'npm ci --ignore-scripts',
     'node --test "tests/*.test.mjs"',
     'npm pack --dry-run --json',
     'npm pack --json',
     'node scripts/verify-package.mjs',
+    'node scripts/verify-install.mjs ./fabrolabs-story-player-*.tgz',
   ], 'CI must run the complete package proof in order');
   assert.doesNotMatch(ci, /^\s*continue-on-error:/m, 'CI proof steps may not continue on error');
   assert.doesNotMatch(ci, /^\s*if:/m, 'CI steps may not be conditional');
