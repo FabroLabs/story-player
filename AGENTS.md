@@ -10,9 +10,13 @@
   `@fabrolabs/story-player/v0/tooling` as the only public Node APIs.
 - Preserve deterministic behavior. A policy change requires contract tests and
   downstream mobile parity regeneration.
-- Never commit credentials. `.npmrc` may contain only the scoped registry and
-  `${NODE_AUTH_TOKEN}` reference.
+- Never commit credentials, `.npmrc`, registry publication configuration, or a
+  credential-bearing artifact URL.
 - Release immutable versions from a matching human-created GitHub Release tag;
-  supersede a bad release with a higher version.
+  upload one public npm-compatible `.tgz` and supersede a bad release with a
+  higher version. Never clobber an existing release asset.
 - Run `npm ci --ignore-scripts`, the full tests, dry-run pack inspection, and
-  the clean-tarball verifier before release.
+  the clean-tarball and clean-install verifiers before release.
+- Keep package verification provider-neutral. GitHub hosts the current release,
+  but a local path or credential-free HTTPS `.tgz` from another host must obey
+  the same install contract.
