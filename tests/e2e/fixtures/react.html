@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>React Story Player</title>
+</head>
+<body>
+  <div id="application"></div>
+  <script src="__REACT_URL__"></script>
+  <script src="__PLAYER_URL__"></script>
+  <script>
+    window.__mounted = (async () => {
+      const story = await fetch('__STORY_URL__').then((response) => response.json());
+      const StoryPlayer = FabroStoryPlayer.createReactStoryPlayer(React);
+      const root = ReactDOM.createRoot(document.querySelector('#application'));
+      window.__reactRoot = root;
+      window.__renderReact = () => root.render(
+        React.createElement(
+          React.StrictMode,
+          null,
+          React.createElement(StoryPlayer, {
+            story,
+            assetBase: '__ASSET_BASE__',
+            id: 'react-player',
+            'data-consumer': 'react',
+          }),
+        ),
+      );
+      window.__renderReact();
+      return true;
+    })();
+  </script>
+</body>
+</html>

@@ -29,6 +29,8 @@ function fakeStyle() {
   };
 }
 
+export class FakeElement {}
+
 function fakeClassList(element) {
   const held = new Set();
   return {
@@ -47,12 +49,14 @@ function fakeClassList(element) {
 
 export function fakeElement(tag = 'div') {
   const listeners = new Map();
+  const childNodes = [];
   const element = {
     tag,
+    nodeType: tag === '#text' ? 3 : 1,
     className: '',
     hidden: false,
     parent: null,
-    children: [],
+    childNodes,
     attributes: {},
     removed: false,
     // video-only, harmless elsewhere
@@ -60,23 +64,54 @@ export function fakeElement(tag = 'div') {
     currentTime: 0,
     src: '',
   };
+  Object.setPrototypeOf(element, FakeElement.prototype);
+  Object.defineProperty(element, 'children', {
+    get: () => childNodes.filter((child) => child.nodeType === 1),
+  });
   element.style = fakeStyle();
   element.classList = fakeClassList(element);
   element.append = (...kids) => {
     for (const kid of kids) {
       kid.parent = element;
-      element.children.push(kid);
+      childNodes.push(kid);
     }
   };
+  element.replaceChildren = (...kids) => {
+    for (const child of childNodes) child.parent = null;
+    childNodes.splice(0, childNodes.length);
+    element.append(...kids);
+  };
   element.remove = () => {
-    const at = element.parent ? element.parent.children.indexOf(element) : -1;
-    if (at >= 0) element.parent.children.splice(at, 1);
+    const at = element.parent ? element.parent.childNodes.indexOf(element) : -1;
+    if (at >= 0) element.parent.childNodes.splice(at, 1);
     element.removed = true;
   };
   element.setAttribute = (name, value) => {
     element.attributes[name] = String(value);
   };
   element.getAttribute = (name) => element.attributes[name] ?? null;
+  element.removeAttribute = (name) => {
+    delete element.attributes[name];
+    if (name === 'src') element.src = '';
+  };
+  element.focus = () => {
+    element.focused = true;
+  };
+  element.click = () => element.dispatch('click');
+  element.getRootNode = () => {
+    let root = element;
+    while (root.parent) root = root.parent;
+    return root;
+  };
+  element.attachShadow = ({ mode }) => {
+    if (element.shadowRoot) throw new Error('shadow root already attached');
+    const root = fakeElement('#shadow-root');
+    root.host = element;
+    root.mode = mode;
+    root.ownerDocument = element.ownerDocument ?? globalThis.document;
+    element.shadowRoot = root;
+    return root;
+  };
   // The renderer reads this only to force a style flush before starting a
   // transition; the numbers are the logical stage, so `#fitStage` computes a
   // scale of exactly 1.
@@ -135,13 +170,46 @@ export function fakeStageElements() {
 export function installDom() {
   const saved = {
     document: globalThis.document,
+    window: globalThis.window,
+    Element: globalThis.Element,
+    HTMLInputElement: globalThis.HTMLInputElement,
+    HTMLTextAreaElement: globalThis.HTMLTextAreaElement,
     ResizeObserver: globalThis.ResizeObserver,
     Image: globalThis.Image,
     requestAnimationFrame: globalThis.requestAnimationFrame,
     cancelAnimationFrame: globalThis.cancelAnimationFrame,
   };
+  const navigatorDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
   const images = [];
-  globalThis.document = { createElement: (tag) => fakeElement(tag) };
+  const documentNode = fakeElement('#document');
+  documentNode.createElement = (tag) => {
+    const element = fakeElement(tag);
+    element.ownerDocument = documentNode;
+    return element;
+  };
+  documentNode.createTextNode = (text) => {
+    const node = fakeElement('#text');
+    node.textContent = String(text);
+    node.ownerDocument = documentNode;
+    return node;
+  };
+  globalThis.document = documentNode;
+  globalThis.Element = FakeElement;
+  globalThis.HTMLInputElement = class extends FakeElement {};
+  globalThis.HTMLTextAreaElement = class extends FakeElement {};
+  const storage = new Map();
+  globalThis.window = {
+    localStorage: {
+      getItem: (key) => storage.get(key) ?? null,
+      setItem: (key, value) => storage.set(key, String(value)),
+    },
+    matchMedia: () => ({ matches: false }),
+  };
+  Object.defineProperty(globalThis, 'navigator', {
+    configurable: true,
+    writable: true,
+    value: { clipboard: { writeText: async () => {} } },
+  });
   globalThis.ResizeObserver = class {
     observe() {}
     unobserve() {}
@@ -163,6 +231,8 @@ export function installDom() {
         if (value === undefined) delete globalThis[name];
         else globalThis[name] = value;
       }
+      if (navigatorDescriptor) Object.defineProperty(globalThis, 'navigator', navigatorDescriptor);
+      else delete globalThis.navigator;
     },
   };
 }

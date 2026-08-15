@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Plain JavaScript Story Player</title>
+</head>
+<body>
+  <div id="first"></div>
+  <div id="second"></div>
+  <script src="__PLAYER_URL__"></script>
+  <script>
+    window.__mounted = (async () => {
+      const story = await fetch('__STORY_URL__').then((response) => response.json());
+      window.__story = story;
+      window.__assetBase = '__ASSET_BASE__';
+      window.__players = [
+        FabroStoryPlayer.createStoryPlayer(document.querySelector('#first'), {
+          story,
+          assetBase: window.__assetBase,
+        }),
+        FabroStoryPlayer.createStoryPlayer(document.querySelector('#second'), {
+          story,
+          assetBase: window.__assetBase,
+        }),
+      ];
+      await Promise.all(window.__players.map((player) => player.ready));
+      window.__seenSubtitles = [];
+      new MutationObserver(() => {
+        const text = document.querySelector('#first').shadowRoot.querySelector('.subtitle').textContent;
+        if (text) window.__seenSubtitles.push(text);
+      }).observe(document.querySelector('#first').shadowRoot, {
+        characterData: true,
+        childList: true,
+        subtree: true,
+      });
+      return true;
+    })();
+
+    window.__remountFirst = async () => {
+      window.__players[0].destroy();
+      window.__players[0] = FabroStoryPlayer.createStoryPlayer(document.querySelector('#first'), {
+        story: window.__story,
+        assetBase: window.__assetBase,
+      });
+      await window.__players[0].ready;
+    };
+  </script>
+</body>
+</html>

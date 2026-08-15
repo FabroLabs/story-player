@@ -1,0 +1,34 @@
+{
+  "storylang_version": 0,
+  "title": "The CDN Moon",
+  "cast": {},
+  "objects": {},
+  "audio": {
+    "sfx": {},
+    "bgm": {}
+  },
+  "scenes": [
+    {
+      "place": "moonlit-clearing",
+      "plate": {
+        "poster": "fairytale-assets/media/poster.svg",
+        "video": "fairytale-assets/media/plate.webm"
+      },
+      "steps": [
+        {
+          "kind": "chunk",
+          "line": 1,
+          "text": "The moon remembered every safe path home.",
+          "duration_s": 0.1,
+          "audio": "jobs/e2e/audio/narration.wav"
+        },
+        {
+          "kind": "cmd",
+          "line": 2,
+          "cmd": "pause",
+          "seconds": 0.6
+        }
+      ]
+    }
+  ]
+}

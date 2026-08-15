@@ -5,7 +5,6 @@ import { runStory } from '../../core/scheduler.mjs';
 import { withTimeout } from '../clock.mjs';
 import { drawnSpriteHeightPx, subjectFramedScale } from '../stage/presentation-policy.mjs';
 import { CAMERA_DURATIONS_MS, SHOT_SIZES } from '../stage/stage-renderer.mjs';
-import { resolveNarrationUrl } from '../urls.mjs';
 import {
   BESIDE_NUDGE_PCT,
   DEFAULT_EXIT_X_PCT,
@@ -26,7 +25,6 @@ const RELEASE_FOLLOW = 'off';
 // never the spacing anyone sees, and making it bigger would not widen the gap.
 export class PlaybackDirector {
   #story;
-  #storyUrl;
   #stage;
   #audio;
   #clock;
@@ -36,10 +34,10 @@ export class PlaybackDirector {
   #sceneIndex = null;
   #currentLine = null;
   #departures = new Set();
+  #destroyed = false;
 
-  constructor({ story, storyUrl, stage, audio, clock, log }) {
+  constructor({ story, stage, audio, clock, log }) {
     this.#story = story;
-    this.#storyUrl = storyUrl;
     this.#stage = stage;
     this.#audio = audio;
     this.#clock = clock;
@@ -47,6 +45,7 @@ export class PlaybackDirector {
   }
 
   async play() {
+    if (this.#destroyed) return;
     await runStory(this.#story, {
       clock: this.#clock,
       log: this.#log,
@@ -56,10 +55,11 @@ export class PlaybackDirector {
       performCommand: (step) => this.#performCommand(step),
       performTogether: (steps) => this.#performTogether(steps),
     });
-    this.#stage.showEnd();
+    if (!this.#destroyed) this.#stage.showEnd();
   }
 
   warning(detail, line = undefined, sceneIndex = undefined) {
+    if (this.#destroyed) return null;
     const isStructured = detail && typeof detail === 'object';
     const hasCarriedLine = isStructured && Object.hasOwn(detail, 'line');
     const hasCarriedScene = isStructured && Object.hasOwn(detail, 'scene_index');
@@ -79,6 +79,7 @@ export class PlaybackDirector {
   }
 
   async #beginScene(scene, context) {
+    if (this.#destroyed) return;
     this.#scene = scene;
     this.#sceneIndex = context.sceneIndex;
     this.#currentLine = scene.line ?? null;
@@ -93,6 +94,7 @@ export class PlaybackDirector {
   }
 
   async #endScene() {
+    if (this.#destroyed) return;
     const pending = [...this.#departures];
     if (pending.length > 0) {
       await withTimeout(Promise.allSettled(pending), DEPARTURE_DEADLINE_MS, {
@@ -102,11 +104,13 @@ export class PlaybackDirector {
         },
       });
     }
+    if (this.#destroyed) return;
     this.#stage.setSubtitle('');
     this.#stage.resetCamera();
   }
 
   async #playChunk(step) {
+    if (this.#destroyed) return;
     this.#currentLine = step.line ?? this.#scene.line ?? null;
     const estimatedMs = Math.max(0, Number(step.duration_s) * 1000 || 0);
     this.#stage.setSubtitle(step.text);
@@ -116,8 +120,8 @@ export class PlaybackDirector {
       return;
     }
 
-    const audioUrl = resolveNarrationUrl(step.audio, this.#storyUrl);
-    const result = await this.#audio.playNarration(audioUrl, estimatedMs, this.#origin(step.line));
+    const result = await this.#audio.playNarration(step.audio, estimatedMs, this.#origin(step.line));
+    if (this.#destroyed) return;
     if (result.ok) return;
 
     const remainingMs = Math.max(0, estimatedMs - result.elapsedMs);
@@ -126,6 +130,7 @@ export class PlaybackDirector {
   }
 
   #performTogether(steps) {
+    if (this.#destroyed) return;
     const reference = this.#board.reference();
     for (const step of [...steps].sort(compareTogetherSteps)) {
       this.#performCommand(step, reference);
@@ -133,6 +138,7 @@ export class PlaybackDirector {
   }
 
   #performCommand(step, reference = this.#board) {
+    if (this.#destroyed) return;
     this.#currentLine = step.line ?? this.#scene.line ?? null;
     const origin = this.#origin(step.line);
     switch (step.cmd) {
@@ -522,6 +528,12 @@ export class PlaybackDirector {
 
   #origin(line) {
     return { scene_index: this.#sceneIndex, line: line ?? this.#scene?.line ?? null };
+  }
+
+  destroy() {
+    if (this.#destroyed) return;
+    this.#destroyed = true;
+    this.#departures.clear();
   }
 }
 

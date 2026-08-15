@@ -1,0 +1,3 @@
+The E2E server intentionally serves this deterministic invalid video body.
+The plate video is streaming and non-blocking; the test proves the qualified
+request while the poster remains the visual fallback.

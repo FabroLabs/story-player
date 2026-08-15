@@ -140,7 +140,10 @@ export function sceneAssets(story, scene) {
  *
  * `load` is injected so this is testable without a network or a DOM.
  */
-export async function preload(urls, { onProgress = () => {}, load = loadImage, concurrency = 0 } = {}) {
+export async function preload(urls, {
+  onProgress = () => {}, load = loadImage, concurrency = 0, signal = null,
+} = {}) {
+  throwIfAborted(signal);
   const total = urls.length;
   onProgress(0, total);
   if (total === 0) return { total: 0, failed: 0 };
@@ -149,10 +152,12 @@ export async function preload(urls, { onProgress = () => {}, load = loadImage, c
   let failed = 0;
   const fetchOne = async (url) => {
     try {
-      await load(url);
-    } catch {
+      await abortable(load(url, { signal }), signal);
+    } catch (error) {
+      if (error?.name === 'AbortError') throw error;
       failed += 1;
     }
+    throwIfAborted(signal);
     done += 1;
     onProgress(done, total);
   };
@@ -180,21 +185,52 @@ export async function preload(urls, { onProgress = () => {}, load = loadImage, c
  * DURING playback, and firing thirty requests at a slow link would starve the
  * narration audio and the plate video the viewer is waiting on right now.
  */
-export async function queueRemainingScenes(story, { load = loadImage, onScene = () => {} } = {}) {
+export async function queueRemainingScenes(story, {
+  load = loadImage, onScene = () => {}, signal = null,
+} = {}) {
   // Scene 0 first: the gate only covered its first frame, so the rest of the
   // scene now playing outranks every scene that has not opened yet.
   for (let index = 0; index < (story?.scenes?.length ?? 0); index += 1) {
     const urls = sceneAssets(story, story.scenes[index]);
-    await preload(urls, { load, concurrency: 1 });
+    await preload(urls, { load, concurrency: 1, signal });
+    throwIfAborted(signal);
     onScene(index, urls.length);
   }
 }
 
-function loadImage(url) {
+function loadImage(url, { signal = null } = {}) {
   return new Promise((resolve, reject) => {
     const image = new Image();
-    image.addEventListener('load', () => resolve(url), { once: true });
-    image.addEventListener('error', () => reject(new Error(`asset failed: ${url}`)), { once: true });
+    const cleanup = () => signal?.removeEventListener('abort', onAbort);
+    const onAbort = () => {
+      cleanup();
+      image.removeAttribute?.('src');
+      reject(abortError());
+    };
+    image.addEventListener('load', () => { cleanup(); resolve(url); }, { once: true });
+    image.addEventListener('error', () => { cleanup(); reject(new Error(`asset failed: ${url}`)); }, { once: true });
+    signal?.addEventListener('abort', onAbort, { once: true });
     image.src = url;
   });
+}
+
+function abortable(promise, signal) {
+  if (!signal) return promise;
+  if (signal.aborted) return Promise.reject(abortError());
+  return new Promise((resolve, reject) => {
+    const onAbort = () => reject(abortError());
+    signal.addEventListener('abort', onAbort, { once: true });
+    Promise.resolve(promise).then(
+      (value) => { signal.removeEventListener('abort', onAbort); resolve(value); },
+      (error) => { signal.removeEventListener('abort', onAbort); reject(error); },
+    );
+  });
+}
+
+function throwIfAborted(signal) {
+  if (signal?.aborted) throw abortError();
+}
+
+function abortError() {
+  return new DOMException('player destroyed', 'AbortError');
 }

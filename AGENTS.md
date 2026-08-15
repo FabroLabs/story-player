@@ -1,22 +1,31 @@
 # AGENTS.md — story-player
 
-- Zero runtime dependencies and zero browser build: preserve the complete
-  `browser/` static tree and its relative ESM imports.
-- The shell is version-neutral. `browser/shell/**` dispatches by
-  `storylang_version` and must not import a version directly.
+- Browser delivery is one deterministic classic IIFE built from maintainable
+  ESM. It has zero runtime dependencies, embeds its CSS, and installs only the
+  deeply frozen `window.FabroStoryPlayer` global.
+- The supported browser API is exactly `build`, `createStoryPlayer`,
+  `resolveMediaUrl`, `createReactStoryPlayer`, and `tooling`. React is always
+  supplied by the caller; never bundle a React copy.
+- The player accepts parsed Story JSON plus one trusted storage-root
+  `assetBase`. Never add player-owned Story JSON fetching, a `storyUrl`, iframe,
+  query-string, standalone HTML, or npm/tarball product.
+- Every media value is `<bucket>/<object-key>`. Preserve strict path validation
+  before resolving it under `assetBase`.
 - `browser/v0/core/**` is pure logic. Only
-  `browser/v0/app/stage/stage-renderer.mjs` touches stage DOM.
-- Treat `@fabrolabs/story-player/host` and
-  `@fabrolabs/story-player/v0/tooling` as the only public Node APIs.
-- Preserve deterministic behavior. A policy change requires contract tests and
-  downstream mobile parity regeneration.
-- Never commit credentials, `.npmrc`, registry publication configuration, or a
-  credential-bearing artifact URL.
-- Release immutable versions from a matching human-created GitHub Release tag;
-  upload one public npm-compatible `.tgz` and supersede a bad release with a
-  higher version. Never clobber an existing release asset.
-- Run `npm ci --ignore-scripts`, the full tests, dry-run pack inspection, and
-  the clean-tarball and clean-install verifiers before release.
-- Keep package verification provider-neutral. GitHub hosts the current release,
-  but a local path or credential-free HTTPS `.tgz` from another host must obey
-  the same install contract.
+  `browser/v0/app/stage/stage-renderer.mjs` touches stage DOM. Preserve
+  deterministic behavior; policy changes require contract tests and downstream
+  mobile parity regeneration.
+- Keep package metadata private at `0.0.0-development`. `dist/` is generated,
+  ignored, and never committed.
+- Never commit credentials, `.npmrc`, registry configuration, or a
+  credential-bearing URL. The publisher uses `RUSTFS_URL`, the exact public
+  `story-player` bucket, shared credentials, and an optional region.
+- Immutable commit objects are create-only and must be anonymously verified
+  before stable promotion. Promote stable metadata last. Rollback only from a
+  verified immutable full-commit object. Never upload from a developer shell
+  without explicit authorization.
+- Run Node 22 `npm ci --ignore-scripts`, `npm test`,
+  `STORY_PLAYER_COMMIT=<full-git-commit> npm run build:cdn`,
+  `npm run test:e2e`, and `npm run verify:repository` before integration.
+- GitHub Actions hosts the current workflow, but the artifact, object layout,
+  commands, and storage contract remain provider-neutral for GitLab migration.

@@ -1,9 +1,11 @@
 export class StoryClock {
   #now;
+  #signal;
   #startedAt = null;
 
-  constructor({ now = defaultNow } = {}) {
+  constructor({ now = defaultNow, signal = null } = {}) {
     this.#now = now;
+    this.#signal = signal;
   }
 
   start() {
@@ -15,12 +17,28 @@ export class StoryClock {
   }
 
   wait(milliseconds) {
-    return wait(milliseconds);
+    return wait(milliseconds, setTimeout, { signal: this.#signal });
   }
 }
 
-export function wait(milliseconds, setTimer = setTimeout) {
-  return new Promise((resolve) => setTimer(resolve, Math.max(0, milliseconds)));
+export function wait(milliseconds, setTimer = setTimeout, { signal = null, clearTimer = clearTimeout } = {}) {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(abortError());
+      return;
+    }
+    let timer;
+    const onAbort = () => {
+      clearTimer(timer);
+      signal.removeEventListener('abort', onAbort);
+      reject(abortError());
+    };
+    timer = setTimer(() => {
+      signal?.removeEventListener('abort', onAbort);
+      resolve();
+    }, Math.max(0, milliseconds));
+    signal?.addEventListener('abort', onAbort, { once: true });
+  });
 }
 
 export function withTimeout(promise, milliseconds, options = {}) {
@@ -29,29 +47,46 @@ export function withTimeout(promise, milliseconds, options = {}) {
     onTimeout = () => {},
     setTimer = setTimeout,
     clearTimer = clearTimeout,
+    signal = null,
   } = options;
 
   return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(abortError());
+      return;
+    }
     let settled = false;
-    const timer = setTimer(() => {
-      if (settled) return;
+    const finish = (complete) => {
+      if (settled) return false;
       settled = true;
-      onTimeout();
-      resolve({ timedOut: true, value: fallback });
+      signal?.removeEventListener('abort', onAbort);
+      complete();
+      return true;
+    };
+    const onAbort = () => {
+      clearTimer(timer);
+      finish(() => reject(abortError()));
+    };
+    const timer = setTimer(() => {
+      finish(() => {
+        onTimeout();
+        resolve({ timedOut: true, value: fallback });
+      });
     }, Math.max(0, milliseconds));
+    signal?.addEventListener('abort', onAbort, { once: true });
 
     Promise.resolve(promise).then(
       (value) => {
-        if (settled) return;
-        settled = true;
-        clearTimer(timer);
-        resolve({ timedOut: false, value });
+        finish(() => {
+          clearTimer(timer);
+          resolve({ timedOut: false, value });
+        });
       },
       (error) => {
-        if (settled) return;
-        settled = true;
-        clearTimer(timer);
-        reject(error);
+        finish(() => {
+          clearTimer(timer);
+          reject(error);
+        });
       },
     );
   });
@@ -59,4 +94,8 @@ export function withTimeout(promise, milliseconds, options = {}) {
 
 function defaultNow() {
   return performance.now();
+}
+
+function abortError() {
+  return new DOMException('player destroyed', 'AbortError');
 }

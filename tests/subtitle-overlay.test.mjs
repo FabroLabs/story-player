@@ -9,15 +9,17 @@
  *
  * So the rule this file pins is a rule about pixels, not about styling taste:
  * anything painted must be attached to the text, and the toggle must take the
- * whole area away. Everything is read off `styles.css` / `index.html` /
- * `main.mjs`, which is the same technique `shell-dispatch.test.mjs` uses for
- * wiring only a browser walks — a stylesheet is a contract here, and this one
- * broke silently once already.
+ * whole area away. Pixel rules are read from `styles.css`; the toggle runs
+ * through the real instance controller against the repository's strict DOM
+ * fixture, because there is no longer a standalone player document or shell.
  */
 
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
+
+import { createStoryPlayer } from '../browser/embed.mjs';
+import { installDom } from './_dom.mjs';
 
 const read = (path) => fs.readFileSync(new URL(`../browser/${path}`, import.meta.url), 'utf8');
 
@@ -155,37 +157,40 @@ test('an empty line is not drawn at all', () => {
   }
 });
 
-test('turning subtitles off takes the whole subtitle area with it', () => {
+test('turning subtitles off takes the whole subtitle area with it', async (t) => {
   // The toggle bug. `cc` off used to hide `#subtitle` alone, leaving the band
   // it sat in — and, once the band is gone, it would still leave the media
   // note, which reads "narration unavailable · read along" and is a lie the
-  // moment there is nothing to read along with. So the element the toggle
-  // hides must be the one holding both, and the id it is announced under must
-  // be that same element.
-  const shell = read('shell/main.mjs');
-  const page = read('index.html');
+  // moment there is nothing to read along with. The instance must hide the
+  // container holding both lines, not one child.
+  const dom = installDom();
+  t.after(dom.restore);
+  const host = document.createElement('div');
+  const player = createStoryPlayer(host, {
+    story: {
+      storylang_version: 0,
+      cast: {}, objects: {}, audio: { sfx: {}, bgm: {} },
+      scenes: [{
+        place: 'dell',
+        plate: { poster: 'assets/dell.jpg', video: 'assets/dell.mp4' },
+        steps: [],
+      }],
+    },
+    assetBase: 'https://storage.example/',
+  });
+  t.after(() => player.destroy());
+  dom.lastImage().dispatch('load');
+  await player.ready;
 
-  const [, variable] = shell.match(/(\w+)\.hidden = !on;/) ?? [];
-  assert.ok(variable, 'main.mjs no longer hides anything when subtitles are turned off — re-read wireSubtitleToggle by hand');
-
-  const [, hiddenId] = shell.match(new RegExp(`const ${variable} = document\\.getElementById\\('([^']+)'\\)`)) ?? [];
-  assert.ok(hiddenId, `main.mjs hides \`${variable}\`, which it does not fetch by id — re-read wireSubtitleToggle by hand`);
-
-  const [tag] = page.match(new RegExp(`<div[^>]*id="${hiddenId}"[^>]*>`)) ?? [];
-  assert.ok(tag, `the cc toggle hides #${hiddenId}, which is not a container in index.html`);
-  const [, className] = tag.match(/class="([^"]+)"/) ?? [];
-
-  const opensAt = page.indexOf(tag);
-  const area = page.slice(opensAt, page.indexOf('</div>', opensAt));
-  for (const id of ['subtitle', 'media-note']) {
-    assert.ok(area.includes(`id="${id}"`), `#${id} is outside the area the cc toggle hides, so it survives subtitles being off`);
-  }
-
-  assert.match(
-    page,
-    new RegExp(`id="subtitle-toggle"[^>]*aria-controls="${hiddenId}"`),
-    `the cc button announces something other than #${hiddenId}, which is what it actually hides`,
-  );
+  const area = find(host.shadowRoot, (node) => node.className === 'subtitle-wrap');
+  const subtitle = find(host.shadowRoot, (node) => node.className === 'subtitle');
+  const note = find(host.shadowRoot, (node) => node.className === 'media-note');
+  const button = find(host.shadowRoot, (node) => node.getAttribute?.('aria-label') === 'hide subtitles');
+  assert.equal(subtitle.parent, area);
+  assert.equal(note.parent, area);
+  assert.equal(button.dispatch('click'), 1);
+  assert.equal(area.hidden, true);
+  assert.equal(button.getAttribute('aria-pressed'), 'false');
 
   // Same weak-`hidden` trap `.quiet-button[hidden]` and `.end-overlay[hidden]`
   // already carry: the wrap is positioned and displayed by a rule of its own,
@@ -193,7 +198,16 @@ test('turning subtitles off takes the whole subtitle area with it', () => {
   // toggle above is one stylesheet edit from doing nothing, with a green suite.
   assert.match(
     read('styles.css'),
-    new RegExp(`\\.${className.trim().split(' ')[0]}\\[hidden\\]\\s*\\{[^}]*display:\\s*none`),
-    `styles.css does not force the hidden subtitle area (.${className}) to actually disappear`,
+    /\.subtitle-wrap\[hidden\]\s*\{[^}]*display:\s*none/,
+    'styles.css does not force the hidden subtitle area to actually disappear',
   );
 });
+
+function find(root, predicate) {
+  if (predicate(root)) return root;
+  for (const child of root.children ?? []) {
+    const found = find(child, predicate);
+    if (found) return found;
+  }
+  return null;
+}
