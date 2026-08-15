@@ -18,28 +18,41 @@ export class AudioDirector {
   #musicGeneration = 0;
   #narrating = false;
   #audioContext = null;
+  #owned = new Set();
+  #fades = new Set();
+  #starts = new Set();
+  #destroyed = false;
+  #signal;
 
-  constructor(library = {}, onWarning = () => {}) {
+  constructor(library = {}, onWarning = () => {}, { signal = null } = {}) {
     this.#library = library;
     this.#onWarning = onWarning;
+    this.#signal = signal;
   }
 
   unlock() {
-    const AudioContextClass = window.AudioContext ?? window.webkitAudioContext;
-    if (!AudioContextClass) return Promise.resolve();
-    this.#audioContext ??= new AudioContextClass();
-    return this.#audioContext.resume().catch((error) => {
+    if (this.#destroyed) return Promise.resolve();
+    try {
+      const AudioContextClass = window.AudioContext ?? window.webkitAudioContext;
+      if (!AudioContextClass) return Promise.resolve();
+      this.#audioContext ??= new AudioContextClass();
+      return Promise.resolve(this.#audioContext.resume()).catch((error) => {
+        this.#warn('audio-context', null, error);
+      });
+    } catch (error) {
       this.#warn('audio-context', null, error);
-    });
+      return Promise.resolve();
+    }
   }
 
   playSound(name, origin = null) {
+    if (this.#destroyed) return;
     const url = this.#library.sfx?.[name];
     if (!url) {
       this.#warn('sfx', name, new Error('sound is absent from bundle'), origin);
       return;
     }
-    const sound = new Audio(url);
+    const sound = this.#own(new Audio(url));
     sound.preload = 'auto';
     const report = reportOnce((error) => this.#warn('sfx', name, error, origin));
     let start;
@@ -47,14 +60,18 @@ export class AudioDirector {
       report(new Error('sound playback failed'));
       start?.cancel('error');
     }, { once: true });
-    start = startMedia(sound, MEDIA_START_TIMEOUT_MS, {
+    sound.addEventListener('ended', () => this.#release(sound), { once: true });
+    start = this.#beginStart(sound, MEDIA_START_TIMEOUT_MS, {
       onTimeout: () => report(new Error('sound playback start timed out')),
       onError: report,
     });
-    void start.promise;
+    void start.promise.then(({ started }) => {
+      if (!started) this.#release(sound);
+    });
   }
 
   setMusic(name, origin = null) {
+    if (this.#destroyed) return;
     const generation = ++this.#musicGeneration;
     this.#pendingMusicStart?.cancel('superseded');
     this.#pendingMusicStart = null;
@@ -74,7 +91,8 @@ export class AudioDirector {
   }
 
   async playNarration(url, estimatedDurationMs, origin = null) {
-    const narration = new Audio(url);
+    if (this.#destroyed) return { ok: false, elapsedMs: 0 };
+    const narration = this.#own(new Audio(url));
     narration.preload = 'auto';
     const startedAt = performance.now();
     const completion = mediaCompletion(narration);
@@ -84,6 +102,7 @@ export class AudioDirector {
       const playback = Promise.resolve(narration.play()).then(() => completion);
       const result = await withTimeout(playback, estimatedDurationMs + NARRATION_GRACE_MS, {
         onTimeout: () => this.#warn('narration', url, new Error('narration playback timed out'), origin),
+        signal: this.#signal,
       });
       if (result.timedOut) {
         narration.pause();
@@ -101,11 +120,13 @@ export class AudioDirector {
       return { ok: false, elapsedMs: performance.now() - startedAt };
     } finally {
       this.#setNarrating(false);
+      this.#release(narration);
     }
   }
 
   async #replaceMusic(name, url, generation, origin) {
-    const next = new Audio(url);
+    if (this.#destroyed) return;
+    const next = this.#own(new Audio(url));
     next.loop = true;
     next.preload = 'auto';
     next.volume = 0;
@@ -115,18 +136,20 @@ export class AudioDirector {
       report(new Error('music playback failed'));
       start?.cancel('error');
     }, { once: true });
-    start = startMedia(next, MEDIA_START_TIMEOUT_MS, {
+    start = this.#beginStart(next, MEDIA_START_TIMEOUT_MS, {
       onTimeout: () => report(new Error('music playback start timed out')),
       onError: report,
     });
     this.#pendingMusicStart = start;
     const result = await start.promise;
     if (this.#pendingMusicStart === start) this.#pendingMusicStart = null;
-    if (!result.started) return;
+    if (!result.started) {
+      this.#release(next);
+      return;
+    }
 
-    if (generation !== this.#musicGeneration) {
-      next.pause();
-      next.removeAttribute('src');
+    if (this.#destroyed || generation !== this.#musicGeneration) {
+      this.#release(next);
       return;
     }
     const previous = this.#music;
@@ -138,8 +161,7 @@ export class AudioDirector {
 
   async #fadeOut(audio, generation) {
     await this.#fadeVolume(audio, 0, MUSIC_FADE_MS, generation, false);
-    audio.pause();
-    audio.removeAttribute('src');
+    this.#release(audio);
   }
 
   #setNarrating(active) {
@@ -155,21 +177,28 @@ export class AudioDirector {
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     return new Promise((resolve) => {
+      const fade = { frame: null, resolve };
+      this.#fades.add(fade);
+      const finish = () => {
+        if (!this.#fades.delete(fade)) return;
+        resolve();
+      };
       const update = (now) => {
-        if (stopWhenStale && generation !== this.#musicGeneration) {
-          resolve();
+        if (this.#destroyed || (stopWhenStale && generation !== this.#musicGeneration)) {
+          finish();
           return;
         }
         const progress = reducedMotion ? 1 : Math.min(1, (now - startedAt) / durationMs);
         audio.volume = clampVolume(start + ((target - start) * progress));
-        if (progress < 1) requestAnimationFrame(update);
-        else resolve();
+        if (progress < 1) fade.frame = requestAnimationFrame(update);
+        else finish();
       };
-      requestAnimationFrame(update);
+      fade.frame = requestAnimationFrame(update);
     });
   }
 
   #warn(asset, name, error, origin = null) {
+    if (this.#destroyed) return;
     const context = normalizeOrigin(origin);
     this.#onWarning({
       type: 'media',
@@ -178,6 +207,45 @@ export class AudioDirector {
       message: error?.message ?? String(error),
       ...context,
     });
+  }
+
+  #own(media) {
+    this.#owned.add(media);
+    return media;
+  }
+
+  #release(media) {
+    if (!this.#owned.delete(media)) return;
+    media.pause();
+    media.removeAttribute?.('src');
+  }
+
+  #beginStart(media, timeoutMs, options) {
+    const start = startMedia(media, timeoutMs, options);
+    this.#starts.add(start);
+    void start.promise.finally(() => this.#starts.delete(start));
+    return start;
+  }
+
+  destroy() {
+    if (this.#destroyed) return;
+    this.#destroyed = true;
+    this.#musicGeneration += 1;
+    this.#pendingMusicStart?.cancel('destroyed');
+    this.#pendingMusicStart = null;
+    for (const start of this.#starts) start.cancel('destroyed');
+    this.#starts.clear();
+    for (const fade of this.#fades) {
+      if (fade.frame !== null) cancelAnimationFrame(fade.frame);
+      fade.resolve();
+    }
+    this.#fades.clear();
+    for (const media of [...this.#owned]) this.#release(media);
+    this.#music = null;
+    try {
+      void Promise.resolve(this.#audioContext?.close?.()).catch(() => {});
+    } catch { /* teardown remains best-effort after every owned medium stopped */ }
+    this.#audioContext = null;
   }
 }
 

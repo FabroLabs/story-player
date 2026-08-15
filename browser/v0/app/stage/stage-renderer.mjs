@@ -56,6 +56,8 @@ export class StageRenderer {
   #actors = new ActorRegistry();
   #spriteAssets = new SpriteAssetTracker();
   #spriteLoads = new Map();
+  #plateWait = null;
+  #platePlaybackError = null;
   #scene = null;
   #sceneToken = 0;
   #animationFrame = null;
@@ -63,6 +65,7 @@ export class StageRenderer {
   #framing = WIDE_FRAMING;
   #followSlug = null;
   #parallax;
+  #destroyed = false;
 
   // `parallax` is an argument and not just the constant so that the far plane can
   // be switched on for the plates that earn it and stay off for the rest — the
@@ -82,8 +85,9 @@ export class StageRenderer {
   }
 
   startAnimation() {
-    if (this.#animationFrame !== null) return;
+    if (this.#destroyed || this.#animationFrame !== null) return;
     const animate = (timeMs) => {
+      if (this.#destroyed) return;
       this.#drawFrames(timeMs);
       this.#animationFrame = requestAnimationFrame(animate);
     };
@@ -91,6 +95,7 @@ export class StageRenderer {
   }
 
   showScene(scene, origin = { line: scene.line ?? null }) {
+    if (this.#destroyed) return;
     this.#scene = scene;
     this.#sceneToken += 1;
     this.#clearActors();
@@ -491,44 +496,77 @@ export class StageRenderer {
 
   async #loadPlate(plate = {}, token, origin) {
     const { video, poster } = this.#elements;
+    this.#cancelPlateReadiness();
+    this.#removePlatePlaybackError();
     video.pause();
     video.classList.remove('is-ready');
     poster.classList.remove('is-ready');
     poster.style.backgroundImage = plate.poster ? `url("${cssUrl(plate.poster)}")` : 'none';
     video.poster = plate.poster ?? '';
     video.src = plate.video ?? '';
-    video.load();
-
+    const controller = new AbortController();
+    let onCanPlay;
+    let onError;
     const ready = new Promise((resolve, reject) => {
-      video.addEventListener('canplay', resolve, { once: true });
-      video.addEventListener('error', () => reject(new Error('video failed to load')), { once: true });
+      onCanPlay = resolve;
+      onError = () => reject(new Error('video failed to load'));
+      video.addEventListener('canplay', onCanPlay, { once: true });
+      video.addEventListener('error', onError, { once: true });
     });
+    const cleanup = () => {
+      video.removeEventListener('canplay', onCanPlay);
+      video.removeEventListener('error', onError);
+    };
+    const wait = { controller, cleanup };
+    this.#plateWait = wait;
+    video.load();
 
     try {
       const result = await withTimeout(ready, VIDEO_READY_TIMEOUT_MS, {
         onTimeout: () => this.#warn({ type: 'media', asset: 'plate-video', url: plate.video, message: 'video load timed out; poster retained' }, origin),
+        signal: controller.signal,
       });
       if (result.timedOut || token !== this.#sceneToken) return;
       await video.play();
       if (token !== this.#sceneToken) return;
-      video.addEventListener('error', () => {
+      const playbackError = () => {
         if (token !== this.#sceneToken) return;
         this.#warn({ type: 'media', asset: 'plate-video', url: plate.video, message: 'video playback failed; poster restored' }, origin);
         video.classList.remove('is-ready');
         poster.classList.remove('is-ready');
-      }, { once: true });
+        this.#platePlaybackError = null;
+      };
+      this.#platePlaybackError = playbackError;
+      video.addEventListener('error', playbackError, { once: true });
       video.classList.add('is-ready');
       poster.classList.add('is-ready');
     } catch (error) {
-      if (token !== this.#sceneToken) return;
+      if (error?.name === 'AbortError' || token !== this.#sceneToken) return;
       this.#warn({ type: 'media', asset: 'plate-video', url: plate.video, message: error.message }, origin);
       video.classList.remove('is-ready');
       poster.classList.remove('is-ready');
+    } finally {
+      cleanup();
+      if (this.#plateWait === wait) this.#plateWait = null;
     }
   }
 
+  #cancelPlateReadiness() {
+    const wait = this.#plateWait;
+    if (!wait) return;
+    this.#plateWait = null;
+    wait.cleanup();
+    wait.controller.abort();
+  }
+
+  #removePlatePlaybackError() {
+    if (!this.#platePlaybackError) return;
+    this.#elements.video.removeEventListener('error', this.#platePlaybackError);
+    this.#platePlaybackError = null;
+  }
+
   #verifySprite(url, slug, clipKey, origin) {
-    if (!url) return;
+    if (!url || this.#destroyed) return;
     const status = this.#spriteAssets.start(url);
     this.#applySpriteStatus(url, status);
     if (status.state !== 'loading' || this.#spriteLoads.has(url)) return;
@@ -546,11 +584,13 @@ export class StageRenderer {
     image.addEventListener('load', () => {
       clearTimeout(timer);
       this.#spriteLoads.delete(url);
+      if (this.#destroyed) return;
       this.#applySpriteStatus(url, this.#spriteAssets.markReady(url));
     }, { once: true });
     image.addEventListener('error', () => {
       clearTimeout(timer);
       this.#spriteLoads.delete(url);
+      if (this.#destroyed) return;
       const failed = this.#spriteAssets.markFailed(url);
       this.#applySpriteStatus(url, failed);
       if (failed.warn) {
@@ -568,10 +608,12 @@ export class StageRenderer {
   }
 
   #warn(detail, origin) {
+    if (this.#destroyed) return;
     this.#onWarning({ ...detail, ...normalizeOrigin(origin) });
   }
 
   #fitStage() {
+    if (this.#destroyed) return;
     const box = this.#elements.frame.getBoundingClientRect();
     const width = this.#elements.stage.offsetWidth || 1920;
     const height = this.#elements.stage.offsetHeight || DEFAULT_STAGE_RESOLUTION[1];
@@ -581,6 +623,28 @@ export class StageRenderer {
   #clearActors() {
     for (const actor of this.#actors.values()) actor.element.remove();
     this.#actors.clear();
+  }
+
+  destroy() {
+    if (this.#destroyed) return;
+    this.#destroyed = true;
+    this.#sceneToken += 1;
+    if (this.#animationFrame !== null) cancelAnimationFrame(this.#animationFrame);
+    this.#animationFrame = null;
+    this.#resizeObserver?.disconnect();
+    this.#resizeObserver = null;
+    this.#cancelPlateReadiness();
+    this.#removePlatePlaybackError();
+    for (const { image, timer } of this.#spriteLoads.values()) {
+      clearTimeout(timer);
+      image.removeAttribute?.('src');
+    }
+    this.#spriteLoads.clear();
+    const video = this.#elements.video;
+    video.pause();
+    video.removeAttribute?.('src');
+    video.load?.();
+    this.#clearActors();
   }
 }
 

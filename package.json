@@ -1,7 +1,8 @@
 {
   "name": "@fabrolabs/story-player",
-  "version": "0.1.1",
-  "description": "Dependency-free browser performer and v0 tooling contracts for Storylang bundles.",
+  "version": "0.0.0-development",
+  "private": true,
+  "description": "Source and build tooling for the self-contained Fabro Story Player CDN artifact.",
   "type": "module",
   "license": "MIT",
   "repository": {
@@ -11,16 +12,21 @@
   "engines": {
     "node": ">=22"
   },
-  "files": [
-    "browser/",
-    "tooling/"
-  ],
-  "exports": {
-    "./host": "./browser/host.mjs",
-    "./v0/tooling": "./tooling/v0.mjs"
-  },
   "scripts": {
     "test": "node --test \"tests/*.test.mjs\"",
-    "verify:package": "node scripts/verify-package.mjs"
+    "build:cdn": "node scripts/build-cdn.mjs",
+    "publish:cdn": "node scripts/publish-cdn.mjs",
+    "rollback:cdn": "node scripts/rollback-cdn.mjs",
+    "test:e2e": "playwright test",
+    "verify:cdn": "node scripts/verify-cdn.mjs",
+    "verify:repository": "node scripts/verify-repository.mjs"
+  },
+  "devDependencies": {
+    "@aws-sdk/client-s3": "3.1111.0",
+    "@playwright/test": "1.62.1",
+    "esbuild": "0.25.8",
+    "jsdom": "26.1.0",
+    "react": "19.1.1",
+    "react-dom": "19.1.1"
   }
 }

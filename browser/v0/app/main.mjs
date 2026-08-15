@@ -7,131 +7,147 @@ import { StageRenderer } from './stage/stage-renderer.mjs';
 import { resolveStoryAssets } from './urls.mjs';
 import { routeWarning } from './warning-router.mjs';
 
-const dom = collectDom();
-const params = new URLSearchParams(window.location.search);
-const debug = new DebugPanel(dom.debug, params.get('debug') === '1');
-const clock = new StoryClock();
-const log = new ObservableEventLog(clock, (entry, entries) => debug.addEntry(entry, entries));
-let playback = null;
+const SUBTITLES_KEY = 'storytime:subtitles';
 
-/**
- * Perform a v0 bundle. `player/shell/main.mjs` has already read the version off it
- * and chosen this module; the story arrives parsed and the URL resolved, so
- * there is nothing left here to fetch or to doubt. Returns once the begin click
- * is armed — the shell's error surface is for the load, not for the story.
- */
-export function performStory(story, { storyUrl, assetBase }) {
-  try {
-    // Project the whole bundle once, before any consumer exists. Every
-    // preloader, renderer and recovery path then sees the exact same URL.
-    const runtimeStory = resolveStoryAssets(story, assetBase);
-    document.title = runtimeStory.title ? `${runtimeStory.title} · storytime` : 'storytime';
-    dom.title.textContent = runtimeStory.title ?? 'tonight’s story';
+export function createV0Player({ root, elements, story, assetBase, signal, debug = false }) {
+  const clock = new StoryClock({ signal });
+  const panel = new DebugPanel(elements.debug, debug, { eventTarget: root });
+  const log = new ObservableEventLog(clock, (entry, entries) => panel.addEntry(entry, entries));
+  const cleanups = [wireSubtitleToggle(elements)];
+  let stage = null;
+  let audio = null;
+  let director = null;
+  let runtimeStory = null;
+  let destroyed = false;
+  let startHandler = null;
+  const ready = initialize();
 
-    let director;
-    const warn = (detail) => routeWarning(detail, director, log);
-    const stage = new StageRenderer(dom.stage, warn);
-    const audio = new AudioDirector(runtimeStory.audio, warn);
-    director = new PlaybackDirector({ story: runtimeStory, storyUrl, stage, audio, clock, log });
-    playback = { director, stage, audio, story: runtimeStory };
+  return {
+    ready,
+    destroy() {
+      if (destroyed) return;
+      destroyed = true;
+      if (startHandler) elements.start.removeEventListener('click', startHandler);
+      for (const cleanup of cleanups) cleanup();
+      director?.destroy?.();
+      stage?.destroy?.();
+      audio?.destroy?.();
+      panel.destroy();
+    },
+  };
 
-    // The begin button waits for the first scene's sheets. Before this the
-    // story started instantly and then assembled itself on screen — every
-    // sheet fetched the moment a clip first needed it, which on a slow link
-    // means the first minute is a slideshow of half-drawn characters. A story
-    // that starts three seconds later and then plays whole is the better
-    // trade, and it is the only one a viewer can see.
-    armStart(runtimeStory);
-  } catch (error) {
-    // The drawer belongs to this module, and by now it is live. The shell will
-    // paint the message; a failure that happened in here must also leave the
-    // structured trace anyone debugging it will go looking for — but the
-    // report writes DOM of its own, so it is never allowed to become the
-    // error. If the drawer is the thing that broke, the real cause still gets
-    // out.
+  async function initialize() {
     try {
-      log.warning({ type: 'bundle', message: error.message });
-    } catch { /* the original error is the one worth having */ }
-    throw error;
+      runtimeStory = resolveStoryAssets(story, assetBase);
+      elements.title.textContent = runtimeStory.title ?? 'tonight’s story';
+      let routedDirector = null;
+      const warn = (detail) => routeWarning(detail, routedDirector, log);
+      stage = new StageRenderer(elements.stage, warn);
+      audio = new AudioDirector(runtimeStory.audio, warn, { signal });
+      director = new PlaybackDirector({ story: runtimeStory, stage, audio, clock, log, signal });
+      routedDirector = director;
+      await armStart();
+    } catch (error) {
+      if (error?.name !== 'AbortError') {
+        try {
+          log.warning({ type: 'bundle', message: error.message });
+        } catch { /* preserve the initialization error */ }
+      }
+      throw error;
+    }
   }
-}
 
-async function armStart(story) {
-  const urls = firstPaintAssets(story, story.scenes?.[0]);
-  dom.start.disabled = true;
-  try {
-    await preload(urls, {
+  async function armStart() {
+    const urls = firstPaintAssets(runtimeStory, runtimeStory.scenes?.[0]);
+    elements.start.disabled = true;
+    const result = await preload(urls, {
+      signal,
       onProgress: (done, total) => {
-        dom.status.textContent = total
+        if (signal.aborted || destroyed) return;
+        elements.status.textContent = total
           ? `loading the opening… ${done}/${total}`
           : 'ready when you are';
       },
     });
-  } catch (error) {
-    // Never a reason not to start: `preload` already swallows a broken asset,
-    // so reaching here means something stranger — and a story that will not
-    // begin is worse than one that begins with a gap in it.
-    log.warning({ type: 'media', asset: 'preload', message: error.message });
+    throwIfAborted(signal);
+    if (result.failed > 0) {
+      director.warning({
+        type: 'media',
+        asset: 'preload',
+        message: `${result.failed} opening preload failed; playback may use placeholders`,
+      });
+    }
+    elements.status.textContent = 'ready when you are';
+    elements.start.disabled = false;
+    startHandler = () => { void startStory(); };
+    elements.start.addEventListener('click', startHandler, { once: true });
   }
-  dom.status.textContent = 'ready when you are';
-  dom.start.disabled = false;
-  dom.start.addEventListener('click', startStory, { once: true });
+
+  async function startStory() {
+    if (destroyed || signal.aborted) return;
+    elements.start.disabled = true;
+    elements.status.textContent = 'opening the story…';
+    void audio.unlock();
+    clock.start();
+    stage.startAnimation();
+    elements.ceremony.classList.add('is-gone');
+    void queueRemainingScenes(runtimeStory, {
+      signal,
+      onScene: (index, count) => {
+        if (destroyed || signal.aborted) return;
+        log.append({
+          scene_index: index, line: null, kind: 'note',
+          detail: { type: 'media', asset: 'preload', scene: index, assets: count },
+        });
+      },
+    }).catch((error) => {
+      if (error?.name !== 'AbortError') director.warning({ type: 'media', asset: 'preload', message: error.message });
+    });
+    try {
+      await director.play();
+    } catch (error) {
+      if (destroyed || error?.name === 'AbortError') return;
+      director.warning({ type: 'playback', message: error.message });
+      elements.ceremony.classList.remove('is-gone');
+      elements.title.textContent = 'the story paused';
+      elements.status.textContent = 'open the event log for details';
+      elements.status.classList.add('is-error');
+    }
+  }
 }
 
-async function startStory() {
-  dom.start.disabled = true;
-  dom.status.textContent = 'opening the story…';
-  void playback.audio.unlock();
-  clock.start();
-  playback.stage.startAnimation();
-  dom.ceremony.classList.add('is-gone');
-  // Everything after scene 1, one scene at a time, while scene 1 plays. Not
-  // awaited: it is a cache warm, and the story must never wait on it.
-  void queueRemainingScenes(playback.story, {
-    onScene: (index, count) => log.append({
-      scene_index: index, line: null, kind: 'note',
-      detail: { type: 'media', asset: 'preload', scene: index, assets: count },
-    }),
-  });
-
-  try {
-    await playback.director.play();
-  } catch (error) {
-    playback.director.warning({ type: 'playback', message: error.message });
-    dom.ceremony.classList.remove('is-gone');
-    dom.title.textContent = 'the story paused';
-    dom.status.textContent = 'open the event log for details';
-    dom.status.classList.add('is-error');
-  }
-}
-
-function collectDom() {
-  const byId = (id) => document.getElementById(id);
-  return {
-    title: byId('story-title'),
-    status: byId('load-status'),
-    start: byId('start-button'),
-    ceremony: byId('start-ceremony'),
-    stage: {
-      frame: byId('stage-frame'),
-      stage: byId('logical-stage'),
-      camera: byId('camera-layer'),
-      plate: byId('plate-layer'),
-      poster: byId('plate-poster'),
-      video: byId('plate-video'),
-      sprites: byId('sprite-layer'),
-      subtitle: byId('subtitle'),
-      mediaNote: byId('media-note'),
-      end: byId('end-overlay'),
-    },
-    debug: {
-      panel: byId('debug-panel'),
-      toggle: byId('debug-toggle'),
-      close: byId('debug-close'),
-      copy: byId('copy-log'),
-      download: byId('download-log'),
-      list: byId('event-list'),
-      status: byId('debug-status'),
-    },
+function wireSubtitleToggle(elements) {
+  const { subtitles: button, subtitleArea: area } = elements;
+  apply(readPreference(SUBTITLES_KEY) !== 'off');
+  const onClick = () => {
+    const next = button.getAttribute('aria-pressed') !== 'true';
+    apply(next);
+    writePreference(SUBTITLES_KEY, next ? 'on' : 'off');
   };
+  button.addEventListener('click', onClick);
+  return () => button.removeEventListener('click', onClick);
+
+  function apply(on) {
+    area.hidden = !on;
+    button.setAttribute('aria-pressed', String(on));
+    button.setAttribute('aria-label', on ? 'hide subtitles' : 'show subtitles');
+  }
+}
+
+function readPreference(key) {
+  try {
+    return globalThis.window?.localStorage?.getItem(key) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function writePreference(key, value) {
+  try {
+    globalThis.window?.localStorage?.setItem(key, value);
+  } catch { /* a preference may remain session-only */ }
+}
+
+function throwIfAborted(signal) {
+  if (signal.aborted) throw new DOMException('player destroyed', 'AbortError');
 }

@@ -1,4 +1,5 @@
-:root {
+:host {
+  display: block;
   color-scheme: dark;
   --ink: #08091a;
   --ink-soft: #11142c;
@@ -8,15 +9,12 @@
   --glass: rgba(20, 23, 48, 0.72);
   --line: rgba(229, 222, 192, 0.14);
   font-family: ui-rounded, "SF Pro Rounded", "Segoe UI", system-ui, sans-serif;
-  background: var(--ink);
 }
 
 * { box-sizing: border-box; }
 
-html, body { min-height: 100%; }
-
-body {
-  margin: 0;
+.player-shell {
+  min-height: 100%;
   color: #f7f5ef;
   overflow-x: hidden;
   background:
@@ -33,7 +31,6 @@ button:focus-visible {
 
 .player-shell {
   width: min(100%, 112rem);
-  min-height: 100vh;
   margin: 0 auto;
   padding: 1rem clamp(1rem, 3vw, 3.25rem) clamp(1.5rem, 4vw, 3.5rem);
   display: grid;
@@ -487,7 +484,7 @@ button:focus-visible {
   font-size: 0.7rem;
 }
 
-#debug-status { margin-left: auto; color: var(--moon); font-size: 0.66rem; }
+.debug-status { margin-left: auto; color: var(--moon); font-size: 0.66rem; }
 
 .event-list {
   margin: 0;

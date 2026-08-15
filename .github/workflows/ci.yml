@@ -18,8 +18,10 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci --ignore-scripts
-      - run: node --test "tests/*.test.mjs"
-      - run: npm pack --dry-run --json
-      - run: npm pack --json
-      - run: node scripts/verify-package.mjs
-      - run: node scripts/verify-install.mjs ./fabrolabs-story-player-*.tgz
+      - run: npx playwright install --with-deps chromium
+      - run: npm test
+      - run: npm run build:cdn
+        env:
+          STORY_PLAYER_COMMIT: ${{ github.sha }}
+      - run: npm run test:e2e
+      - run: npm run verify:repository

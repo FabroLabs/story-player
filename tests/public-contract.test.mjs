@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import test from 'node:test';
 
-import * as host from '../browser/host.mjs';
+import * as embed from '../browser/embed.mjs';
 import { StageRenderer } from '../browser/v0/app/stage/stage-renderer.mjs';
 import * as tooling from '../tooling/v0.mjs';
 
+const ROOT = new URL('../', import.meta.url);
 const EXPECTED_TOOLING_EXPORTS = [
   'EventLog',
   'MINIMUM_SPRITE_HEIGHT_PX',
@@ -27,35 +29,33 @@ const EXPECTED_TOOLING_EXPORTS = [
   'zoneNamed',
 ];
 
-test('host exposes only the stable host integration facade', () => {
-  assert.deepEqual(Object.keys(host).sort(), [
-    'normalizeAssetBase',
-    'resolveAssetKey',
-    'resolveStoryUrl',
-  ]);
+test('the source embed facade exposes only the framework-neutral API', () => {
+  assert.deepEqual(Object.keys(embed).sort(), ['createStoryPlayer', 'resolveMediaUrl']);
 });
 
-test('v0 tooling exposes exactly the versioned renderer semantics', () => {
+test('the removed standalone, host, and shell entry points stay absent', () => {
+  for (const path of [
+    'browser/index.html',
+    'browser/host.mjs',
+    'browser/shell/main.mjs',
+    'browser/shell/performers.mjs',
+    'browser/shell/urls.mjs',
+  ]) assert.equal(fs.existsSync(new URL(path, ROOT)), false, `${path} came back`);
+
+  const embedSource = fs.readFileSync(new URL('browser/embed.mjs', ROOT), 'utf8');
+  assert.doesNotMatch(embedSource, /storyUrl|\bfetch\s*\(/);
+  const appSource = fs.readFileSync(new URL('browser/v0/app/main.mjs', ROOT), 'utf8');
+  const templateSource = fs.readFileSync(new URL('browser/template.mjs', ROOT), 'utf8');
+  assert.doesNotMatch(appSource, /document\.title|document\.getElementById|window\.location/);
+  assert.doesNotMatch(templateSource, /\bid\s*:/, 'the Shadow DOM template reintroduced document-global ids');
+});
+
+test('v0 tooling keeps the exact renderer semantics mobile projection consumes', () => {
   assert.deepEqual(Object.keys(tooling).sort(), EXPECTED_TOOLING_EXPORTS.sort());
-});
-
-test('V0_STAGE_METHODS is the frozen director-to-stage contract', () => {
   assert.deepEqual(tooling.V0_STAGE_METHODS, [
-    'departCharacter',
-    'floorY',
-    'follow',
-    'followOff',
-    'moveCharacter',
-    'panTo',
-    'placeCharacter',
-    'placeObject',
-    'pullOut',
-    'pushIn',
-    'resetCamera',
-    'setCharacterClip',
-    'setShot',
-    'setSubtitle',
-    'showEnd',
+    'departCharacter', 'floorY', 'follow', 'followOff', 'moveCharacter',
+    'panTo', 'placeCharacter', 'placeObject', 'pullOut', 'pushIn',
+    'resetCamera', 'setCharacterClip', 'setShot', 'setSubtitle', 'showEnd',
     'showScene',
   ]);
   assert.ok(Object.isFrozen(tooling.V0_STAGE_METHODS));
@@ -63,26 +63,18 @@ test('V0_STAGE_METHODS is the frozen director-to-stage contract', () => {
     tooling.V0_STAGE_METHODS.filter((method) => typeof StageRenderer.prototype[method] !== 'function'),
     [],
   );
-});
-
-test('V0_POLICY publishes the exact deeply frozen v0 numbers', () => {
+  assertDeeplyFrozen(tooling.V0_POLICY);
   assert.deepEqual(tooling.V0_POLICY, {
     version: 0,
     geometry: {
-      sideFraction: {
-        left_edge: 0.1,
-        left_third: 0.3,
-        center: 0.5,
-        right_third: 0.7,
-        right_edge: 0.9,
-      },
+      sideFraction: { left_edge: 0.1, left_third: 0.3, center: 0.5, right_third: 0.7, right_edge: 0.9 },
       standFraction: 0.5,
       noFloorStandY: 86,
     },
     presentation: {
       spritePxPerCm: 10,
       spriteKneeCm: 40,
-      spritePxPerCmAboveKnee: 100 / 70,
+      spritePxPerCmAboveKnee: 10 / 7,
       minimumSpriteHeightPx: 72,
       spriteSourcePx: 512,
       closeScaleCeiling: 3.5,
@@ -112,8 +104,6 @@ test('V0_POLICY publishes the exact deeply frozen v0 numbers', () => {
       narrationGraceMs: 4000,
     },
   });
-  assert.equal(Object.hasOwn(tooling.V0_POLICY.stage.cameraDurationsMs, 'fast'), false);
-  assertDeeplyFrozen(tooling.V0_POLICY);
 });
 
 function assertDeeplyFrozen(value) {

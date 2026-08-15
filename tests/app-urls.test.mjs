@@ -1,182 +1,165 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { resolveStoryUrl } from '../browser/shell/urls.mjs';
 import {
   normalizeAssetBase,
-  resolveAssetKey,
-  resolveNarrationUrl,
+  resolveMediaUrl,
   resolveStoryAssets,
 } from '../browser/v0/app/urls.mjs';
 
-test('resolves a story query path from the repository root instead of the player directory', () => {
-  const pageUrl = 'http://localhost:8000/player/index.html?story=build/ruby/story.json';
+const BASE = 'https://storage.example.com/root';
 
+test('resolves bucket-qualified media under the one caller-supplied storage base', () => {
   assert.equal(
-    resolveStoryUrl('build/ruby/story.json', pageUrl),
-    'http://localhost:8000/build/ruby/story.json',
+    resolveMediaUrl('fairytale-assets/sprites/rabbit/idle.png', BASE),
+    'https://storage.example.com/root/fairytale-assets/sprites/rabbit/idle.png',
+  );
+  assert.equal(
+    resolveMediaUrl('jobs/story-7/audio/voice.wav', BASE),
+    'https://storage.example.com/root/jobs/story-7/audio/voice.wav',
+  );
+  assert.equal(
+    resolveMediaUrl('audio/voice.wav', BASE),
+    'https://storage.example.com/root/audio/voice.wav',
+    'a syntactically valid bucket cannot be guessed to be a legacy directory',
+  );
+  assert.equal(
+    resolveMediaUrl('999.999.999.999/object.png', BASE),
+    'https://storage.example.com/root/999.999.999.999/object.png',
+    'numeric DNS names that are not IP addresses remain valid S3 bucket names',
   );
 });
 
-// Each case names the rule that must refuse it, not merely THAT it is refused:
-// the rules overlap, so asserting "it throws" leaves any one of them deletable
-// with the suite green. The message is the reader's only clue, and it is the
-// one thing that tells the rules apart.
-const HOSTILE = [
-  ['https://evil.example/story.json', 'not a full URL'],
-  ['HTTPS://evil.example/story.json', 'not a full URL'],
-  ['javascript:alert(1)', 'not a full URL'],
-  ['data:application/json,{}', 'not a full URL'],
-  ['//evil.example/story.json', 'not another host'],
-  // a backslash is a slash to the URL parser for http(s), so these name a host
-  // just as surely as `//` does, and no `/`-only rule sees it
-  ['\\\\evil.example/story.json', 'not another host'],
-  ['/\\evil.example/story.json', 'not another host'],
-  ['../../../etc/passwd', 'may not climb'],
-  ['build/../../etc/passwd', 'may not climb'],
-  ['..\\..\\etc\\passwd', 'may not climb'],
-  // the same climbs in spellings a text search does not recognise but the URL
-  // parser does: these went through while the plain `../../x` was refused
-  ['build/%2e%2e/%2e%2e/etc/passwd', 'may not climb'],
-  ['.%2e/.%2e/etc/passwd', 'may not climb'],
-  ['%2E%2E/x.json', 'may not climb'],
-];
-
-test('refuses a ?story= that points anywhere but this site, naming the rule', () => {
-  // the bundle is trusted once fetched — its fields drive video.src, new Audio()
-  // and background-image — so a link that chooses the bundle chooses what this
-  // origin performs
-  for (const pageUrl of [
-    'http://localhost:8000/player/index.html',
-    // and again with the player served from a subdirectory, which is the shape
-    // the web app uses: there really is somewhere above it to climb to
-    'https://app.example/ui/player/index.html',
-  ]) {
-    for (const [hostile, rule] of HOSTILE) {
-      assert.throws(
-        () => resolveStoryUrl(hostile, pageUrl),
-        (error) =>
-          error.message.startsWith(`refusing ?story=${hostile} —`) &&
-          error.message.includes(rule),
-        `${hostile} on ${pageUrl}: expected the "${rule}" rule`,
-      );
-    }
-  }
-});
-
-test('a story path on this site still resolves from the repository root', () => {
-  const pageUrl = 'http://localhost:8000/player/index.html';
-
-  assert.equal(resolveStoryUrl('build/x/story.json', pageUrl), 'http://localhost:8000/build/x/story.json');
-  assert.equal(resolveStoryUrl('./build/x/story.json', pageUrl), 'http://localhost:8000/build/x/story.json');
-  // a leading slash is this origin too, and is what the web app will serve
-  assert.equal(resolveStoryUrl('/stories/7/story.json', pageUrl), 'http://localhost:8000/stories/7/story.json');
-  // a story whose name merely contains dots is not a climb
-  assert.equal(resolveStoryUrl('build/v1.2/story.json', pageUrl), 'http://localhost:8000/build/v1.2/story.json');
-  assert.equal(resolveStoryUrl('', pageUrl), null);
-});
-
-test('resolves bundled narration beside story.json and refuses absolute narration', () => {
-  const storyUrl = 'http://localhost:8000/build/ruby/story.json';
-
-  assert.equal(resolveNarrationUrl('audio/voice.wav', storyUrl), 'http://localhost:8000/build/ruby/audio/voice.wav');
-  assert.throws(() => resolveNarrationUrl('https://media.example/voice.wav', storyUrl), /asset key/);
-  assert.equal(resolveNarrationUrl(null, storyUrl), null);
-});
-
 test('normalizes a trusted asset base as a directory without dropping its path', () => {
-  assert.equal(normalizeAssetBase('https://cdn.example/v2/fairytale-assets'), 'https://cdn.example/v2/fairytale-assets/');
-  assert.equal(resolveAssetKey('sprites/rabbit/idle.png', 'https://cdn.example/v2/fairytale-assets'), 'https://cdn.example/v2/fairytale-assets/sprites/rabbit/idle.png');
+  assert.equal(normalizeAssetBase(BASE), `${BASE}/`);
 });
 
-test('refuses unsafe asset bases and keys before URL resolution', () => {
+test('refuses unsafe bases and any path that is not bucket-qualified', () => {
   for (const base of [
     '',
     '/assets',
-    'ftp://cdn.example/assets',
-    'https://user:secret@cdn.example/assets',
-    'https://cdn.example/assets?version=1',
-    'https://cdn.example/assets#current',
+    'ftp://storage.example/assets',
+    'https://user:secret@storage.example/assets',
+    'https://storage.example/assets?version=1',
+    'https://storage.example/assets#current',
   ]) assert.throws(() => normalizeAssetBase(base), /asset base/);
 
-  for (const key of [
+  for (const mediaPath of [
     '',
+    'story.json',
     'https://evil.example/x.png',
     '//evil.example/x.png',
-    '/sprites/x.png',
-    'sprites/../x.png',
-    'sprites/%2e%2e/x.png',
-    'sprites//x.png',
-    'sprites\\x.png',
-    'sprites/x.png?download=1',
-  ]) assert.throws(() => resolveAssetKey(key, 'https://cdn.example/assets'), /asset key/);
+    '/fairytale-assets/sprites/x.png',
+    'fairytale-assets/sprites/../x.png',
+    'fairytale-assets/sprites/./x.png',
+    'fairytale-assets/sprites/%2e%2e/x.png',
+    'fairytale-assets/sprites/%2fsecret.png',
+    'fairytale-assets/sprites/%5csecret.png',
+    'fairytale-assets/sprites//x.png',
+    'fairytale-assets\\sprites\\x.png',
+    'fairytale-assets/sprites/x.png?download=1',
+    'fairytale-assets/sprites/x.png#frame',
+    'a.-b/object.png',
+    'a-.b/object.png',
+    '127.0.0.1/object.png',
+    'Abc/object.png',
+    'ab/object.png',
+    `${'a'.repeat(64)}/object.png`,
+    '-abc/object.png',
+    'abc-/object.png',
+    'a..b/object.png',
+  ]) assert.throws(() => resolveMediaUrl(mediaPath, BASE), /media path/);
 });
 
-test('projects every bucket key once without mutating narration or the input bundle', () => {
+test('projects permanent and narration media once without mutating the saved bundle', () => {
   const story = {
     cast: {
       rabbit: {
         clips: {
-          idle: { spritesheet: 'sprites/rabbit/idle.png', atlas: 'sprites/rabbit/idle.json' },
+          idle: {
+            spritesheet: 'fairytale-assets/sprites/rabbit/idle.png',
+            atlas: 'fairytale-assets/sprites/rabbit/idle.json',
+          },
         },
       },
     },
-    objects: { lamp: { svg: 'objects/lamp.svg' } },
-    audio: { sfx: { pop: 'audio/sfx/pop.mp3' }, bgm: { calm: 'audio/bgm/calm.mp3' } },
+    objects: { lamp: { svg: 'fairytale-assets/objects/lamp.svg' } },
+    audio: {
+      sfx: { pop: 'fairytale-assets/audio/sfx/pop.mp3' },
+      bgm: { calm: 'fairytale-assets/audio/bgm/calm.mp3' },
+    },
     scenes: [{
-      plate: { video: 'plates/dell.mp4', poster: 'plates/dell.jpg' },
-      steps: [{ kind: 'chunk', audio: 'audio/narration.wav' }],
+      plate: {
+        video: 'fairytale-assets/plates/dell.mp4',
+        poster: 'fairytale-assets/plates/dell.jpg',
+      },
+      steps: [
+        { kind: 'chunk', audio: 'jobs/story-7/audio/open.wav' },
+        {
+          kind: 'together',
+          steps: [{ kind: 'chunk', audio: 'jobs/story-7/audio/nested.wav' }],
+        },
+      ],
     }],
   };
   const before = JSON.stringify(story);
-  const projected = resolveStoryAssets(story, 'https://cdn.example/assets');
+  const projected = resolveStoryAssets(story, BASE);
 
   assert.equal(JSON.stringify(story), before, 'the saved bundle was mutated');
   assert.ok(Object.isFrozen(projected) && Object.isFrozen(projected.cast.rabbit.clips.idle));
-  assert.equal(projected.cast.rabbit.clips.idle.spritesheet, 'https://cdn.example/assets/sprites/rabbit/idle.png');
-  assert.equal(projected.cast.rabbit.clips.idle.atlas, 'https://cdn.example/assets/sprites/rabbit/idle.json');
-  assert.equal(projected.objects.lamp.svg, 'https://cdn.example/assets/objects/lamp.svg');
-  assert.equal(projected.audio.sfx.pop, 'https://cdn.example/assets/audio/sfx/pop.mp3');
-  assert.equal(projected.audio.bgm.calm, 'https://cdn.example/assets/audio/bgm/calm.mp3');
-  assert.equal(projected.scenes[0].plate.video, 'https://cdn.example/assets/plates/dell.mp4');
-  assert.equal(projected.scenes[0].plate.poster, 'https://cdn.example/assets/plates/dell.jpg');
-  assert.equal(projected.scenes[0].steps[0].audio, 'audio/narration.wav');
+  assert.equal(projected.cast.rabbit.clips.idle.spritesheet, `${BASE}/fairytale-assets/sprites/rabbit/idle.png`);
+  assert.equal(projected.cast.rabbit.clips.idle.atlas, `${BASE}/fairytale-assets/sprites/rabbit/idle.json`);
+  assert.equal(projected.objects.lamp.svg, `${BASE}/fairytale-assets/objects/lamp.svg`);
+  assert.equal(projected.audio.sfx.pop, `${BASE}/fairytale-assets/audio/sfx/pop.mp3`);
+  assert.equal(projected.audio.bgm.calm, `${BASE}/fairytale-assets/audio/bgm/calm.mp3`);
+  assert.equal(projected.scenes[0].plate.video, `${BASE}/fairytale-assets/plates/dell.mp4`);
+  assert.equal(projected.scenes[0].plate.poster, `${BASE}/fairytale-assets/plates/dell.jpg`);
+  assert.equal(projected.scenes[0].steps[0].audio, `${BASE}/jobs/story-7/audio/open.wav`);
+  assert.equal(
+    projected.scenes[0].steps[1].steps[0].audio,
+    `${BASE}/jobs/story-7/audio/nested.wav`,
+  );
 });
 
-test('one identical bundle follows either supplied asset base in every bucket field', () => {
+test('the identical bundle follows either supplied base for every media field', () => {
   const story = {
-    cast: { rabbit: { clips: { idle: { spritesheet: 'sprites/rabbit.png', atlas: null } } } },
-    objects: { lamp: { svg: 'objects/lamp.svg' } },
-    audio: { sfx: { pop: 'audio/sfx/pop.mp3' }, bgm: { calm: 'audio/bgm/calm.mp3' } },
+    cast: { rabbit: { clips: { idle: { spritesheet: 'assets/rabbit.png', atlas: null } } } },
+    objects: {},
+    audio: { sfx: {}, bgm: {} },
     scenes: [{
-      plate: { video: 'plates/dell.mp4', poster: 'plates/dell.jpg' },
-      steps: [{ kind: 'chunk', audio: 'audio/narration.wav' }],
+      plate: { video: 'assets/dell.mp4', poster: 'assets/dell.jpg' },
+      steps: [{ kind: 'chunk', audio: 'jobs/7/audio/line.wav' }],
     }],
   };
-  const assetUrls = (projected) => [
-    projected.cast.rabbit.clips.idle.spritesheet,
-    projected.objects.lamp.svg,
-    projected.audio.sfx.pop,
-    projected.audio.bgm.calm,
-    projected.scenes[0].plate.video,
-    projected.scenes[0].plate.poster,
-  ];
 
-  for (const base of ['https://assets-a.example/bucket', 'https://assets-b.example/zone']) {
+  for (const base of ['https://a.example/storage', 'https://b.example/media']) {
     const projected = resolveStoryAssets(story, base);
-    assert.ok(assetUrls(projected).every((url) => url.startsWith(`${base}/`)));
-    assert.equal(projected.scenes[0].steps[0].audio, 'audio/narration.wav');
+    assert.equal(projected.cast.rabbit.clips.idle.spritesheet, `${base}/assets/rabbit.png`);
+    assert.equal(projected.scenes[0].steps[0].audio, `${base}/jobs/7/audio/line.wav`);
   }
 });
 
-test('refuses legacy and mixed clip fields before projecting any story assets', () => {
+test('refuses legacy, mixed, and old narration shapes before projection', () => {
   for (const clip of [
     { spritesheet_url: 'https://old.example/x.png', atlas_url: null },
-    { spritesheet: 'sprites/x.png', spritesheet_url: 'https://old.example/x.png', atlas: null },
+    {
+      spritesheet: 'assets/x.png',
+      spritesheet_url: 'https://old.example/x.png',
+      atlas: null,
+    },
   ]) {
     assert.throws(
-      () => resolveStoryAssets({ cast: { rabbit: { clips: { idle: clip } } } }, 'https://cdn.example/assets'),
+      () => resolveStoryAssets({ cast: { rabbit: { clips: { idle: clip } } } }, BASE),
       /legacy asset field/,
     );
   }
+
+  assert.equal(
+    resolveStoryAssets({
+      cast: {}, objects: {}, audio: { sfx: {}, bgm: {} },
+      scenes: [{ plate: { video: 'plates/open.mp4', poster: 'plates/open.jpg' }, steps: [] }],
+    }, BASE).scenes[0].plate.poster,
+    `${BASE}/plates/open.jpg`,
+    'plates is a valid bucket name; the player has no bucket allowlist to call it legacy',
+  );
 });
