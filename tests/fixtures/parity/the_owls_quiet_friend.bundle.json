@@ -1,0 +1,6034 @@
+{
+  "audio": {
+    "bgm": {
+      "calm": "fairytale-assets/audio/bgm/calm.ogg",
+      "mysterious": "fairytale-assets/audio/bgm/mysterious.ogg"
+    },
+    "sfx": {
+      "giggle": "fairytale-assets/audio/sfx/giggle.ogg",
+      "magic": "fairytale-assets/audio/sfx/magic.ogg",
+      "splash": "fairytale-assets/audio/sfx/splash.ogg",
+      "whoosh": "fairytale-assets/audio/sfx/whoosh.ogg"
+    }
+  },
+  "cast": {
+    "owl": {
+      "capability": {
+        "angry": {
+          "camera": "angry"
+        },
+        "fly": {
+          "left": "fly_left",
+          "right": "fly_right"
+        },
+        "happy": {
+          "camera": "happy",
+          "left": "happy_left"
+        },
+        "idle": {
+          "left": "idle_left",
+          "right": "idle_right"
+        },
+        "pet_reaction": {
+          "camera": "pet_reaction",
+          "left": "pet_reaction_left"
+        },
+        "sad": {
+          "camera": "sad",
+          "left": "sad_left"
+        },
+        "scared": {
+          "camera": "scared"
+        },
+        "sleep": {
+          "camera": "sleep"
+        },
+        "surprised": {
+          "camera": "surprised"
+        },
+        "worried": {
+          "camera": "worried"
+        }
+      },
+      "clips": {
+        "angry": {
+          "atlas": "fairytale-assets/sprites/animals/birds/owl/angry/atlas.json",
+          "direction": null,
+          "facing": "camera",
+          "fps": 16,
+          "frames": 65,
+          "grid": [
+            65,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/e3fe1793076f83d80ae859f4c58641fd.webp",
+            "320": "fairytale-assets/mobile/sprites/1b373a2047e0efdf2e2504aa1b50ee4b.webp",
+            "384": "fairytale-assets/mobile/sprites/943f361ddfef14b1162bb011abb4ad0d.webp",
+            "512": "fairytale-assets/mobile/sprites/07fb464a5ea707f0bce4ca679fbfc722.webp"
+          },
+          "slug": "angry",
+          "spritesheet": "fairytale-assets/sprites/animals/birds/owl/angry/spritesheet.png",
+          "variant": null,
+          "verb": "angry"
+        },
+        "fly_left": {
+          "atlas": "fairytale-assets/sprites/animals/birds/owl/fly_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/aa412be573aa9f4770ec2a66ea3376c5.webp",
+            "320": "fairytale-assets/mobile/sprites/5418a842cabdb3776128da4d21929fe1.webp",
+            "384": "fairytale-assets/mobile/sprites/ef1ad2733ad9a0009264b51bba7afdfa.webp",
+            "512": "fairytale-assets/mobile/sprites/d1b67ec2e1ef0e36d7bb441c253bc2cb.webp"
+          },
+          "slug": "fly_left",
+          "spritesheet": "fairytale-assets/sprites/animals/birds/owl/fly_left/spritesheet.png",
+          "variant": null,
+          "verb": "fly"
+        },
+        "fly_right": {
+          "atlas": "fairytale-assets/sprites/animals/birds/owl/fly_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/8bc203cd0e0aeb2c20a75df148a6ed41.webp",
+            "320": "fairytale-assets/mobile/sprites/838023d03bc59d2eef59f7f1096f424f.webp",
+            "384": "fairytale-assets/mobile/sprites/03b1d4e821f0ae1f242767788cc00307.webp",
+            "512": "fairytale-assets/mobile/sprites/3adb29970910af5fd0657afbfbf56233.webp"
+          },
+          "slug": "fly_right",
+          "spritesheet": "fairytale-assets/sprites/animals/birds/owl/fly_right/spritesheet.png",
+          "variant": null,
+          "verb": "fly"
+        },
+        "happy": {
+          "atlas": "fairytale-assets/sprites/animals/birds/owl/happy/atlas.json",
+          "direction": null,
+          "facing": "camera",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/e2b0c0810dbde6828902eac0f2872ca7.webp",
+            "320": "fairytale-assets/mobile/sprites/54ef716063fa1552ca97658bf6127710.webp",
+            "384": "fairytale-assets/mobile/sprites/4ff16e03adb9b7dd0b4d19602d4e9af8.webp",
+            "512": "fairytale-assets/mobile/sprites/53edebcd9a0a38b95170db82d8e8841a.webp"
+          },
+          "slug": "happy",
+          "spritesheet": "fairytale-assets/sprites/animals/birds/owl/happy/spritesheet.png",
+          "variant": null,
+          "verb": "happy"
+        },
+        "happy_left": {
+          "atlas": "fairytale-assets/sprites/animals/birds/owl/happy_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/e0e66eefd9aad51f9ff36a643d9a1f82.webp",
+            "320": "fairytale-assets/mobile/sprites/5daedd945d0dd292bc1982180c0381d3.webp",
+            "384": "fairytale-assets/mobile/sprites/597368512d4f32410fe066228670a232.webp",
+            "512": "fairytale-assets/mobile/sprites/b18f87f770dcb54ecbba36ecc6880479.webp"
+          },
+          "slug": "happy_left",
+          "spritesheet": "fairytale-assets/sprites/animals/birds/owl/happy_left/spritesheet.png",
+          "variant": null,
+          "verb": "happy"
+        },
+        "idle_left": {
+          "atlas": "fairytale-assets/sprites/animals/birds/owl/idle_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/c71cf13b8b67f343cd1e1ff36267a246.webp",
+            "320": "fairytale-assets/mobile/sprites/40c85d407a38ba2825ffd54eb74eeac6.webp",
+            "384": "fairytale-assets/mobile/sprites/63de7091764aeb213057c7916fd4d641.webp",
+            "512": "fairytale-assets/mobile/sprites/8fb3d77cc9f368d538822341b5a3a9b2.webp"
+          },
+          "slug": "idle_left",
+          "spritesheet": "fairytale-assets/sprites/animals/birds/owl/idle_left/spritesheet.png",
+          "variant": null,
+          "verb": "idle"
+        },
+        "idle_right": {
+          "atlas": "fairytale-assets/sprites/animals/birds/owl/idle_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/13bdd0d5b0e5c7a4ef838aab89e0e0b7.webp",
+            "320": "fairytale-assets/mobile/sprites/ba4c398d9ea33a3f047c647a2fd80cdd.webp",
+            "384": "fairytale-assets/mobile/sprites/68929b790fbff94ccc34241ea50f5e07.webp",
+            "512": "fairytale-assets/mobile/sprites/f484643c8a961ce1507ea178853d897d.webp"
+          },
+          "slug": "idle_right",
+          "spritesheet": "fairytale-assets/sprites/animals/birds/owl/idle_right/spritesheet.png",
+          "variant": null,
+          "verb": "idle"
+        },
+        "pet_reaction": {
+          "atlas": "fairytale-assets/sprites/animals/birds/owl/pet_reaction/atlas.json",
+          "direction": null,
+          "facing": "camera",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/05757a1bce8463018e1242ae014fcad1.webp",
+            "320": "fairytale-assets/mobile/sprites/f514a2028b939c6940d864964e5ca41d.webp",
+            "384": "fairytale-assets/mobile/sprites/f02e38aa9285e82dcfff5eaad17ad5f3.webp",
+            "512": "fairytale-assets/mobile/sprites/21ebb3c5046d2d5d0825b2c01cfe10a8.webp"
+          },
+          "slug": "pet_reaction",
+          "spritesheet": "fairytale-assets/sprites/animals/birds/owl/pet_reaction/spritesheet.png",
+          "variant": null,
+          "verb": "pet_reaction"
+        },
+        "pet_reaction_left": {
+          "atlas": "fairytale-assets/sprites/animals/birds/owl/pet_reaction_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/c883e629d4a09b0831dbfb23b677035a.webp",
+            "320": "fairytale-assets/mobile/sprites/83d97bd18a94cdc1b761a407b7c1ee7a.webp",
+            "384": "fairytale-assets/mobile/sprites/1d5eac74e121b4b331a74f23c61c669e.webp",
+            "512": "fairytale-assets/mobile/sprites/5fc4f83b9ff0ce98eb37339395858ab7.webp"
+          },
+          "slug": "pet_reaction_left",
+          "spritesheet": "fairytale-assets/sprites/animals/birds/owl/pet_reaction_left/spritesheet.png",
+          "variant": null,
+          "verb": "pet_reaction"
+        },
+        "sad": {
+          "atlas": "fairytale-assets/sprites/animals/birds/owl/sad/atlas.json",
+          "direction": null,
+          "facing": "camera",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/6e76b602aed7ad28dc65674ed5854f80.webp",
+            "320": "fairytale-assets/mobile/sprites/2fcc8b653bd8bb6b49b3973aeb899595.webp",
+            "384": "fairytale-assets/mobile/sprites/7d06e0943ad4c2a201a751856c7445f0.webp",
+            "512": "fairytale-assets/mobile/sprites/21bcba00d010b2b5ae00a57592644ae8.webp"
+          },
+          "slug": "sad",
+          "spritesheet": "fairytale-assets/sprites/animals/birds/owl/sad/spritesheet.png",
+          "variant": null,
+          "verb": "sad"
+        },
+        "sad_left": {
+          "atlas": "fairytale-assets/sprites/animals/birds/owl/sad_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/456bcbec95878935e61595effde86bce.webp",
+            "320": "fairytale-assets/mobile/sprites/048419d80fa8a699a3ba982a32599e0f.webp",
+            "384": "fairytale-assets/mobile/sprites/cf5a404670490f25df206a8614922f38.webp",
+            "512": "fairytale-assets/mobile/sprites/de2cbe7ee4ab535c207e0f9404c5d4ec.webp"
+          },
+          "slug": "sad_left",
+          "spritesheet": "fairytale-assets/sprites/animals/birds/owl/sad_left/spritesheet.png",
+          "variant": null,
+          "verb": "sad"
+        },
+        "scared": {
+          "atlas": "fairytale-assets/sprites/animals/birds/owl/scared/atlas.json",
+          "direction": null,
+          "facing": "camera",
+          "fps": 16,
+          "frames": 65,
+          "grid": [
+            65,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/7e351136ac981ed1baa4874cccafcd6d.webp",
+            "320": "fairytale-assets/mobile/sprites/3f5d2980f68874a8ade158bb0b06f7c1.webp",
+            "384": "fairytale-assets/mobile/sprites/f2296bbe57fff1b88bc21e1f56e43bc8.webp",
+            "512": "fairytale-assets/mobile/sprites/3fd43ff9c310eface381ee9f0de3a4c6.webp"
+          },
+          "slug": "scared",
+          "spritesheet": "fairytale-assets/sprites/animals/birds/owl/scared/spritesheet.png",
+          "variant": null,
+          "verb": "scared"
+        },
+        "sleep": {
+          "atlas": "fairytale-assets/sprites/animals/birds/owl/sleep/atlas.json",
+          "direction": null,
+          "facing": "camera",
+          "fps": 16,
+          "frames": 81,
+          "grid": [
+            81,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/8de047f2159679ca3c3a466af9e6d1fa.webp",
+            "320": "fairytale-assets/mobile/sprites/2bc479ed40969581f9b565e8067a374a.webp",
+            "384": "fairytale-assets/mobile/sprites/dd5d933373e4f4acd6150596fb1e9f0f.webp",
+            "512": "fairytale-assets/mobile/sprites/a1ade48a84c9aeb81e9e8c449b624cd2.webp"
+          },
+          "slug": "sleep",
+          "spritesheet": "fairytale-assets/sprites/animals/birds/owl/sleep/spritesheet.png",
+          "variant": null,
+          "verb": "sleep"
+        },
+        "surprised": {
+          "atlas": "fairytale-assets/sprites/animals/birds/owl/surprised/atlas.json",
+          "direction": null,
+          "facing": "camera",
+          "fps": 16,
+          "frames": 65,
+          "grid": [
+            65,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/266f5c8433e933777b5debd6de8dcb7d.webp",
+            "320": "fairytale-assets/mobile/sprites/d2aa8e1cc992c222dd7e04be07eb62e5.webp",
+            "384": "fairytale-assets/mobile/sprites/81e56d3c1dba53d4175c9c2db238a7e3.webp",
+            "512": "fairytale-assets/mobile/sprites/93069ff1058a4e7818862fc259699d7b.webp"
+          },
+          "slug": "surprised",
+          "spritesheet": "fairytale-assets/sprites/animals/birds/owl/surprised/spritesheet.png",
+          "variant": null,
+          "verb": "surprised"
+        },
+        "worried": {
+          "atlas": "fairytale-assets/sprites/animals/birds/owl/worried/atlas.json",
+          "direction": null,
+          "facing": "camera",
+          "fps": 16,
+          "frames": 81,
+          "grid": [
+            81,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/94351d370d326fa5ed818bc1618f7c49.webp",
+            "320": "fairytale-assets/mobile/sprites/37df326edd7ac0c389fc5431b09d2922.webp",
+            "384": "fairytale-assets/mobile/sprites/90d222644c2f1e25413ad3d50111361e.webp",
+            "512": "fairytale-assets/mobile/sprites/0aecd98550e59a889f1e67018c7c51aa.webp"
+          },
+          "slug": "worried",
+          "spritesheet": "fairytale-assets/sprites/animals/birds/owl/worried/spritesheet.png",
+          "variant": null,
+          "verb": "worried"
+        }
+      },
+      "display_name": "Olive",
+      "height_cm": 35
+    },
+    "rabbit": {
+      "capability": {
+        "angry": {
+          "camera": "angry"
+        },
+        "happy": {
+          "left": "happy_left_jumping",
+          "right": "happy_right_jumping"
+        },
+        "idle": {
+          "left": "idle_left",
+          "right": "idle_right"
+        },
+        "move": {
+          "left": "move_left",
+          "right": "move_right"
+        },
+        "pet_reaction": {
+          "left": "pet_reaction_left",
+          "right": "pet_reaction_right"
+        },
+        "sad": {
+          "left": "sad_left",
+          "right": "sad_right"
+        },
+        "scared": {
+          "left": "scared_left",
+          "right": "scared_right"
+        },
+        "sleep": {
+          "left": "sleep_left",
+          "right": "sleep_right"
+        },
+        "surprised": {
+          "left": "surprised_left",
+          "right": "surprised_right"
+        },
+        "worried": {
+          "left": "worried_left",
+          "right": "worried_right"
+        }
+      },
+      "clips": {
+        "angry": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/rabbit/angry/atlas.json",
+          "direction": null,
+          "facing": "camera",
+          "fps": 16,
+          "frames": 65,
+          "grid": [
+            65,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/6e4b704763683b29670123f9740071be.webp",
+            "320": "fairytale-assets/mobile/sprites/0dd040cb540706b51259b505944e06f3.webp",
+            "384": "fairytale-assets/mobile/sprites/7f69f7b037a1a4fa57c82e5053e92855.webp",
+            "512": "fairytale-assets/mobile/sprites/daf02e56415c8917c4d28c202e3b3ce6.webp"
+          },
+          "slug": "angry",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/rabbit/angry/spritesheet.png",
+          "variant": null,
+          "verb": "angry"
+        },
+        "happy_left_jumping": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/rabbit/happy_left_jumping/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/b7c434011c2f3a93c179edff8f417f15.webp",
+            "320": "fairytale-assets/mobile/sprites/9e46a6503aad83389168e75b33805686.webp",
+            "384": "fairytale-assets/mobile/sprites/e4f6f48c8b96970c48dd34100ef80a0d.webp",
+            "512": "fairytale-assets/mobile/sprites/0ebc374fbd98ba5f4c86730398366da6.webp"
+          },
+          "slug": "happy_left_jumping",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/rabbit/happy_left_jumping/spritesheet.png",
+          "variant": "jumping",
+          "verb": "happy"
+        },
+        "happy_right_jumping": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/rabbit/happy_right_jumping/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/e929f7f1902f4fbaf4091ff62a1d1f32.webp",
+            "320": "fairytale-assets/mobile/sprites/5877f05c0a64117a8ed1f523b061d79e.webp",
+            "384": "fairytale-assets/mobile/sprites/4ccb154bc1b332b11a216b84c9f50713.webp",
+            "512": "fairytale-assets/mobile/sprites/59e021f6f657c14cd078429e7e874921.webp"
+          },
+          "slug": "happy_right_jumping",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/rabbit/happy_right_jumping/spritesheet.png",
+          "variant": "jumping",
+          "verb": "happy"
+        },
+        "idle_left": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/rabbit/idle_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/28daaf94790503288d7b756bb71c030b.webp",
+            "320": "fairytale-assets/mobile/sprites/1c8d84f49866193dde9abe423ac85209.webp",
+            "384": "fairytale-assets/mobile/sprites/80fa34ce1ba0bfc92d25c6cbda29f71e.webp",
+            "512": "fairytale-assets/mobile/sprites/bc97cb16b73d8618cb67ffec6eb305e2.webp"
+          },
+          "slug": "idle_left",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/rabbit/idle_left/spritesheet.png",
+          "variant": null,
+          "verb": "idle"
+        },
+        "idle_right": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/rabbit/idle_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/a6ed1af4a58c57fb3ae5d5acc4122472.webp",
+            "320": "fairytale-assets/mobile/sprites/77b00ee0e2ab361c05e54b2fa8028836.webp",
+            "384": "fairytale-assets/mobile/sprites/6ced331284d832f2f1106792e9bd2151.webp",
+            "512": "fairytale-assets/mobile/sprites/e8f3d0574d20db3b13a3e2b9cd308f2e.webp"
+          },
+          "slug": "idle_right",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/rabbit/idle_right/spritesheet.png",
+          "variant": null,
+          "verb": "idle"
+        },
+        "move_left": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/rabbit/move_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/d4b029e6e07158c2ed8a44b7b6b37dda.webp",
+            "320": "fairytale-assets/mobile/sprites/bfff13e2a385137bea67a91d062c1a38.webp",
+            "384": "fairytale-assets/mobile/sprites/5dcc86513099c14cc31a88e326805961.webp",
+            "512": "fairytale-assets/mobile/sprites/034ea29bbe5f94d533f12ba534208cee.webp"
+          },
+          "slug": "move_left",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/rabbit/move_left/spritesheet.png",
+          "variant": null,
+          "verb": "move"
+        },
+        "move_right": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/rabbit/move_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/73f5993a904ed15e73641512d10c1187.webp",
+            "320": "fairytale-assets/mobile/sprites/d75cf9a80e0ee424c2ee1e495eb2483f.webp",
+            "384": "fairytale-assets/mobile/sprites/7e3376282cd1a78c4cd4941250023da5.webp",
+            "512": "fairytale-assets/mobile/sprites/e85fc9fe521935a1f0c1a21c3aae9233.webp"
+          },
+          "slug": "move_right",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/rabbit/move_right/spritesheet.png",
+          "variant": null,
+          "verb": "move"
+        },
+        "pet_reaction_left": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/rabbit/pet_reaction_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/b3fb5a8922857ca4bf43becd3df1aaa2.webp",
+            "320": "fairytale-assets/mobile/sprites/149cf6c005ce4a0e8f67158a4503dad9.webp",
+            "384": "fairytale-assets/mobile/sprites/f0ee73b85bc8c20bf43495189a25c438.webp",
+            "512": "fairytale-assets/mobile/sprites/c52cc16639edc5e0c328e352c01daa34.webp"
+          },
+          "slug": "pet_reaction_left",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/rabbit/pet_reaction_left/spritesheet.png",
+          "variant": null,
+          "verb": "pet_reaction"
+        },
+        "pet_reaction_right": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/rabbit/pet_reaction_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/f35e1bf943f5e4d8358c6136d77154d5.webp",
+            "320": "fairytale-assets/mobile/sprites/5f0103c3b7cca6a416cb0e63aca00cd8.webp",
+            "384": "fairytale-assets/mobile/sprites/b6072eceb2a8366557c663d9c179d7b1.webp",
+            "512": "fairytale-assets/mobile/sprites/3666880c95ee1b7619373d7440e1dad3.webp"
+          },
+          "slug": "pet_reaction_right",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/rabbit/pet_reaction_right/spritesheet.png",
+          "variant": null,
+          "verb": "pet_reaction"
+        },
+        "sad_left": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/rabbit/sad_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/facc8bad472059d998755092be91edd4.webp",
+            "320": "fairytale-assets/mobile/sprites/0f149753fe81cb581bee84a52f741bad.webp",
+            "384": "fairytale-assets/mobile/sprites/7f1ad102e26283225349f907a8517e9c.webp",
+            "512": "fairytale-assets/mobile/sprites/eeb474f6bea027f9877a24c3a66b22c5.webp"
+          },
+          "slug": "sad_left",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/rabbit/sad_left/spritesheet.png",
+          "variant": null,
+          "verb": "sad"
+        },
+        "sad_right": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/rabbit/sad_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/4e5882b6233d7351a629d7de64b42817.webp",
+            "320": "fairytale-assets/mobile/sprites/300ec72780cc53e1127355ce3112df6e.webp",
+            "384": "fairytale-assets/mobile/sprites/54f5d087b2239c96522dd7c654f55b93.webp",
+            "512": "fairytale-assets/mobile/sprites/d57361b4ca5865e710595a4b601131fc.webp"
+          },
+          "slug": "sad_right",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/rabbit/sad_right/spritesheet.png",
+          "variant": null,
+          "verb": "sad"
+        },
+        "scared_left": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/rabbit/scared_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 12,
+          "frames": 65,
+          "grid": [
+            65,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/5ad60b8c70b9bd59b3622aef3af34890.webp",
+            "320": "fairytale-assets/mobile/sprites/5b41a3acc227dfc9b1bfd29a7acd6ef5.webp",
+            "384": "fairytale-assets/mobile/sprites/ace0df639fad50e630db81276fbe28cb.webp",
+            "512": "fairytale-assets/mobile/sprites/684baaef385b5469748fc202cfd41de7.webp"
+          },
+          "slug": "scared_left",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/rabbit/scared_left/spritesheet.png",
+          "variant": null,
+          "verb": "scared"
+        },
+        "scared_right": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/rabbit/scared_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 16,
+          "frames": 65,
+          "grid": [
+            65,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/e3d17e4ce66b8cd7cccabbb224b8f185.webp",
+            "320": "fairytale-assets/mobile/sprites/465238a4d661919fa71081a32d798f09.webp",
+            "384": "fairytale-assets/mobile/sprites/77afc2b30eae5c31613fc589c889aacf.webp",
+            "512": "fairytale-assets/mobile/sprites/c5afbefce738993182a884a5cb9b538e.webp"
+          },
+          "slug": "scared_right",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/rabbit/scared_right/spritesheet.png",
+          "variant": null,
+          "verb": "scared"
+        },
+        "sleep_left": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/rabbit/sleep_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 12,
+          "frames": 41,
+          "grid": [
+            41,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/7883d2b02eb7ba39b9c31f247ea5db2c.webp",
+            "320": "fairytale-assets/mobile/sprites/e22e3b37a723cab8b03e22c4f3a677b9.webp",
+            "384": "fairytale-assets/mobile/sprites/8d616119cdd57a45c6204521e25b75a7.webp",
+            "512": "fairytale-assets/mobile/sprites/fd8b9da9062cc980fe4f14f74efcc411.webp"
+          },
+          "slug": "sleep_left",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/rabbit/sleep_left/spritesheet.png",
+          "variant": null,
+          "verb": "sleep"
+        },
+        "sleep_right": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/rabbit/sleep_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 16,
+          "frames": 41,
+          "grid": [
+            41,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/246797adb86120abef7879777a1232ab.webp",
+            "320": "fairytale-assets/mobile/sprites/8293957a9913854e5fb8c17cd44f658b.webp",
+            "384": "fairytale-assets/mobile/sprites/41c4389b8e9da85c57bbf95b94c927c9.webp",
+            "512": "fairytale-assets/mobile/sprites/2a6383328f4db13f84f0aabe80c904eb.webp"
+          },
+          "slug": "sleep_right",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/rabbit/sleep_right/spritesheet.png",
+          "variant": null,
+          "verb": "sleep"
+        },
+        "surprised_left": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/rabbit/surprised_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 12,
+          "frames": 65,
+          "grid": [
+            65,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/38e8535e851a7922b3a74947f5588f5e.webp",
+            "320": "fairytale-assets/mobile/sprites/5d3c9f4f5e9f36050bd64139140725db.webp",
+            "384": "fairytale-assets/mobile/sprites/adf55616d014362284b81748a7396dcd.webp",
+            "512": "fairytale-assets/mobile/sprites/b05bc7d7ba2cda08cd7366be31c5abea.webp"
+          },
+          "slug": "surprised_left",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/rabbit/surprised_left/spritesheet.png",
+          "variant": null,
+          "verb": "surprised"
+        },
+        "surprised_right": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/rabbit/surprised_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 16,
+          "frames": 65,
+          "grid": [
+            65,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/e16de956f0bdfb4663c6e49885ade362.webp",
+            "320": "fairytale-assets/mobile/sprites/5b621c567138ad7375a697bf0e8b726f.webp",
+            "384": "fairytale-assets/mobile/sprites/cdd3e654dad61c9d8015117e59c7bb06.webp",
+            "512": "fairytale-assets/mobile/sprites/79d14a010defd14a0bdb8c4dbadc8fa7.webp"
+          },
+          "slug": "surprised_right",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/rabbit/surprised_right/spritesheet.png",
+          "variant": null,
+          "verb": "surprised"
+        },
+        "worried_left": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/rabbit/worried_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 12,
+          "frames": 81,
+          "grid": [
+            81,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/2aaa1acb585a931065fc32062a017eaa.webp",
+            "320": "fairytale-assets/mobile/sprites/01a790920b7c6f267b75fcf2cc9e37c2.webp",
+            "384": "fairytale-assets/mobile/sprites/3d6fa3294bd7e99d8fe08a319fa3b568.webp",
+            "512": "fairytale-assets/mobile/sprites/5d6c4e0063979156cb9bb42bf9d40d9f.webp"
+          },
+          "slug": "worried_left",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/rabbit/worried_left/spritesheet.png",
+          "variant": null,
+          "verb": "worried"
+        },
+        "worried_right": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/rabbit/worried_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 16,
+          "frames": 81,
+          "grid": [
+            81,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/6e5dd65c2bd2d643cdaca89823fc9e4e.webp",
+            "320": "fairytale-assets/mobile/sprites/8f3f9a8ef1056c6ba541d9a17a954409.webp",
+            "384": "fairytale-assets/mobile/sprites/402dec058be3365090e893a417df9130.webp",
+            "512": "fairytale-assets/mobile/sprites/0375d51f72075068e36133065fdec291.webp"
+          },
+          "slug": "worried_right",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/rabbit/worried_right/spritesheet.png",
+          "variant": null,
+          "verb": "worried"
+        }
+      },
+      "display_name": "Pip",
+      "height_cm": 25
+    },
+    "robin": {
+      "capability": {
+        "angry": {
+          "left": "angry_left",
+          "right": "angry_right"
+        },
+        "fly": {
+          "left": "fly_left",
+          "right": "fly_right"
+        },
+        "happy": {
+          "camera": "happy",
+          "left": "happy_left"
+        },
+        "idle": {
+          "left": "idle_left",
+          "right": "idle_right"
+        },
+        "pet_reaction": {
+          "camera": "pet_reaction",
+          "left": "pet_reaction_left"
+        },
+        "sad": {
+          "camera": "sad",
+          "left": "sad_left"
+        },
+        "scared": {
+          "left": "scared_left",
+          "right": "scared_right"
+        },
+        "sleep": {
+          "camera": "sleep"
+        },
+        "surprised": {
+          "left": "surprised_left",
+          "right": "surprised_right"
+        },
+        "worried": {
+          "left": "worried_left",
+          "right": "worried_right"
+        }
+      },
+      "clips": {
+        "angry_left": {
+          "atlas": "fairytale-assets/sprites/animals/birds/robin/angry_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 12,
+          "frames": 48,
+          "grid": [
+            48,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/8294337065267cc3a69e2aa4cf692842.webp",
+            "320": "fairytale-assets/mobile/sprites/56ee5bf78b6155903d74eeca6d431c51.webp",
+            "384": "fairytale-assets/mobile/sprites/c4dbb8383a0549c3877cb248ce576ce5.webp",
+            "512": "fairytale-assets/mobile/sprites/9f924678901ed732d2066a70b0192640.webp"
+          },
+          "slug": "angry_left",
+          "spritesheet": "fairytale-assets/sprites/animals/birds/robin/angry_left/spritesheet.png",
+          "variant": null,
+          "verb": "angry"
+        },
+        "angry_right": {
+          "atlas": "fairytale-assets/sprites/animals/birds/robin/angry_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 24,
+          "frames": 48,
+          "grid": [
+            48,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/2d539b82962d4142066c070ccea5770b.webp",
+            "320": "fairytale-assets/mobile/sprites/8081ba1b5565d75f8f17670f2e259244.webp",
+            "384": "fairytale-assets/mobile/sprites/086fdfc5fb17f98785d02e9a80a5225f.webp",
+            "512": "fairytale-assets/mobile/sprites/feb16fc4965ea93213043a65ce3d1cd1.webp"
+          },
+          "slug": "angry_right",
+          "spritesheet": "fairytale-assets/sprites/animals/birds/robin/angry_right/spritesheet.png",
+          "variant": null,
+          "verb": "angry"
+        },
+        "fly_left": {
+          "atlas": "fairytale-assets/sprites/animals/birds/robin/fly_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 24,
+          "frames": 48,
+          "grid": [
+            48,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/b2e5f4a6705a2d5dc7fe7b1c12ce83cb.webp",
+            "320": "fairytale-assets/mobile/sprites/f00cc2c45e16c2dd83a2ab99faa892a9.webp",
+            "384": "fairytale-assets/mobile/sprites/65d31b49899e54bc417c1a2072e4a9fc.webp",
+            "512": "fairytale-assets/mobile/sprites/a20a0393dec3e372f8ee9946d33d4821.webp"
+          },
+          "slug": "fly_left",
+          "spritesheet": "fairytale-assets/sprites/animals/birds/robin/fly_left/spritesheet.png",
+          "variant": null,
+          "verb": "fly"
+        },
+        "fly_right": {
+          "atlas": "fairytale-assets/sprites/animals/birds/robin/fly_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 24,
+          "frames": 48,
+          "grid": [
+            48,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/0f5afa0dc88dbfc0ae08af57fd5da5bd.webp",
+            "320": "fairytale-assets/mobile/sprites/54a351d3f3b67ea628a7bcea3939bb04.webp",
+            "384": "fairytale-assets/mobile/sprites/318aac60c0a198f144984c118b5616d4.webp",
+            "512": "fairytale-assets/mobile/sprites/67e504394c998cfafa0e198bbd6db318.webp"
+          },
+          "slug": "fly_right",
+          "spritesheet": "fairytale-assets/sprites/animals/birds/robin/fly_right/spritesheet.png",
+          "variant": null,
+          "verb": "fly"
+        },
+        "happy": {
+          "atlas": "fairytale-assets/sprites/animals/birds/robin/happy/atlas.json",
+          "direction": null,
+          "facing": "camera",
+          "fps": 12,
+          "frames": 48,
+          "grid": [
+            48,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/72500fde52969d6556e2893d0fea5544.webp",
+            "320": "fairytale-assets/mobile/sprites/43abb9ea1f028701e7ea43fe0e3b8f44.webp",
+            "384": "fairytale-assets/mobile/sprites/44d28ae73889bb7e2f27c572979d8761.webp",
+            "512": "fairytale-assets/mobile/sprites/26d24b599e84fae209cfd61913dd602a.webp"
+          },
+          "slug": "happy",
+          "spritesheet": "fairytale-assets/sprites/animals/birds/robin/happy/spritesheet.png",
+          "variant": null,
+          "verb": "happy"
+        },
+        "happy_left": {
+          "atlas": "fairytale-assets/sprites/animals/birds/robin/happy_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 24,
+          "frames": 48,
+          "grid": [
+            48,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/02408b414bd196266d062469da69184b.webp",
+            "320": "fairytale-assets/mobile/sprites/8376ee6b8ab1f3df9deda940275e468b.webp",
+            "384": "fairytale-assets/mobile/sprites/e1412c43bfe032bb18b831f3a633a414.webp",
+            "512": "fairytale-assets/mobile/sprites/a08ca0d4257b5e936c2dc0b8fae14664.webp"
+          },
+          "slug": "happy_left",
+          "spritesheet": "fairytale-assets/sprites/animals/birds/robin/happy_left/spritesheet.png",
+          "variant": null,
+          "verb": "happy"
+        },
+        "idle_left": {
+          "atlas": "fairytale-assets/sprites/animals/birds/robin/idle_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 24,
+          "frames": 48,
+          "grid": [
+            48,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/96b9e1f90aa4404036fbd6d0d42bfa56.webp",
+            "320": "fairytale-assets/mobile/sprites/0f2c54f81e017a963ef9a7277cb0f25e.webp",
+            "384": "fairytale-assets/mobile/sprites/1c9dc06e64055010d3d7cf918714064a.webp",
+            "512": "fairytale-assets/mobile/sprites/2b7ae5a0dfeb96b90862e19b20b90170.webp"
+          },
+          "slug": "idle_left",
+          "spritesheet": "fairytale-assets/sprites/animals/birds/robin/idle_left/spritesheet.png",
+          "variant": null,
+          "verb": "idle"
+        },
+        "idle_right": {
+          "atlas": "fairytale-assets/sprites/animals/birds/robin/idle_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 24,
+          "frames": 48,
+          "grid": [
+            48,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/bfd90fe8c99d53be771817cd47ae8463.webp",
+            "320": "fairytale-assets/mobile/sprites/bde019634445e95c5d9bc7679bf1bd8b.webp",
+            "384": "fairytale-assets/mobile/sprites/5e7fc28fe73af5d90e29149555496de3.webp",
+            "512": "fairytale-assets/mobile/sprites/51015bee885dfdd38264e45328714cd1.webp"
+          },
+          "slug": "idle_right",
+          "spritesheet": "fairytale-assets/sprites/animals/birds/robin/idle_right/spritesheet.png",
+          "variant": null,
+          "verb": "idle"
+        },
+        "pet_reaction": {
+          "atlas": "fairytale-assets/sprites/animals/birds/robin/pet_reaction/atlas.json",
+          "direction": null,
+          "facing": "camera",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/11d7e5eebe46bde4aff16aaff0e8b306.webp",
+            "320": "fairytale-assets/mobile/sprites/6bf615975a2b4b440199712b78a2ccbe.webp",
+            "384": "fairytale-assets/mobile/sprites/e8b2861bed089cca430c61dda1ae7be8.webp",
+            "512": "fairytale-assets/mobile/sprites/72d61ca09a10236cbcdef4fabf040d77.webp"
+          },
+          "slug": "pet_reaction",
+          "spritesheet": "fairytale-assets/sprites/animals/birds/robin/pet_reaction/spritesheet.png",
+          "variant": null,
+          "verb": "pet_reaction"
+        },
+        "pet_reaction_left": {
+          "atlas": "fairytale-assets/sprites/animals/birds/robin/pet_reaction_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/65b68aa8a943f6786396be6fb3f00de1.webp",
+            "320": "fairytale-assets/mobile/sprites/5fff52e26904543b4737eba7d5f8c76e.webp",
+            "384": "fairytale-assets/mobile/sprites/08348ea5b169c01e9bef4e1bd9ce1388.webp",
+            "512": "fairytale-assets/mobile/sprites/c79ead043493f5b47bebd7d37f309764.webp"
+          },
+          "slug": "pet_reaction_left",
+          "spritesheet": "fairytale-assets/sprites/animals/birds/robin/pet_reaction_left/spritesheet.png",
+          "variant": null,
+          "verb": "pet_reaction"
+        },
+        "sad": {
+          "atlas": "fairytale-assets/sprites/animals/birds/robin/sad/atlas.json",
+          "direction": null,
+          "facing": "camera",
+          "fps": 12,
+          "frames": 48,
+          "grid": [
+            48,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/d5c08a4df39036a9a8f806b7a1a7edcc.webp",
+            "320": "fairytale-assets/mobile/sprites/602c0a4513425dbb408195bf5cafb2d2.webp",
+            "384": "fairytale-assets/mobile/sprites/9f62a6567e5b67396c6c01be5f3b21d6.webp",
+            "512": "fairytale-assets/mobile/sprites/6c7a749dbf1089e8d00de838730de626.webp"
+          },
+          "slug": "sad",
+          "spritesheet": "fairytale-assets/sprites/animals/birds/robin/sad/spritesheet.png",
+          "variant": null,
+          "verb": "sad"
+        },
+        "sad_left": {
+          "atlas": "fairytale-assets/sprites/animals/birds/robin/sad_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 24,
+          "frames": 48,
+          "grid": [
+            48,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/c45053e7dd7468c184aaf31f7018110c.webp",
+            "320": "fairytale-assets/mobile/sprites/47250d78b935db1367b46592488285c4.webp",
+            "384": "fairytale-assets/mobile/sprites/8f8b9db7e62f607ffa58a922a43af5f3.webp",
+            "512": "fairytale-assets/mobile/sprites/f59e99fe572bd33529d89319ad32ff1f.webp"
+          },
+          "slug": "sad_left",
+          "spritesheet": "fairytale-assets/sprites/animals/birds/robin/sad_left/spritesheet.png",
+          "variant": null,
+          "verb": "sad"
+        },
+        "scared_left": {
+          "atlas": "fairytale-assets/sprites/animals/birds/robin/scared_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 12,
+          "frames": 48,
+          "grid": [
+            48,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/39d19eddd813393cde97921b6d604610.webp",
+            "320": "fairytale-assets/mobile/sprites/7e4b2a10b796c7a8c0ddc1df9d11b16d.webp",
+            "384": "fairytale-assets/mobile/sprites/efed1d42d5cde1042bf9700ed4e685b4.webp",
+            "512": "fairytale-assets/mobile/sprites/a9f10e6a400d6d63c9fcc2c41af35bbc.webp"
+          },
+          "slug": "scared_left",
+          "spritesheet": "fairytale-assets/sprites/animals/birds/robin/scared_left/spritesheet.png",
+          "variant": null,
+          "verb": "scared"
+        },
+        "scared_right": {
+          "atlas": "fairytale-assets/sprites/animals/birds/robin/scared_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 24,
+          "frames": 48,
+          "grid": [
+            48,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/9a399df80e299f4e80004c5d0d999740.webp",
+            "320": "fairytale-assets/mobile/sprites/23c228dc191d2297cef46511df1ceda5.webp",
+            "384": "fairytale-assets/mobile/sprites/37dd1a64d658133ee67ef368b46dc876.webp",
+            "512": "fairytale-assets/mobile/sprites/1eef94599b60106220e743232d5d01fe.webp"
+          },
+          "slug": "scared_right",
+          "spritesheet": "fairytale-assets/sprites/animals/birds/robin/scared_right/spritesheet.png",
+          "variant": null,
+          "verb": "scared"
+        },
+        "sleep": {
+          "atlas": "fairytale-assets/sprites/animals/birds/robin/sleep/atlas.json",
+          "direction": null,
+          "facing": "camera",
+          "fps": 16,
+          "frames": 53,
+          "grid": [
+            53,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/214ef73241d716a4a24597720dd81362.webp",
+            "320": "fairytale-assets/mobile/sprites/e34452bda840a2ade3152b95faa8b07e.webp",
+            "384": "fairytale-assets/mobile/sprites/c785fbcd3c2a29fdfe7af3ff5f74f2eb.webp",
+            "512": "fairytale-assets/mobile/sprites/97f5044c3d9321ae4de84b601d50f83a.webp"
+          },
+          "slug": "sleep",
+          "spritesheet": "fairytale-assets/sprites/animals/birds/robin/sleep/spritesheet.png",
+          "variant": null,
+          "verb": "sleep"
+        },
+        "surprised_left": {
+          "atlas": "fairytale-assets/sprites/animals/birds/robin/surprised_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 24,
+          "frames": 48,
+          "grid": [
+            48,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/dd367863eb62eeb2d982569333f12bac.webp",
+            "320": "fairytale-assets/mobile/sprites/fe1232dac4b1be3c4f6e8a2c288946f9.webp",
+            "384": "fairytale-assets/mobile/sprites/d2fe5e2a0e47403b164154b435193c0c.webp",
+            "512": "fairytale-assets/mobile/sprites/2bca8fa755ddb336e220f2d452f3746a.webp"
+          },
+          "slug": "surprised_left",
+          "spritesheet": "fairytale-assets/sprites/animals/birds/robin/surprised_left/spritesheet.png",
+          "variant": null,
+          "verb": "surprised"
+        },
+        "surprised_right": {
+          "atlas": "fairytale-assets/sprites/animals/birds/robin/surprised_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 24,
+          "frames": 48,
+          "grid": [
+            48,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/41fe258903c5ac1b98747875dcaedb07.webp",
+            "320": "fairytale-assets/mobile/sprites/99b7f36f27ccb8614cdb69061ffba88c.webp",
+            "384": "fairytale-assets/mobile/sprites/4232d3dd4051f20b8ae528d08542d9d6.webp",
+            "512": "fairytale-assets/mobile/sprites/fcd33b51425c72d9b09802db148df567.webp"
+          },
+          "slug": "surprised_right",
+          "spritesheet": "fairytale-assets/sprites/animals/birds/robin/surprised_right/spritesheet.png",
+          "variant": null,
+          "verb": "surprised"
+        },
+        "worried_left": {
+          "atlas": "fairytale-assets/sprites/animals/birds/robin/worried_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 24,
+          "frames": 48,
+          "grid": [
+            48,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/f4ee5c39297075cd89b0698f055ae806.webp",
+            "320": "fairytale-assets/mobile/sprites/0e4193eff14ba7eb6a13b77c16c72d9a.webp",
+            "384": "fairytale-assets/mobile/sprites/cfb8b4d65fa46b342b7c4b5eaf91c279.webp",
+            "512": "fairytale-assets/mobile/sprites/5ce5328498b207a196dfb9be3dbd454e.webp"
+          },
+          "slug": "worried_left",
+          "spritesheet": "fairytale-assets/sprites/animals/birds/robin/worried_left/spritesheet.png",
+          "variant": null,
+          "verb": "worried"
+        },
+        "worried_right": {
+          "atlas": "fairytale-assets/sprites/animals/birds/robin/worried_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 24,
+          "frames": 48,
+          "grid": [
+            48,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/5a2abdc84788b9f888f1dadb1e6ed242.webp",
+            "320": "fairytale-assets/mobile/sprites/d66903228c673059fef060f9b54f3ac5.webp",
+            "384": "fairytale-assets/mobile/sprites/6a2bbd10661388ba600a4ea64df2319f.webp",
+            "512": "fairytale-assets/mobile/sprites/b31d4a687052ee1e61e98c48ead661e5.webp"
+          },
+          "slug": "worried_right",
+          "spritesheet": "fairytale-assets/sprites/animals/birds/robin/worried_right/spritesheet.png",
+          "variant": null,
+          "verb": "worried"
+        }
+      },
+      "display_name": "Ruby",
+      "height_cm": 12
+    },
+    "squirrel": {
+      "capability": {
+        "angry": {
+          "left": "angry_left",
+          "right": "angry_right"
+        },
+        "happy": {
+          "left": "happy_left_jumping",
+          "right": "happy_right_jumping"
+        },
+        "idle": {
+          "left": "idle_left",
+          "right": "idle_right"
+        },
+        "move": {
+          "left": "move_left",
+          "right": "move_right"
+        },
+        "pet_reaction": {
+          "left": "pet_reaction_left",
+          "right": "pet_reaction_right"
+        },
+        "sad": {
+          "left": "sad_left",
+          "right": "sad_right"
+        },
+        "scared": {
+          "left": "scared_left",
+          "right": "scared_right"
+        },
+        "sleep": {
+          "left": "sleep_left",
+          "right": "sleep_right"
+        },
+        "surprised": {
+          "left": "surprised_left",
+          "right": "surprised_right"
+        },
+        "worried": {
+          "left": "worried_left",
+          "right": "worried_right"
+        }
+      },
+      "clips": {
+        "angry_left": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/squirrel/angry_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 12,
+          "frames": 65,
+          "grid": [
+            65,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/ed2a3ca65bdf87044bdfcb520c505bc9.webp",
+            "320": "fairytale-assets/mobile/sprites/39964e3ed9a4e2ab5367d62b3d1fd1c4.webp",
+            "384": "fairytale-assets/mobile/sprites/64ad9fe7d76b13ca90bdc5af7c6fdd9f.webp",
+            "512": "fairytale-assets/mobile/sprites/f7b36e1d5e1c769a770e27108d1c3f41.webp"
+          },
+          "slug": "angry_left",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/squirrel/angry_left/spritesheet.png",
+          "variant": null,
+          "verb": "angry"
+        },
+        "angry_right": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/squirrel/angry_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 16,
+          "frames": 65,
+          "grid": [
+            65,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/4b2f7b7c484e211f5983f7f7bce5c764.webp",
+            "320": "fairytale-assets/mobile/sprites/581adaa4c2f382f2d70893c3465832f9.webp",
+            "384": "fairytale-assets/mobile/sprites/60896f8e67afea5008e46a76073a782b.webp",
+            "512": "fairytale-assets/mobile/sprites/01b6a0badebf1c2331feaa7faa8fcdd9.webp"
+          },
+          "slug": "angry_right",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/squirrel/angry_right/spritesheet.png",
+          "variant": null,
+          "verb": "angry"
+        },
+        "happy_left_jumping": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/squirrel/happy_left_jumping/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/4c34c8aab8b7d16eb48f2da58aabc837.webp",
+            "320": "fairytale-assets/mobile/sprites/e1d5fe5b79c849e6218ae7374ce3e23c.webp",
+            "384": "fairytale-assets/mobile/sprites/6f37452caf3af0f8c712f0e3a12567a3.webp",
+            "512": "fairytale-assets/mobile/sprites/05968c8482c2786b94a46ff8b63c7603.webp"
+          },
+          "slug": "happy_left_jumping",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/squirrel/happy_left_jumping/spritesheet.png",
+          "variant": "jumping",
+          "verb": "happy"
+        },
+        "happy_right_jumping": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/squirrel/happy_right_jumping/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/76a5051d4a43b672528276cc160d175d.webp",
+            "320": "fairytale-assets/mobile/sprites/7712fb07e3e64d16a4fbae5d23002320.webp",
+            "384": "fairytale-assets/mobile/sprites/ed8ed6b5e2999dc0bf3b74e566fc6226.webp",
+            "512": "fairytale-assets/mobile/sprites/502697c85c76387865c903251eafbad0.webp"
+          },
+          "slug": "happy_right_jumping",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/squirrel/happy_right_jumping/spritesheet.png",
+          "variant": "jumping",
+          "verb": "happy"
+        },
+        "idle_left": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/squirrel/idle_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/042b52ce208ebfb900fd845b0145ada4.webp",
+            "320": "fairytale-assets/mobile/sprites/27dab9da9e6733c11602f441a26fe879.webp",
+            "384": "fairytale-assets/mobile/sprites/d23cfea910a7c84cb8f9e3aafccc2078.webp",
+            "512": "fairytale-assets/mobile/sprites/dbf1d0bda3e5a2964350e3e395587371.webp"
+          },
+          "slug": "idle_left",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/squirrel/idle_left/spritesheet.png",
+          "variant": null,
+          "verb": "idle"
+        },
+        "idle_right": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/squirrel/idle_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/a01d5944f49a09143ec3c88e69f639be.webp",
+            "320": "fairytale-assets/mobile/sprites/719a0ead78d3cd90c31b21f763670c49.webp",
+            "384": "fairytale-assets/mobile/sprites/549396ede22236d06facc0db6b8348dc.webp",
+            "512": "fairytale-assets/mobile/sprites/98a30736b1b1d48d6f354720f9c957fe.webp"
+          },
+          "slug": "idle_right",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/squirrel/idle_right/spritesheet.png",
+          "variant": null,
+          "verb": "idle"
+        },
+        "move_left": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/squirrel/move_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/4f1e1813c28b36c23a9cc9268d4f26d4.webp",
+            "320": "fairytale-assets/mobile/sprites/cc241d0dc4e2b16c16821c31a6fc1a65.webp",
+            "384": "fairytale-assets/mobile/sprites/4ac7ca482789cad6c8f9567afb1bbb36.webp",
+            "512": "fairytale-assets/mobile/sprites/13bdb6bcd13d2fc672ba4afad6724ac0.webp"
+          },
+          "slug": "move_left",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/squirrel/move_left/spritesheet.png",
+          "variant": null,
+          "verb": "move"
+        },
+        "move_right": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/squirrel/move_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/ba6541c33054471fd11347d0838de3ac.webp",
+            "320": "fairytale-assets/mobile/sprites/db13dbd80966b2ab29c521f15b4bb64a.webp",
+            "384": "fairytale-assets/mobile/sprites/968aff62ea141819e586a2405428fb57.webp",
+            "512": "fairytale-assets/mobile/sprites/99e68d65d32c3aa9f550cd95f99ac2b1.webp"
+          },
+          "slug": "move_right",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/squirrel/move_right/spritesheet.png",
+          "variant": null,
+          "verb": "move"
+        },
+        "pet_reaction_left": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/squirrel/pet_reaction_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/dcbb2238f217f675b75b0b2a887d917e.webp",
+            "320": "fairytale-assets/mobile/sprites/a7bd8e6dabebd68931e04290249451be.webp",
+            "384": "fairytale-assets/mobile/sprites/45424c7807337c1e0b8530cc8e1be990.webp",
+            "512": "fairytale-assets/mobile/sprites/eea8038b5635eafd8c31549e80b0be9c.webp"
+          },
+          "slug": "pet_reaction_left",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/squirrel/pet_reaction_left/spritesheet.png",
+          "variant": null,
+          "verb": "pet_reaction"
+        },
+        "pet_reaction_right": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/squirrel/pet_reaction_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/3b9cddd517b65b8a9d559061fe994853.webp",
+            "320": "fairytale-assets/mobile/sprites/066e5e5539e10321e8f8515607bb131c.webp",
+            "384": "fairytale-assets/mobile/sprites/aea15d767fd95aaeeccb0fd07aeeabbf.webp",
+            "512": "fairytale-assets/mobile/sprites/ecdf8986814a0b22202fe46feb86b621.webp"
+          },
+          "slug": "pet_reaction_right",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/squirrel/pet_reaction_right/spritesheet.png",
+          "variant": null,
+          "verb": "pet_reaction"
+        },
+        "sad_left": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/squirrel/sad_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/51468dda63f8d29c20e881d179555b17.webp",
+            "320": "fairytale-assets/mobile/sprites/96a2071bfd4cf181083a7588a2c4c25e.webp",
+            "384": "fairytale-assets/mobile/sprites/7a5567654fd160a911108923cff812f1.webp",
+            "512": "fairytale-assets/mobile/sprites/bb0feeedcc2670cd2098d1e781abdec2.webp"
+          },
+          "slug": "sad_left",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/squirrel/sad_left/spritesheet.png",
+          "variant": null,
+          "verb": "sad"
+        },
+        "sad_right": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/squirrel/sad_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/643354669a6cae81d0791dd9c1ec8307.webp",
+            "320": "fairytale-assets/mobile/sprites/43b8f0b38f974a5cd359eb5b74af21a0.webp",
+            "384": "fairytale-assets/mobile/sprites/cee4d955469c5e91479fe67ded69d506.webp",
+            "512": "fairytale-assets/mobile/sprites/9f1db82c832ed5c90cb7e6265502dd22.webp"
+          },
+          "slug": "sad_right",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/squirrel/sad_right/spritesheet.png",
+          "variant": null,
+          "verb": "sad"
+        },
+        "scared_left": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/squirrel/scared_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 12,
+          "frames": 65,
+          "grid": [
+            65,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/2da73b654e8160e2252ef6f2ee9b4596.webp",
+            "320": "fairytale-assets/mobile/sprites/a643fc859c41ca7792375fa7f4084e82.webp",
+            "384": "fairytale-assets/mobile/sprites/3ee85f6238417f0f5acdab278a181c7d.webp",
+            "512": "fairytale-assets/mobile/sprites/aef69e3afe450ef866bc614ba94dc637.webp"
+          },
+          "slug": "scared_left",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/squirrel/scared_left/spritesheet.png",
+          "variant": null,
+          "verb": "scared"
+        },
+        "scared_right": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/squirrel/scared_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 16,
+          "frames": 65,
+          "grid": [
+            65,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/19605359f398a25d6d466d2fa667cd4d.webp",
+            "320": "fairytale-assets/mobile/sprites/9440c298446b928d531aa1108d62f76e.webp",
+            "384": "fairytale-assets/mobile/sprites/836cb389c4b9a232a258889976e9cded.webp",
+            "512": "fairytale-assets/mobile/sprites/0103890f72ab4a7dede9eb5b140b7732.webp"
+          },
+          "slug": "scared_right",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/squirrel/scared_right/spritesheet.png",
+          "variant": null,
+          "verb": "scared"
+        },
+        "sleep_left": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/squirrel/sleep_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 12,
+          "frames": 81,
+          "grid": [
+            81,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/b305a48d73ab22482af321b6eb6da6c2.webp",
+            "320": "fairytale-assets/mobile/sprites/c203dc634759d046c7af9980e60189d4.webp",
+            "384": "fairytale-assets/mobile/sprites/3f4222390c762dc82cbb0791cd793ee0.webp",
+            "512": "fairytale-assets/mobile/sprites/16ba7649f8d840b4f9db17000d4a16c8.webp"
+          },
+          "slug": "sleep_left",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/squirrel/sleep_left/spritesheet.png",
+          "variant": null,
+          "verb": "sleep"
+        },
+        "sleep_right": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/squirrel/sleep_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 16,
+          "frames": 81,
+          "grid": [
+            81,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/a222d6277ea6866cbb51c9b8d69dc572.webp",
+            "320": "fairytale-assets/mobile/sprites/5badb2b8c8c5f5ef4d8527248231b101.webp",
+            "384": "fairytale-assets/mobile/sprites/e25b79e18d20c2e3298692cea351aee6.webp",
+            "512": "fairytale-assets/mobile/sprites/d070a35c12db9f2dd1a3fb45c7a5703b.webp"
+          },
+          "slug": "sleep_right",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/squirrel/sleep_right/spritesheet.png",
+          "variant": null,
+          "verb": "sleep"
+        },
+        "surprised_left": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/squirrel/surprised_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 12,
+          "frames": 65,
+          "grid": [
+            65,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/95fc6f7e777dd856decc9f23c08aa362.webp",
+            "320": "fairytale-assets/mobile/sprites/9512b314e03aea53d761f838a3d2959a.webp",
+            "384": "fairytale-assets/mobile/sprites/78e7ca29550d5c5e29a2faf8fcd0cfce.webp",
+            "512": "fairytale-assets/mobile/sprites/fb8fbd8351f9c9fc71fe4f27d02f6324.webp"
+          },
+          "slug": "surprised_left",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/squirrel/surprised_left/spritesheet.png",
+          "variant": null,
+          "verb": "surprised"
+        },
+        "surprised_right": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/squirrel/surprised_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 16,
+          "frames": 65,
+          "grid": [
+            65,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/2ac44bfd1de2e5caf2f27cde1b5f51df.webp",
+            "320": "fairytale-assets/mobile/sprites/5ee3f60329813fe60f1158e9ab0184e6.webp",
+            "384": "fairytale-assets/mobile/sprites/8cdefac81d0e14341f036a37f1fd3fa9.webp",
+            "512": "fairytale-assets/mobile/sprites/8b8bb210c23086b8ae5e96487a33c250.webp"
+          },
+          "slug": "surprised_right",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/squirrel/surprised_right/spritesheet.png",
+          "variant": null,
+          "verb": "surprised"
+        },
+        "worried_left": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/squirrel/worried_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 12,
+          "frames": 81,
+          "grid": [
+            81,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/2582b8c23d069f5c239dbee8d2befb39.webp",
+            "320": "fairytale-assets/mobile/sprites/a7662eb01793e8864cea19e0dbdd1c6d.webp",
+            "384": "fairytale-assets/mobile/sprites/e4d7c6aa70d45961d868986c02c6b3ad.webp",
+            "512": "fairytale-assets/mobile/sprites/f5dbde68be95c4394a24bfaeea3e4c07.webp"
+          },
+          "slug": "worried_left",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/squirrel/worried_left/spritesheet.png",
+          "variant": null,
+          "verb": "worried"
+        },
+        "worried_right": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/squirrel/worried_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 16,
+          "frames": 81,
+          "grid": [
+            81,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/db019cb5ccac621d7464e371eda339f3.webp",
+            "320": "fairytale-assets/mobile/sprites/6011f1e85eca7e9d4f566ca78612aa2d.webp",
+            "384": "fairytale-assets/mobile/sprites/cff8f57687af27a75b409ff02b217995.webp",
+            "512": "fairytale-assets/mobile/sprites/98f255eba26961a763054e14d5cd168b.webp"
+          },
+          "slug": "worried_right",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/squirrel/worried_right/spritesheet.png",
+          "variant": null,
+          "verb": "worried"
+        }
+      },
+      "display_name": "Sammy",
+      "height_cm": 22
+    }
+  },
+  "objects": {},
+  "scenes": [
+    {
+      "line": 12,
+      "place": "forest_path",
+      "plate": {
+        "default_zone": "foreground_road",
+        "poster": "fairytale-assets/live_backgrounds_posters/forest_path_live.jpg",
+        "resolution": [
+          1920,
+          1080
+        ],
+        "video": "fairytale-assets/live_backgrounds/forest/forest_path_live.mp4",
+        "zones": [
+          {
+            "depth": 1,
+            "description": "foreground - closest area to the user",
+            "name": "foreground_road",
+            "polygon": [
+              [
+                0.19,
+                79.95
+              ],
+              [
+                99.75,
+                80.76
+              ],
+              [
+                99.81,
+                99.12
+              ],
+              [
+                0.25,
+                99.28
+              ],
+              [
+                0.21,
+                79.79
+              ]
+            ],
+            "scale": 1.0,
+            "surface": "floor"
+          },
+          {
+            "depth": 2,
+            "description": "midground - 2nd closest area to the user",
+            "name": "midground_road",
+            "polygon": [
+              [
+                1.71,
+                79.23
+              ],
+              [
+                28.16,
+                71.8
+              ],
+              [
+                78.96,
+                70.69
+              ],
+              [
+                99.75,
+                80.47
+              ],
+              [
+                2.01,
+                79.46
+              ]
+            ],
+            "scale": 0.7,
+            "surface": "floor"
+          },
+          {
+            "depth": 3,
+            "description": "background - 3rd closest area to the user",
+            "name": "background_road",
+            "polygon": [
+              [
+                38.14,
+                70.95
+              ],
+              [
+                41.47,
+                69.52
+              ],
+              [
+                34.55,
+                67.52
+              ],
+              [
+                39.62,
+                65.12
+              ],
+              [
+                55.41,
+                65.12
+              ],
+              [
+                69.57,
+                70.28
+              ],
+              [
+                38.52,
+                70.81
+              ]
+            ],
+            "scale": 0.4,
+            "surface": "floor"
+          },
+          {
+            "depth": null,
+            "description": "Sky / upper area.",
+            "name": "sky",
+            "polygon": [
+              [
+                0.0,
+                0.0
+              ],
+              [
+                100.0,
+                0.0
+              ],
+              [
+                100.0,
+                58.0
+              ],
+              [
+                0.0,
+                58.0
+              ]
+            ],
+            "scale": null,
+            "surface": "sky"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "beside": null,
+          "cmd": "put",
+          "facing": null,
+          "kind": "cmd",
+          "line": 13,
+          "objects": [],
+          "position": "center",
+          "subjects": [
+            "owl"
+          ],
+          "zone": null
+        },
+        {
+          "cmd": "music",
+          "kind": "cmd",
+          "line": 14,
+          "name": "calm",
+          "subjects": []
+        },
+        {
+          "audio": "parity-jobs/parity/audio/26ea56210fecf45dbb01e95254cf97f09e8efac3f3a83f90e093f89bc24f89bb.wav",
+          "duration_s": 5.235,
+          "kind": "chunk",
+          "line": 16,
+          "text": "Olive the owl was very proud of her night-eyes and her silent wings."
+        },
+        {
+          "cmd": "emote",
+          "emotion": "happy",
+          "facing": null,
+          "kind": "cmd",
+          "line": 17,
+          "subjects": [
+            "owl"
+          ]
+        },
+        {
+          "audio": "parity-jobs/parity/audio/d98fb7de1a41a2452957e95edde08753ca8a13b9fd800d0d6c206a8361485f06.wav",
+          "duration_s": 5.638,
+          "kind": "chunk",
+          "line": 18,
+          "text": "She usually stayed in her glowing grove, calling herself the Queen of the Quiet."
+        },
+        {
+          "audio": "parity-jobs/parity/audio/a66e168b6e0c24caaae8c2e2cd85d808ed08b2e8b81d1b8501d7a89ab8adef28.wav",
+          "duration_s": 4.832,
+          "kind": "chunk",
+          "line": 19,
+          "text": "But one sunny morning, curiosity pulled her onto the winding dirt path."
+        },
+        {
+          "cmd": "emote",
+          "emotion": "surprised",
+          "facing": null,
+          "kind": "cmd",
+          "line": 20,
+          "subjects": [
+            "owl"
+          ]
+        },
+        {
+          "audio": "parity-jobs/parity/audio/3e3d23438966fca8f17f054ad183094e7c2dd832e6d5a0d3878fe173544f825e.wav",
+          "duration_s": 6.04,
+          "kind": "chunk",
+          "line": 21,
+          "text": "The world was loud! The sunlight filtered through the leaves in dancing patches of gold."
+        },
+        {
+          "cmd": "sound",
+          "kind": "cmd",
+          "line": 22,
+          "name": "whoosh",
+          "subjects": []
+        },
+        {
+          "audio": "parity-jobs/parity/audio/b79fc74292ebcfaee1f8f728051ae3369c20bfbbbbdcc8102939842fc92d052c.wav",
+          "duration_s": 3.624,
+          "kind": "chunk",
+          "line": 23,
+          "text": "A sudden rush of wind whistled past her ears."
+        },
+        {
+          "cmd": "emote",
+          "emotion": "scared",
+          "facing": null,
+          "kind": "cmd",
+          "line": 24,
+          "subjects": [
+            "owl"
+          ]
+        },
+        {
+          "audio": "parity-jobs/parity/audio/5027d07bc013592ea865ef06b53dc38468cc7c8c333aa952bf5a1cda671a75b9.wav",
+          "duration_s": 4.832,
+          "kind": "chunk",
+          "line": 25,
+          "text": "Olive fluttered her wings, feeling very small in the big, bright day."
+        },
+        {
+          "cmd": "pause",
+          "kind": "cmd",
+          "line": 26,
+          "seconds": 2.0,
+          "subjects": []
+        },
+        {
+          "cmd": "travel",
+          "destination": "forest_brook_stones",
+          "exit_anchor_pct": [
+            51.5,
+            53.4
+          ],
+          "kind": "cmd",
+          "line": 28,
+          "subjects": [
+            "owl"
+          ]
+        }
+      ],
+      "time": "day"
+    },
+    {
+      "line": 31,
+      "place": "forest_brook_stones",
+      "plate": {
+        "default_zone": "foreground",
+        "poster": "fairytale-assets/live_backgrounds_posters/forest_brook_stones_live.jpg",
+        "resolution": [
+          1920,
+          1080
+        ],
+        "video": "fairytale-assets/live_backgrounds/forest/forest_brook_stones_live.mp4",
+        "zones": [
+          {
+            "depth": 1,
+            "description": "foreground - you can place characters and objects here",
+            "name": "foreground",
+            "polygon": [
+              [
+                0.16,
+                72.96
+              ],
+              [
+                1.73,
+                72.48
+              ],
+              [
+                3.29,
+                72.0
+              ],
+              [
+                4.75,
+                71.43
+              ],
+              [
+                6.21,
+                71.04
+              ],
+              [
+                7.77,
+                70.37
+              ],
+              [
+                9.07,
+                69.6
+              ],
+              [
+                10.52,
+                69.03
+              ],
+              [
+                12.09,
+                68.84
+              ],
+              [
+                13.6,
+                68.26
+              ],
+              [
+                15.11,
+                68.17
+              ],
+              [
+                16.51,
+                67.59
+              ],
+              [
+                17.86,
+                66.92
+              ],
+              [
+                19.43,
+                66.82
+              ],
+              [
+                20.94,
+                66.34
+              ],
+              [
+                22.45,
+                65.86
+              ],
+              [
+                24.07,
+                65.58
+              ],
+              [
+                25.74,
+                65.38
+              ],
+              [
+                27.25,
+                65.86
+              ],
+              [
+                28.76,
+                66.06
+              ],
+              [
+                30.28,
+                66.15
+              ],
+              [
+                31.68,
+                65.29
+              ],
+              [
+                33.08,
+                64.62
+              ],
+              [
+                34.81,
+                64.42
+              ],
+              [
+                36.48,
+                64.33
+              ],
+              [
+                37.99,
+                64.33
+              ],
+              [
+                39.5,
+                64.23
+              ],
+              [
+                41.07,
+                63.46
+              ],
+              [
+                42.47,
+                62.6
+              ],
+              [
+                43.98,
+                63.08
+              ],
+              [
+                45.39,
+                63.66
+              ],
+              [
+                46.79,
+                64.42
+              ],
+              [
+                48.19,
+                65.0
+              ],
+              [
+                49.49,
+                65.77
+              ],
+              [
+                50.84,
+                66.44
+              ],
+              [
+                52.35,
+                66.53
+              ],
+              [
+                53.86,
+                66.82
+              ],
+              [
+                55.21,
+                67.59
+              ],
+              [
+                56.5,
+                68.36
+              ],
+              [
+                57.1,
+                68.65
+              ],
+              [
+                58.61,
+                69.03
+              ],
+              [
+                60.23,
+                69.41
+              ],
+              [
+                61.85,
+                69.51
+              ],
+              [
+                63.46,
+                69.7
+              ],
+              [
+                65.19,
+                69.7
+              ],
+              [
+                66.97,
+                69.6
+              ],
+              [
+                68.59,
+                69.51
+              ],
+              [
+                70.37,
+                69.8
+              ],
+              [
+                71.83,
+                70.18
+              ],
+              [
+                73.56,
+                70.85
+              ],
+              [
+                75.01,
+                71.52
+              ],
+              [
+                76.31,
+                72.39
+              ],
+              [
+                77.55,
+                73.54
+              ],
+              [
+                78.79,
+                74.59
+              ],
+              [
+                80.19,
+                75.27
+              ],
+              [
+                81.65,
+                75.84
+              ],
+              [
+                83.27,
+                75.94
+              ],
+              [
+                84.94,
+                75.55
+              ],
+              [
+                86.4,
+                75.17
+              ],
+              [
+                87.91,
+                75.17
+              ],
+              [
+                89.26,
+                76.13
+              ],
+              [
+                90.56,
+                77.18
+              ],
+              [
+                92.12,
+                77.57
+              ],
+              [
+                93.79,
+                77.38
+              ],
+              [
+                95.41,
+                77.28
+              ],
+              [
+                96.98,
+                77.28
+              ],
+              [
+                98.49,
+                77.28
+              ],
+              [
+                99.51,
+                78.53
+              ],
+              [
+                100.0,
+                79.97
+              ],
+              [
+                100.0,
+                81.5
+              ],
+              [
+                100.0,
+                83.13
+              ],
+              [
+                100.0,
+                84.76
+              ],
+              [
+                100.0,
+                86.49
+              ],
+              [
+                100.0,
+                88.12
+              ],
+              [
+                100.0,
+                89.66
+              ],
+              [
+                100.0,
+                91.29
+              ],
+              [
+                100.0,
+                92.82
+              ],
+              [
+                99.84,
+                94.36
+              ],
+              [
+                99.78,
+                95.89
+              ],
+              [
+                99.78,
+                97.43
+              ],
+              [
+                100.0,
+                98.96
+              ],
+              [
+                98.81,
+                100.0
+              ],
+              [
+                97.03,
+                100.0
+              ],
+              [
+                95.3,
+                100.0
+              ],
+              [
+                93.74,
+                100.0
+              ],
+              [
+                92.07,
+                100.0
+              ],
+              [
+                90.5,
+                100.0
+              ],
+              [
+                88.99,
+                100.0
+              ],
+              [
+                87.48,
+                100.0
+              ],
+              [
+                85.91,
+                100.0
+              ],
+              [
+                83.97,
+                100.0
+              ],
+              [
+                81.98,
+                100.0
+              ],
+              [
+                80.46,
+                100.0
+              ],
+              [
+                78.68,
+                100.0
+              ],
+              [
+                77.12,
+                100.0
+              ],
+              [
+                75.61,
+                100.0
+              ],
+              [
+                74.04,
+                100.0
+              ],
+              [
+                72.48,
+                100.0
+              ],
+              [
+                70.8,
+                100.0
+              ],
+              [
+                69.24,
+                100.0
+              ],
+              [
+                67.4,
+                100.0
+              ],
+              [
+                65.68,
+                100.0
+              ],
+              [
+                63.84,
+                100.0
+              ],
+              [
+                62.06,
+                100.0
+              ],
+              [
+                60.5,
+                100.0
+              ],
+              [
+                58.99,
+                100.0
+              ],
+              [
+                57.1,
+                100.0
+              ],
+              [
+                55.42,
+                100.0
+              ],
+              [
+                53.8,
+                100.0
+              ],
+              [
+                51.86,
+                100.0
+              ],
+              [
+                50.08,
+                100.0
+              ],
+              [
+                47.87,
+                100.0
+              ],
+              [
+                45.71,
+                100.0
+              ],
+              [
+                43.55,
+                100.0
+              ],
+              [
+                41.99,
+                100.0
+              ],
+              [
+                40.47,
+                100.0
+              ],
+              [
+                38.26,
+                100.0
+              ],
+              [
+                36.21,
+                100.0
+              ],
+              [
+                34.05,
+                100.0
+              ],
+              [
+                31.95,
+                100.0
+              ],
+              [
+                29.95,
+                100.0
+              ],
+              [
+                28.33,
+                100.0
+              ],
+              [
+                26.66,
+                100.0
+              ],
+              [
+                24.99,
+                100.0
+              ],
+              [
+                23.48,
+                100.0
+              ],
+              [
+                21.8,
+                100.0
+              ],
+              [
+                19.81,
+                100.0
+              ],
+              [
+                17.97,
+                100.0
+              ],
+              [
+                16.35,
+                100.0
+              ],
+              [
+                14.57,
+                100.0
+              ],
+              [
+                13.01,
+                100.0
+              ],
+              [
+                11.33,
+                100.0
+              ],
+              [
+                9.82,
+                100.0
+              ],
+              [
+                8.26,
+                100.0
+              ],
+              [
+                6.53,
+                100.0
+              ],
+              [
+                4.96,
+                100.0
+              ],
+              [
+                3.45,
+                100.0
+              ],
+              [
+                1.94,
+                100.0
+              ],
+              [
+                0.43,
+                100.0
+              ],
+              [
+                0.0,
+                98.48
+              ],
+              [
+                0.0,
+                96.76
+              ],
+              [
+                0.0,
+                95.22
+              ],
+              [
+                0.0,
+                93.49
+              ],
+              [
+                0.0,
+                91.77
+              ],
+              [
+                0.0,
+                90.04
+              ],
+              [
+                0.0,
+                88.51
+              ],
+              [
+                0.0,
+                86.97
+              ],
+              [
+                0.0,
+                85.34
+              ],
+              [
+                0.0,
+                83.61
+              ],
+              [
+                0.0,
+                82.08
+              ],
+              [
+                0.0,
+                80.54
+              ],
+              [
+                0.0,
+                78.91
+              ],
+              [
+                0.0,
+                77.38
+              ],
+              [
+                0.0,
+                75.84
+              ],
+              [
+                0.0,
+                74.21
+              ],
+              [
+                0.0,
+                72.58
+              ],
+              [
+                0.0,
+                70.85
+              ]
+            ],
+            "scale": 1.0,
+            "surface": "floor"
+          },
+          {
+            "depth": null,
+            "description": "Sky / upper area.",
+            "name": "sky",
+            "polygon": [
+              [
+                0.0,
+                0.0
+              ],
+              [
+                100.0,
+                0.0
+              ],
+              [
+                100.0,
+                58.0
+              ],
+              [
+                0.0,
+                58.0
+              ]
+            ],
+            "scale": null,
+            "surface": "sky"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "beside": null,
+          "cmd": "put",
+          "facing": null,
+          "kind": "cmd",
+          "line": 32,
+          "objects": [],
+          "position": "center",
+          "subjects": [
+            "owl"
+          ],
+          "zone": null
+        },
+        {
+          "beside": null,
+          "cmd": "put",
+          "facing": "owl",
+          "kind": "cmd",
+          "line": 33,
+          "objects": [],
+          "position": "left_third",
+          "subjects": [
+            "squirrel"
+          ],
+          "zone": null
+        },
+        {
+          "beside": null,
+          "cmd": "put",
+          "facing": "owl",
+          "kind": "cmd",
+          "line": 34,
+          "objects": [],
+          "position": "right_third",
+          "subjects": [
+            "rabbit"
+          ],
+          "zone": null
+        },
+        {
+          "audio": "parity-jobs/parity/audio/356f3545a3784b04a29670414ba886142e230e64153c94b05ce4582966c3f434.wav",
+          "duration_s": 5.235,
+          "kind": "chunk",
+          "line": 36,
+          "text": "At the brook, the water sang a song over the flat stepping stones."
+        },
+        {
+          "cmd": "sound",
+          "kind": "cmd",
+          "line": 37,
+          "name": "splash",
+          "subjects": []
+        },
+        {
+          "audio": "parity-jobs/parity/audio/7e6442ac7dcd4680dd3c8e1a6407d6eb41b3dacdcbf3adbf54d421f55a9591f2.wav",
+          "duration_s": 5.235,
+          "kind": "chunk",
+          "line": 38,
+          "text": "Pip the rabbit was there, splashing in the shallows with Sammy the squirrel."
+        },
+        {
+          "cmd": "emote",
+          "emotion": "happy",
+          "facing": null,
+          "kind": "cmd",
+          "line": 39,
+          "subjects": [
+            "rabbit",
+            "squirrel"
+          ]
+        },
+        {
+          "audio": "parity-jobs/parity/audio/93c9962172f499aeb5b4550c310c2b37064a106ff45b009d07a7055652bd924d.wav",
+          "duration_s": 6.846,
+          "kind": "chunk",
+          "line": 40,
+          "text": "Olive watched them from a distance. She saw Pip share a piece of sweet clover with Sammy."
+        },
+        {
+          "audio": "parity-jobs/parity/audio/9c84f0086a95a99e611dd80913085b28d1e979ebedd73f822d5f07dd1adb4842.wav",
+          "duration_s": 2.819,
+          "kind": "chunk",
+          "line": 41,
+          "text": "The two friends bumped shoulders and giggled."
+        },
+        {
+          "cmd": "sound",
+          "kind": "cmd",
+          "line": 42,
+          "name": "giggle",
+          "subjects": []
+        },
+        {
+          "audio": "parity-jobs/parity/audio/13c437e8975f6e48aba657844e249dc26b7ba4b80de845c40a9a7ad0c1bef6be.wav",
+          "duration_s": 3.221,
+          "kind": "chunk",
+          "line": 43,
+          "text": "Olive felt a strange prickle in her chest."
+        },
+        {
+          "cmd": "emote",
+          "emotion": "sad",
+          "facing": null,
+          "kind": "cmd",
+          "line": 44,
+          "subjects": [
+            "owl"
+          ]
+        },
+        {
+          "audio": "parity-jobs/parity/audio/9718176fe570e3675886826cc7cdbd84f8487f3e8d395d0dd8fcaa04b9cab95c.wav",
+          "duration_s": 7.248,
+          "kind": "chunk",
+          "line": 45,
+          "text": "'It is very fine to be alone,' Olive told herself. 'But it is very warm to be together.'"
+        },
+        {
+          "cmd": "pause",
+          "kind": "cmd",
+          "line": 46,
+          "seconds": 1.5,
+          "subjects": []
+        },
+        {
+          "cmd": "travel",
+          "destination": "forest_clearing",
+          "exit_anchor_pct": [
+            50,
+            60
+          ],
+          "kind": "cmd",
+          "line": 48,
+          "subjects": [
+            "owl",
+            "squirrel",
+            "rabbit"
+          ]
+        }
+      ],
+      "time": "day"
+    },
+    {
+      "line": 51,
+      "place": "forest_clearing",
+      "plate": {
+        "default_zone": "foreground",
+        "poster": "fairytale-assets/live_backgrounds_posters/forest_clearing_live.jpg",
+        "resolution": [
+          1920,
+          1080
+        ],
+        "video": "fairytale-assets/live_backgrounds/forest/forest_clearing_live.mp4",
+        "zones": [
+          {
+            "depth": 1,
+            "description": "foreground - the open grass closest to the viewer. Where you can put main characters.",
+            "name": "foreground",
+            "polygon": [
+              [
+                20.3,
+                99.21
+              ],
+              [
+                71.84,
+                99.07
+              ],
+              [
+                71.78,
+                89.18
+              ],
+              [
+                21.11,
+                88.59
+              ],
+              [
+                20.77,
+                98.93
+              ]
+            ],
+            "scale": 1.0,
+            "surface": "floor"
+          },
+          {
+            "depth": 2,
+            "description": "midground - the grass further back, toward the tree line. Further from the viewer than the foreground.",
+            "name": "midground",
+            "polygon": [
+              [
+                20.63,
+                81.37
+              ],
+              [
+                20.89,
+                88.03
+              ],
+              [
+                76.46,
+                88.49
+              ],
+              [
+                75.85,
+                82.91
+              ],
+              [
+                20.58,
+                80.95
+              ]
+            ],
+            "scale": 0.7,
+            "surface": "floor"
+          },
+          {
+            "depth": null,
+            "description": "Sky / upper area.",
+            "name": "sky",
+            "polygon": [
+              [
+                0.0,
+                0.0
+              ],
+              [
+                100.0,
+                0.0
+              ],
+              [
+                100.0,
+                58.0
+              ],
+              [
+                0.0,
+                58.0
+              ]
+            ],
+            "scale": null,
+            "surface": "sky"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "beside": null,
+          "cmd": "put",
+          "facing": null,
+          "kind": "cmd",
+          "line": 52,
+          "objects": [],
+          "position": "left_edge",
+          "subjects": [
+            "owl"
+          ],
+          "zone": null
+        },
+        {
+          "beside": null,
+          "cmd": "put",
+          "facing": null,
+          "kind": "cmd",
+          "line": 53,
+          "objects": [],
+          "position": "center",
+          "subjects": [
+            "squirrel"
+          ],
+          "zone": null
+        },
+        {
+          "beside": null,
+          "cmd": "put",
+          "facing": null,
+          "kind": "cmd",
+          "line": 54,
+          "objects": [],
+          "position": "right_third",
+          "subjects": [
+            "rabbit"
+          ],
+          "zone": null
+        },
+        {
+          "beside": null,
+          "cmd": "put",
+          "facing": "owl",
+          "kind": "cmd",
+          "line": 55,
+          "objects": [],
+          "position": "right_edge",
+          "subjects": [
+            "robin"
+          ],
+          "zone": null
+        },
+        {
+          "audio": "parity-jobs/parity/audio/d1a02ff86ecb146d38c033ba2fa5e98f4e795be513ccd02da26a356b33b65010.wav",
+          "duration_s": 6.846,
+          "kind": "chunk",
+          "line": 57,
+          "text": "In the wide, sunny clearing, they met Ruby the robin, who was singing a melody of summer."
+        },
+        {
+          "cmd": "push_in",
+          "kind": "cmd",
+          "line": 58,
+          "speed": "slow",
+          "subjects": [],
+          "target": "owl"
+        },
+        {
+          "audio": "parity-jobs/parity/audio/7bf897eaa1755d0cc47e70750e908ff066bdc47584d6c234cb26edfd8e293ad8.wav",
+          "duration_s": 4.43,
+          "kind": "chunk",
+          "line": 59,
+          "text": "Olive stood at the edge of the grass, her feathers ruffled."
+        },
+        {
+          "cmd": "emote",
+          "emotion": "worried",
+          "facing": null,
+          "kind": "cmd",
+          "line": 60,
+          "subjects": [
+            "owl"
+          ]
+        },
+        {
+          "audio": "parity-jobs/parity/audio/42af87ff939e2fb87ddab839280d776cae8db500710a4b2b6e76fd8ca0ef734a.wav",
+          "duration_s": 4.832,
+          "kind": "chunk",
+          "line": 61,
+          "text": "She felt like a grey smudge in a world of bright colors."
+        },
+        {
+          "audio": "parity-jobs/parity/audio/316a27cb9190561b7899b33c252e62a67cb483e2f8809e305b9c37bc5ddffe94.wav",
+          "duration_s": 6.443,
+          "kind": "chunk",
+          "line": 62,
+          "text": "She almost flew back to her silent grove to be the Queen of the Quiet again."
+        },
+        {
+          "cmd": "pause",
+          "kind": "cmd",
+          "line": 63,
+          "seconds": 2.0,
+          "subjects": []
+        },
+        {
+          "audio": "parity-jobs/parity/audio/003a23d58632f26db2e4667ed289ae75ab75474fb9618e4661d3dd61a2cb4561.wav",
+          "duration_s": 5.638,
+          "kind": "chunk",
+          "line": 64,
+          "text": "But then, Ruby flew over and landed just a few inches from Olive's talons."
+        },
+        {
+          "cmd": "emote",
+          "emotion": "happy",
+          "facing": null,
+          "kind": "cmd",
+          "line": 65,
+          "subjects": [
+            "robin"
+          ]
+        },
+        {
+          "audio": "parity-jobs/parity/audio/98523a20173fbd0194400cb656d382cfa5e3fd05bc0f36582633ddc888b0f71a.wav",
+          "duration_s": 4.832,
+          "kind": "chunk",
+          "line": 66,
+          "text": "'You have the most beautiful eyes I have ever seen,' Ruby sang."
+        },
+        {
+          "cmd": "emote",
+          "emotion": "surprised",
+          "facing": null,
+          "kind": "cmd",
+          "line": 67,
+          "subjects": [
+            "owl"
+          ]
+        },
+        {
+          "audio": "parity-jobs/parity/audio/2b95c17438a2ab30a37186e0d78979219272cc0ec802bdd37f715e93c95088a5.wav",
+          "duration_s": 4.43,
+          "kind": "chunk",
+          "line": 68,
+          "text": "Olive blinked. No one had ever said that to her before."
+        },
+        {
+          "cmd": "travel",
+          "destination": "forest_stump_round",
+          "exit_anchor_pct": [
+            82.9,
+            81.2
+          ],
+          "kind": "cmd",
+          "line": 70,
+          "subjects": [
+            "owl",
+            "squirrel",
+            "rabbit",
+            "robin"
+          ]
+        }
+      ],
+      "time": "day"
+    },
+    {
+      "line": 73,
+      "place": "forest_stump_round",
+      "plate": {
+        "default_zone": "floor",
+        "poster": "fairytale-assets/live_backgrounds_posters/forest_stump_round_live.jpg",
+        "resolution": [
+          1920,
+          1080
+        ],
+        "video": "fairytale-assets/live_backgrounds/forest/forest_stump_round_live.mp4",
+        "zones": [
+          {
+            "depth": null,
+            "description": "",
+            "name": "floor",
+            "polygon": [
+              [
+                0.22,
+                77.95
+              ],
+              [
+                1.78,
+                78.05
+              ],
+              [
+                3.35,
+                78.05
+              ],
+              [
+                4.86,
+                77.76
+              ],
+              [
+                6.37,
+                77.57
+              ],
+              [
+                7.83,
+                77.18
+              ],
+              [
+                9.5,
+                76.9
+              ],
+              [
+                10.96,
+                76.51
+              ],
+              [
+                12.52,
+                76.22
+              ],
+              [
+                13.98,
+                75.84
+              ],
+              [
+                15.6,
+                75.36
+              ],
+              [
+                17.22,
+                74.98
+              ],
+              [
+                18.78,
+                74.88
+              ],
+              [
+                20.29,
+                74.88
+              ],
+              [
+                21.91,
+                74.79
+              ],
+              [
+                23.42,
+                74.79
+              ],
+              [
+                25.04,
+                74.79
+              ],
+              [
+                26.55,
+                74.59
+              ],
+              [
+                28.17,
+                74.59
+              ],
+              [
+                29.68,
+                74.59
+              ],
+              [
+                31.41,
+                74.59
+              ],
+              [
+                32.97,
+                74.5
+              ],
+              [
+                34.65,
+                74.59
+              ],
+              [
+                36.27,
+                74.79
+              ],
+              [
+                37.83,
+                74.88
+              ],
+              [
+                39.34,
+                74.98
+              ],
+              [
+                41.01,
+                75.27
+              ],
+              [
+                43.44,
+                75.75
+              ],
+              [
+                44.31,
+                76.99
+              ],
+              [
+                44.68,
+                78.53
+              ],
+              [
+                45.93,
+                79.39
+              ],
+              [
+                47.49,
+                79.58
+              ],
+              [
+                49.0,
+                79.58
+              ],
+              [
+                50.51,
+                79.58
+              ],
+              [
+                52.24,
+                79.58
+              ],
+              [
+                53.75,
+                79.58
+              ],
+              [
+                55.32,
+                79.39
+              ],
+              [
+                56.83,
+                79.1
+              ],
+              [
+                58.5,
+                79.1
+              ],
+              [
+                60.06,
+                79.39
+              ],
+              [
+                61.58,
+                79.49
+              ],
+              [
+                63.19,
+                79.58
+              ],
+              [
+                64.71,
+                79.77
+              ],
+              [
+                66.27,
+                80.06
+              ],
+              [
+                67.89,
+                80.06
+              ],
+              [
+                69.45,
+                80.06
+              ],
+              [
+                71.02,
+                80.25
+              ],
+              [
+                72.37,
+                80.93
+              ],
+              [
+                73.77,
+                81.5
+              ],
+              [
+                75.18,
+                82.17
+              ],
+              [
+                76.79,
+                82.65
+              ],
+              [
+                78.25,
+                83.13
+              ],
+              [
+                79.71,
+                83.52
+              ],
+              [
+                81.06,
+                84.19
+              ],
+              [
+                80.46,
+                85.63
+              ],
+              [
+                79.92,
+                87.07
+              ],
+              [
+                79.22,
+                88.41
+              ],
+              [
+                78.36,
+                89.75
+              ],
+              [
+                77.5,
+                91.0
+              ],
+              [
+                76.42,
+                92.05
+              ],
+              [
+                75.28,
+                93.21
+              ],
+              [
+                73.99,
+                94.17
+              ],
+              [
+                72.53,
+                94.65
+              ],
+              [
+                71.18,
+                95.32
+              ],
+              [
+                69.72,
+                95.7
+              ],
+              [
+                68.32,
+                96.28
+              ],
+              [
+                67.13,
+                97.33
+              ],
+              [
+                66.11,
+                98.58
+              ],
+              [
+                64.65,
+                99.06
+              ],
+              [
+                63.19,
+                99.54
+              ],
+              [
+                61.74,
+                100.0
+              ],
+              [
+                60.23,
+                100.0
+              ],
+              [
+                58.61,
+                100.0
+              ],
+              [
+                57.1,
+                100.0
+              ],
+              [
+                55.59,
+                100.0
+              ],
+              [
+                53.97,
+                100.0
+              ],
+              [
+                52.4,
+                100.0
+              ],
+              [
+                50.62,
+                100.0
+              ],
+              [
+                49.0,
+                100.0
+              ],
+              [
+                46.9,
+                100.0
+              ],
+              [
+                45.28,
+                100.0
+              ],
+              [
+                43.6,
+                100.0
+              ],
+              [
+                41.99,
+                100.0
+              ],
+              [
+                40.26,
+                100.0
+              ],
+              [
+                38.75,
+                100.0
+              ],
+              [
+                37.18,
+                100.0
+              ],
+              [
+                35.51,
+                100.0
+              ],
+              [
+                33.84,
+                100.0
+              ],
+              [
+                32.06,
+                100.0
+              ],
+              [
+                30.44,
+                100.0
+              ],
+              [
+                28.49,
+                100.0
+              ],
+              [
+                26.61,
+                100.0
+              ],
+              [
+                24.88,
+                100.0
+              ],
+              [
+                23.1,
+                100.0
+              ],
+              [
+                21.32,
+                100.0
+              ],
+              [
+                19.27,
+                100.0
+              ],
+              [
+                17.7,
+                100.0
+              ],
+              [
+                15.97,
+                100.0
+              ],
+              [
+                14.36,
+                100.0
+              ],
+              [
+                12.74,
+                100.0
+              ],
+              [
+                11.06,
+                100.0
+              ],
+              [
+                9.55,
+                100.0
+              ],
+              [
+                7.93,
+                100.0
+              ],
+              [
+                6.37,
+                100.0
+              ],
+              [
+                4.59,
+                100.0
+              ],
+              [
+                2.86,
+                100.0
+              ],
+              [
+                1.13,
+                100.0
+              ],
+              [
+                0.0,
+                98.96
+              ],
+              [
+                0.0,
+                97.33
+              ],
+              [
+                0.0,
+                95.8
+              ],
+              [
+                0.0,
+                94.17
+              ],
+              [
+                0.0,
+                92.63
+              ],
+              [
+                0.0,
+                91.1
+              ],
+              [
+                0.0,
+                89.27
+              ],
+              [
+                0.0,
+                87.64
+              ],
+              [
+                0.0,
+                86.01
+              ],
+              [
+                0.0,
+                84.28
+              ],
+              [
+                0.0,
+                82.65
+              ],
+              [
+                0.0,
+                81.12
+              ],
+              [
+                0.0,
+                79.58
+              ],
+              [
+                0.0,
+                78.05
+              ]
+            ],
+            "scale": null,
+            "surface": "floor"
+          },
+          {
+            "depth": null,
+            "description": "Sky / upper area.",
+            "name": "sky",
+            "polygon": [
+              [
+                0.0,
+                0.0
+              ],
+              [
+                100.0,
+                0.0
+              ],
+              [
+                100.0,
+                58.0
+              ],
+              [
+                0.0,
+                58.0
+              ]
+            ],
+            "scale": null,
+            "surface": "sky"
+          },
+          {
+            "depth": null,
+            "description": "",
+            "name": "zone_1",
+            "polygon": [
+              [
+                59.47,
+                56.84
+              ],
+              [
+                57.96,
+                57.32
+              ],
+              [
+                56.66,
+                58.09
+              ],
+              [
+                57.37,
+                59.44
+              ],
+              [
+                58.55,
+                60.39
+              ],
+              [
+                60.06,
+                60.68
+              ],
+              [
+                61.58,
+                60.97
+              ],
+              [
+                63.09,
+                61.35
+              ],
+              [
+                64.6,
+                61.64
+              ],
+              [
+                66.16,
+                61.93
+              ],
+              [
+                67.73,
+                62.22
+              ],
+              [
+                69.24,
+                62.22
+              ],
+              [
+                70.8,
+                62.22
+              ],
+              [
+                72.32,
+                62.12
+              ],
+              [
+                73.83,
+                61.83
+              ],
+              [
+                75.34,
+                61.45
+              ],
+              [
+                76.58,
+                60.59
+              ],
+              [
+                77.17,
+                59.15
+              ],
+              [
+                76.47,
+                57.8
+              ],
+              [
+                75.07,
+                57.04
+              ],
+              [
+                73.56,
+                56.65
+              ],
+              [
+                71.88,
+                56.56
+              ],
+              [
+                70.37,
+                56.46
+              ],
+              [
+                68.86,
+                56.37
+              ],
+              [
+                67.3,
+                56.17
+              ],
+              [
+                65.73,
+                55.98
+              ],
+              [
+                64.22,
+                55.6
+              ],
+              [
+                62.71,
+                55.31
+              ],
+              [
+                61.14,
+                55.31
+              ],
+              [
+                59.79,
+                55.98
+              ]
+            ],
+            "scale": null,
+            "surface": "tabletop"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "beside": null,
+          "cmd": "put",
+          "facing": null,
+          "kind": "cmd",
+          "line": 74,
+          "objects": [],
+          "position": "center",
+          "subjects": [
+            "owl"
+          ],
+          "zone": null
+        },
+        {
+          "beside": null,
+          "cmd": "put",
+          "facing": "owl",
+          "kind": "cmd",
+          "line": 75,
+          "objects": [],
+          "position": "left_third",
+          "subjects": [
+            "squirrel"
+          ],
+          "zone": null
+        },
+        {
+          "beside": null,
+          "cmd": "put",
+          "facing": "owl",
+          "kind": "cmd",
+          "line": 76,
+          "objects": [],
+          "position": "right_third",
+          "subjects": [
+            "rabbit"
+          ],
+          "zone": null
+        },
+        {
+          "beside": null,
+          "cmd": "put",
+          "facing": "owl",
+          "kind": "cmd",
+          "line": 77,
+          "objects": [],
+          "position": "right_edge",
+          "subjects": [
+            "robin"
+          ],
+          "zone": null
+        },
+        {
+          "audio": "parity-jobs/parity/audio/8ad8370d472557542fbabb92f2cbcd6a0ddba5f32cd6d87ad3dd1282fbc48f30.wav",
+          "duration_s": 6.443,
+          "kind": "chunk",
+          "line": 79,
+          "text": "The group gathered at the great mossy stump to share a feast of berries and seeds."
+        },
+        {
+          "cmd": "emote",
+          "emotion": "happy",
+          "facing": null,
+          "kind": "cmd",
+          "line": 80,
+          "subjects": [
+            "owl"
+          ]
+        },
+        {
+          "audio": "parity-jobs/parity/audio/426333de479d1423826d91176852862d7af38e3d62da5472a0670cbe1e164f1c.wav",
+          "duration_s": 7.651,
+          "kind": "chunk",
+          "line": 81,
+          "text": "Olive found that she liked the noise. She liked the way Sammy told jokes and the way Pip listened."
+        },
+        {
+          "audio": "parity-jobs/parity/audio/7288359a685440822192353226478a805832dd9d042d5cb9176f92a3b23efb05.wav",
+          "duration_s": 5.638,
+          "kind": "chunk",
+          "line": 82,
+          "text": "For the first time, Olive didn't mind being the only owl in the circle."
+        },
+        {
+          "audio": "parity-jobs/parity/audio/08e9d078934f9beecaab3bbbacdfe78ef49adf51837551ae00db8850eb54e132.wav",
+          "duration_s": 8.859,
+          "kind": "chunk",
+          "line": 83,
+          "text": "She realized that being brave enough to be alone was good, but being brave enough to ask for company was even better."
+        },
+        {
+          "kind": "together",
+          "line": 84,
+          "steps": [
+            {
+              "cmd": "emote",
+              "emotion": "happy",
+              "facing": null,
+              "kind": "cmd",
+              "line": 85,
+              "subjects": [
+                "owl"
+              ]
+            },
+            {
+              "cmd": "pull_out",
+              "kind": "cmd",
+              "line": 86,
+              "speed": "slow",
+              "subjects": []
+            }
+          ]
+        },
+        {
+          "audio": "parity-jobs/parity/audio/354f350be956496d4f0e86496356796b35877db1586d911365ac11a5061d9e38.wav",
+          "duration_s": 5.235,
+          "kind": "chunk",
+          "line": 87,
+          "text": "'Will you stay with us?' Pip asked. 'Just until the stars come out?'"
+        },
+        {
+          "audio": "parity-jobs/parity/audio/fd5a2e972fcbdc1db8bc6de4d02634ec3a89502e1e9500e3597e25198623f86e.wav",
+          "duration_s": 4.027,
+          "kind": "chunk",
+          "line": 88,
+          "text": "'I think,' Olive whispered, 'I would like that very much.'"
+        },
+        {
+          "cmd": "travel",
+          "destination": "forest_glow",
+          "exit_anchor_pct": [
+            3.9,
+            85.2
+          ],
+          "kind": "cmd",
+          "line": 90,
+          "subjects": [
+            "owl",
+            "squirrel",
+            "rabbit",
+            "robin"
+          ]
+        }
+      ],
+      "time": "day"
+    },
+    {
+      "line": 93,
+      "place": "forest_glow",
+      "plate": {
+        "default_zone": "zone",
+        "poster": "fairytale-assets/live_backgrounds_posters/forest_glow_live.jpg",
+        "resolution": [
+          1920,
+          1080
+        ],
+        "video": "fairytale-assets/live_backgrounds/forest/forest_glow_live.mp4",
+        "zones": [
+          {
+            "depth": null,
+            "description": "Sky / upper area.",
+            "name": "sky",
+            "polygon": [
+              [
+                0.0,
+                0.0
+              ],
+              [
+                100.0,
+                0.0
+              ],
+              [
+                100.0,
+                58.0
+              ],
+              [
+                0.0,
+                58.0
+              ]
+            ],
+            "scale": null,
+            "surface": "sky"
+          },
+          {
+            "depth": null,
+            "description": "",
+            "name": "zone",
+            "polygon": [
+              [
+                6.53,
+                83.13
+              ],
+              [
+                7.88,
+                82.36
+              ],
+              [
+                9.44,
+                82.17
+              ],
+              [
+                10.96,
+                82.17
+              ],
+              [
+                12.47,
+                82.27
+              ],
+              [
+                13.98,
+                82.36
+              ],
+              [
+                15.7,
+                82.36
+              ],
+              [
+                17.27,
+                82.36
+              ],
+              [
+                18.94,
+                82.36
+              ],
+              [
+                20.72,
+                82.56
+              ],
+              [
+                22.4,
+                82.56
+              ],
+              [
+                24.12,
+                82.56
+              ],
+              [
+                25.9,
+                82.65
+              ],
+              [
+                27.52,
+                82.65
+              ],
+              [
+                29.2,
+                82.65
+              ],
+              [
+                30.92,
+                82.65
+              ],
+              [
+                32.49,
+                82.65
+              ],
+              [
+                34.05,
+                82.65
+              ],
+              [
+                35.62,
+                82.65
+              ],
+              [
+                37.24,
+                82.65
+              ],
+              [
+                39.02,
+                82.65
+              ],
+              [
+                40.58,
+                82.56
+              ],
+              [
+                42.15,
+                82.56
+              ],
+              [
+                44.04,
+                82.56
+              ],
+              [
+                45.93,
+                82.84
+              ],
+              [
+                47.81,
+                82.84
+              ],
+              [
+                49.38,
+                82.84
+              ],
+              [
+                51.75,
+                82.84
+              ],
+              [
+                54.24,
+                82.84
+              ],
+              [
+                55.96,
+                82.84
+              ],
+              [
+                57.64,
+                82.75
+              ],
+              [
+                59.26,
+                82.94
+              ],
+              [
+                61.04,
+                82.94
+              ],
+              [
+                62.87,
+                83.04
+              ],
+              [
+                64.71,
+                83.04
+              ],
+              [
+                66.38,
+                83.04
+              ],
+              [
+                68.32,
+                83.04
+              ],
+              [
+                69.89,
+                83.04
+              ],
+              [
+                71.4,
+                83.04
+              ],
+              [
+                73.12,
+                83.04
+              ],
+              [
+                74.74,
+                83.04
+              ],
+              [
+                76.36,
+                83.04
+              ],
+              [
+                77.93,
+                82.65
+              ],
+              [
+                79.55,
+                82.56
+              ],
+              [
+                81.06,
+                82.17
+              ],
+              [
+                82.62,
+                81.98
+              ],
+              [
+                84.13,
+                81.98
+              ],
+              [
+                85.11,
+                83.23
+              ],
+              [
+                85.16,
+                84.86
+              ],
+              [
+                84.73,
+                86.49
+              ],
+              [
+                84.35,
+                88.12
+              ],
+              [
+                83.86,
+                89.75
+              ],
+              [
+                83.05,
+                91.38
+              ],
+              [
+                82.3,
+                92.82
+              ],
+              [
+                82.08,
+                94.45
+              ],
+              [
+                82.08,
+                96.28
+              ],
+              [
+                82.08,
+                97.91
+              ],
+              [
+                82.08,
+                99.54
+              ],
+              [
+                80.57,
+                100.0
+              ],
+              [
+                79.06,
+                100.0
+              ],
+              [
+                77.39,
+                100.0
+              ],
+              [
+                75.5,
+                100.0
+              ],
+              [
+                73.56,
+                100.0
+              ],
+              [
+                71.07,
+                100.0
+              ],
+              [
+                69.24,
+                100.0
+              ],
+              [
+                67.03,
+                100.0
+              ],
+              [
+                65.46,
+                100.0
+              ],
+              [
+                63.41,
+                100.0
+              ],
+              [
+                61.25,
+                100.0
+              ],
+              [
+                58.99,
+                100.0
+              ],
+              [
+                57.2,
+                100.0
+              ],
+              [
+                55.69,
+                100.0
+              ],
+              [
+                53.97,
+                100.0
+              ],
+              [
+                52.02,
+                100.0
+              ],
+              [
+                49.97,
+                100.0
+              ],
+              [
+                47.98,
+                100.0
+              ],
+              [
+                46.36,
+                100.0
+              ],
+              [
+                44.79,
+                100.0
+              ],
+              [
+                42.74,
+                100.0
+              ],
+              [
+                40.91,
+                100.0
+              ],
+              [
+                38.75,
+                100.0
+              ],
+              [
+                36.75,
+                100.0
+              ],
+              [
+                35.19,
+                100.0
+              ],
+              [
+                33.46,
+                100.0
+              ],
+              [
+                31.95,
+                100.0
+              ],
+              [
+                30.17,
+                100.0
+              ],
+              [
+                28.39,
+                100.0
+              ],
+              [
+                26.39,
+                100.0
+              ],
+              [
+                24.39,
+                100.0
+              ],
+              [
+                22.61,
+                100.0
+              ],
+              [
+                21.1,
+                100.0
+              ],
+              [
+                19.59,
+                100.0
+              ],
+              [
+                17.81,
+                100.0
+              ],
+              [
+                16.14,
+                100.0
+              ],
+              [
+                14.57,
+                100.0
+              ],
+              [
+                13.06,
+                100.0
+              ],
+              [
+                11.55,
+                100.0
+              ],
+              [
+                10.04,
+                100.0
+              ],
+              [
+                8.8,
+                98.58
+              ],
+              [
+                7.93,
+                96.56
+              ],
+              [
+                7.45,
+                95.03
+              ],
+              [
+                7.18,
+                93.11
+              ],
+              [
+                7.02,
+                91.38
+              ],
+              [
+                6.96,
+                89.85
+              ],
+              [
+                6.96,
+                88.31
+              ],
+              [
+                6.75,
+                86.78
+              ],
+              [
+                6.58,
+                85.24
+              ],
+              [
+                6.31,
+                83.71
+              ]
+            ],
+            "scale": null,
+            "surface": "floor"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "beside": null,
+          "cmd": "put",
+          "facing": null,
+          "kind": "cmd",
+          "line": 94,
+          "objects": [],
+          "position": "center",
+          "subjects": [
+            "owl"
+          ],
+          "zone": null
+        },
+        {
+          "beside": null,
+          "cmd": "put",
+          "facing": "owl",
+          "kind": "cmd",
+          "line": 95,
+          "objects": [],
+          "position": "left_third",
+          "subjects": [
+            "squirrel"
+          ],
+          "zone": null
+        },
+        {
+          "beside": null,
+          "cmd": "put",
+          "facing": "owl",
+          "kind": "cmd",
+          "line": 96,
+          "objects": [],
+          "position": "right_third",
+          "subjects": [
+            "rabbit"
+          ],
+          "zone": null
+        },
+        {
+          "beside": null,
+          "cmd": "put",
+          "facing": "owl",
+          "kind": "cmd",
+          "line": 97,
+          "objects": [],
+          "position": "right_edge",
+          "subjects": [
+            "robin"
+          ],
+          "zone": null
+        },
+        {
+          "cmd": "music",
+          "kind": "cmd",
+          "line": 98,
+          "name": "mysterious",
+          "subjects": []
+        },
+        {
+          "audio": "parity-jobs/parity/audio/cd286c918af4464cbdd02c0d8075df25b7814bf4183b3be3d56fa8d4fb82710e.wav",
+          "duration_s": 4.027,
+          "kind": "chunk",
+          "line": 100,
+          "text": "As the sun dipped low, the woods began to change."
+        },
+        {
+          "cmd": "emote",
+          "emotion": "happy",
+          "facing": null,
+          "kind": "cmd",
+          "line": 101,
+          "subjects": [
+            "owl"
+          ]
+        },
+        {
+          "audio": "parity-jobs/parity/audio/3a6efd708e8d745ab8a868b6bce6e969c0a2f7fb795a3ebb302ebea6c177f50e.wav",
+          "duration_s": 5.638,
+          "kind": "chunk",
+          "line": 102,
+          "text": "Soft blue mushrooms lit the path like tiny lanterns. This was Olive's favorite time."
+        },
+        {
+          "audio": "parity-jobs/parity/audio/978f999be2b278a8438756ac740835c0171dfb8ab2fc4e2397807d23dc96a2a7.wav",
+          "duration_s": 7.651,
+          "kind": "chunk",
+          "line": 103,
+          "text": "She showed her friends the way through the glowing grove, leading them with a proud flutter of her wings."
+        },
+        {
+          "audio": "parity-jobs/parity/audio/1f069ba39e076f04b43eb5421a6627c2608f8f502bcbe2d6542bbb2ed3e4f118.wav",
+          "duration_s": 4.832,
+          "kind": "chunk",
+          "line": 104,
+          "text": "The others watched in wonder as the forest turned silver and teal."
+        },
+        {
+          "cmd": "emote",
+          "emotion": "surprised",
+          "facing": null,
+          "kind": "cmd",
+          "line": 105,
+          "subjects": [
+            "squirrel",
+            "rabbit",
+            "robin"
+          ]
+        },
+        {
+          "audio": "parity-jobs/parity/audio/510a051176a70e9a0129c4be9f7b507c8502acdd6030d19bb80ede171ad794d8.wav",
+          "duration_s": 5.235,
+          "kind": "chunk",
+          "line": 106,
+          "text": "Olive wasn't just the Queen of the Quiet anymore. She was a guide."
+        },
+        {
+          "cmd": "pause",
+          "kind": "cmd",
+          "line": 107,
+          "seconds": 1.5,
+          "subjects": []
+        },
+        {
+          "cmd": "travel",
+          "destination": "forest_firefly_fork",
+          "exit_anchor_pct": [
+            48.4,
+            98.9
+          ],
+          "kind": "cmd",
+          "line": 109,
+          "subjects": [
+            "owl",
+            "squirrel",
+            "rabbit",
+            "robin"
+          ]
+        }
+      ],
+      "time": "dusk"
+    },
+    {
+      "line": 112,
+      "place": "forest_firefly_fork",
+      "plate": {
+        "default_zone": "zone",
+        "poster": "fairytale-assets/live_backgrounds_posters/forest_firefly_fork_live.jpg",
+        "resolution": [
+          1920,
+          1080
+        ],
+        "video": "fairytale-assets/live_backgrounds/forest/forest_firefly_fork_live.mp4",
+        "zones": [
+          {
+            "depth": null,
+            "description": "Sky / upper area.",
+            "name": "sky",
+            "polygon": [
+              [
+                0.0,
+                0.0
+              ],
+              [
+                100.0,
+                0.0
+              ],
+              [
+                100.0,
+                58.0
+              ],
+              [
+                0.0,
+                58.0
+              ]
+            ],
+            "scale": null,
+            "surface": "sky"
+          },
+          {
+            "depth": null,
+            "description": "",
+            "name": "zone",
+            "polygon": [
+              [
+                5.34,
+                86.11
+              ],
+              [
+                6.48,
+                85.05
+              ],
+              [
+                7.77,
+                84.0
+              ],
+              [
+                9.12,
+                82.94
+              ],
+              [
+                10.09,
+                81.6
+              ],
+              [
+                10.96,
+                80.16
+              ],
+              [
+                11.66,
+                78.82
+              ],
+              [
+                12.9,
+                77.76
+              ],
+              [
+                14.09,
+                76.51
+              ],
+              [
+                15.27,
+                75.27
+              ],
+              [
+                16.24,
+                74.11
+              ],
+              [
+                17.16,
+                72.77
+              ],
+              [
+                18.13,
+                71.52
+              ],
+              [
+                19.05,
+                70.28
+              ],
+              [
+                19.97,
+                69.03
+              ],
+              [
+                20.62,
+                67.59
+              ],
+              [
+                20.08,
+                66.15
+              ],
+              [
+                20.29,
+                64.62
+              ],
+              [
+                21.48,
+                63.56
+              ],
+              [
+                22.94,
+                63.18
+              ],
+              [
+                24.45,
+                63.18
+              ],
+              [
+                25.8,
+                64.04
+              ],
+              [
+                27.04,
+                64.9
+              ],
+              [
+                28.55,
+                65.48
+              ],
+              [
+                30.11,
+                66.15
+              ],
+              [
+                32.0,
+                66.53
+              ],
+              [
+                33.57,
+                66.53
+              ],
+              [
+                35.08,
+                66.63
+              ],
+              [
+                36.75,
+                66.73
+              ],
+              [
+                38.42,
+                66.92
+              ],
+              [
+                40.04,
+                67.01
+              ],
+              [
+                41.66,
+                67.01
+              ],
+              [
+                43.17,
+                66.63
+              ],
+              [
+                44.41,
+                65.58
+              ],
+              [
+                45.39,
+                64.23
+              ],
+              [
+                46.2,
+                62.79
+              ],
+              [
+                47.17,
+                61.55
+              ],
+              [
+                48.62,
+                60.97
+              ],
+              [
+                50.13,
+                60.49
+              ],
+              [
+                51.7,
+                60.39
+              ],
+              [
+                53.1,
+                61.07
+              ],
+              [
+                54.18,
+                62.12
+              ],
+              [
+                55.48,
+                63.08
+              ],
+              [
+                56.77,
+                63.94
+              ],
+              [
+                58.23,
+                64.71
+              ],
+              [
+                59.63,
+                65.38
+              ],
+              [
+                61.09,
+                65.96
+              ],
+              [
+                62.71,
+                66.34
+              ],
+              [
+                64.38,
+                66.53
+              ],
+              [
+                66.0,
+                66.82
+              ],
+              [
+                67.67,
+                66.82
+              ],
+              [
+                69.24,
+                66.82
+              ],
+              [
+                71.07,
+                66.53
+              ],
+              [
+                72.64,
+                66.25
+              ],
+              [
+                74.1,
+                65.58
+              ],
+              [
+                75.55,
+                64.9
+              ],
+              [
+                76.96,
+                64.04
+              ],
+              [
+                78.52,
+                63.66
+              ],
+              [
+                80.14,
+                63.46
+              ],
+              [
+                81.65,
+                63.08
+              ],
+              [
+                83.11,
+                63.56
+              ],
+              [
+                84.08,
+                64.71
+              ],
+              [
+                84.51,
+                66.15
+              ],
+              [
+                84.24,
+                67.69
+              ],
+              [
+                83.65,
+                69.32
+              ],
+              [
+                82.89,
+                70.66
+              ],
+              [
+                82.62,
+                72.29
+              ],
+              [
+                82.73,
+                73.92
+              ],
+              [
+                83.22,
+                75.36
+              ],
+              [
+                83.97,
+                76.7
+              ],
+              [
+                84.73,
+                78.43
+              ],
+              [
+                85.59,
+                79.77
+              ],
+              [
+                86.51,
+                81.12
+              ],
+              [
+                88.02,
+                82.56
+              ],
+              [
+                89.26,
+                83.52
+              ],
+              [
+                90.77,
+                84.28
+              ],
+              [
+                92.55,
+                84.96
+              ],
+              [
+                94.01,
+                85.53
+              ],
+              [
+                95.14,
+                86.59
+              ],
+              [
+                96.01,
+                87.83
+              ],
+              [
+                96.92,
+                89.46
+              ],
+              [
+                97.63,
+                90.81
+              ],
+              [
+                98.17,
+                92.25
+              ],
+              [
+                98.49,
+                93.97
+              ],
+              [
+                98.81,
+                95.8
+              ],
+              [
+                99.03,
+                97.33
+              ],
+              [
+                99.24,
+                99.06
+              ],
+              [
+                97.84,
+                100.0
+              ],
+              [
+                95.9,
+                100.0
+              ],
+              [
+                94.12,
+                100.0
+              ],
+              [
+                92.61,
+                100.0
+              ],
+              [
+                90.88,
+                100.0
+              ],
+              [
+                88.51,
+                100.0
+              ],
+              [
+                86.51,
+                100.0
+              ],
+              [
+                84.78,
+                100.0
+              ],
+              [
+                82.19,
+                100.0
+              ],
+              [
+                80.03,
+                100.0
+              ],
+              [
+                77.06,
+                100.0
+              ],
+              [
+                74.69,
+                100.0
+              ],
+              [
+                72.69,
+                100.0
+              ],
+              [
+                70.32,
+                100.0
+              ],
+              [
+                68.27,
+                100.0
+              ],
+              [
+                66.54,
+                100.0
+              ],
+              [
+                64.38,
+                100.0
+              ],
+              [
+                62.44,
+                100.0
+              ],
+              [
+                60.93,
+                100.0
+              ],
+              [
+                59.15,
+                100.0
+              ],
+              [
+                56.93,
+                100.0
+              ],
+              [
+                54.4,
+                100.0
+              ],
+              [
+                52.35,
+                100.0
+              ],
+              [
+                50.67,
+                100.0
+              ],
+              [
+                49.0,
+                100.0
+              ],
+              [
+                47.0,
+                100.0
+              ],
+              [
+                45.17,
+                100.0
+              ],
+              [
+                42.85,
+                100.0
+              ],
+              [
+                40.85,
+                100.0
+              ],
+              [
+                38.69,
+                100.0
+              ],
+              [
+                36.32,
+                100.0
+              ],
+              [
+                34.16,
+                100.0
+              ],
+              [
+                31.89,
+                100.0
+              ],
+              [
+                29.68,
+                100.0
+              ],
+              [
+                27.42,
+                100.0
+              ],
+              [
+                25.47,
+                100.0
+              ],
+              [
+                23.42,
+                100.0
+              ],
+              [
+                20.78,
+                100.0
+              ],
+              [
+                15.6,
+                100.0
+              ],
+              [
+                14.09,
+                100.0
+              ],
+              [
+                12.47,
+                100.0
+              ],
+              [
+                10.42,
+                100.0
+              ],
+              [
+                8.74,
+                100.0
+              ],
+              [
+                7.02,
+                100.0
+              ],
+              [
+                5.34,
+                100.0
+              ],
+              [
+                3.83,
+                100.0
+              ],
+              [
+                2.27,
+                100.0
+              ],
+              [
+                1.19,
+                98.87
+              ],
+              [
+                1.19,
+                97.33
+              ],
+              [
+                1.24,
+                95.7
+              ],
+              [
+                1.51,
+                94.07
+              ],
+              [
+                2.0,
+                92.44
+              ],
+              [
+                2.54,
+                90.9
+              ],
+              [
+                3.24,
+                89.56
+              ],
+              [
+                4.1,
+                88.22
+              ],
+              [
+                4.91,
+                86.87
+              ]
+            ],
+            "scale": null,
+            "surface": "floor"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "beside": null,
+          "cmd": "put",
+          "facing": null,
+          "kind": "cmd",
+          "line": 113,
+          "objects": [],
+          "position": "center",
+          "subjects": [
+            "owl"
+          ],
+          "zone": null
+        },
+        {
+          "beside": null,
+          "cmd": "put",
+          "facing": "owl",
+          "kind": "cmd",
+          "line": 114,
+          "objects": [],
+          "position": "left_third",
+          "subjects": [
+            "squirrel"
+          ],
+          "zone": null
+        },
+        {
+          "beside": null,
+          "cmd": "put",
+          "facing": "owl",
+          "kind": "cmd",
+          "line": 115,
+          "objects": [],
+          "position": "right_third",
+          "subjects": [
+            "rabbit"
+          ],
+          "zone": null
+        },
+        {
+          "beside": null,
+          "cmd": "put",
+          "facing": "owl",
+          "kind": "cmd",
+          "line": 116,
+          "objects": [],
+          "position": "right_edge",
+          "subjects": [
+            "robin"
+          ],
+          "zone": null
+        },
+        {
+          "audio": "parity-jobs/parity/audio/75e4c85222f5acf900c46ed1bc4c7ba00b2db342745724aa7ac9ca93bd526605.wav",
+          "duration_s": 5.235,
+          "kind": "chunk",
+          "line": 118,
+          "text": "At the fork in the night path, the air was filled with magic."
+        },
+        {
+          "cmd": "sound",
+          "kind": "cmd",
+          "line": 119,
+          "name": "magic",
+          "subjects": []
+        },
+        {
+          "audio": "parity-jobs/parity/audio/823050d5c903571eabcd5edccb326e27cb1c62ef8416b2f6a7b427cb0513f62d.wav",
+          "duration_s": 4.43,
+          "kind": "chunk",
+          "line": 120,
+          "text": "Hundreds of fireflies drifted around them, swirling like slow, warm snow."
+        },
+        {
+          "kind": "together",
+          "line": 121,
+          "steps": [
+            {
+              "cmd": "emote",
+              "emotion": "happy",
+              "facing": null,
+              "kind": "cmd",
+              "line": 122,
+              "subjects": [
+                "owl"
+              ]
+            },
+            {
+              "cmd": "pull_out",
+              "kind": "cmd",
+              "line": 123,
+              "speed": "slow",
+              "subjects": []
+            }
+          ]
+        },
+        {
+          "audio": "parity-jobs/parity/audio/f932a3a6d395db1ae66e053cdb0f6b35f16e386e364ee5c7ad147348398c4fa5.wav",
+          "duration_s": 7.248,
+          "kind": "chunk",
+          "line": 124,
+          "text": "Olive danced in the middle of the lights, her laughter mixing with the chirps of her new friends."
+        },
+        {
+          "cmd": "sound",
+          "kind": "cmd",
+          "line": 125,
+          "name": "giggle",
+          "subjects": []
+        },
+        {
+          "audio": "parity-jobs/parity/audio/92f872a2d1c83d8e3a1da6e7407d5579ca5a2d82a801617fbfcc4f1ad9fdf941.wav",
+          "duration_s": 6.846,
+          "kind": "chunk",
+          "line": 126,
+          "text": "The dark was no longer just a place to be alone. It was a place to share."
+        },
+        {
+          "cmd": "travel",
+          "destination": "forest_gpt_night",
+          "exit_anchor_pct": [
+            85.8,
+            53.8
+          ],
+          "kind": "cmd",
+          "line": 128,
+          "subjects": [
+            "owl",
+            "squirrel",
+            "rabbit",
+            "robin"
+          ]
+        }
+      ],
+      "time": "night"
+    },
+    {
+      "line": 131,
+      "place": "forest_gpt_night",
+      "plate": {
+        "default_zone": "zone",
+        "poster": "fairytale-assets/live_backgrounds_posters/forest_gpt_night_live.jpg",
+        "resolution": [
+          1920,
+          1080
+        ],
+        "video": "fairytale-assets/live_backgrounds/forest/forest_gpt_night_live.mp4",
+        "zones": [
+          {
+            "depth": null,
+            "description": "Sky / upper area.",
+            "name": "sky",
+            "polygon": [
+              [
+                0.0,
+                0.0
+              ],
+              [
+                100.0,
+                0.0
+              ],
+              [
+                100.0,
+                58.0
+              ],
+              [
+                0.0,
+                58.0
+              ]
+            ],
+            "scale": null,
+            "surface": "sky"
+          },
+          {
+            "depth": null,
+            "description": "",
+            "name": "zone",
+            "polygon": [
+              [
+                2.21,
+                78.34
+              ],
+              [
+                3.18,
+                77.18
+              ],
+              [
+                4.53,
+                76.32
+              ],
+              [
+                6.04,
+                75.55
+              ],
+              [
+                7.18,
+                74.31
+              ],
+              [
+                8.31,
+                73.25
+              ],
+              [
+                9.39,
+                72.1
+              ],
+              [
+                10.79,
+                71.14
+              ],
+              [
+                12.41,
+                70.66
+              ],
+              [
+                14.09,
+                70.47
+              ],
+              [
+                15.6,
+                70.47
+              ],
+              [
+                17.16,
+                70.08
+              ],
+              [
+                18.73,
+                69.89
+              ],
+              [
+                20.72,
+                69.41
+              ],
+              [
+                22.18,
+                69.03
+              ],
+              [
+                23.69,
+                68.84
+              ],
+              [
+                25.42,
+                68.74
+              ],
+              [
+                26.93,
+                68.45
+              ],
+              [
+                28.82,
+                68.17
+              ],
+              [
+                30.38,
+                68.07
+              ],
+              [
+                31.95,
+                67.97
+              ],
+              [
+                33.57,
+                67.88
+              ],
+              [
+                35.67,
+                67.59
+              ],
+              [
+                37.24,
+                67.3
+              ],
+              [
+                39.02,
+                67.01
+              ],
+              [
+                40.69,
+                67.01
+              ],
+              [
+                42.42,
+                67.01
+              ],
+              [
+                43.98,
+                67.01
+              ],
+              [
+                45.6,
+                67.01
+              ],
+              [
+                47.17,
+                67.01
+              ],
+              [
+                48.68,
+                67.01
+              ],
+              [
+                50.4,
+                67.01
+              ],
+              [
+                52.13,
+                67.01
+              ],
+              [
+                53.7,
+                67.01
+              ],
+              [
+                55.26,
+                67.11
+              ],
+              [
+                57.04,
+                67.4
+              ],
+              [
+                58.72,
+                67.4
+              ],
+              [
+                60.39,
+                67.49
+              ],
+              [
+                62.01,
+                67.49
+              ],
+              [
+                63.57,
+                67.78
+              ],
+              [
+                65.25,
+                68.07
+              ],
+              [
+                66.86,
+                68.17
+              ],
+              [
+                68.7,
+                68.17
+              ],
+              [
+                70.32,
+                68.45
+              ],
+              [
+                71.94,
+                68.84
+              ],
+              [
+                74.04,
+                69.03
+              ],
+              [
+                75.66,
+                69.13
+              ],
+              [
+                77.23,
+                69.41
+              ],
+              [
+                79.01,
+                69.7
+              ],
+              [
+                80.84,
+                69.99
+              ],
+              [
+                82.46,
+                70.37
+              ],
+              [
+                84.08,
+                70.66
+              ],
+              [
+                85.81,
+                71.04
+              ],
+              [
+                87.26,
+                71.62
+              ],
+              [
+                88.72,
+                72.39
+              ],
+              [
+                89.96,
+                73.25
+              ],
+              [
+                91.37,
+                74.11
+              ],
+              [
+                92.71,
+                75.07
+              ],
+              [
+                94.06,
+                75.94
+              ],
+              [
+                95.3,
+                76.9
+              ],
+              [
+                96.44,
+                77.95
+              ],
+              [
+                97.09,
+                79.39
+              ],
+              [
+                97.19,
+                81.02
+              ],
+              [
+                97.25,
+                82.56
+              ],
+              [
+                96.65,
+                84.0
+              ],
+              [
+                96.06,
+                85.53
+              ],
+              [
+                95.04,
+                86.87
+              ],
+              [
+                93.85,
+                88.12
+              ],
+              [
+                93.31,
+                89.75
+              ],
+              [
+                92.93,
+                91.29
+              ],
+              [
+                92.23,
+                92.73
+              ],
+              [
+                91.04,
+                94.07
+              ],
+              [
+                89.58,
+                94.74
+              ],
+              [
+                88.18,
+                95.6
+              ],
+              [
+                87.05,
+                96.66
+              ],
+              [
+                86.18,
+                97.91
+              ],
+              [
+                85.32,
+                99.15
+              ],
+              [
+                83.92,
+                100.0
+              ],
+              [
+                82.41,
+                100.0
+              ],
+              [
+                80.68,
+                100.0
+              ],
+              [
+                79.11,
+                100.0
+              ],
+              [
+                77.12,
+                100.0
+              ],
+              [
+                75.23,
+                100.0
+              ],
+              [
+                73.39,
+                100.0
+              ],
+              [
+                71.4,
+                100.0
+              ],
+              [
+                69.72,
+                100.0
+              ],
+              [
+                68.05,
+                100.0
+              ],
+              [
+                66.0,
+                100.0
+              ],
+              [
+                64.27,
+                100.0
+              ],
+              [
+                62.17,
+                100.0
+              ],
+              [
+                60.6,
+                100.0
+              ],
+              [
+                59.04,
+                100.0
+              ],
+              [
+                57.15,
+                100.0
+              ],
+              [
+                55.21,
+                100.0
+              ],
+              [
+                53.05,
+                100.0
+              ],
+              [
+                50.73,
+                100.0
+              ],
+              [
+                49.0,
+                100.0
+              ],
+              [
+                46.95,
+                100.0
+              ],
+              [
+                45.01,
+                100.0
+              ],
+              [
+                43.5,
+                100.0
+              ],
+              [
+                41.55,
+                100.0
+              ],
+              [
+                39.83,
+                100.0
+              ],
+              [
+                37.56,
+                100.0
+              ],
+              [
+                35.51,
+                100.0
+              ],
+              [
+                33.78,
+                100.0
+              ],
+              [
+                32.16,
+                100.0
+              ],
+              [
+                30.55,
+                100.0
+              ],
+              [
+                29.03,
+                100.0
+              ],
+              [
+                27.09,
+                100.0
+              ],
+              [
+                25.26,
+                100.0
+              ],
+              [
+                23.64,
+                100.0
+              ],
+              [
+                21.96,
+                100.0
+              ],
+              [
+                20.35,
+                100.0
+              ],
+              [
+                18.67,
+                100.0
+              ],
+              [
+                17.16,
+                100.0
+              ],
+              [
+                15.54,
+                100.0
+              ],
+              [
+                13.98,
+                100.0
+              ],
+              [
+                12.3,
+                100.0
+              ],
+              [
+                10.79,
+                100.0
+              ],
+              [
+                9.23,
+                100.0
+              ],
+              [
+                7.56,
+                98.96
+              ],
+              [
+                7.02,
+                97.52
+              ],
+              [
+                6.48,
+                95.99
+              ],
+              [
+                5.77,
+                94.36
+              ],
+              [
+                5.18,
+                92.53
+              ],
+              [
+                4.86,
+                90.9
+              ],
+              [
+                4.53,
+                89.18
+              ],
+              [
+                4.1,
+                87.45
+              ],
+              [
+                3.51,
+                85.91
+              ],
+              [
+                2.97,
+                84.38
+              ],
+              [
+                2.43,
+                82.94
+              ],
+              [
+                1.94,
+                81.5
+              ],
+              [
+                1.83,
+                79.87
+              ]
+            ],
+            "scale": null,
+            "surface": "floor"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "beside": null,
+          "cmd": "put",
+          "facing": null,
+          "kind": "cmd",
+          "line": 132,
+          "objects": [],
+          "position": "center",
+          "subjects": [
+            "owl"
+          ],
+          "zone": null
+        },
+        {
+          "beside": null,
+          "cmd": "put",
+          "facing": "owl",
+          "kind": "cmd",
+          "line": 133,
+          "objects": [],
+          "position": "left_third",
+          "subjects": [
+            "squirrel"
+          ],
+          "zone": null
+        },
+        {
+          "beside": null,
+          "cmd": "put",
+          "facing": "owl",
+          "kind": "cmd",
+          "line": 134,
+          "objects": [],
+          "position": "right_third",
+          "subjects": [
+            "rabbit"
+          ],
+          "zone": null
+        },
+        {
+          "beside": null,
+          "cmd": "put",
+          "facing": "owl",
+          "kind": "cmd",
+          "line": 135,
+          "objects": [],
+          "position": "right_edge",
+          "subjects": [
+            "robin"
+          ],
+          "zone": null
+        },
+        {
+          "cmd": "music",
+          "kind": "cmd",
+          "line": 136,
+          "name": "calm",
+          "subjects": []
+        },
+        {
+          "audio": "parity-jobs/parity/audio/0e4251c4088090bc89ae048e41d1b608b7a8bc60756d2e3affb7c447d8c2ddbc.wav",
+          "duration_s": 6.443,
+          "kind": "chunk",
+          "line": 138,
+          "text": "Under the glowing moon, the friends found a soft patch of moss to call their own."
+        },
+        {
+          "audio": "parity-jobs/parity/audio/1fac678e728091ec001bc5844c181f61b3354096a289d2b274be9362b3e9da96.wav",
+          "duration_s": 6.04,
+          "kind": "chunk",
+          "line": 139,
+          "text": "The forest was returning to its quiet, but it was a warm, shared quiet now."
+        },
+        {
+          "audio": "parity-jobs/parity/audio/1f32550542e58cc78260bf5c20767aa19900a7208b2a337826d8436a9fe1780f.wav",
+          "duration_s": 3.221,
+          "kind": "chunk",
+          "line": 140,
+          "text": "Sammy curled his bushy tail around his nose."
+        },
+        {
+          "cmd": "emote",
+          "emotion": "sleep",
+          "facing": null,
+          "kind": "cmd",
+          "line": 141,
+          "subjects": [
+            "squirrel"
+          ]
+        },
+        {
+          "audio": "parity-jobs/parity/audio/00cb3fdfb90b724c4c2401963f75df6e4cfcee6e2e1ff6757ca5539e7c4854a9.wav",
+          "duration_s": 2.819,
+          "kind": "chunk",
+          "line": 142,
+          "text": "Pip tucked his long ears down tight."
+        },
+        {
+          "cmd": "emote",
+          "emotion": "sleep",
+          "facing": null,
+          "kind": "cmd",
+          "line": 143,
+          "subjects": [
+            "rabbit"
+          ]
+        },
+        {
+          "audio": "parity-jobs/parity/audio/d4a73005cb713421ecda148b70c6a1a469c68432554726e9e048cbea712e9a78.wav",
+          "duration_s": 3.221,
+          "kind": "chunk",
+          "line": 144,
+          "text": "Ruby rested her small head beneath a wing."
+        },
+        {
+          "cmd": "emote",
+          "emotion": "sleep",
+          "facing": null,
+          "kind": "cmd",
+          "line": 145,
+          "subjects": [
+            "robin"
+          ]
+        },
+        {
+          "audio": "parity-jobs/parity/audio/61da4ff668b020bfc5ce5103e5c53ff5faf641ade9fc57edb8585549952141d0.wav",
+          "duration_s": 7.248,
+          "kind": "chunk",
+          "line": 146,
+          "text": "And Olive, the Queen of the Quiet, closed her eyes, feeling the heartbeat of her friends beside her."
+        },
+        {
+          "cmd": "emote",
+          "emotion": "sleep",
+          "facing": null,
+          "kind": "cmd",
+          "line": 147,
+          "subjects": [
+            "owl"
+          ]
+        },
+        {
+          "cmd": "pause",
+          "kind": "cmd",
+          "line": 148,
+          "seconds": 3.0,
+          "subjects": []
+        },
+        {
+          "audio": "parity-jobs/parity/audio/635d3f8f215ae355f948951aea11a2244375431fd8007ef787dbd3e07b8d6578.wav",
+          "duration_s": 3.221,
+          "kind": "chunk",
+          "line": 149,
+          "text": "The moon watched over them, silver and still."
+        },
+        {
+          "cmd": "pause",
+          "kind": "cmd",
+          "line": 150,
+          "seconds": 2.0,
+          "subjects": []
+        },
+        {
+          "audio": "parity-jobs/parity/audio/f30628f9e0940c13ef727b3ab9f2d2a6626caf627d3403735d9d285988808441.wav",
+          "duration_s": 2.013,
+          "kind": "chunk",
+          "line": 151,
+          "text": "Goodnight, Olive. Goodnight, little friends."
+        },
+        {
+          "cmd": "pause",
+          "kind": "cmd",
+          "line": 152,
+          "seconds": 1.5,
+          "subjects": []
+        },
+        {
+          "audio": "parity-jobs/parity/audio/e69d2d137ec21f9f0c8ea02a87d2738bde009ddce995791f6a817ac5447e8a69.wav",
+          "duration_s": 1.0,
+          "kind": "chunk",
+          "line": 153,
+          "text": "Goodnight."
+        }
+      ],
+      "time": "night"
+    }
+  ],
+  "source": "story_examples/the_owls_quiet_friend.story",
+  "storylang_version": 0,
+  "title": "The Owl's Quiet Friend",
+  "world": "forest"
+}

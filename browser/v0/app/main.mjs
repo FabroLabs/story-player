@@ -1,22 +1,29 @@
-import { firstPaintAssets, preload, queueRemainingScenes } from './asset-preloader.mjs';
+import { firstPaintAssets, preload } from './asset-preloader.mjs';
 import { AudioDirector } from './directors/audio-director.mjs';
 import { StoryClock } from './clock.mjs';
 import { DebugPanel, ObservableEventLog } from './debug-panel.mjs';
-import { PlaybackDirector } from './directors/playback-director.mjs';
 import { StageRenderer } from './stage/stage-renderer.mjs';
 import { resolveStoryAssets } from './urls.mjs';
 import { routeWarning } from './warning-router.mjs';
 
 const SUBTITLES_KEY = 'storytime:subtitles';
 
+// The live director that used to drive this file is gone: a story's schedule is
+// now compiled once, up front, by `core/timeline/compile.mjs`. The runtime that
+// plays that schedule — clock, media, canvas, controls — is the next piece of
+// work, and until it lands the player mounts, loads its opening and says so
+// rather than pretending to perform. Nothing publishes from here in the
+// meantime: the CDN build is cut from `main`, and this never reaches it.
+const NO_RUNTIME = 'this build has no playback runtime yet';
+
 export function createV0Player({ root, elements, story, assetBase, signal, debug = false }) {
   const clock = new StoryClock({ signal });
   const panel = new DebugPanel(elements.debug, debug, { eventTarget: root });
   const log = new ObservableEventLog(clock, (entry, entries) => panel.addEntry(entry, entries));
   const cleanups = [wireSubtitleToggle(elements)];
+  const warn = (detail) => routeWarning(detail, null, log);
   let stage = null;
   let audio = null;
-  let director = null;
   let runtimeStory = null;
   let destroyed = false;
   let startHandler = null;
@@ -29,7 +36,6 @@ export function createV0Player({ root, elements, story, assetBase, signal, debug
       destroyed = true;
       if (startHandler) elements.start.removeEventListener('click', startHandler);
       for (const cleanup of cleanups) cleanup();
-      director?.destroy?.();
       stage?.destroy?.();
       audio?.destroy?.();
       panel.destroy();
@@ -40,12 +46,8 @@ export function createV0Player({ root, elements, story, assetBase, signal, debug
     try {
       runtimeStory = resolveStoryAssets(story, assetBase);
       elements.title.textContent = runtimeStory.title ?? 'tonight’s story';
-      let routedDirector = null;
-      const warn = (detail) => routeWarning(detail, routedDirector, log);
       stage = new StageRenderer(elements.stage, warn);
       audio = new AudioDirector(runtimeStory.audio, warn, { signal });
-      director = new PlaybackDirector({ story: runtimeStory, stage, audio, clock, log, signal });
-      routedDirector = director;
       await armStart();
     } catch (error) {
       if (error?.name !== 'AbortError') {
@@ -71,7 +73,7 @@ export function createV0Player({ root, elements, story, assetBase, signal, debug
     });
     throwIfAborted(signal);
     if (result.failed > 0) {
-      director.warning({
+      warn({
         type: 'media',
         asset: 'preload',
         message: `${result.failed} opening preload failed; playback may use placeholders`,
@@ -79,40 +81,19 @@ export function createV0Player({ root, elements, story, assetBase, signal, debug
     }
     elements.status.textContent = 'ready when you are';
     elements.start.disabled = false;
-    startHandler = () => { void startStory(); };
+    startHandler = () => startStory();
     elements.start.addEventListener('click', startHandler, { once: true });
   }
 
-  async function startStory() {
+  function startStory() {
     if (destroyed || signal.aborted) return;
     elements.start.disabled = true;
-    elements.status.textContent = 'opening the story…';
-    void audio.unlock();
-    clock.start();
-    stage.startAnimation();
-    elements.ceremony.classList.add('is-gone');
-    void queueRemainingScenes(runtimeStory, {
-      signal,
-      onScene: (index, count) => {
-        if (destroyed || signal.aborted) return;
-        log.append({
-          scene_index: index, line: null, kind: 'note',
-          detail: { type: 'media', asset: 'preload', scene: index, assets: count },
-        });
-      },
-    }).catch((error) => {
-      if (error?.name !== 'AbortError') director.warning({ type: 'media', asset: 'preload', message: error.message });
-    });
-    try {
-      await director.play();
-    } catch (error) {
-      if (destroyed || error?.name === 'AbortError') return;
-      director.warning({ type: 'playback', message: error.message });
-      elements.ceremony.classList.remove('is-gone');
-      elements.title.textContent = 'the story paused';
-      elements.status.textContent = 'open the event log for details';
-      elements.status.classList.add('is-error');
-    }
+    // The reason goes on the status line rather than into the log alone, and
+    // the title keeps the story's own name: "paused" would read as a state this
+    // build could come back from, and this one cannot.
+    warn({ type: 'playback', message: NO_RUNTIME });
+    elements.status.textContent = NO_RUNTIME;
+    elements.status.classList.add('is-error');
   }
 }
 

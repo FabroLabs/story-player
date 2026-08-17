@@ -10,10 +10,10 @@ import { buildCdn } from '../scripts/build-cdn.mjs';
 const FIRST = '1111111111111111111111111111111111111111';
 const SECOND = '2222222222222222222222222222222222222222';
 const V0_TOOLING = [
-  'EventLog', 'MINIMUM_SPRITE_HEIGHT_PX', 'NO_FLOOR_STAND_Y',
-  'PlaybackDirector', 'SIDE_FRACTION', 'SPRITE_PX_PER_CM', 'STAND_FRACTION',
-  'V0_POLICY', 'V0_STAGE_METHODS', 'desiredFacing', 'floorSpan', 'floorYAtX',
-  'frameCell', 'frameIndexAt', 'selectFacingClip', 'selectLocomotion', 'sideX',
+  'MINIMUM_SPRITE_HEIGHT_PX', 'NO_FLOOR_STAND_Y', 'SIDE_FRACTION',
+  'SPRITE_PX_PER_CM', 'STAND_FRACTION', 'TIMELINE_OPS', 'V0_POLICY',
+  'compileTimeline', 'desiredFacing', 'floorSpan', 'floorYAtX', 'frameCell',
+  'frameIndexAt', 'selectFacingClip', 'selectLocomotion', 'sideX',
   'spriteHeightForCm', 'zoneNamed',
 ];
 

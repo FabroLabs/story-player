@@ -1,0 +1,1294 @@
+{
+  "audio": {
+    "bgm": {},
+    "sfx": {}
+  },
+  "cast": {
+    "hedgehog": {
+      "capability": {
+        "angry": {
+          "camera": "angry"
+        },
+        "dance": {
+          "camera": "dance"
+        },
+        "happy": {
+          "left": "happy_left_jumping",
+          "right": "happy_right_jumping"
+        },
+        "idle": {
+          "left": "idle_left",
+          "right": "idle_right"
+        },
+        "move": {
+          "left": "move_left",
+          "right": "move_right"
+        },
+        "sad": {
+          "left": "sad_left",
+          "right": "sad_right"
+        },
+        "scared": {
+          "left": "scared_left",
+          "right": "scared_right"
+        },
+        "sleep": {
+          "left": "sleep_left",
+          "right": "sleep_right"
+        },
+        "surprised": {
+          "left": "surprised_left",
+          "right": "surprised_right"
+        },
+        "worried": {
+          "camera": "worried"
+        }
+      },
+      "clips": {
+        "angry": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/hedgehog/angry/atlas.json",
+          "direction": null,
+          "facing": "camera",
+          "fps": 16,
+          "frames": 65,
+          "grid": [
+            65,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/4587156c3734efcc2399f6422064a047.webp",
+            "320": "fairytale-assets/mobile/sprites/a864e119ceb14091b474f91f101c676d.webp",
+            "384": "fairytale-assets/mobile/sprites/1becf52e6daa2f328b42c86649366bdf.webp",
+            "512": "fairytale-assets/mobile/sprites/74d77997f598034b4073cbedb14ff34e.webp"
+          },
+          "slug": "angry",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/hedgehog/angry/spritesheet.png",
+          "variant": null,
+          "verb": "angry"
+        },
+        "dance": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/hedgehog/dance/atlas.json",
+          "direction": null,
+          "facing": "camera",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/a52fd4923192fe32e08b737e20eb0f25.webp",
+            "320": "fairytale-assets/mobile/sprites/4ad5df069d6d326f145afedb1e07f0dd.webp",
+            "384": "fairytale-assets/mobile/sprites/b706ff5fc79ab737a1fad521bdc754d3.webp",
+            "512": "fairytale-assets/mobile/sprites/e937dcd8e943cd0323598a97973b2d91.webp"
+          },
+          "slug": "dance",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/hedgehog/dance/spritesheet.png",
+          "variant": null,
+          "verb": "dance"
+        },
+        "happy_left_jumping": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/hedgehog/happy_left_jumping/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/6bbd6379ae479d1f17621467c42b16ad.webp",
+            "320": "fairytale-assets/mobile/sprites/dba9e4ed4a1e2c9ac40a07f75d76bb0e.webp",
+            "384": "fairytale-assets/mobile/sprites/3466135bf0533bbfcfeb7a02a4bc150b.webp",
+            "512": "fairytale-assets/mobile/sprites/104a904e9511b79c16861a65994eeb21.webp"
+          },
+          "slug": "happy_left_jumping",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/hedgehog/happy_left_jumping/spritesheet.png",
+          "variant": "jumping",
+          "verb": "happy"
+        },
+        "happy_right_jumping": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/hedgehog/happy_right_jumping/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/a33561d85a0cbbd2fff32956f55c720e.webp",
+            "320": "fairytale-assets/mobile/sprites/0612c4492d85600567947a01c385db15.webp",
+            "384": "fairytale-assets/mobile/sprites/de29f961bbdc4bc158f840d0e80060f3.webp",
+            "512": "fairytale-assets/mobile/sprites/3f2d807e00b8d141d3d7dc1351f71223.webp"
+          },
+          "slug": "happy_right_jumping",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/hedgehog/happy_right_jumping/spritesheet.png",
+          "variant": "jumping",
+          "verb": "happy"
+        },
+        "idle_left": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/hedgehog/idle_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 12,
+          "frames": 16,
+          "grid": [
+            16,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/2051bc5d24305c50458fb65816eb989e.webp",
+            "320": "fairytale-assets/mobile/sprites/d4a6e38d7bedcca147ac441ea3293549.webp",
+            "384": "fairytale-assets/mobile/sprites/0fc457da4d730716ccef4b7d0f8a45a1.webp",
+            "512": "fairytale-assets/mobile/sprites/6af2006e49a6020e6a9780fdbe635bd9.webp"
+          },
+          "slug": "idle_left",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/hedgehog/idle_left/spritesheet.png",
+          "variant": null,
+          "verb": "idle"
+        },
+        "idle_right": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/hedgehog/idle_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 12,
+          "frames": 16,
+          "grid": [
+            16,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/dea2795b72e23ffa8046af28a34b67bb.webp",
+            "320": "fairytale-assets/mobile/sprites/2e5e320378c3669793aa5366eb6003ce.webp",
+            "384": "fairytale-assets/mobile/sprites/8bfc42443baf04a75745304e3ffb22d1.webp",
+            "512": "fairytale-assets/mobile/sprites/3fd94b21a7062f11be9ddcd175362d1f.webp"
+          },
+          "slug": "idle_right",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/hedgehog/idle_right/spritesheet.png",
+          "variant": null,
+          "verb": "idle"
+        },
+        "move_left": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/hedgehog/move_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/d1eb65b092dc7122ef5f5fe4943b6583.webp",
+            "320": "fairytale-assets/mobile/sprites/99669355b778a102577070898a9f7805.webp",
+            "384": "fairytale-assets/mobile/sprites/1f8c70dd69c25dd30cf292dd693bc0ed.webp",
+            "512": "fairytale-assets/mobile/sprites/be28b7a9f8ab34b21112b6a955ca7f47.webp"
+          },
+          "slug": "move_left",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/hedgehog/move_left/spritesheet.png",
+          "variant": null,
+          "verb": "move"
+        },
+        "move_right": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/hedgehog/move_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/e038e72cc2ca784da209a21c9ccf398d.webp",
+            "320": "fairytale-assets/mobile/sprites/ca7912eab0a53533538b11400ff82cf5.webp",
+            "384": "fairytale-assets/mobile/sprites/c1e8a2dbcc1a006fe7347a3532bf4dbf.webp",
+            "512": "fairytale-assets/mobile/sprites/7ecbeaedec8f0b18e205420fcac8129d.webp"
+          },
+          "slug": "move_right",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/hedgehog/move_right/spritesheet.png",
+          "variant": null,
+          "verb": "move"
+        },
+        "sad_left": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/hedgehog/sad_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/a2c19d325cb6c71d0b15ee903e9bc269.webp",
+            "320": "fairytale-assets/mobile/sprites/bbb3583a621f633f577dbff154f0a454.webp",
+            "384": "fairytale-assets/mobile/sprites/52c4b2805d58e69e967b61094cf65630.webp",
+            "512": "fairytale-assets/mobile/sprites/b5a0f49101db3ae84678085ebf04e5c3.webp"
+          },
+          "slug": "sad_left",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/hedgehog/sad_left/spritesheet.png",
+          "variant": null,
+          "verb": "sad"
+        },
+        "sad_right": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/hedgehog/sad_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/3bd2365d431ae0c7274ece4209bb37ca.webp",
+            "320": "fairytale-assets/mobile/sprites/08cd0819a7d74f214524d16f967bddc4.webp",
+            "384": "fairytale-assets/mobile/sprites/dc98056c7c67673b8cf7bcae9894704b.webp",
+            "512": "fairytale-assets/mobile/sprites/053a63bad16f86fa690f96dab53b1ef1.webp"
+          },
+          "slug": "sad_right",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/hedgehog/sad_right/spritesheet.png",
+          "variant": null,
+          "verb": "sad"
+        },
+        "scared_left": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/hedgehog/scared_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 16,
+          "frames": 65,
+          "grid": [
+            65,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/5df9da8b933c985387409f445d79b8b3.webp",
+            "320": "fairytale-assets/mobile/sprites/4141f79c77501162b22e0af677245075.webp",
+            "384": "fairytale-assets/mobile/sprites/c0052d557f2200404e81be3f280a2685.webp",
+            "512": "fairytale-assets/mobile/sprites/44c44e2f2461e8d9bdf4b9d8d5302290.webp"
+          },
+          "slug": "scared_left",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/hedgehog/scared_left/spritesheet.png",
+          "variant": null,
+          "verb": "scared"
+        },
+        "scared_right": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/hedgehog/scared_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 16,
+          "frames": 65,
+          "grid": [
+            65,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/874b64fe9da20c3375af50f2532d4da1.webp",
+            "320": "fairytale-assets/mobile/sprites/92efa684e3221a24b6bb9d71fda7e4b0.webp",
+            "384": "fairytale-assets/mobile/sprites/8dc156b53b0db5ce220a784035a63b9e.webp",
+            "512": "fairytale-assets/mobile/sprites/e88ddf07be8138d206e963ceac79c389.webp"
+          },
+          "slug": "scared_right",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/hedgehog/scared_right/spritesheet.png",
+          "variant": null,
+          "verb": "scared"
+        },
+        "sleep_left": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/hedgehog/sleep_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 16,
+          "frames": 81,
+          "grid": [
+            81,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/6426f44f9a6dc8df074dccb496d2239a.webp",
+            "320": "fairytale-assets/mobile/sprites/6ebd59de5c74a27cf5263f33c3bee885.webp",
+            "384": "fairytale-assets/mobile/sprites/b0f63dadf5f32adf63a96d541683bdd6.webp",
+            "512": "fairytale-assets/mobile/sprites/2558109b6816062d53505b5b2f2699d7.webp"
+          },
+          "slug": "sleep_left",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/hedgehog/sleep_left/spritesheet.png",
+          "variant": null,
+          "verb": "sleep"
+        },
+        "sleep_right": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/hedgehog/sleep_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 16,
+          "frames": 81,
+          "grid": [
+            81,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/96257f6cf2696e6b9d1f450f5eee3689.webp",
+            "320": "fairytale-assets/mobile/sprites/40e0135c101caece85d3a98944c6ddb6.webp",
+            "384": "fairytale-assets/mobile/sprites/9044dd9afbe2f80900ca814762053ee8.webp",
+            "512": "fairytale-assets/mobile/sprites/ccd09188c858f7e1d258e025720d2d78.webp"
+          },
+          "slug": "sleep_right",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/hedgehog/sleep_right/spritesheet.png",
+          "variant": null,
+          "verb": "sleep"
+        },
+        "surprised_left": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/hedgehog/surprised_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 16,
+          "frames": 65,
+          "grid": [
+            65,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/300b93cf3c1b447feaa65859ace15410.webp",
+            "320": "fairytale-assets/mobile/sprites/47918aed6a3c91d0d1c37b8e59f59ece.webp",
+            "384": "fairytale-assets/mobile/sprites/2a0bd92390a3f8bac82ef2e61ba38df7.webp",
+            "512": "fairytale-assets/mobile/sprites/d878f544a9593e3ee693eaac9d813d07.webp"
+          },
+          "slug": "surprised_left",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/hedgehog/surprised_left/spritesheet.png",
+          "variant": null,
+          "verb": "surprised"
+        },
+        "surprised_right": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/hedgehog/surprised_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 16,
+          "frames": 65,
+          "grid": [
+            65,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/55afa94e5b086cebb6954500529e8110.webp",
+            "320": "fairytale-assets/mobile/sprites/2137e35db2eb3139ee681d267b7d7286.webp",
+            "384": "fairytale-assets/mobile/sprites/7c122e082028cc5f325a89cce5a45f70.webp",
+            "512": "fairytale-assets/mobile/sprites/d7187fab573059d40cd4e09c8d4df29a.webp"
+          },
+          "slug": "surprised_right",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/hedgehog/surprised_right/spritesheet.png",
+          "variant": null,
+          "verb": "surprised"
+        },
+        "worried": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/hedgehog/worried/atlas.json",
+          "direction": null,
+          "facing": "camera",
+          "fps": 16,
+          "frames": 81,
+          "grid": [
+            81,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/589c8bcdb3f3b7d6a0bcf52d7dfd0d9c.webp",
+            "320": "fairytale-assets/mobile/sprites/6641428b9c91ecc1b03deff6f9454317.webp",
+            "384": "fairytale-assets/mobile/sprites/af6bf496be7e489e5fd8fd69c4cbf157.webp",
+            "512": "fairytale-assets/mobile/sprites/dd21131a3fd9c9a93e5f191550db669a.webp"
+          },
+          "slug": "worried",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/hedgehog/worried/spritesheet.png",
+          "variant": null,
+          "verb": "worried"
+        }
+      },
+      "display_name": "Ola",
+      "height_cm": 15
+    },
+    "rabbit": {
+      "capability": {
+        "angry": {
+          "camera": "angry"
+        },
+        "happy": {
+          "left": "happy_left_jumping",
+          "right": "happy_right_jumping"
+        },
+        "idle": {
+          "left": "idle_left",
+          "right": "idle_right"
+        },
+        "move": {
+          "left": "move_left",
+          "right": "move_right"
+        },
+        "pet_reaction": {
+          "left": "pet_reaction_left",
+          "right": "pet_reaction_right"
+        },
+        "sad": {
+          "left": "sad_left",
+          "right": "sad_right"
+        },
+        "scared": {
+          "left": "scared_left",
+          "right": "scared_right"
+        },
+        "sleep": {
+          "left": "sleep_left",
+          "right": "sleep_right"
+        },
+        "surprised": {
+          "left": "surprised_left",
+          "right": "surprised_right"
+        },
+        "worried": {
+          "left": "worried_left",
+          "right": "worried_right"
+        }
+      },
+      "clips": {
+        "angry": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/rabbit/angry/atlas.json",
+          "direction": null,
+          "facing": "camera",
+          "fps": 16,
+          "frames": 65,
+          "grid": [
+            65,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/6e4b704763683b29670123f9740071be.webp",
+            "320": "fairytale-assets/mobile/sprites/0dd040cb540706b51259b505944e06f3.webp",
+            "384": "fairytale-assets/mobile/sprites/7f69f7b037a1a4fa57c82e5053e92855.webp",
+            "512": "fairytale-assets/mobile/sprites/daf02e56415c8917c4d28c202e3b3ce6.webp"
+          },
+          "slug": "angry",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/rabbit/angry/spritesheet.png",
+          "variant": null,
+          "verb": "angry"
+        },
+        "happy_left_jumping": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/rabbit/happy_left_jumping/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/b7c434011c2f3a93c179edff8f417f15.webp",
+            "320": "fairytale-assets/mobile/sprites/9e46a6503aad83389168e75b33805686.webp",
+            "384": "fairytale-assets/mobile/sprites/e4f6f48c8b96970c48dd34100ef80a0d.webp",
+            "512": "fairytale-assets/mobile/sprites/0ebc374fbd98ba5f4c86730398366da6.webp"
+          },
+          "slug": "happy_left_jumping",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/rabbit/happy_left_jumping/spritesheet.png",
+          "variant": "jumping",
+          "verb": "happy"
+        },
+        "happy_right_jumping": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/rabbit/happy_right_jumping/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/e929f7f1902f4fbaf4091ff62a1d1f32.webp",
+            "320": "fairytale-assets/mobile/sprites/5877f05c0a64117a8ed1f523b061d79e.webp",
+            "384": "fairytale-assets/mobile/sprites/4ccb154bc1b332b11a216b84c9f50713.webp",
+            "512": "fairytale-assets/mobile/sprites/59e021f6f657c14cd078429e7e874921.webp"
+          },
+          "slug": "happy_right_jumping",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/rabbit/happy_right_jumping/spritesheet.png",
+          "variant": "jumping",
+          "verb": "happy"
+        },
+        "idle_left": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/rabbit/idle_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/28daaf94790503288d7b756bb71c030b.webp",
+            "320": "fairytale-assets/mobile/sprites/1c8d84f49866193dde9abe423ac85209.webp",
+            "384": "fairytale-assets/mobile/sprites/80fa34ce1ba0bfc92d25c6cbda29f71e.webp",
+            "512": "fairytale-assets/mobile/sprites/bc97cb16b73d8618cb67ffec6eb305e2.webp"
+          },
+          "slug": "idle_left",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/rabbit/idle_left/spritesheet.png",
+          "variant": null,
+          "verb": "idle"
+        },
+        "idle_right": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/rabbit/idle_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/a6ed1af4a58c57fb3ae5d5acc4122472.webp",
+            "320": "fairytale-assets/mobile/sprites/77b00ee0e2ab361c05e54b2fa8028836.webp",
+            "384": "fairytale-assets/mobile/sprites/6ced331284d832f2f1106792e9bd2151.webp",
+            "512": "fairytale-assets/mobile/sprites/e8f3d0574d20db3b13a3e2b9cd308f2e.webp"
+          },
+          "slug": "idle_right",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/rabbit/idle_right/spritesheet.png",
+          "variant": null,
+          "verb": "idle"
+        },
+        "move_left": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/rabbit/move_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/d4b029e6e07158c2ed8a44b7b6b37dda.webp",
+            "320": "fairytale-assets/mobile/sprites/bfff13e2a385137bea67a91d062c1a38.webp",
+            "384": "fairytale-assets/mobile/sprites/5dcc86513099c14cc31a88e326805961.webp",
+            "512": "fairytale-assets/mobile/sprites/034ea29bbe5f94d533f12ba534208cee.webp"
+          },
+          "slug": "move_left",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/rabbit/move_left/spritesheet.png",
+          "variant": null,
+          "verb": "move"
+        },
+        "move_right": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/rabbit/move_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/73f5993a904ed15e73641512d10c1187.webp",
+            "320": "fairytale-assets/mobile/sprites/d75cf9a80e0ee424c2ee1e495eb2483f.webp",
+            "384": "fairytale-assets/mobile/sprites/7e3376282cd1a78c4cd4941250023da5.webp",
+            "512": "fairytale-assets/mobile/sprites/e85fc9fe521935a1f0c1a21c3aae9233.webp"
+          },
+          "slug": "move_right",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/rabbit/move_right/spritesheet.png",
+          "variant": null,
+          "verb": "move"
+        },
+        "pet_reaction_left": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/rabbit/pet_reaction_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/b3fb5a8922857ca4bf43becd3df1aaa2.webp",
+            "320": "fairytale-assets/mobile/sprites/149cf6c005ce4a0e8f67158a4503dad9.webp",
+            "384": "fairytale-assets/mobile/sprites/f0ee73b85bc8c20bf43495189a25c438.webp",
+            "512": "fairytale-assets/mobile/sprites/c52cc16639edc5e0c328e352c01daa34.webp"
+          },
+          "slug": "pet_reaction_left",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/rabbit/pet_reaction_left/spritesheet.png",
+          "variant": null,
+          "verb": "pet_reaction"
+        },
+        "pet_reaction_right": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/rabbit/pet_reaction_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/f35e1bf943f5e4d8358c6136d77154d5.webp",
+            "320": "fairytale-assets/mobile/sprites/5f0103c3b7cca6a416cb0e63aca00cd8.webp",
+            "384": "fairytale-assets/mobile/sprites/b6072eceb2a8366557c663d9c179d7b1.webp",
+            "512": "fairytale-assets/mobile/sprites/3666880c95ee1b7619373d7440e1dad3.webp"
+          },
+          "slug": "pet_reaction_right",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/rabbit/pet_reaction_right/spritesheet.png",
+          "variant": null,
+          "verb": "pet_reaction"
+        },
+        "sad_left": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/rabbit/sad_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/facc8bad472059d998755092be91edd4.webp",
+            "320": "fairytale-assets/mobile/sprites/0f149753fe81cb581bee84a52f741bad.webp",
+            "384": "fairytale-assets/mobile/sprites/7f1ad102e26283225349f907a8517e9c.webp",
+            "512": "fairytale-assets/mobile/sprites/eeb474f6bea027f9877a24c3a66b22c5.webp"
+          },
+          "slug": "sad_left",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/rabbit/sad_left/spritesheet.png",
+          "variant": null,
+          "verb": "sad"
+        },
+        "sad_right": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/rabbit/sad_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/4e5882b6233d7351a629d7de64b42817.webp",
+            "320": "fairytale-assets/mobile/sprites/300ec72780cc53e1127355ce3112df6e.webp",
+            "384": "fairytale-assets/mobile/sprites/54f5d087b2239c96522dd7c654f55b93.webp",
+            "512": "fairytale-assets/mobile/sprites/d57361b4ca5865e710595a4b601131fc.webp"
+          },
+          "slug": "sad_right",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/rabbit/sad_right/spritesheet.png",
+          "variant": null,
+          "verb": "sad"
+        },
+        "scared_left": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/rabbit/scared_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 12,
+          "frames": 65,
+          "grid": [
+            65,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/5ad60b8c70b9bd59b3622aef3af34890.webp",
+            "320": "fairytale-assets/mobile/sprites/5b41a3acc227dfc9b1bfd29a7acd6ef5.webp",
+            "384": "fairytale-assets/mobile/sprites/ace0df639fad50e630db81276fbe28cb.webp",
+            "512": "fairytale-assets/mobile/sprites/684baaef385b5469748fc202cfd41de7.webp"
+          },
+          "slug": "scared_left",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/rabbit/scared_left/spritesheet.png",
+          "variant": null,
+          "verb": "scared"
+        },
+        "scared_right": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/rabbit/scared_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 16,
+          "frames": 65,
+          "grid": [
+            65,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/e3d17e4ce66b8cd7cccabbb224b8f185.webp",
+            "320": "fairytale-assets/mobile/sprites/465238a4d661919fa71081a32d798f09.webp",
+            "384": "fairytale-assets/mobile/sprites/77afc2b30eae5c31613fc589c889aacf.webp",
+            "512": "fairytale-assets/mobile/sprites/c5afbefce738993182a884a5cb9b538e.webp"
+          },
+          "slug": "scared_right",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/rabbit/scared_right/spritesheet.png",
+          "variant": null,
+          "verb": "scared"
+        },
+        "sleep_left": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/rabbit/sleep_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 12,
+          "frames": 41,
+          "grid": [
+            41,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/7883d2b02eb7ba39b9c31f247ea5db2c.webp",
+            "320": "fairytale-assets/mobile/sprites/e22e3b37a723cab8b03e22c4f3a677b9.webp",
+            "384": "fairytale-assets/mobile/sprites/8d616119cdd57a45c6204521e25b75a7.webp",
+            "512": "fairytale-assets/mobile/sprites/fd8b9da9062cc980fe4f14f74efcc411.webp"
+          },
+          "slug": "sleep_left",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/rabbit/sleep_left/spritesheet.png",
+          "variant": null,
+          "verb": "sleep"
+        },
+        "sleep_right": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/rabbit/sleep_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 16,
+          "frames": 41,
+          "grid": [
+            41,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/246797adb86120abef7879777a1232ab.webp",
+            "320": "fairytale-assets/mobile/sprites/8293957a9913854e5fb8c17cd44f658b.webp",
+            "384": "fairytale-assets/mobile/sprites/41c4389b8e9da85c57bbf95b94c927c9.webp",
+            "512": "fairytale-assets/mobile/sprites/2a6383328f4db13f84f0aabe80c904eb.webp"
+          },
+          "slug": "sleep_right",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/rabbit/sleep_right/spritesheet.png",
+          "variant": null,
+          "verb": "sleep"
+        },
+        "surprised_left": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/rabbit/surprised_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 12,
+          "frames": 65,
+          "grid": [
+            65,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/38e8535e851a7922b3a74947f5588f5e.webp",
+            "320": "fairytale-assets/mobile/sprites/5d3c9f4f5e9f36050bd64139140725db.webp",
+            "384": "fairytale-assets/mobile/sprites/adf55616d014362284b81748a7396dcd.webp",
+            "512": "fairytale-assets/mobile/sprites/b05bc7d7ba2cda08cd7366be31c5abea.webp"
+          },
+          "slug": "surprised_left",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/rabbit/surprised_left/spritesheet.png",
+          "variant": null,
+          "verb": "surprised"
+        },
+        "surprised_right": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/rabbit/surprised_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 16,
+          "frames": 65,
+          "grid": [
+            65,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/e16de956f0bdfb4663c6e49885ade362.webp",
+            "320": "fairytale-assets/mobile/sprites/5b621c567138ad7375a697bf0e8b726f.webp",
+            "384": "fairytale-assets/mobile/sprites/cdd3e654dad61c9d8015117e59c7bb06.webp",
+            "512": "fairytale-assets/mobile/sprites/79d14a010defd14a0bdb8c4dbadc8fa7.webp"
+          },
+          "slug": "surprised_right",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/rabbit/surprised_right/spritesheet.png",
+          "variant": null,
+          "verb": "surprised"
+        },
+        "worried_left": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/rabbit/worried_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 12,
+          "frames": 81,
+          "grid": [
+            81,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/2aaa1acb585a931065fc32062a017eaa.webp",
+            "320": "fairytale-assets/mobile/sprites/01a790920b7c6f267b75fcf2cc9e37c2.webp",
+            "384": "fairytale-assets/mobile/sprites/3d6fa3294bd7e99d8fe08a319fa3b568.webp",
+            "512": "fairytale-assets/mobile/sprites/5d6c4e0063979156cb9bb42bf9d40d9f.webp"
+          },
+          "slug": "worried_left",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/rabbit/worried_left/spritesheet.png",
+          "variant": null,
+          "verb": "worried"
+        },
+        "worried_right": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/rabbit/worried_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 16,
+          "frames": 81,
+          "grid": [
+            81,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/6e5dd65c2bd2d643cdaca89823fc9e4e.webp",
+            "320": "fairytale-assets/mobile/sprites/8f3f9a8ef1056c6ba541d9a17a954409.webp",
+            "384": "fairytale-assets/mobile/sprites/402dec058be3365090e893a417df9130.webp",
+            "512": "fairytale-assets/mobile/sprites/0375d51f72075068e36133065fdec291.webp"
+          },
+          "slug": "worried_right",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/rabbit/worried_right/spritesheet.png",
+          "variant": null,
+          "verb": "worried"
+        }
+      },
+      "display_name": "Pip",
+      "height_cm": 25
+    }
+  },
+  "objects": {},
+  "scenes": [
+    {
+      "line": 20,
+      "place": "forest_clearing",
+      "plate": {
+        "default_zone": "foreground",
+        "poster": "fairytale-assets/live_backgrounds_posters/forest_clearing_live.jpg",
+        "resolution": [
+          1920,
+          1080
+        ],
+        "video": "fairytale-assets/live_backgrounds/forest/forest_clearing_live.mp4",
+        "zones": [
+          {
+            "depth": 1,
+            "description": "foreground - the open grass closest to the viewer. Where you can put main characters.",
+            "name": "foreground",
+            "polygon": [
+              [
+                20.3,
+                99.21
+              ],
+              [
+                71.84,
+                99.07
+              ],
+              [
+                71.78,
+                89.18
+              ],
+              [
+                21.11,
+                88.59
+              ],
+              [
+                20.77,
+                98.93
+              ]
+            ],
+            "scale": 1.0,
+            "surface": "floor"
+          },
+          {
+            "depth": 2,
+            "description": "midground - the grass further back, toward the tree line. Further from the viewer than the foreground.",
+            "name": "midground",
+            "polygon": [
+              [
+                20.63,
+                81.37
+              ],
+              [
+                20.89,
+                88.03
+              ],
+              [
+                76.46,
+                88.49
+              ],
+              [
+                75.85,
+                82.91
+              ],
+              [
+                20.58,
+                80.95
+              ]
+            ],
+            "scale": 0.7,
+            "surface": "floor"
+          },
+          {
+            "depth": null,
+            "description": "Sky / upper area.",
+            "name": "sky",
+            "polygon": [
+              [
+                0.0,
+                0.0
+              ],
+              [
+                100.0,
+                0.0
+              ],
+              [
+                100.0,
+                58.0
+              ],
+              [
+                0.0,
+                58.0
+              ]
+            ],
+            "scale": null,
+            "surface": "sky"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "beside": null,
+          "cmd": "put",
+          "facing": null,
+          "kind": "cmd",
+          "line": 21,
+          "objects": [],
+          "position": "left_third",
+          "subjects": [
+            "rabbit"
+          ],
+          "zone": null
+        },
+        {
+          "beside": null,
+          "cmd": "put",
+          "facing": null,
+          "kind": "cmd",
+          "line": 22,
+          "objects": [],
+          "position": "right_third",
+          "subjects": [
+            "hedgehog"
+          ],
+          "zone": null
+        },
+        {
+          "cmd": "shot",
+          "kind": "cmd",
+          "line": 23,
+          "size": "wide",
+          "subjects": [],
+          "target": null
+        },
+        {
+          "audio": "parity-jobs/parity/audio/735f480b422d3c01161a09ff04aff5c802735706bf4ad9397db2df5830da5515.wav",
+          "duration_s": 1.611,
+          "kind": "chunk",
+          "line": 25,
+          "text": "The clearing opened wide."
+        },
+        {
+          "cmd": "pan_to",
+          "kind": "cmd",
+          "line": 26,
+          "speed": null,
+          "subjects": [],
+          "target": "hedgehog"
+        },
+        {
+          "audio": "parity-jobs/parity/audio/1551a31223588d88ff0f3346b9aefb9a4c5d17725138bacdc3cb5ed547b79576.wav",
+          "duration_s": 2.819,
+          "kind": "chunk",
+          "line": 27,
+          "text": "Ola waited by the ferns, very still."
+        },
+        {
+          "kind": "together",
+          "line": 28,
+          "steps": [
+            {
+              "cmd": "follow",
+              "kind": "cmd",
+              "line": 29,
+              "subjects": [],
+              "target": "rabbit"
+            },
+            {
+              "beside": "left",
+              "cmd": "move",
+              "kind": "cmd",
+              "line": 30,
+              "subjects": [
+                "rabbit"
+              ],
+              "target": "hedgehog",
+              "zone": null
+            }
+          ]
+        },
+        {
+          "audio": "parity-jobs/parity/audio/db5ca64ca94776a7ff98ec5b7f318e642e0c89b71636bf6d8646dc520cb5c8db.wav",
+          "duration_s": 2.416,
+          "kind": "chunk",
+          "line": 31,
+          "text": "Pip hopped over to say hello."
+        },
+        {
+          "cmd": "shot",
+          "kind": "cmd",
+          "line": 32,
+          "size": "close",
+          "subjects": [],
+          "target": "rabbit"
+        },
+        {
+          "cmd": "emote",
+          "emotion": "happy",
+          "facing": null,
+          "kind": "cmd",
+          "line": 33,
+          "subjects": [
+            "rabbit"
+          ]
+        },
+        {
+          "audio": "parity-jobs/parity/audio/24041e8f1bd8c03674eb924e07967ee272bea7491e7273230b2b4efa2e861beb.wav",
+          "duration_s": 1.611,
+          "kind": "chunk",
+          "line": 34,
+          "text": "His nose twitched twice."
+        },
+        {
+          "cmd": "follow",
+          "kind": "cmd",
+          "line": 35,
+          "subjects": [],
+          "target": "off"
+        },
+        {
+          "cmd": "push_in",
+          "kind": "cmd",
+          "line": 36,
+          "speed": "medium",
+          "subjects": [],
+          "target": "right_edge"
+        },
+        {
+          "audio": "parity-jobs/parity/audio/a1393aea55c56073a264923b46a48d6ab4b7072685e821e650f438b5e364d17b.wav",
+          "duration_s": 2.013,
+          "kind": "chunk",
+          "line": 37,
+          "text": "Beyond them the path waited."
+        },
+        {
+          "cmd": "pull_out",
+          "kind": "cmd",
+          "line": 38,
+          "speed": "slow",
+          "subjects": []
+        },
+        {
+          "audio": "parity-jobs/parity/audio/d22379f7333e0aaf1c114dfbee25f650868073e4d449376f8b3cd78e587dc5e7.wav",
+          "duration_s": 3.221,
+          "kind": "chunk",
+          "line": 39,
+          "text": "Slowly the whole clearing came back into view."
+        },
+        {
+          "cmd": "follow",
+          "kind": "cmd",
+          "line": 40,
+          "subjects": [],
+          "target": "rabbit"
+        },
+        {
+          "cmd": "travel",
+          "destination": "forest_path",
+          "exit_anchor_pct": [
+            46.8,
+            97.1
+          ],
+          "kind": "cmd",
+          "line": 42,
+          "subjects": [
+            "rabbit"
+          ]
+        },
+        {
+          "audio": "parity-jobs/parity/audio/10f73ffbc020927f428c62eea4faac502dd8605445e39e58e42c7e3308ef7a50.wav",
+          "duration_s": 2.416,
+          "kind": "chunk",
+          "line": 44,
+          "text": "Pip set off down the path."
+        }
+      ],
+      "time": "day"
+    },
+    {
+      "line": 46,
+      "place": "forest_path",
+      "plate": {
+        "default_zone": "foreground_road",
+        "poster": "fairytale-assets/live_backgrounds_posters/forest_path_live.jpg",
+        "resolution": [
+          1920,
+          1080
+        ],
+        "video": "fairytale-assets/live_backgrounds/forest/forest_path_live.mp4",
+        "zones": [
+          {
+            "depth": 1,
+            "description": "foreground - closest area to the user",
+            "name": "foreground_road",
+            "polygon": [
+              [
+                0.19,
+                79.95
+              ],
+              [
+                99.75,
+                80.76
+              ],
+              [
+                99.81,
+                99.12
+              ],
+              [
+                0.25,
+                99.28
+              ],
+              [
+                0.21,
+                79.79
+              ]
+            ],
+            "scale": 1.0,
+            "surface": "floor"
+          },
+          {
+            "depth": 2,
+            "description": "midground - 2nd closest area to the user",
+            "name": "midground_road",
+            "polygon": [
+              [
+                1.71,
+                79.23
+              ],
+              [
+                28.16,
+                71.8
+              ],
+              [
+                78.96,
+                70.69
+              ],
+              [
+                99.75,
+                80.47
+              ],
+              [
+                2.01,
+                79.46
+              ]
+            ],
+            "scale": 0.7,
+            "surface": "floor"
+          },
+          {
+            "depth": 3,
+            "description": "background - 3rd closest area to the user",
+            "name": "background_road",
+            "polygon": [
+              [
+                38.14,
+                70.95
+              ],
+              [
+                41.47,
+                69.52
+              ],
+              [
+                34.55,
+                67.52
+              ],
+              [
+                39.62,
+                65.12
+              ],
+              [
+                55.41,
+                65.12
+              ],
+              [
+                69.57,
+                70.28
+              ],
+              [
+                38.52,
+                70.81
+              ]
+            ],
+            "scale": 0.4,
+            "surface": "floor"
+          },
+          {
+            "depth": null,
+            "description": "Sky / upper area.",
+            "name": "sky",
+            "polygon": [
+              [
+                0.0,
+                0.0
+              ],
+              [
+                100.0,
+                0.0
+              ],
+              [
+                100.0,
+                58.0
+              ],
+              [
+                0.0,
+                58.0
+              ]
+            ],
+            "scale": null,
+            "surface": "sky"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "audio": "parity-jobs/parity/audio/ecb645141618ce8863e9548b59bc704c3093e93441e5d83622b76db7fb56258c.wav",
+          "duration_s": 2.013,
+          "kind": "chunk",
+          "line": 48,
+          "text": "The ferns closed behind him."
+        },
+        {
+          "cmd": "emote",
+          "emotion": "surprised",
+          "facing": null,
+          "kind": "cmd",
+          "line": 49,
+          "subjects": [
+            "rabbit"
+          ]
+        }
+      ],
+      "time": "day"
+    }
+  ],
+  "source": "story_examples/golden_camera_moves.story",
+  "storylang_version": 0,
+  "title": "Golden: camera moves",
+  "world": "forest"
+}

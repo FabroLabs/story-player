@@ -1,0 +1,3556 @@
+{
+  "duration_ms": 233939,
+  "events": [
+    {
+      "line": 12,
+      "op": "scene",
+      "place": "forest_berry_dell",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 0
+    },
+    {
+      "cmd": "put",
+      "detail": {
+        "beside": null,
+        "facing": null,
+        "objects": [],
+        "position": "center",
+        "subjects": [
+          "robin"
+        ],
+        "zone": null
+      },
+      "kind": "cmd",
+      "line": 13,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 0
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "right",
+        "slug": "robin",
+        "verb": "idle"
+      },
+      "kind": "warning",
+      "line": 13,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 0
+    },
+    {
+      "clip": "idle_right",
+      "line": 13,
+      "op": "place",
+      "scene_index": 0,
+      "slug": "robin",
+      "source": "stage",
+      "t_ms": 0,
+      "x": 46.33
+    },
+    {
+      "cmd": "put",
+      "detail": {
+        "beside": null,
+        "facing": "robin",
+        "objects": [],
+        "position": "left_third",
+        "subjects": [
+          "rabbit"
+        ],
+        "zone": null
+      },
+      "kind": "cmd",
+      "line": 14,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 0
+    },
+    {
+      "clip": "idle_right",
+      "line": 14,
+      "op": "place",
+      "scene_index": 0,
+      "slug": "rabbit",
+      "source": "stage",
+      "t_ms": 0,
+      "x": 32.202
+    },
+    {
+      "cmd": "put",
+      "detail": {
+        "beside": null,
+        "facing": "robin",
+        "objects": [],
+        "position": "right_third",
+        "subjects": [
+          "hedgehog"
+        ],
+        "zone": null
+      },
+      "kind": "cmd",
+      "line": 15,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 0
+    },
+    {
+      "clip": "idle_left",
+      "line": 15,
+      "op": "place",
+      "scene_index": 0,
+      "slug": "hedgehog",
+      "source": "stage",
+      "t_ms": 0,
+      "x": 60.458
+    },
+    {
+      "cmd": "music",
+      "detail": {
+        "name": "calm",
+        "subjects": []
+      },
+      "kind": "cmd",
+      "line": 16,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 0
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/c0c8ad460bcc98662447b16c30751d26dec0d5a2fec9910aa7c13c30db9646fa.wav",
+        "duration_s": 6.04,
+        "text": "In the warm gold of late afternoon, three friends were playing in the berry dell."
+      },
+      "kind": "chunk",
+      "line": 18,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 0
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 0,
+      "text": "In the warm gold of late afternoon, three friends were playing in the berry dell."
+    },
+    {
+      "cmd": "emote",
+      "detail": {
+        "emotion": "happy",
+        "facing": null,
+        "subjects": [
+          "robin",
+          "rabbit",
+          "hedgehog"
+        ]
+      },
+      "kind": "cmd",
+      "line": 19,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 6040
+    },
+    {
+      "clip": "happy",
+      "line": 19,
+      "op": "clip",
+      "scene_index": 0,
+      "slug": "robin",
+      "source": "stage",
+      "t_ms": 6040
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "right",
+        "slug": "rabbit",
+        "verb": "happy"
+      },
+      "kind": "warning",
+      "line": 19,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 6040
+    },
+    {
+      "clip": "happy_right_jumping",
+      "line": 19,
+      "op": "clip",
+      "scene_index": 0,
+      "slug": "rabbit",
+      "source": "stage",
+      "t_ms": 6040
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "left",
+        "slug": "hedgehog",
+        "verb": "happy"
+      },
+      "kind": "warning",
+      "line": 19,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 6040
+    },
+    {
+      "clip": "happy_left_jumping",
+      "line": 19,
+      "op": "clip",
+      "scene_index": 0,
+      "slug": "hedgehog",
+      "source": "stage",
+      "t_ms": 6040
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/e78d128f6b7bb58ba147f8ebcc45ecb3889fd004c8c38ebec3d9f4a5c88569f5.wav",
+        "duration_s": 6.443,
+        "text": "Clover bounced. Bramble rolled. And Ruby the robin sang the very last song of the day."
+      },
+      "kind": "chunk",
+      "line": 20,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 6040
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 6040,
+      "text": "Clover bounced. Bramble rolled. And Ruby the robin sang the very last song of the day."
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/8bb0404a88a011b341fcaadf2bcdd19aa321920d462cd0bdac56e8f54942d1ef.wav",
+        "duration_s": 3.221,
+        "text": "Pop! went a berry, straight into Bramble's mouth."
+      },
+      "kind": "chunk",
+      "line": 21,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 12483
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 12483,
+      "text": "Pop! went a berry, straight into Bramble's mouth."
+    },
+    {
+      "cmd": "sound",
+      "detail": {
+        "name": "pop",
+        "subjects": []
+      },
+      "kind": "cmd",
+      "line": 22,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 15704
+    },
+    {
+      "cmd": "sound",
+      "detail": {
+        "name": "giggle",
+        "subjects": []
+      },
+      "kind": "cmd",
+      "line": 23,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 15704
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/2fc87a7626092a68ee117a0178be4e1c228f0f17fb0324acdca9ecfa8cb75ef4.wav",
+        "duration_s": 6.04,
+        "text": "But slowly, slowly, the shadows began to stretch — long and blue across the grass."
+      },
+      "kind": "chunk",
+      "line": 24,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 15704
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 15704,
+      "text": "But slowly, slowly, the shadows began to stretch — long and blue across the grass."
+    },
+    {
+      "cmd": "emote",
+      "detail": {
+        "emotion": "worried",
+        "facing": null,
+        "subjects": [
+          "robin"
+        ]
+      },
+      "kind": "cmd",
+      "line": 25,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 21744
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "right",
+        "slug": "robin",
+        "verb": "worried"
+      },
+      "kind": "warning",
+      "line": 25,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 21744
+    },
+    {
+      "clip": "worried_right",
+      "line": 25,
+      "op": "clip",
+      "scene_index": 0,
+      "slug": "robin",
+      "source": "stage",
+      "t_ms": 21744
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/05ec24682938becf4ae066ab63ab141916b9d750a9a8f0b5e5488f3b964d05e3.wav",
+        "duration_s": 6.846,
+        "text": "'Tonight,' said Clover, 'the fireflies dance in the deep woods. Come with us, Ruby! Come and see!'"
+      },
+      "kind": "chunk",
+      "line": 26,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 21744
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 21744,
+      "text": "'Tonight,' said Clover, 'the fireflies dance in the deep woods. Come with us, Ruby! Come and see!'"
+    },
+    {
+      "cmd": "emote",
+      "detail": {
+        "emotion": "happy",
+        "facing": "robin",
+        "subjects": [
+          "rabbit"
+        ]
+      },
+      "kind": "cmd",
+      "line": 27,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 28590
+    },
+    {
+      "clip": "happy_right_jumping",
+      "line": 27,
+      "op": "clip",
+      "scene_index": 0,
+      "slug": "rabbit",
+      "source": "stage",
+      "t_ms": 28590
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/ea427a3d569439a1ea98ec295cee51f21323123991fd62ed53935cb153a0b7f8.wav",
+        "duration_s": 4.027,
+        "text": "Ruby's feathers went tight. The deep woods meant the dark."
+      },
+      "kind": "chunk",
+      "line": 28,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 28590
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 28590,
+      "text": "Ruby's feathers went tight. The deep woods meant the dark."
+    },
+    {
+      "cmd": "pause",
+      "detail": {
+        "seconds": 1,
+        "subjects": []
+      },
+      "kind": "cmd",
+      "line": 29,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 32617
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/5b952b7dd5ed2b0135dd21ee9175e5864488879149d2126682b38cf4cbe1062b.wav",
+        "duration_s": 4.43,
+        "text": "And the dark was the one thing Ruby did not like."
+      },
+      "kind": "chunk",
+      "line": 30,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 33617
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 33617,
+      "text": "And the dark was the one thing Ruby did not like."
+    },
+    {
+      "cmd": "travel",
+      "detail": {
+        "destination": "forest_stump_round",
+        "exit_anchor_pct": [
+          36.2,
+          99.2
+        ],
+        "subjects": [
+          "robin",
+          "rabbit",
+          "hedgehog"
+        ]
+      },
+      "kind": "cmd",
+      "line": 32,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 38047
+    },
+    {
+      "clip": "fly_left",
+      "duration_ms": 460,
+      "line": 32,
+      "op": "depart",
+      "scene_index": 0,
+      "slug": "robin",
+      "source": "stage",
+      "t_ms": 38047,
+      "x": 36.2,
+      "y": 99.2
+    },
+    {
+      "clip": "move_right",
+      "duration_ms": 350,
+      "line": 32,
+      "op": "depart",
+      "scene_index": 0,
+      "slug": "rabbit",
+      "source": "stage",
+      "t_ms": 38047,
+      "x": 36.2,
+      "y": 99.2
+    },
+    {
+      "clip": "move_left",
+      "duration_ms": 1103,
+      "line": 32,
+      "op": "depart",
+      "scene_index": 0,
+      "slug": "hedgehog",
+      "source": "stage",
+      "t_ms": 38047,
+      "x": 36.2,
+      "y": 99.2
+    },
+    {
+      "line": 32,
+      "op": "exit",
+      "scene_index": 0,
+      "slug": "rabbit",
+      "source": "stage",
+      "t_ms": 38397
+    },
+    {
+      "line": 32,
+      "op": "exit",
+      "scene_index": 0,
+      "slug": "robin",
+      "source": "stage",
+      "t_ms": 38507
+    },
+    {
+      "line": 32,
+      "op": "exit",
+      "scene_index": 0,
+      "slug": "hedgehog",
+      "source": "stage",
+      "t_ms": 39150
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 39150,
+      "text": ""
+    },
+    {
+      "line": null,
+      "op": "camera_reset",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 39150
+    },
+    {
+      "line": 35,
+      "op": "scene",
+      "place": "forest_stump_round",
+      "scene_index": 1,
+      "source": "stage",
+      "t_ms": 39150
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "right",
+        "slug": "robin",
+        "verb": "idle"
+      },
+      "kind": "warning",
+      "line": 35,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 39150
+    },
+    {
+      "clip": "idle_right",
+      "line": 35,
+      "op": "place",
+      "scene_index": 1,
+      "slug": "robin",
+      "source": "stage",
+      "t_ms": 39150,
+      "x": 24.318
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "right",
+        "slug": "rabbit",
+        "verb": "idle"
+      },
+      "kind": "warning",
+      "line": 35,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 39150
+    },
+    {
+      "clip": "idle_right",
+      "line": 35,
+      "op": "place",
+      "scene_index": 1,
+      "slug": "rabbit",
+      "source": "stage",
+      "t_ms": 39150,
+      "x": 40.53
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "left",
+        "slug": "hedgehog",
+        "verb": "idle"
+      },
+      "kind": "warning",
+      "line": 35,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 39150
+    },
+    {
+      "clip": "idle_left",
+      "line": 35,
+      "op": "place",
+      "scene_index": 1,
+      "slug": "hedgehog",
+      "source": "stage",
+      "t_ms": 39150,
+      "x": 56.742
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/b5ebdf3805c95b9822f8e12aed162acaae855c5dbf6bbd9e4fe1c0af1981f118.wav",
+        "duration_s": 5.638,
+        "text": "They gathered at the old round stump, where forest plans have always been made."
+      },
+      "kind": "chunk",
+      "line": 37,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 39150
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 1,
+      "source": "stage",
+      "t_ms": 39150,
+      "text": "They gathered at the old round stump, where forest plans have always been made."
+    },
+    {
+      "cmd": "put",
+      "detail": {
+        "beside": null,
+        "facing": null,
+        "object_zones": {
+          "hot_chocolate": "zone_1"
+        },
+        "objects": [
+          "hot_chocolate"
+        ],
+        "position": "center",
+        "subjects": [
+          "hot_chocolate"
+        ],
+        "zone": "zone_1"
+      },
+      "kind": "cmd",
+      "line": 38,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 44788
+    },
+    {
+      "line": 38,
+      "op": "place_object",
+      "scene_index": 1,
+      "slug": "hot_chocolate",
+      "source": "stage",
+      "t_ms": 44788,
+      "x": 66.91499999999999,
+      "zone": "zone_1"
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/0ca58cf1c5cf38da845271a54fbbba72e82b2546abf3977f137f6c8a366006f1.wav",
+        "duration_s": 6.846,
+        "text": "'I do want to see the fireflies,' Ruby whispered. 'But the dark makes my wings feel small.'"
+      },
+      "kind": "chunk",
+      "line": 39,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 44788
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 1,
+      "source": "stage",
+      "t_ms": 44788,
+      "text": "'I do want to see the fireflies,' Ruby whispered. 'But the dark makes my wings feel small.'"
+    },
+    {
+      "cmd": "emote",
+      "detail": {
+        "emotion": "scared",
+        "facing": null,
+        "subjects": [
+          "robin"
+        ]
+      },
+      "kind": "cmd",
+      "line": 40,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 51634
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "right",
+        "slug": "robin",
+        "verb": "scared"
+      },
+      "kind": "warning",
+      "line": 40,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 51634
+    },
+    {
+      "clip": "scared_right",
+      "line": 40,
+      "op": "clip",
+      "scene_index": 1,
+      "slug": "robin",
+      "source": "stage",
+      "t_ms": 51634
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/45eee11bbefaa023e407d5b724e67357ac6e25e6b796e344e25801965fd69373.wav",
+        "duration_s": 2.013,
+        "text": "Bramble shuffled close beside her."
+      },
+      "kind": "chunk",
+      "line": 41,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 51634
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 1,
+      "source": "stage",
+      "t_ms": 51634,
+      "text": "Bramble shuffled close beside her."
+    },
+    {
+      "cmd": "move",
+      "detail": {
+        "beside": null,
+        "subjects": [
+          "hedgehog"
+        ],
+        "target": "robin",
+        "zone": null
+      },
+      "kind": "cmd",
+      "line": 42,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 53647
+    },
+    {
+      "clip": "move_left",
+      "duration_ms": 1474,
+      "line": 42,
+      "op": "move",
+      "scene_index": 1,
+      "slug": "hedgehog",
+      "source": "stage",
+      "t_ms": 53647,
+      "x": 24.318
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/fa429ffc1fb8f5cf9ee79a1fc9b09d203e76f2613ce22fa77de417635603ffdd.wav",
+        "duration_s": 8.054,
+        "text": "'When I feel scared,' he said, 'I curl up round, take a big slow breath, and count. One. Two. Three.'"
+      },
+      "kind": "chunk",
+      "line": 43,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 53647
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 1,
+      "source": "stage",
+      "t_ms": 53647,
+      "text": "'When I feel scared,' he said, 'I curl up round, take a big slow breath, and count. One. Two. Three.'"
+    },
+    {
+      "clip": "idle_left",
+      "line": 42,
+      "op": "settle",
+      "scene_index": 1,
+      "slug": "hedgehog",
+      "source": "stage",
+      "t_ms": 55121
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/d10aae3e5b6689da0e3112f0095d492af23a7430e89a2ed88751519b50dbe27e.wav",
+        "duration_s": 2.819,
+        "text": "Ruby tried it. A big slow breath."
+      },
+      "kind": "chunk",
+      "line": 44,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 61701
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 1,
+      "source": "stage",
+      "t_ms": 61701,
+      "text": "Ruby tried it. A big slow breath."
+    },
+    {
+      "cmd": "pause",
+      "detail": {
+        "seconds": 1.5,
+        "subjects": []
+      },
+      "kind": "cmd",
+      "line": 45,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 64520
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/a8db19f2ee4707812db67e59473f91f26b3201fb93ac4d8865e95c513cdb47d7.wav",
+        "duration_s": 1.208,
+        "text": "One. Two. Three."
+      },
+      "kind": "chunk",
+      "line": 46,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 66020
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 1,
+      "source": "stage",
+      "t_ms": 66020,
+      "text": "One. Two. Three."
+    },
+    {
+      "cmd": "emote",
+      "detail": {
+        "emotion": "happy",
+        "facing": null,
+        "subjects": [
+          "robin"
+        ]
+      },
+      "kind": "cmd",
+      "line": 47,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 67228
+    },
+    {
+      "clip": "happy",
+      "line": 47,
+      "op": "clip",
+      "scene_index": 1,
+      "slug": "robin",
+      "source": "stage",
+      "t_ms": 67228
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/d63c37172efe2a3e647806ad294aa29c4b3dd7b2f26fbdf11071498f99c0f7d9.wav",
+        "duration_s": 1.611,
+        "text": "It helped. A little."
+      },
+      "kind": "chunk",
+      "line": 48,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 67228
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 1,
+      "source": "stage",
+      "t_ms": 67228,
+      "text": "It helped. A little."
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/cd158b1598fa991aa961d0504559480eed4777916337253ba091b63dfa6d04b0.wav",
+        "duration_s": 3.221,
+        "text": "But the sun slid lower, and lower still."
+      },
+      "kind": "chunk",
+      "line": 49,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 68839
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 1,
+      "source": "stage",
+      "t_ms": 68839,
+      "text": "But the sun slid lower, and lower still."
+    },
+    {
+      "cmd": "emote",
+      "detail": {
+        "emotion": "worried",
+        "facing": null,
+        "subjects": [
+          "robin"
+        ]
+      },
+      "kind": "cmd",
+      "line": 50,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 72060
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "right",
+        "slug": "robin",
+        "verb": "worried"
+      },
+      "kind": "warning",
+      "line": 50,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 72060
+    },
+    {
+      "clip": "worried_right",
+      "line": 50,
+      "op": "clip",
+      "scene_index": 1,
+      "slug": "robin",
+      "source": "stage",
+      "t_ms": 72060
+    },
+    {
+      "cmd": "travel",
+      "detail": {
+        "destination": "forest_clearing",
+        "exit_anchor_pct": [
+          3.9,
+          85.2
+        ],
+        "subjects": [
+          "robin",
+          "rabbit",
+          "hedgehog"
+        ]
+      },
+      "kind": "cmd",
+      "line": 52,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 72060
+    },
+    {
+      "clip": "fly_left",
+      "duration_ms": 928,
+      "line": 52,
+      "op": "depart",
+      "scene_index": 1,
+      "slug": "robin",
+      "source": "stage",
+      "t_ms": 72060,
+      "x": 3.9,
+      "y": 85.2
+    },
+    {
+      "clip": "move_left",
+      "duration_ms": 1665,
+      "line": 52,
+      "op": "depart",
+      "scene_index": 1,
+      "slug": "rabbit",
+      "source": "stage",
+      "t_ms": 72060,
+      "x": 3.9,
+      "y": 85.2
+    },
+    {
+      "clip": "move_left",
+      "duration_ms": 928,
+      "line": 52,
+      "op": "depart",
+      "scene_index": 1,
+      "slug": "hedgehog",
+      "source": "stage",
+      "t_ms": 72060,
+      "x": 3.9,
+      "y": 85.2
+    },
+    {
+      "line": 52,
+      "op": "exit",
+      "scene_index": 1,
+      "slug": "robin",
+      "source": "stage",
+      "t_ms": 72988
+    },
+    {
+      "line": 52,
+      "op": "exit",
+      "scene_index": 1,
+      "slug": "hedgehog",
+      "source": "stage",
+      "t_ms": 72988
+    },
+    {
+      "line": 52,
+      "op": "exit",
+      "scene_index": 1,
+      "slug": "rabbit",
+      "source": "stage",
+      "t_ms": 73725
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 1,
+      "source": "stage",
+      "t_ms": 73725,
+      "text": ""
+    },
+    {
+      "line": null,
+      "op": "camera_reset",
+      "scene_index": 1,
+      "source": "stage",
+      "t_ms": 73725
+    },
+    {
+      "line": 55,
+      "op": "scene",
+      "place": "forest_clearing",
+      "scene_index": 2,
+      "source": "stage",
+      "t_ms": 73725
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "right",
+        "slug": "robin",
+        "verb": "idle"
+      },
+      "kind": "warning",
+      "line": 55,
+      "scene_index": 2,
+      "source": "step",
+      "t_ms": 73725
+    },
+    {
+      "clip": "idle_right",
+      "line": 55,
+      "op": "place",
+      "scene_index": 2,
+      "slug": "robin",
+      "source": "stage",
+      "t_ms": 73725,
+      "x": 35.762
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "right",
+        "slug": "rabbit",
+        "verb": "idle"
+      },
+      "kind": "warning",
+      "line": 55,
+      "scene_index": 2,
+      "source": "step",
+      "t_ms": 73725
+    },
+    {
+      "clip": "idle_right",
+      "line": 55,
+      "op": "place",
+      "scene_index": 2,
+      "slug": "rabbit",
+      "source": "stage",
+      "t_ms": 73725,
+      "x": 46.07000000000001
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "left",
+        "slug": "hedgehog",
+        "verb": "idle"
+      },
+      "kind": "warning",
+      "line": 55,
+      "scene_index": 2,
+      "source": "step",
+      "t_ms": 73725
+    },
+    {
+      "clip": "idle_left",
+      "line": 55,
+      "op": "place",
+      "scene_index": 2,
+      "slug": "hedgehog",
+      "source": "stage",
+      "t_ms": 73725,
+      "x": 56.378
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/ee70eebddb55610528d589d545b1aa70a099e9784cef5e66d0cd9b238de90d3a.wav",
+        "duration_s": 6.04,
+        "text": "The clearing was wide and golden, the last of the sunlight pooling in the grass."
+      },
+      "kind": "chunk",
+      "line": 57,
+      "scene_index": 2,
+      "source": "step",
+      "t_ms": 73725
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 2,
+      "source": "stage",
+      "t_ms": 73725,
+      "text": "The clearing was wide and golden, the last of the sunlight pooling in the grass."
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/9c019572202e68cef3f0a92ae642a6ae52dfe324612fc7646e103d9f39a42857.wav",
+        "duration_s": 9.664,
+        "text": "'When I feel scared,' said Clover, 'I hop as LOUD as I can — so the dark knows a very brave rabbit is coming!'"
+      },
+      "kind": "chunk",
+      "line": 58,
+      "scene_index": 2,
+      "source": "step",
+      "t_ms": 79765
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 2,
+      "source": "stage",
+      "t_ms": 79765,
+      "text": "'When I feel scared,' said Clover, 'I hop as LOUD as I can — so the dark knows a very brave rabbit is coming!'"
+    },
+    {
+      "cmd": "emote",
+      "detail": {
+        "emotion": "happy",
+        "facing": null,
+        "subjects": [
+          "rabbit"
+        ]
+      },
+      "kind": "cmd",
+      "line": 59,
+      "scene_index": 2,
+      "source": "step",
+      "t_ms": 89429
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "right",
+        "slug": "rabbit",
+        "verb": "happy"
+      },
+      "kind": "warning",
+      "line": 59,
+      "scene_index": 2,
+      "source": "step",
+      "t_ms": 89429
+    },
+    {
+      "clip": "happy_right_jumping",
+      "line": 59,
+      "op": "clip",
+      "scene_index": 2,
+      "slug": "rabbit",
+      "source": "stage",
+      "t_ms": 89429
+    },
+    {
+      "cmd": "sound",
+      "detail": {
+        "name": "boing",
+        "subjects": []
+      },
+      "kind": "cmd",
+      "line": 60,
+      "scene_index": 2,
+      "source": "step",
+      "t_ms": 89429
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/f6b8b470d3202cfae9e38544a71a42e16bb657cb0abf6aa8644a6146dd5f2c4e.wav",
+        "duration_s": 1.208,
+        "text": "Boing! Boing! BOING!"
+      },
+      "kind": "chunk",
+      "line": 61,
+      "scene_index": 2,
+      "source": "step",
+      "t_ms": 89429
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 2,
+      "source": "stage",
+      "t_ms": 89429,
+      "text": "Boing! Boing! BOING!"
+    },
+    {
+      "cmd": "sound",
+      "detail": {
+        "name": "giggle",
+        "subjects": []
+      },
+      "kind": "cmd",
+      "line": 62,
+      "scene_index": 2,
+      "source": "step",
+      "t_ms": 90637
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/afd557e5f9153a68b3ff4e742df3e674c07ed2befbe5a4b1b0a6d90e80a429e0.wav",
+        "duration_s": 2.819,
+        "text": "Ruby laughed until her tail feathers shook."
+      },
+      "kind": "chunk",
+      "line": 63,
+      "scene_index": 2,
+      "source": "step",
+      "t_ms": 90637
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 2,
+      "source": "stage",
+      "t_ms": 90637,
+      "text": "Ruby laughed until her tail feathers shook."
+    },
+    {
+      "cmd": "emote",
+      "detail": {
+        "emotion": "happy",
+        "facing": null,
+        "subjects": [
+          "robin"
+        ]
+      },
+      "kind": "cmd",
+      "line": 64,
+      "scene_index": 2,
+      "source": "step",
+      "t_ms": 93456
+    },
+    {
+      "clip": "happy",
+      "line": 64,
+      "op": "clip",
+      "scene_index": 2,
+      "slug": "robin",
+      "source": "stage",
+      "t_ms": 93456
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/e2d72bd59c1505abd75ec603769a72f518ee8962572ee5b297accf8742e53d8a.wav",
+        "duration_s": 4.832,
+        "text": "And then, at the far edge of the clearing, they saw it."
+      },
+      "kind": "chunk",
+      "line": 65,
+      "scene_index": 2,
+      "source": "step",
+      "t_ms": 93456
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 2,
+      "source": "stage",
+      "t_ms": 93456,
+      "text": "And then, at the far edge of the clearing, they saw it."
+    },
+    {
+      "cmd": "push_in",
+      "detail": {
+        "speed": "slow",
+        "subjects": [],
+        "target": "left_edge"
+      },
+      "kind": "cmd",
+      "line": 66,
+      "scene_index": 2,
+      "source": "step",
+      "t_ms": 98288
+    },
+    {
+      "line": null,
+      "op": "push_in",
+      "scene_index": 2,
+      "source": "stage",
+      "speed": "slow",
+      "t_ms": 98288,
+      "x": 25.454,
+      "y": 93.91829070455891
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/e02b4ec87804868d9ca930614a3a5d657fd2eb82dcfc5c8626229f30223689c1.wav",
+        "duration_s": 3.221,
+        "text": "The fern tunnel. Deep, and green, and dim."
+      },
+      "kind": "chunk",
+      "line": 67,
+      "scene_index": 2,
+      "source": "step",
+      "t_ms": 98288
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 2,
+      "source": "stage",
+      "t_ms": 98288,
+      "text": "The fern tunnel. Deep, and green, and dim."
+    },
+    {
+      "cmd": "emote",
+      "detail": {
+        "emotion": "scared",
+        "facing": null,
+        "subjects": [
+          "robin"
+        ]
+      },
+      "kind": "cmd",
+      "line": 68,
+      "scene_index": 2,
+      "source": "step",
+      "t_ms": 101509
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "right",
+        "slug": "robin",
+        "verb": "scared"
+      },
+      "kind": "warning",
+      "line": 68,
+      "scene_index": 2,
+      "source": "step",
+      "t_ms": 101509
+    },
+    {
+      "clip": "scared_right",
+      "line": 68,
+      "op": "clip",
+      "scene_index": 2,
+      "slug": "robin",
+      "source": "stage",
+      "t_ms": 101509
+    },
+    {
+      "cmd": "travel",
+      "detail": {
+        "destination": "forest_fern_tunnel",
+        "exit_anchor_pct": [
+          46.8,
+          97.1
+        ],
+        "subjects": [
+          "robin",
+          "rabbit",
+          "hedgehog"
+        ]
+      },
+      "kind": "cmd",
+      "line": 70,
+      "scene_index": 2,
+      "source": "step",
+      "t_ms": 101509
+    },
+    {
+      "clip": "fly_right",
+      "duration_ms": 502,
+      "line": 70,
+      "op": "depart",
+      "scene_index": 2,
+      "slug": "robin",
+      "source": "stage",
+      "t_ms": 101509,
+      "x": 46.8,
+      "y": 97.1
+    },
+    {
+      "clip": "move_right",
+      "duration_ms": 350,
+      "line": 70,
+      "op": "depart",
+      "scene_index": 2,
+      "slug": "rabbit",
+      "source": "stage",
+      "t_ms": 101509,
+      "x": 46.8,
+      "y": 97.1
+    },
+    {
+      "clip": "move_left",
+      "duration_ms": 435,
+      "line": 70,
+      "op": "depart",
+      "scene_index": 2,
+      "slug": "hedgehog",
+      "source": "stage",
+      "t_ms": 101509,
+      "x": 46.8,
+      "y": 97.1
+    },
+    {
+      "line": 70,
+      "op": "exit",
+      "scene_index": 2,
+      "slug": "rabbit",
+      "source": "stage",
+      "t_ms": 101859
+    },
+    {
+      "line": 70,
+      "op": "exit",
+      "scene_index": 2,
+      "slug": "hedgehog",
+      "source": "stage",
+      "t_ms": 101944
+    },
+    {
+      "line": 70,
+      "op": "exit",
+      "scene_index": 2,
+      "slug": "robin",
+      "source": "stage",
+      "t_ms": 102011
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 2,
+      "source": "stage",
+      "t_ms": 102011,
+      "text": ""
+    },
+    {
+      "line": null,
+      "op": "camera_reset",
+      "scene_index": 2,
+      "source": "stage",
+      "t_ms": 102011
+    },
+    {
+      "line": 73,
+      "op": "scene",
+      "place": "forest_fern_tunnel",
+      "scene_index": 3,
+      "source": "stage",
+      "t_ms": 102011
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "right",
+        "slug": "robin",
+        "verb": "idle"
+      },
+      "kind": "warning",
+      "line": 73,
+      "scene_index": 3,
+      "source": "step",
+      "t_ms": 102011
+    },
+    {
+      "clip": "idle_right",
+      "line": 73,
+      "op": "place",
+      "scene_index": 3,
+      "slug": "robin",
+      "source": "stage",
+      "t_ms": 102011,
+      "x": 30.157
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "right",
+        "slug": "rabbit",
+        "verb": "idle"
+      },
+      "kind": "warning",
+      "line": 73,
+      "scene_index": 3,
+      "source": "step",
+      "t_ms": 102011
+    },
+    {
+      "clip": "idle_right",
+      "line": 73,
+      "op": "place",
+      "scene_index": 3,
+      "slug": "rabbit",
+      "source": "stage",
+      "t_ms": 102011,
+      "x": 50.035000000000004
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "left",
+        "slug": "hedgehog",
+        "verb": "idle"
+      },
+      "kind": "warning",
+      "line": 73,
+      "scene_index": 3,
+      "source": "step",
+      "t_ms": 102011
+    },
+    {
+      "clip": "idle_left",
+      "line": 73,
+      "op": "place",
+      "scene_index": 3,
+      "slug": "hedgehog",
+      "source": "stage",
+      "t_ms": 102011,
+      "x": 69.913
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/762f6445ca003990946ad164e3c41a1ab747d2d56c578cbeb6d974d0eaf60818.wav",
+        "duration_s": 9.664,
+        "text": "The ferns arched over the path like a long green doorway, and at its far end the very last light of day was waiting."
+      },
+      "kind": "chunk",
+      "line": 75,
+      "scene_index": 3,
+      "source": "step",
+      "t_ms": 102011
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 3,
+      "source": "stage",
+      "t_ms": 102011,
+      "text": "The ferns arched over the path like a long green doorway, and at its far end the very last light of day was waiting."
+    },
+    {
+      "cmd": "emote",
+      "detail": {
+        "emotion": "scared",
+        "facing": null,
+        "subjects": [
+          "robin"
+        ]
+      },
+      "kind": "cmd",
+      "line": 76,
+      "scene_index": 3,
+      "source": "step",
+      "t_ms": 111675
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "right",
+        "slug": "robin",
+        "verb": "scared"
+      },
+      "kind": "warning",
+      "line": 76,
+      "scene_index": 3,
+      "source": "step",
+      "t_ms": 111675
+    },
+    {
+      "clip": "scared_right",
+      "line": 76,
+      "op": "clip",
+      "scene_index": 3,
+      "slug": "robin",
+      "source": "stage",
+      "t_ms": 111675
+    },
+    {
+      "cmd": "music",
+      "detail": {
+        "name": "off",
+        "subjects": []
+      },
+      "kind": "cmd",
+      "line": 77,
+      "scene_index": 3,
+      "source": "step",
+      "t_ms": 111675
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/e9c1c52ca091a3d91f405ea9ec976231e7ee86101af1465e8f332a91c2afee4b.wav",
+        "duration_s": 2.819,
+        "text": "Ruby stopped. Everything went very, very quiet."
+      },
+      "kind": "chunk",
+      "line": 78,
+      "scene_index": 3,
+      "source": "step",
+      "t_ms": 111675
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 3,
+      "source": "stage",
+      "t_ms": 111675,
+      "text": "Ruby stopped. Everything went very, very quiet."
+    },
+    {
+      "cmd": "pause",
+      "detail": {
+        "seconds": 2,
+        "subjects": []
+      },
+      "kind": "cmd",
+      "line": 79,
+      "scene_index": 3,
+      "source": "step",
+      "t_ms": 114494
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/ff1e0fa27b13056dec8d235731b2c2504cf1213ef063d4f20974663b89b90a61.wav",
+        "duration_s": 3.221,
+        "text": "Then — a breath. A big slow breath."
+      },
+      "kind": "chunk",
+      "line": 80,
+      "scene_index": 3,
+      "source": "step",
+      "t_ms": 116494
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 3,
+      "source": "stage",
+      "t_ms": 116494,
+      "text": "Then — a breath. A big slow breath."
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/a8db19f2ee4707812db67e59473f91f26b3201fb93ac4d8865e95c513cdb47d7.wav",
+        "duration_s": 1.208,
+        "text": "One. Two. Three."
+      },
+      "kind": "chunk",
+      "line": 81,
+      "scene_index": 3,
+      "source": "step",
+      "t_ms": 119715
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 3,
+      "source": "stage",
+      "t_ms": 119715,
+      "text": "One. Two. Three."
+    },
+    {
+      "detail": {
+        "steps": [
+          {
+            "beside": null,
+            "cmd": "move",
+            "kind": "cmd",
+            "line": 83,
+            "subjects": [
+              "rabbit"
+            ],
+            "target": "robin",
+            "zone": null
+          },
+          {
+            "beside": null,
+            "cmd": "move",
+            "kind": "cmd",
+            "line": 84,
+            "subjects": [
+              "hedgehog"
+            ],
+            "target": "robin",
+            "zone": null
+          }
+        ]
+      },
+      "kind": "together",
+      "line": 82,
+      "scene_index": 3,
+      "source": "step",
+      "t_ms": 120923
+    },
+    {
+      "cmd": "move",
+      "detail": {
+        "beside": null,
+        "subjects": [
+          "rabbit"
+        ],
+        "target": "robin",
+        "together_line": 82,
+        "zone": null
+      },
+      "kind": "cmd",
+      "line": 83,
+      "scene_index": 3,
+      "source": "step",
+      "t_ms": 120923
+    },
+    {
+      "cmd": "move",
+      "detail": {
+        "beside": null,
+        "subjects": [
+          "hedgehog"
+        ],
+        "target": "robin",
+        "together_line": 82,
+        "zone": null
+      },
+      "kind": "cmd",
+      "line": 84,
+      "scene_index": 3,
+      "source": "step",
+      "t_ms": 120923
+    },
+    {
+      "clip": "move_left",
+      "duration_ms": 1807,
+      "line": 84,
+      "op": "move",
+      "scene_index": 3,
+      "slug": "hedgehog",
+      "source": "stage",
+      "t_ms": 120923,
+      "x": 30.157
+    },
+    {
+      "clip": "move_left",
+      "duration_ms": 904,
+      "line": 83,
+      "op": "move",
+      "scene_index": 3,
+      "slug": "rabbit",
+      "source": "stage",
+      "t_ms": 120923,
+      "x": 30.157
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/017a8faa8261a92d292f4bae75ef87a23a96f472611839fe0581dfb6490340c2.wav",
+        "duration_s": 4.832,
+        "text": "Clover pressed close on one side. Bramble pressed close on the other."
+      },
+      "kind": "chunk",
+      "line": 85,
+      "scene_index": 3,
+      "source": "step",
+      "t_ms": 120923
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 3,
+      "source": "stage",
+      "t_ms": 120923,
+      "text": "Clover pressed close on one side. Bramble pressed close on the other."
+    },
+    {
+      "clip": "idle_left",
+      "line": 83,
+      "op": "settle",
+      "scene_index": 3,
+      "slug": "rabbit",
+      "source": "stage",
+      "t_ms": 121827
+    },
+    {
+      "clip": "idle_left",
+      "line": 84,
+      "op": "settle",
+      "scene_index": 3,
+      "slug": "hedgehog",
+      "source": "stage",
+      "t_ms": 122730
+    },
+    {
+      "cmd": "move",
+      "detail": {
+        "beside": null,
+        "subjects": [
+          "robin",
+          "rabbit",
+          "hedgehog"
+        ],
+        "target": "center",
+        "zone": "midground_road"
+      },
+      "kind": "cmd",
+      "line": 86,
+      "scene_index": 3,
+      "source": "step",
+      "t_ms": 125755
+    },
+    {
+      "clip": "fly_right",
+      "duration_ms": 911,
+      "line": 86,
+      "op": "move",
+      "scene_index": 3,
+      "slug": "robin",
+      "source": "stage",
+      "t_ms": 125755,
+      "x": 50.205
+    },
+    {
+      "clip": "move_right",
+      "duration_ms": 911,
+      "line": 86,
+      "op": "move",
+      "scene_index": 3,
+      "slug": "rabbit",
+      "source": "stage",
+      "t_ms": 125755,
+      "x": 50.205
+    },
+    {
+      "clip": "move_right",
+      "duration_ms": 911,
+      "line": 86,
+      "op": "move",
+      "scene_index": 3,
+      "slug": "hedgehog",
+      "source": "stage",
+      "t_ms": 125755,
+      "x": 50.205
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/3e76338f3edf85466f5d5e0984bae28097395c27add71d3bd0242479d92980ab.wav",
+        "duration_s": 6.443,
+        "text": "And step by step, wing by wing, the three friends walked into the dim — together."
+      },
+      "kind": "chunk",
+      "line": 87,
+      "scene_index": 3,
+      "source": "step",
+      "t_ms": 125755
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 3,
+      "source": "stage",
+      "t_ms": 125755,
+      "text": "And step by step, wing by wing, the three friends walked into the dim — together."
+    },
+    {
+      "clip": "idle_right",
+      "line": 86,
+      "op": "settle",
+      "scene_index": 3,
+      "slug": "robin",
+      "source": "stage",
+      "t_ms": 126666
+    },
+    {
+      "clip": "idle_right",
+      "line": 86,
+      "op": "settle",
+      "scene_index": 3,
+      "slug": "rabbit",
+      "source": "stage",
+      "t_ms": 126666
+    },
+    {
+      "clip": "idle_right",
+      "line": 86,
+      "op": "settle",
+      "scene_index": 3,
+      "slug": "hedgehog",
+      "source": "stage",
+      "t_ms": 126666
+    },
+    {
+      "cmd": "travel",
+      "detail": {
+        "destination": "forest_glow",
+        "exit_anchor_pct": [
+          50,
+          94
+        ],
+        "subjects": [
+          "robin",
+          "rabbit",
+          "hedgehog"
+        ]
+      },
+      "kind": "cmd",
+      "line": 89,
+      "scene_index": 3,
+      "source": "step",
+      "t_ms": 132198
+    },
+    {
+      "clip": "fly_left",
+      "duration_ms": 350,
+      "line": 89,
+      "op": "depart",
+      "scene_index": 3,
+      "slug": "robin",
+      "source": "stage",
+      "t_ms": 132198,
+      "x": 50,
+      "y": 94
+    },
+    {
+      "clip": "move_left",
+      "duration_ms": 350,
+      "line": 89,
+      "op": "depart",
+      "scene_index": 3,
+      "slug": "rabbit",
+      "source": "stage",
+      "t_ms": 132198,
+      "x": 50,
+      "y": 94
+    },
+    {
+      "clip": "move_left",
+      "duration_ms": 350,
+      "line": 89,
+      "op": "depart",
+      "scene_index": 3,
+      "slug": "hedgehog",
+      "source": "stage",
+      "t_ms": 132198,
+      "x": 50,
+      "y": 94
+    },
+    {
+      "line": 89,
+      "op": "exit",
+      "scene_index": 3,
+      "slug": "robin",
+      "source": "stage",
+      "t_ms": 132548
+    },
+    {
+      "line": 89,
+      "op": "exit",
+      "scene_index": 3,
+      "slug": "rabbit",
+      "source": "stage",
+      "t_ms": 132548
+    },
+    {
+      "line": 89,
+      "op": "exit",
+      "scene_index": 3,
+      "slug": "hedgehog",
+      "source": "stage",
+      "t_ms": 132548
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 3,
+      "source": "stage",
+      "t_ms": 132548,
+      "text": ""
+    },
+    {
+      "line": null,
+      "op": "camera_reset",
+      "scene_index": 3,
+      "source": "stage",
+      "t_ms": 132548
+    },
+    {
+      "line": 92,
+      "op": "scene",
+      "place": "forest_glow",
+      "scene_index": 4,
+      "source": "stage",
+      "t_ms": 132548
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "right",
+        "slug": "robin",
+        "verb": "idle"
+      },
+      "kind": "warning",
+      "line": 92,
+      "scene_index": 4,
+      "source": "step",
+      "t_ms": 132548
+    },
+    {
+      "clip": "idle_right",
+      "line": 92,
+      "op": "place",
+      "scene_index": 4,
+      "slug": "robin",
+      "source": "stage",
+      "t_ms": 132548,
+      "x": 29.964999999999996
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "right",
+        "slug": "rabbit",
+        "verb": "idle"
+      },
+      "kind": "warning",
+      "line": 92,
+      "scene_index": 4,
+      "source": "step",
+      "t_ms": 132548
+    },
+    {
+      "clip": "idle_right",
+      "line": 92,
+      "op": "place",
+      "scene_index": 4,
+      "slug": "rabbit",
+      "source": "stage",
+      "t_ms": 132548,
+      "x": 45.735
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "left",
+        "slug": "hedgehog",
+        "verb": "idle"
+      },
+      "kind": "warning",
+      "line": 92,
+      "scene_index": 4,
+      "source": "step",
+      "t_ms": 132548
+    },
+    {
+      "clip": "idle_left",
+      "line": 92,
+      "op": "place",
+      "scene_index": 4,
+      "slug": "hedgehog",
+      "source": "stage",
+      "t_ms": 132548,
+      "x": 61.504999999999995
+    },
+    {
+      "cmd": "music",
+      "detail": {
+        "name": "mysterious",
+        "subjects": []
+      },
+      "kind": "cmd",
+      "line": 93,
+      "scene_index": 4,
+      "source": "step",
+      "t_ms": 132548
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/a9e27fde5d1e6eca45275f7245608460a902e680aacf099be6ecaa36b253753e.wav",
+        "duration_s": 2.819,
+        "text": "And then the dim began… to glow."
+      },
+      "kind": "chunk",
+      "line": 95,
+      "scene_index": 4,
+      "source": "step",
+      "t_ms": 132548
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 4,
+      "source": "stage",
+      "t_ms": 132548,
+      "text": "And then the dim began… to glow."
+    },
+    {
+      "cmd": "emote",
+      "detail": {
+        "emotion": "surprised",
+        "facing": null,
+        "subjects": [
+          "robin",
+          "rabbit",
+          "hedgehog"
+        ]
+      },
+      "kind": "cmd",
+      "line": 96,
+      "scene_index": 4,
+      "source": "step",
+      "t_ms": 135367
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "right",
+        "slug": "robin",
+        "verb": "surprised"
+      },
+      "kind": "warning",
+      "line": 96,
+      "scene_index": 4,
+      "source": "step",
+      "t_ms": 135367
+    },
+    {
+      "clip": "surprised_right",
+      "line": 96,
+      "op": "clip",
+      "scene_index": 4,
+      "slug": "robin",
+      "source": "stage",
+      "t_ms": 135367
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "right",
+        "slug": "rabbit",
+        "verb": "surprised"
+      },
+      "kind": "warning",
+      "line": 96,
+      "scene_index": 4,
+      "source": "step",
+      "t_ms": 135367
+    },
+    {
+      "clip": "surprised_right",
+      "line": 96,
+      "op": "clip",
+      "scene_index": 4,
+      "slug": "rabbit",
+      "source": "stage",
+      "t_ms": 135367
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "left",
+        "slug": "hedgehog",
+        "verb": "surprised"
+      },
+      "kind": "warning",
+      "line": 96,
+      "scene_index": 4,
+      "source": "step",
+      "t_ms": 135367
+    },
+    {
+      "clip": "surprised_left",
+      "line": 96,
+      "op": "clip",
+      "scene_index": 4,
+      "slug": "hedgehog",
+      "source": "stage",
+      "t_ms": 135367
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/511f67d5abf274030ed9fc80ed19ab5e8e4892e7d436b3aa74c81d07306244eb.wav",
+        "duration_s": 11.275,
+        "text": "Soft blue mushrooms lit the path like rows of tiny lanterns. The evening woods were not black at all. They were silver, and blue, and gently, gently shining."
+      },
+      "kind": "chunk",
+      "line": 97,
+      "scene_index": 4,
+      "source": "step",
+      "t_ms": 135367
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 4,
+      "source": "stage",
+      "t_ms": 135367,
+      "text": "Soft blue mushrooms lit the path like rows of tiny lanterns. The evening woods were not black at all. They were silver, and blue, and gently, gently shining."
+    },
+    {
+      "cmd": "put",
+      "detail": {
+        "beside": null,
+        "facing": "robin",
+        "objects": [],
+        "position": "right_third",
+        "subjects": [
+          "owl"
+        ],
+        "zone": null
+      },
+      "kind": "cmd",
+      "line": 98,
+      "scene_index": 4,
+      "source": "step",
+      "t_ms": 146642
+    },
+    {
+      "clip": "idle_left",
+      "line": 98,
+      "op": "place",
+      "scene_index": 4,
+      "slug": "owl",
+      "source": "stage",
+      "t_ms": 146642,
+      "x": 61.504999999999995
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/0ddabf4f0e3e987eae7d8a7c37ef9d9055b87fd158f8c960aa6e9927adfe4e84.wav",
+        "duration_s": 8.456,
+        "text": "'Good evening, little ones,' said Owl, from her mossy doorway. 'Ruby — you look surprised. Did no one ever tell you?'"
+      },
+      "kind": "chunk",
+      "line": 99,
+      "scene_index": 4,
+      "source": "step",
+      "t_ms": 146642
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 4,
+      "source": "stage",
+      "t_ms": 146642,
+      "text": "'Good evening, little ones,' said Owl, from her mossy doorway. 'Ruby — you look surprised. Did no one ever tell you?'"
+    },
+    {
+      "cmd": "pause",
+      "detail": {
+        "seconds": 1,
+        "subjects": []
+      },
+      "kind": "cmd",
+      "line": 100,
+      "scene_index": 4,
+      "source": "step",
+      "t_ms": 155098
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/e9afc164a9625f7cddf36d0f47cea7adc6ae1143375b12176687479e609c5fa8.wav",
+        "duration_s": 4.832,
+        "text": "'The dark is just the day, resting. Look how softly it glows.'"
+      },
+      "kind": "chunk",
+      "line": 101,
+      "scene_index": 4,
+      "source": "step",
+      "t_ms": 156098
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 4,
+      "source": "stage",
+      "t_ms": 156098,
+      "text": "'The dark is just the day, resting. Look how softly it glows.'"
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/1716294e9c0b171d7d52b6e4c6d21a663fac222e329f97c073f929e948716908.wav",
+        "duration_s": 1.611,
+        "text": "Ruby looked. And looked."
+      },
+      "kind": "chunk",
+      "line": 102,
+      "scene_index": 4,
+      "source": "step",
+      "t_ms": 160930
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 4,
+      "source": "stage",
+      "t_ms": 160930,
+      "text": "Ruby looked. And looked."
+    },
+    {
+      "cmd": "emote",
+      "detail": {
+        "emotion": "happy",
+        "facing": null,
+        "subjects": [
+          "robin"
+        ]
+      },
+      "kind": "cmd",
+      "line": 103,
+      "scene_index": 4,
+      "source": "step",
+      "t_ms": 162541
+    },
+    {
+      "clip": "happy",
+      "line": 103,
+      "op": "clip",
+      "scene_index": 4,
+      "slug": "robin",
+      "source": "stage",
+      "t_ms": 162541
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/0510c3c2bbb16c9fbc51326b5d2d12762787bd7efd525cc754d63c9faf98d9f6.wav",
+        "duration_s": 3.221,
+        "text": "And her wings did not feel small anymore."
+      },
+      "kind": "chunk",
+      "line": 104,
+      "scene_index": 4,
+      "source": "step",
+      "t_ms": 162541
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 4,
+      "source": "stage",
+      "t_ms": 162541,
+      "text": "And her wings did not feel small anymore."
+    },
+    {
+      "cmd": "travel",
+      "detail": {
+        "destination": "forest_firefly_fork",
+        "exit_anchor_pct": [
+          48.4,
+          98.9
+        ],
+        "subjects": [
+          "robin",
+          "rabbit",
+          "hedgehog",
+          "owl"
+        ]
+      },
+      "kind": "cmd",
+      "line": 106,
+      "scene_index": 4,
+      "source": "step",
+      "t_ms": 165762
+    },
+    {
+      "clip": "fly_right",
+      "duration_ms": 838,
+      "line": 106,
+      "op": "depart",
+      "scene_index": 4,
+      "slug": "robin",
+      "source": "stage",
+      "t_ms": 165762,
+      "x": 48.4,
+      "y": 98.9
+    },
+    {
+      "clip": "move_right",
+      "duration_ms": 350,
+      "line": 106,
+      "op": "depart",
+      "scene_index": 4,
+      "slug": "rabbit",
+      "source": "stage",
+      "t_ms": 165762,
+      "x": 48.4,
+      "y": 98.9
+    },
+    {
+      "clip": "move_left",
+      "duration_ms": 596,
+      "line": 106,
+      "op": "depart",
+      "scene_index": 4,
+      "slug": "hedgehog",
+      "source": "stage",
+      "t_ms": 165762,
+      "x": 48.4,
+      "y": 98.9
+    },
+    {
+      "clip": "fly_left",
+      "duration_ms": 596,
+      "line": 106,
+      "op": "depart",
+      "scene_index": 4,
+      "slug": "owl",
+      "source": "stage",
+      "t_ms": 165762,
+      "x": 48.4,
+      "y": 98.9
+    },
+    {
+      "line": 106,
+      "op": "exit",
+      "scene_index": 4,
+      "slug": "rabbit",
+      "source": "stage",
+      "t_ms": 166112
+    },
+    {
+      "line": 106,
+      "op": "exit",
+      "scene_index": 4,
+      "slug": "hedgehog",
+      "source": "stage",
+      "t_ms": 166358
+    },
+    {
+      "line": 106,
+      "op": "exit",
+      "scene_index": 4,
+      "slug": "owl",
+      "source": "stage",
+      "t_ms": 166358
+    },
+    {
+      "line": 106,
+      "op": "exit",
+      "scene_index": 4,
+      "slug": "robin",
+      "source": "stage",
+      "t_ms": 166600
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 4,
+      "source": "stage",
+      "t_ms": 166600,
+      "text": ""
+    },
+    {
+      "line": null,
+      "op": "camera_reset",
+      "scene_index": 4,
+      "source": "stage",
+      "t_ms": 166600
+    },
+    {
+      "line": 109,
+      "op": "scene",
+      "place": "forest_firefly_fork",
+      "scene_index": 5,
+      "source": "stage",
+      "t_ms": 166600
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "right",
+        "slug": "robin",
+        "verb": "idle"
+      },
+      "kind": "warning",
+      "line": 109,
+      "scene_index": 5,
+      "source": "step",
+      "t_ms": 166600
+    },
+    {
+      "clip": "idle_right",
+      "line": 109,
+      "op": "place",
+      "scene_index": 5,
+      "slug": "robin",
+      "source": "stage",
+      "t_ms": 166600,
+      "x": 10.995
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "right",
+        "slug": "rabbit",
+        "verb": "idle"
+      },
+      "kind": "warning",
+      "line": 109,
+      "scene_index": 5,
+      "source": "step",
+      "t_ms": 166600
+    },
+    {
+      "clip": "idle_right",
+      "line": 109,
+      "op": "place",
+      "scene_index": 5,
+      "slug": "rabbit",
+      "source": "stage",
+      "t_ms": 166600,
+      "x": 30.605
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "left",
+        "slug": "hedgehog",
+        "verb": "idle"
+      },
+      "kind": "warning",
+      "line": 109,
+      "scene_index": 5,
+      "source": "step",
+      "t_ms": 166600
+    },
+    {
+      "clip": "idle_left",
+      "line": 109,
+      "op": "place",
+      "scene_index": 5,
+      "slug": "hedgehog",
+      "source": "stage",
+      "t_ms": 166600,
+      "x": 69.82499999999999
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "left",
+        "slug": "owl",
+        "verb": "idle"
+      },
+      "kind": "warning",
+      "line": 109,
+      "scene_index": 5,
+      "source": "step",
+      "t_ms": 166600
+    },
+    {
+      "clip": "idle_left",
+      "line": 109,
+      "op": "place",
+      "scene_index": 5,
+      "slug": "owl",
+      "source": "stage",
+      "t_ms": 166600,
+      "x": 89.435
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/153d78f5788fdc12030b909c2a14e0c746ce6382a51b240b8a619064fc699d42.wav",
+        "duration_s": 4.832,
+        "text": "At the fork in the night path, the show was just beginning."
+      },
+      "kind": "chunk",
+      "line": 111,
+      "scene_index": 5,
+      "source": "step",
+      "t_ms": 166600
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 5,
+      "source": "stage",
+      "t_ms": 166600,
+      "text": "At the fork in the night path, the show was just beginning."
+    },
+    {
+      "cmd": "put",
+      "detail": {
+        "beside": null,
+        "facing": null,
+        "objects": [],
+        "position": "center",
+        "subjects": [
+          "firefly"
+        ],
+        "zone": null
+      },
+      "kind": "cmd",
+      "line": 112,
+      "scene_index": 5,
+      "source": "step",
+      "t_ms": 171432
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "right",
+        "slug": "firefly",
+        "verb": "idle"
+      },
+      "kind": "warning",
+      "line": 112,
+      "scene_index": 5,
+      "source": "step",
+      "t_ms": 171432
+    },
+    {
+      "clip": "idle_right",
+      "line": 112,
+      "op": "place",
+      "scene_index": 5,
+      "slug": "firefly",
+      "source": "stage",
+      "t_ms": 171432,
+      "x": 50.214999999999996
+    },
+    {
+      "cmd": "sound",
+      "detail": {
+        "name": "magic",
+        "subjects": []
+      },
+      "kind": "cmd",
+      "line": 113,
+      "scene_index": 5,
+      "source": "step",
+      "t_ms": 171432
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/6b64141edeb04bc329471758ae90268bf7ac5cd9d25687b6b5314a52b2e58b5b.wav",
+        "duration_s": 5.638,
+        "text": "Fireflies! One, then ten, then a hundred tiny lights, swirling like slow warm snow."
+      },
+      "kind": "chunk",
+      "line": 114,
+      "scene_index": 5,
+      "source": "step",
+      "t_ms": 171432
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 5,
+      "source": "stage",
+      "t_ms": 171432,
+      "text": "Fireflies! One, then ten, then a hundred tiny lights, swirling like slow warm snow."
+    },
+    {
+      "detail": {
+        "steps": [
+          {
+            "cmd": "emote",
+            "emotion": "happy",
+            "facing": null,
+            "kind": "cmd",
+            "line": 116,
+            "subjects": [
+              "firefly"
+            ]
+          },
+          {
+            "cmd": "emote",
+            "emotion": "happy",
+            "facing": null,
+            "kind": "cmd",
+            "line": 117,
+            "subjects": [
+              "robin",
+              "rabbit",
+              "hedgehog"
+            ]
+          },
+          {
+            "cmd": "pull_out",
+            "kind": "cmd",
+            "line": 118,
+            "speed": "slow",
+            "subjects": []
+          }
+        ]
+      },
+      "kind": "together",
+      "line": 115,
+      "scene_index": 5,
+      "source": "step",
+      "t_ms": 177070
+    },
+    {
+      "cmd": "emote",
+      "detail": {
+        "emotion": "happy",
+        "facing": null,
+        "subjects": [
+          "firefly"
+        ],
+        "together_line": 115
+      },
+      "kind": "cmd",
+      "line": 116,
+      "scene_index": 5,
+      "source": "step",
+      "t_ms": 177070
+    },
+    {
+      "cmd": "emote",
+      "detail": {
+        "emotion": "happy",
+        "facing": null,
+        "subjects": [
+          "robin",
+          "rabbit",
+          "hedgehog"
+        ],
+        "together_line": 115
+      },
+      "kind": "cmd",
+      "line": 117,
+      "scene_index": 5,
+      "source": "step",
+      "t_ms": 177070
+    },
+    {
+      "cmd": "pull_out",
+      "detail": {
+        "speed": "slow",
+        "subjects": [],
+        "together_line": 115
+      },
+      "kind": "cmd",
+      "line": 118,
+      "scene_index": 5,
+      "source": "step",
+      "t_ms": 177070
+    },
+    {
+      "line": null,
+      "op": "pull_out",
+      "scene_index": 5,
+      "source": "stage",
+      "speed": "slow",
+      "t_ms": 177070
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "right",
+        "slug": "firefly",
+        "verb": "happy"
+      },
+      "kind": "warning",
+      "line": 116,
+      "scene_index": 5,
+      "source": "step",
+      "t_ms": 177070
+    },
+    {
+      "clip": "happy_3q_right",
+      "line": 116,
+      "op": "clip",
+      "scene_index": 5,
+      "slug": "firefly",
+      "source": "stage",
+      "t_ms": 177070
+    },
+    {
+      "clip": "happy",
+      "line": 117,
+      "op": "clip",
+      "scene_index": 5,
+      "slug": "robin",
+      "source": "stage",
+      "t_ms": 177070
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "right",
+        "slug": "rabbit",
+        "verb": "happy"
+      },
+      "kind": "warning",
+      "line": 117,
+      "scene_index": 5,
+      "source": "step",
+      "t_ms": 177070
+    },
+    {
+      "clip": "happy_right_jumping",
+      "line": 117,
+      "op": "clip",
+      "scene_index": 5,
+      "slug": "rabbit",
+      "source": "stage",
+      "t_ms": 177070
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "left",
+        "slug": "hedgehog",
+        "verb": "happy"
+      },
+      "kind": "warning",
+      "line": 117,
+      "scene_index": 5,
+      "source": "step",
+      "t_ms": 177070
+    },
+    {
+      "clip": "happy_left_jumping",
+      "line": 117,
+      "op": "clip",
+      "scene_index": 5,
+      "slug": "hedgehog",
+      "source": "stage",
+      "t_ms": 177070
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/8926f44bed5517a3e298215789fc7eaeeac0bb36cb8380c1e94d04d1bad6ebc1.wav",
+        "duration_s": 10.47,
+        "text": "And there was Ruby, dancing in the middle of them all — the little bird who walked through the dark, and found it full of light."
+      },
+      "kind": "chunk",
+      "line": 119,
+      "scene_index": 5,
+      "source": "step",
+      "t_ms": 177070
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 5,
+      "source": "stage",
+      "t_ms": 177070,
+      "text": "And there was Ruby, dancing in the middle of them all — the little bird who walked through the dark, and found it full of light."
+    },
+    {
+      "cmd": "sound",
+      "detail": {
+        "name": "giggle",
+        "subjects": []
+      },
+      "kind": "cmd",
+      "line": 120,
+      "scene_index": 5,
+      "source": "step",
+      "t_ms": 187540
+    },
+    {
+      "cmd": "travel",
+      "detail": {
+        "destination": "forest_night",
+        "exit_anchor_pct": [
+          15.7,
+          51.7
+        ],
+        "subjects": [
+          "robin",
+          "rabbit",
+          "hedgehog",
+          "owl"
+        ]
+      },
+      "kind": "cmd",
+      "line": 122,
+      "scene_index": 5,
+      "source": "step",
+      "t_ms": 187540
+    },
+    {
+      "clip": "fly_right",
+      "duration_ms": 350,
+      "line": 122,
+      "op": "depart",
+      "scene_index": 5,
+      "slug": "robin",
+      "source": "stage",
+      "t_ms": 187540,
+      "x": 15.7,
+      "y": 51.7
+    },
+    {
+      "clip": "move_left",
+      "duration_ms": 678,
+      "line": 122,
+      "op": "depart",
+      "scene_index": 5,
+      "slug": "rabbit",
+      "source": "stage",
+      "t_ms": 187540,
+      "x": 15.7,
+      "y": 51.7
+    },
+    {
+      "clip": "move_left",
+      "duration_ms": 2460,
+      "line": 122,
+      "op": "depart",
+      "scene_index": 5,
+      "slug": "hedgehog",
+      "source": "stage",
+      "t_ms": 187540,
+      "x": 15.7,
+      "y": 51.7
+    },
+    {
+      "clip": "fly_left",
+      "duration_ms": 3352,
+      "line": 122,
+      "op": "depart",
+      "scene_index": 5,
+      "slug": "owl",
+      "source": "stage",
+      "t_ms": 187540,
+      "x": 15.7,
+      "y": 51.7
+    },
+    {
+      "line": 122,
+      "op": "exit",
+      "scene_index": 5,
+      "slug": "robin",
+      "source": "stage",
+      "t_ms": 187890
+    },
+    {
+      "line": 122,
+      "op": "exit",
+      "scene_index": 5,
+      "slug": "rabbit",
+      "source": "stage",
+      "t_ms": 188218
+    },
+    {
+      "line": 122,
+      "op": "exit",
+      "scene_index": 5,
+      "slug": "hedgehog",
+      "source": "stage",
+      "t_ms": 190000
+    },
+    {
+      "line": 122,
+      "op": "exit",
+      "scene_index": 5,
+      "slug": "owl",
+      "source": "stage",
+      "t_ms": 190892
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 5,
+      "source": "stage",
+      "t_ms": 190892,
+      "text": ""
+    },
+    {
+      "line": null,
+      "op": "camera_reset",
+      "scene_index": 5,
+      "source": "stage",
+      "t_ms": 190892
+    },
+    {
+      "line": 125,
+      "op": "scene",
+      "place": "forest_night",
+      "scene_index": 6,
+      "source": "stage",
+      "t_ms": 190892
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "right",
+        "slug": "robin",
+        "verb": "idle"
+      },
+      "kind": "warning",
+      "line": 125,
+      "scene_index": 6,
+      "source": "step",
+      "t_ms": 190892
+    },
+    {
+      "clip": "idle_right",
+      "line": 125,
+      "op": "place",
+      "scene_index": 6,
+      "slug": "robin",
+      "source": "stage",
+      "t_ms": 190892,
+      "x": 10
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "right",
+        "slug": "rabbit",
+        "verb": "idle"
+      },
+      "kind": "warning",
+      "line": 125,
+      "scene_index": 6,
+      "source": "step",
+      "t_ms": 190892
+    },
+    {
+      "clip": "idle_right",
+      "line": 125,
+      "op": "place",
+      "scene_index": 6,
+      "slug": "rabbit",
+      "source": "stage",
+      "t_ms": 190892,
+      "x": 30
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "left",
+        "slug": "hedgehog",
+        "verb": "idle"
+      },
+      "kind": "warning",
+      "line": 125,
+      "scene_index": 6,
+      "source": "step",
+      "t_ms": 190892
+    },
+    {
+      "clip": "idle_left",
+      "line": 125,
+      "op": "place",
+      "scene_index": 6,
+      "slug": "hedgehog",
+      "source": "stage",
+      "t_ms": 190892,
+      "x": 70
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "left",
+        "slug": "owl",
+        "verb": "idle"
+      },
+      "kind": "warning",
+      "line": 125,
+      "scene_index": 6,
+      "source": "step",
+      "t_ms": 190892
+    },
+    {
+      "clip": "idle_left",
+      "line": 125,
+      "op": "place",
+      "scene_index": 6,
+      "slug": "owl",
+      "source": "stage",
+      "t_ms": 190892,
+      "x": 90
+    },
+    {
+      "cmd": "music",
+      "detail": {
+        "name": "calm",
+        "subjects": []
+      },
+      "kind": "cmd",
+      "line": 126,
+      "scene_index": 6,
+      "source": "step",
+      "t_ms": 190892
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/339348e796917bb313df0bfd72316d9ee1aca2b4f6e34a4f2bc9612b9655b950.wav",
+        "duration_s": 6.846,
+        "text": "When the dancing was done, the friends settled in the moonlit clearing, warm and close and heavy-eyed."
+      },
+      "kind": "chunk",
+      "line": 128,
+      "scene_index": 6,
+      "source": "step",
+      "t_ms": 190892
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 6,
+      "source": "stage",
+      "t_ms": 190892,
+      "text": "When the dancing was done, the friends settled in the moonlit clearing, warm and close and heavy-eyed."
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/2d5d8aad260bee58623a9c812c7eb33f3bd107e6ca72fb9a1ce5449afc981547.wav",
+        "duration_s": 3.624,
+        "text": "Bramble curled up round — no counting needed tonight."
+      },
+      "kind": "chunk",
+      "line": 129,
+      "scene_index": 6,
+      "source": "step",
+      "t_ms": 197738
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 6,
+      "source": "stage",
+      "t_ms": 197738,
+      "text": "Bramble curled up round — no counting needed tonight."
+    },
+    {
+      "cmd": "emote",
+      "detail": {
+        "emotion": "sleep",
+        "facing": null,
+        "subjects": [
+          "hedgehog"
+        ]
+      },
+      "kind": "cmd",
+      "line": 130,
+      "scene_index": 6,
+      "source": "step",
+      "t_ms": 201362
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "left",
+        "slug": "hedgehog",
+        "verb": "sleep"
+      },
+      "kind": "warning",
+      "line": 130,
+      "scene_index": 6,
+      "source": "step",
+      "t_ms": 201362
+    },
+    {
+      "clip": "sleep_left",
+      "line": 130,
+      "op": "clip",
+      "scene_index": 6,
+      "slug": "hedgehog",
+      "source": "stage",
+      "t_ms": 201362
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/afb6246ed60c164bce15d6e7ed05816b81fe67f5f37b5db961a69d477df59bb0.wav",
+        "duration_s": 3.221,
+        "text": "Clover's long ears folded down, soft as petals."
+      },
+      "kind": "chunk",
+      "line": 131,
+      "scene_index": 6,
+      "source": "step",
+      "t_ms": 201362
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 6,
+      "source": "stage",
+      "t_ms": 201362,
+      "text": "Clover's long ears folded down, soft as petals."
+    },
+    {
+      "cmd": "emote",
+      "detail": {
+        "emotion": "sleep",
+        "facing": null,
+        "subjects": [
+          "rabbit"
+        ]
+      },
+      "kind": "cmd",
+      "line": 132,
+      "scene_index": 6,
+      "source": "step",
+      "t_ms": 204583
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "right",
+        "slug": "rabbit",
+        "verb": "sleep"
+      },
+      "kind": "warning",
+      "line": 132,
+      "scene_index": 6,
+      "source": "step",
+      "t_ms": 204583
+    },
+    {
+      "clip": "sleep_right",
+      "line": 132,
+      "op": "clip",
+      "scene_index": 6,
+      "slug": "rabbit",
+      "source": "stage",
+      "t_ms": 204583
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/e01757e7a515edaea6ec407468f726b4bc76861d5a2305406528a788ab9c3329.wav",
+        "duration_s": 6.04,
+        "text": "And Ruby tucked her head beneath her wing, right in the middle of her friends."
+      },
+      "kind": "chunk",
+      "line": 133,
+      "scene_index": 6,
+      "source": "step",
+      "t_ms": 204583
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 6,
+      "source": "stage",
+      "t_ms": 204583,
+      "text": "And Ruby tucked her head beneath her wing, right in the middle of her friends."
+    },
+    {
+      "cmd": "emote",
+      "detail": {
+        "emotion": "sleep",
+        "facing": null,
+        "subjects": [
+          "robin"
+        ]
+      },
+      "kind": "cmd",
+      "line": 134,
+      "scene_index": 6,
+      "source": "step",
+      "t_ms": 210623
+    },
+    {
+      "clip": "sleep",
+      "line": 134,
+      "op": "clip",
+      "scene_index": 6,
+      "slug": "robin",
+      "source": "stage",
+      "t_ms": 210623
+    },
+    {
+      "detail": {
+        "steps": [
+          {
+            "cmd": "emote",
+            "emotion": "happy",
+            "facing": null,
+            "kind": "cmd",
+            "line": 136,
+            "subjects": [
+              "owl"
+            ]
+          },
+          {
+            "cmd": "pull_out",
+            "kind": "cmd",
+            "line": 137,
+            "speed": "slow",
+            "subjects": []
+          }
+        ]
+      },
+      "kind": "together",
+      "line": 135,
+      "scene_index": 6,
+      "source": "step",
+      "t_ms": 210623
+    },
+    {
+      "cmd": "emote",
+      "detail": {
+        "emotion": "happy",
+        "facing": null,
+        "subjects": [
+          "owl"
+        ],
+        "together_line": 135
+      },
+      "kind": "cmd",
+      "line": 136,
+      "scene_index": 6,
+      "source": "step",
+      "t_ms": 210623
+    },
+    {
+      "cmd": "pull_out",
+      "detail": {
+        "speed": "slow",
+        "subjects": [],
+        "together_line": 135
+      },
+      "kind": "cmd",
+      "line": 137,
+      "scene_index": 6,
+      "source": "step",
+      "t_ms": 210623
+    },
+    {
+      "line": null,
+      "op": "pull_out",
+      "scene_index": 6,
+      "source": "stage",
+      "speed": "slow",
+      "t_ms": 210623
+    },
+    {
+      "clip": "happy",
+      "line": 136,
+      "op": "clip",
+      "scene_index": 6,
+      "slug": "owl",
+      "source": "stage",
+      "t_ms": 210623
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/31da39da60a4904298442ade080b53ce618385ea24e041e7bc6990208a435d04.wav",
+        "duration_s": 5.235,
+        "text": "Only Owl stayed awake, round-eyed and glad, keeping watch the way owls do."
+      },
+      "kind": "chunk",
+      "line": 138,
+      "scene_index": 6,
+      "source": "step",
+      "t_ms": 210623
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 6,
+      "source": "stage",
+      "t_ms": 210623,
+      "text": "Only Owl stayed awake, round-eyed and glad, keeping watch the way owls do."
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/97e5b9c17334535fd5e059351e2eed8f937b5e5f062d0c42fba0fa0194c07f00.wav",
+        "duration_s": 4.43,
+        "text": "The moon held still. The fireflies blinked — slow, and slower."
+      },
+      "kind": "chunk",
+      "line": 139,
+      "scene_index": 6,
+      "source": "step",
+      "t_ms": 215858
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 6,
+      "source": "stage",
+      "t_ms": 215858,
+      "text": "The moon held still. The fireflies blinked — slow, and slower."
+    },
+    {
+      "cmd": "pause",
+      "detail": {
+        "seconds": 2.5,
+        "subjects": []
+      },
+      "kind": "cmd",
+      "line": 140,
+      "scene_index": 6,
+      "source": "step",
+      "t_ms": 220288
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/f8888fc933042251a0389a5e21a118735d54cef19d016b18dd3f1b20466d3069.wav",
+        "duration_s": 5.638,
+        "text": "And the dark held them all. Soft, and kind, and quiet as a nest."
+      },
+      "kind": "chunk",
+      "line": 141,
+      "scene_index": 6,
+      "source": "step",
+      "t_ms": 222788
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 6,
+      "source": "stage",
+      "t_ms": 222788,
+      "text": "And the dark held them all. Soft, and kind, and quiet as a nest."
+    },
+    {
+      "cmd": "pause",
+      "detail": {
+        "seconds": 1.5,
+        "subjects": []
+      },
+      "kind": "cmd",
+      "line": 142,
+      "scene_index": 6,
+      "source": "step",
+      "t_ms": 228426
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/6a1b8ab2d315890b8a6dd970b39e22cf7347e4a104ab0a3bdafba30ab1b8fffb.wav",
+        "duration_s": 2.013,
+        "text": "Goodnight, Ruby. Goodnight, little friends."
+      },
+      "kind": "chunk",
+      "line": 143,
+      "scene_index": 6,
+      "source": "step",
+      "t_ms": 229926
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 6,
+      "source": "stage",
+      "t_ms": 229926,
+      "text": "Goodnight, Ruby. Goodnight, little friends."
+    },
+    {
+      "cmd": "pause",
+      "detail": {
+        "seconds": 1,
+        "subjects": []
+      },
+      "kind": "cmd",
+      "line": 144,
+      "scene_index": 6,
+      "source": "step",
+      "t_ms": 231939
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/e69d2d137ec21f9f0c8ea02a87d2738bde009ddce995791f6a817ac5447e8a69.wav",
+        "duration_s": 1,
+        "text": "Goodnight."
+      },
+      "kind": "chunk",
+      "line": 145,
+      "scene_index": 6,
+      "source": "step",
+      "t_ms": 232939
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 6,
+      "source": "stage",
+      "t_ms": 232939,
+      "text": "Goodnight."
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 6,
+      "source": "stage",
+      "t_ms": 233939,
+      "text": ""
+    },
+    {
+      "line": null,
+      "op": "camera_reset",
+      "scene_index": 6,
+      "source": "stage",
+      "t_ms": 233939
+    },
+    {
+      "line": null,
+      "op": "end",
+      "scene_index": 6,
+      "source": "stage",
+      "t_ms": 233939
+    }
+  ],
+  "storylang_version": 0,
+  "timeline_version": 1,
+  "title": "Ruby and the Gentle Dark"
+}

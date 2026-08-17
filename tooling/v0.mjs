@@ -32,7 +32,8 @@ import {
   SHOT_SIZES,
 } from '../browser/v0/policy.mjs';
 
-export { EventLog } from '../browser/v0/core/event-log.mjs';
+export { compileTimeline } from '../browser/v0/core/timeline/compile.mjs';
+export { TIMELINE_OPS } from '../browser/v0/core/timeline/events.mjs';
 export {
   NO_FLOOR_STAND_Y,
   SIDE_FRACTION,
@@ -54,27 +55,6 @@ export {
   SPRITE_PX_PER_CM,
   spriteHeightForCm,
 } from '../browser/v0/app/stage/presentation-policy.mjs';
-export { PlaybackDirector } from '../browser/v0/app/directors/playback-director.mjs';
-
-export const V0_STAGE_METHODS = Object.freeze([
-  'departCharacter',
-  'floorY',
-  'follow',
-  'followOff',
-  'moveCharacter',
-  'panTo',
-  'placeCharacter',
-  'placeObject',
-  'pullOut',
-  'pushIn',
-  'resetCamera',
-  'setCharacterClip',
-  'setShot',
-  'setSubtitle',
-  'showEnd',
-  'showScene',
-]);
-
 export const V0_POLICY = deepFreeze({
   version: 0,
   geometry: {

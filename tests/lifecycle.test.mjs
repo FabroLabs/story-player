@@ -171,7 +171,11 @@ test('failed sound start is released before whole-player teardown', async (t) =>
   assert.equal(pauses, releasedPauses, 'destroy found failed sound retained in the owned-media set');
 });
 
-test('synchronous audio unlock failure becomes a warning and playback still starts', async (t) => {
+// PHASE-8: pressing start no longer performs anything — the live director is
+// gone and the runtime that plays a compiled timeline is the next piece of
+// work. Un-skip with it; what these two pin (an unlock failure is survivable,
+// destroy releases every timer and listener mid-playback) is unchanged policy.
+test.skip('synchronous audio unlock failure becomes a warning and playback still starts', async (t) => {
   const dom = installDom();
   t.after(dom.restore);
   window.AudioContext = class { constructor() { throw new Error('blocked constructor'); } };
@@ -186,7 +190,7 @@ test('synchronous audio unlock failure becomes a warning and playback still star
   player.destroy();
 });
 
-test('destroy during active playback cancels clock work and plate readiness listeners', async (t) => {
+test.skip('destroy during active playback cancels clock work and plate readiness listeners', async (t) => {
   const dom = installDom();
   t.after(dom.restore);
   const originalAudio = globalThis.Audio;

@@ -3,20 +3,18 @@ import fs from 'node:fs';
 import test from 'node:test';
 
 import * as embed from '../browser/embed.mjs';
-import { StageRenderer } from '../browser/v0/app/stage/stage-renderer.mjs';
 import * as tooling from '../tooling/v0.mjs';
 
 const ROOT = new URL('../', import.meta.url);
 const EXPECTED_TOOLING_EXPORTS = [
-  'EventLog',
   'MINIMUM_SPRITE_HEIGHT_PX',
   'NO_FLOOR_STAND_Y',
-  'PlaybackDirector',
   'SIDE_FRACTION',
   'SPRITE_PX_PER_CM',
   'STAND_FRACTION',
+  'TIMELINE_OPS',
   'V0_POLICY',
-  'V0_STAGE_METHODS',
+  'compileTimeline',
   'desiredFacing',
   'floorSpan',
   'floorYAtX',
@@ -50,19 +48,18 @@ test('the removed standalone, host, and shell entry points stay absent', () => {
   assert.doesNotMatch(templateSource, /\bid\s*:/, 'the Shadow DOM template reintroduced document-global ids');
 });
 
-test('v0 tooling keeps the exact renderer semantics mobile projection consumes', () => {
+// The op table replaced a list of stage METHOD names, which only ever described
+// how one renderer happened to be written. These are the events themselves —
+// what every client, this one included, reads to know what it must draw.
+test('v0 tooling keeps the exact semantics every client consumes', () => {
   assert.deepEqual(Object.keys(tooling).sort(), EXPECTED_TOOLING_EXPORTS.sort());
-  assert.deepEqual(tooling.V0_STAGE_METHODS, [
-    'departCharacter', 'floorY', 'follow', 'followOff', 'moveCharacter',
-    'panTo', 'placeCharacter', 'placeObject', 'pullOut', 'pushIn',
-    'resetCamera', 'setCharacterClip', 'setShot', 'setSubtitle', 'showEnd',
-    'showScene',
+  assert.equal(typeof tooling.compileTimeline, 'function');
+  assert.deepEqual(tooling.TIMELINE_OPS, [
+    'scene', 'place', 'place_object', 'clip', 'move', 'settle', 'depart',
+    'exit', 'push_in', 'pull_out', 'shot', 'pan', 'camera_reset', 'subtitle',
+    'end',
   ]);
-  assert.ok(Object.isFrozen(tooling.V0_STAGE_METHODS));
-  assert.deepEqual(
-    tooling.V0_STAGE_METHODS.filter((method) => typeof StageRenderer.prototype[method] !== 'function'),
-    [],
-  );
+  assert.ok(Object.isFrozen(tooling.TIMELINE_OPS));
   assertDeeplyFrozen(tooling.V0_POLICY);
   assert.deepEqual(tooling.V0_POLICY, {
     version: 0,
