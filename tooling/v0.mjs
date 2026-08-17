@@ -34,6 +34,7 @@ import {
 
 export { compileTimeline } from '../browser/v0/core/timeline/compile.mjs';
 export { TIMELINE_OPS } from '../browser/v0/core/timeline/events.mjs';
+export { stateAt } from '../browser/v0/core/state/state.mjs';
 export {
   NO_FLOOR_STAND_Y,
   SIDE_FRACTION,

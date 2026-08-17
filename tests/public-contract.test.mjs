@@ -24,6 +24,7 @@ const EXPECTED_TOOLING_EXPORTS = [
   'selectLocomotion',
   'sideX',
   'spriteHeightForCm',
+  'stateAt',
   'zoneNamed',
 ];
 

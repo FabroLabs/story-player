@@ -1,33 +1,14 @@
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
 import test from 'node:test';
 
 import { compileTimeline } from '../browser/v0/core/timeline/compile.mjs';
 import { TIMELINE_OPS } from '../browser/v0/core/timeline/events.mjs';
-
-// The engine's parity corpus, copied in verbatim. Each `.timeline.json` was
-// produced by the machinery this compiler replaces — running the live director
-// against a recording stage under a virtual clock — so equality with them is
-// the whole proof that the rewrite moved no semantics. They are goldens, not
-// examples: a diff here is a rule change and needs saying out loud.
-const FIXTURES = new URL('fixtures/parity/', import.meta.url);
-const STEMS = [
-  'golden_camera_moves',
-  'golden_heal_travel',
-  'golden_push_dusk',
-  'golden_together_audio',
-  'ruby_and_the_gentle_dark',
-  'the_owls_quiet_friend',
-  'thud_in_the_forest_scene1',
-];
-
-function slurp(stem, kind) {
-  return fs.readFileSync(new URL(`${stem}.${kind}.json`, FIXTURES), 'utf8');
-}
-
-function read(stem, kind) {
-  return JSON.parse(slurp(stem, kind));
-}
+// The engine's parity corpus. Each `.timeline.json` was produced by the
+// machinery this compiler replaces — running the live director against a
+// recording stage under a virtual clock — so equality with them is the whole
+// proof that the rewrite moved no semantics. They are goldens, not examples:
+// a diff here is a rule change and needs saying out loud.
+import { STEMS, read, slurp } from './_parity.mjs';
 
 // `tools/mobile/timeline.mjs`'s own `serialize`, kept identical here on
 // purpose: the law is that the ENGINE writes these exact bytes from this exact

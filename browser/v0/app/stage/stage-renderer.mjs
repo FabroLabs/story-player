@@ -6,8 +6,17 @@ import { ActorRegistry } from './actor-registry.mjs';
 import { withTimeout } from '../clock.mjs';
 import { drawnSpriteHeightPx } from './presentation-policy.mjs';
 import { SpriteAssetTracker } from './sprite-assets.mjs';
+// The framing arithmetic lives in the pure state core, which is where the
+// timeline player reads it from too — one camera, not one per renderer.
 import {
-  CAMERA_DURATIONS_MS,
+  PLATE_CENTRE,
+  WIDE_FRAMING,
+  cameraDuration,
+  framingHolding,
+  framingPanned,
+  isFramingFinite,
+} from '../../core/state/camera.mjs';
+import {
   DEFAULT_STAGE_RESOLUTION,
   PAN_SCALE_FLOOR,
   PLATE_PARALLAX,
@@ -47,8 +56,6 @@ const CAMERA_ORIGIN = '0 0';
 // below 1 also detaches feet from the ground away from the point a push holds,
 // because the ground is painted into the plate; that is the bill to re-read first.
 export { CAMERA_DURATIONS_MS, PLATE_PARALLAX, SHOT_SIZES } from '../../policy.mjs';
-const PLATE_CENTRE = Object.freeze({ x: 50, y: 50 });
-const WIDE_FRAMING = Object.freeze({ scale: 1, x: 0, y: 0 });
 
 export class StageRenderer {
   #elements;
@@ -662,49 +669,6 @@ function motionTransition(seconds) {
 
 function positiveNumber(value, fallback) {
   return Number.isFinite(value) && value > 0 ? value : fallback;
-}
-
-function isFramingFinite({ scale, x, y }) {
-  return Number.isFinite(scale) && Number.isFinite(x) && Number.isFinite(y);
-}
-
-// An omitted speed is a slow move — the language's own default. An unknown word
-// is the director's to refuse; if one reaches here anyway it is still slow, never
-// a duration of `undefined`.
-function cameraDuration(speed) {
-  return Object.hasOwn(CAMERA_DURATIONS_MS, speed ?? 'slow') ? CAMERA_DURATIONS_MS[speed ?? 'slow'] : CAMERA_DURATIONS_MS.slow;
-}
-
-// The camera is a scale and an offset, both written into one `transform`: a
-// plate point `p` lands at `scale * p + offset`, in percent of the layer. That
-// is the whole model — a push, a shot, a pan and a ride differ only in which
-// offset they ask for.
-//
-// A magnified layer keeps covering the frame only while its offset stays
-// between `100 * (1 - scale)` and 0: past the top end the near edge pulls in,
-// past the bottom end the far one does, and either way the stage background
-// shows through. The interval is exactly zero wide at 1x, which is the reason a
-// pan has to magnify before it can move at all rather than a rule anyone chose.
-function clampOffset(offset, scale) {
-  return Math.min(0, Math.max(100 * (1 - scale), offset));
-}
-
-// Hold `point` exactly where it already is and grow the world around it.
-function framingHolding(point, scale) {
-  return { scale, x: clampOffset(point.x * (1 - scale), scale), y: clampOffset(point.y * (1 - scale), scale) };
-}
-
-// Bring plate x to the middle of the frame, as far as the clamp allows, and
-// leave the height alone — a pan is a horizontal move, and the vertical one is
-// a different word. Aiming both axes at a character would point the camera at
-// their FEET, which is what a stand line is: on a wide open that drove the frame
-// straight down into the floor and pinned it there against the clamp.
-//
-// "Leave it alone" is not "keep the number": lifting the scale re-scales the
-// axis under it, so what is preserved is the plate point already in the middle.
-function framingPanned(x, scale, held) {
-  const middleY = (50 - held.y) / held.scale;
-  return { scale, x: clampOffset(50 - (scale * x), scale), y: clampOffset(50 - (scale * middleY), scale) };
 }
 
 // The far plane takes the same move at `PLATE_PARALLAX` of its magnitude — a

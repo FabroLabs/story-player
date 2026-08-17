@@ -14,7 +14,7 @@ const V0_TOOLING = [
   'SPRITE_PX_PER_CM', 'STAND_FRACTION', 'TIMELINE_OPS', 'V0_POLICY',
   'compileTimeline', 'desiredFacing', 'floorSpan', 'floorYAtX', 'frameCell',
   'frameIndexAt', 'selectFacingClip', 'selectLocomotion', 'sideX',
-  'spriteHeightForCm', 'zoneNamed',
+  'spriteHeightForCm', 'stateAt', 'zoneNamed',
 ];
 
 test('the classic script installs only the deeply frozen five-member global', async (t) => {
