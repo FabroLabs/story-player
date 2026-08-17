@@ -1,0 +1,146 @@
+name: Release CDN
+
+# Publish the built player where a consumer can pull it, on every green main.
+#
+# WHY THIS EXISTS ALONGSIDE publish-cdn.yml
+# ─────────────────────────────────────────
+# `publish-cdn.yml` writes STRAIGHT into the object store with an S3 key. That is
+# the right shape when the store answers on the internet. The store this player
+# is actually consumed from does not: MinIO in the moonykids cluster is a
+# ClusterIP service, reachable only from inside the cluster, and exposing an
+# object store's write API to GitHub's runners to ship a 141 KB build artifact
+# would be a much larger change than the thing it delivers.
+#
+# So the direction is inverted, exactly as that cluster already deploys its
+# container images: CI publishes, and the consumer PULLS. This job attaches the
+# artifact to a rolling `latest` release; a CronJob in the cluster mirrors it
+# into `story-player/builds/<commit>/`, verifies the SHA-256 before it trusts a
+# byte of it, and promotes `stable/`. Nothing inbound is opened.
+#
+# The two workflows are not alternatives. Both can run: a deployment whose store
+# IS reachable keeps using `publish-cdn.yml`, and this one makes the same build
+# available to every deployment whose store is not.
+#
+# WHAT `latest` MEANS
+# ───────────────────
+# The single moving tag. It always holds the newest green main build and the
+# `build.json` that names its commit, byte count and digest. It is a pointer, not
+# an archive — the immutable copies live in the store, under the commit that
+# produced them, which is what a rollback restores.
+
+on:
+  workflow_run:
+    workflows: [CI]
+    branches: [main]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: story-player-cdn-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    # Same gate as publish-cdn.yml, and for the same reason: a workflow_run fires
+    # for forks and for reruns of old commits too, and neither should be able to
+    # move the tag every consumer follows.
+    if: >-
+      github.event_name == 'workflow_dispatch' || (
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.event == 'push' &&
+        github.event.workflow_run.head_branch == 'main' &&
+        github.event.workflow_run.head_repository.full_name == github.repository
+      )
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || 'refs/heads/main' }}
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci --ignore-scripts
+
+      - name: Resolve the commit being published
+        id: commit
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Refuse a stale successful main run
+        # A green run from three commits ago must not overwrite `latest` with an
+        # older player than the one already there.
+        if: github.event_name == 'workflow_run'
+        run: |
+          git fetch origin main --depth=1
+          test "$(git rev-parse origin/main)" = "${{ steps.commit.outputs.sha }}"
+
+      - name: Build
+        # The script direct, not through `npm run`: its stdout IS the build
+        # report, and npm prefixes two lines of its own to it.
+        run: node scripts/build-cdn.mjs > build-report.json
+        env:
+          STORY_PLAYER_COMMIT: ${{ steps.commit.outputs.sha }}
+
+      - name: Describe the build
+        # `build.json` is the consumer's whole contract: it says which commit
+        # this is, how many bytes to expect and what they must hash to. The
+        # mirror refuses anything that does not match, so a truncated download or
+        # a swapped asset is a failed run rather than a broken player on the site.
+        run: |
+          node -e '
+            const fs = require("fs");
+            const crypto = require("crypto");
+            const bytes = fs.readFileSync("dist/story-player.js");
+            const report = JSON.parse(fs.readFileSync("build-report.json", "utf8"));
+            const sha256 = crypto.createHash("sha256").update(bytes).digest("hex");
+            if (sha256 !== report.sha256) throw new Error("build report disagrees with the artifact");
+            fs.writeFileSync("dist/build.json", JSON.stringify({
+              schema_version: 1,
+              commit: report.commit,
+              bytes: bytes.length,
+              sha256,
+              object_key: `builds/${report.commit}/story-player.js`,
+            }, null, 2) + "\n");
+            console.log(`${report.commit} ${bytes.length}B ${sha256}`);
+          '
+
+      - name: Publish the rolling `latest` release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ steps.commit.outputs.sha }}
+        run: |
+          set -euo pipefail
+          # `--clobber` replaces the assets in place, so consumers keep one URL
+          # forever and the tag never accumulates a second copy of a file.
+          if gh release view latest >/dev/null 2>&1; then
+            gh release upload latest dist/story-player.js dist/build.json --clobber
+            gh release edit latest --notes "Player build $SHA" --target "$SHA"
+          else
+            gh release create latest dist/story-player.js dist/build.json \
+              --title "story-player (latest)" \
+              --notes "Player build $SHA" \
+              --target "$SHA"
+          fi
+
+      - name: Publish the immutable per-commit release
+        # The pointer above can move; this one cannot. It is what a consumer
+        # names when it has to pin exact renderer semantics, and what an operator
+        # fetches to roll a deployment back to a build that predates the store's
+        # own copy.
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ steps.commit.outputs.sha }}
+        run: |
+          set -euo pipefail
+          if ! gh release view "build-$SHA" >/dev/null 2>&1; then
+            gh release create "build-$SHA" dist/story-player.js dist/build.json \
+              --title "story-player $SHA" \
+              --notes "Immutable build of $SHA" \
+              --target "$SHA"
+          fi
