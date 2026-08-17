@@ -90,12 +90,26 @@ export function resolveStoryAssets(story, assetBase) {
       if (Object.hasOwn(clip ?? {}, 'spritesheet_url') || Object.hasOwn(clip ?? {}, 'atlas_url')) {
         throw new Error(`cast member ${JSON.stringify(slug)} clip ${JSON.stringify(clipKey)} has a legacy asset field`);
       }
+      const where = `cast member ${JSON.stringify(slug)} clip ${JSON.stringify(clipKey)}`;
       return {
         ...clip,
-        spritesheet: resolve(clip?.spritesheet, `cast member ${JSON.stringify(slug)} clip ${JSON.stringify(clipKey)} spritesheet`),
+        spritesheet: resolve(clip?.spritesheet, `${where} spritesheet`),
         atlas: clip?.atlas == null
           ? null
-          : resolve(clip.atlas, `cast member ${JSON.stringify(slug)} clip ${JSON.stringify(clipKey)} atlas`),
+          : resolve(clip.atlas, `${where} atlas`),
+        // Renditions are ordinary bucket-qualified media, so they go through
+        // exactly the same validation as the sheet they stand in for — an
+        // absolute URL or a traversal in one is refused before it is fetched,
+        // not after. A bundle built before renditions existed carries none, and
+        // that is not an error: it plays from the originals.
+        ...(clip?.renditions == null
+          ? {}
+          : {
+            renditions: projectMap(
+              clip.renditions,
+              (path, size) => resolve(path, `${where} rendition ${JSON.stringify(size)}`),
+            ),
+          }),
       };
     }),
   }));

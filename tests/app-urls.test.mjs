@@ -163,3 +163,59 @@ test('refuses legacy, mixed, and old narration shapes before projection', () => 
     'plates is a valid bucket name; the player has no bucket allowlist to call it legacy',
   );
 });
+
+test('renditions are projected and validated exactly like the sheet they stand in for', () => {
+  const story = {
+    cast: {
+      rabbit: {
+        clips: {
+          idle: {
+            spritesheet: 'fairytale-assets/sprites/rabbit/idle/spritesheet.png',
+            atlas: null,
+            renditions: {
+              200: 'fairytale-assets/mobile/sprites/aaa.webp',
+              384: 'fairytale-assets/mobile/sprites/bbb.webp',
+            },
+          },
+        },
+      },
+    },
+    objects: {},
+    audio: { sfx: {}, bgm: {} },
+    scenes: [{ plate: { video: 'plates/open.mp4', poster: 'plates/open.jpg' }, steps: [] }],
+  };
+
+  const projected = resolveStoryAssets(story, BASE);
+  assert.deepEqual(projected.cast.rabbit.clips.idle.renditions, {
+    200: `${BASE}/fairytale-assets/mobile/sprites/aaa.webp`,
+    384: `${BASE}/fairytale-assets/mobile/sprites/bbb.webp`,
+  });
+
+  // A bundle from before renditions existed is the shape the published player
+  // was fed, and it still plays: no key rather than an empty one.
+  const legacy = resolveStoryAssets({
+    ...story,
+    cast: { rabbit: { clips: { idle: { spritesheet: 'fairytale-assets/sprites/rabbit/idle/spritesheet.png', atlas: null } } } },
+  }, BASE);
+  assert.equal(Object.hasOwn(legacy.cast.rabbit.clips.idle, 'renditions'), false);
+
+  for (const bad of ['https://evil.example/x.webp', '../secret.webp', 'fairytale-assets/x.webp?v=1']) {
+    assert.throws(
+      () => resolveStoryAssets({
+        ...story,
+        cast: {
+          rabbit: {
+            clips: {
+              idle: {
+                spritesheet: 'fairytale-assets/sprites/rabbit/idle/spritesheet.png',
+                atlas: null,
+                renditions: { 200: bad },
+              },
+            },
+          },
+        },
+      }, BASE),
+      /rendition "200" has invalid media path/,
+    );
+  }
+});

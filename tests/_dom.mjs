@@ -166,8 +166,15 @@ export function fakeStageElements() {
  * frame loop is `startAnimation`'s business and a test that started one would
  * never finish. `Image` resolves nothing by itself — a test that wants a
  * sprite to load calls `.dispatch('load')` on it through `lastImage()`.
+ *
+ * `fetch` and `createImageBitmap` are the asset layer's two seams, and they
+ * settle by themselves: the scene loader awaits them, so a fake that waited to
+ * be poked would deadlock every test that mounts a player. `assets(url)` is
+ * what a test overrides to make one answer 404 or come back a different size;
+ * node has a real `fetch` and no `createImageBitmap`, so both are replaced
+ * rather than filled in — a test must never reach the network.
  */
-export function installDom() {
+export function installDom({ assets = () => ({}) } = {}) {
   const saved = {
     document: globalThis.document,
     window: globalThis.window,
@@ -176,6 +183,8 @@ export function installDom() {
     HTMLTextAreaElement: globalThis.HTMLTextAreaElement,
     ResizeObserver: globalThis.ResizeObserver,
     Image: globalThis.Image,
+    fetch: globalThis.fetch,
+    createImageBitmap: globalThis.createImageBitmap,
     requestAnimationFrame: globalThis.requestAnimationFrame,
     cancelAnimationFrame: globalThis.cancelAnimationFrame,
   };
@@ -222,10 +231,28 @@ export function installDom() {
       return element;
     }
   };
+  const fetched = [];
+  globalThis.fetch = async (url, { signal } = {}) => {
+    const href = String(url);
+    fetched.push(href);
+    if (signal?.aborted) throw new DOMException('aborted', 'AbortError');
+    const { status = 200, width = 64, height = 64 } = assets(href) ?? {};
+    return {
+      ok: status >= 200 && status < 300,
+      status,
+      blob: async () => ({ size: width * height, pixels: { width, height } }),
+    };
+  };
+  globalThis.createImageBitmap = async (blob) => ({
+    width: blob?.pixels?.width ?? 1,
+    height: blob?.pixels?.height ?? 1,
+    close() { this.closed = true; },
+  });
   globalThis.requestAnimationFrame = () => 0;
   globalThis.cancelAnimationFrame = () => {};
   return {
     lastImage: () => images.at(-1),
+    fetched: () => [...fetched],
     restore() {
       for (const [name, value] of Object.entries(saved)) {
         if (value === undefined) delete globalThis[name];

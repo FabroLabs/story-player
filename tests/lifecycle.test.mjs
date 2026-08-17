@@ -38,7 +38,8 @@ test('destroy before ready aborts preload, settles ready, and removes the surfac
   await assert.rejects(player.ready, (error) => error?.name === 'AbortError');
   assert.equal(host.shadowRoot.children.length, 0);
 
-  dom.lastImage()?.dispatch('load');
+  // The gate's fetches were already in flight when destroy ran; let them settle.
+  await Promise.resolve();
   await Promise.resolve();
   assert.equal(host.shadowRoot.children.length, 0, 'late preload work repainted a destroyed player');
 });
@@ -49,14 +50,12 @@ test('a destroyed host can be remounted without sharing the old controller', asy
   const host = document.createElement('div');
   const story = loadingStory();
   const first = createStoryPlayer(host, { story, assetBase: 'https://storage.example/' });
-  dom.lastImage().dispatch('load');
   await first.ready;
   assert.equal(host.shadowRoot.listenerCount('keydown'), 1);
   first.destroy();
   assert.equal(host.shadowRoot.listenerCount('keydown'), 0, 'the old debug hotkey survived destroy');
 
   const second = createStoryPlayer(host, { story, assetBase: 'https://storage.example/' });
-  dom.lastImage().dispatch('load');
   await second.ready;
   assert.ok(host.shadowRoot.children.length > 0);
   second.destroy();
@@ -125,7 +124,7 @@ test('audio destroy cancels a pending media start so late play cannot restart it
 });
 
 test('failed opening preloads resolve ready but record a structured warning', async (t) => {
-  const dom = installDom();
+  const dom = installDom({ assets: () => ({ status: 404 }) });
   t.after(dom.restore);
   const host = document.createElement('div');
   const player = createStoryPlayer(host, {
@@ -133,11 +132,12 @@ test('failed opening preloads resolve ready but record a structured warning', as
     assetBase: 'https://storage.example/',
   });
 
-  dom.lastImage().dispatch('error');
   await player.ready;
   const entries = findByClass(host.shadowRoot, 'event-list').children;
+  // One line per broken asset, and the poster is this story's only one: the
+  // gate does not add a summary on top of what already named the file.
   assert.equal(entries.length, 1);
-  assert.match(entries[0].childNodes.at(-1).textContent, /opening preload failed/);
+  assert.match(entries[0].childNodes.at(-1).textContent, /dell\.jpg answered 404/);
   player.destroy();
 });
 
@@ -182,7 +182,6 @@ test.skip('synchronous audio unlock failure becomes a warning and playback still
   const story = { ...loadingStory(), scenes: [{ ...loadingStory().scenes[0], steps: [] }] };
   const host = document.createElement('div');
   const player = createStoryPlayer(host, { story, assetBase: 'https://storage.example/' });
-  dom.lastImage().dispatch('load');
   await player.ready;
   findByClass(host.shadowRoot, 'start-button').dispatch('click');
   assert.equal(findByClass(host.shadowRoot, 'start-ceremony').classList.contains('is-gone'), true);
@@ -237,7 +236,6 @@ test.skip('destroy during active playback cancels clock work and plate readiness
   };
   const host = document.createElement('div');
   const player = createStoryPlayer(host, { story, assetBase: 'https://storage.example/' });
-  dom.lastImage().dispatch('load');
   await player.ready;
   const video = findByClass(host.shadowRoot, 'plate-video');
   findByClass(host.shadowRoot, 'start-button').dispatch('click');
@@ -301,7 +299,6 @@ test('destroy clears debug download timers and revokes its object URL', async (t
     story: loadingStory(),
     assetBase: 'https://storage.example/',
   });
-  dom.lastImage().dispatch('load');
   await player.ready;
 
   findByText(host.shadowRoot, 'download').dispatch('click');

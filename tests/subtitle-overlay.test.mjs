@@ -179,7 +179,6 @@ test('turning subtitles off takes the whole subtitle area with it', async (t) =>
     assetBase: 'https://storage.example/',
   });
   t.after(() => player.destroy());
-  dom.lastImage().dispatch('load');
   await player.ready;
 
   const area = find(host.shadowRoot, (node) => node.className === 'subtitle-wrap');

@@ -619,12 +619,29 @@ export class StageRenderer {
     this.#onWarning({ ...detail, ...normalizeOrigin(origin) });
   }
 
+  /**
+   * The stage's letterbox scale, measured now.
+   *
+   * Public because the asset layer needs the same number to choose a sprite
+   * sheet's resolution, and two definitions of "how big is the stage really"
+   * would drift the instant a plate's resolution stopped being 1920x1080. Only
+   * this file measures stage DOM; everybody else asks it.
+   */
+  fitScale() {
+    return this.#fitStage() ?? 1;
+  }
+
   #fitStage() {
-    if (this.#destroyed) return;
+    if (this.#destroyed) return null;
     const box = this.#elements.frame.getBoundingClientRect();
     const width = this.#elements.stage.offsetWidth || 1920;
     const height = this.#elements.stage.offsetHeight || DEFAULT_STAGE_RESOLUTION[1];
-    this.#elements.stage.style.setProperty('--fit-scale', Math.min(box.width / width, box.height / height));
+    const scale = Math.min(box.width / width, box.height / height);
+    this.#elements.stage.style.setProperty('--fit-scale', scale);
+    // A stage with no size yet — mounted hidden, or measured before the first
+    // layout — is 0 here, and 0 would ask the ladder for its smallest sheet for
+    // the whole story. 1 is the honest guess: the logical stage at 1:1.
+    return Number.isFinite(scale) && scale > 0 ? scale : 1;
   }
 
   #clearActors() {

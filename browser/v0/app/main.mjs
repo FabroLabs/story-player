@@ -1,4 +1,6 @@
-import { firstPaintAssets, preload } from './asset-preloader.mjs';
+import { compileTimeline } from '../core/timeline/compile.mjs';
+import { createBitmapCache } from './assets/bitmap-cache.mjs';
+import { createSceneLoader } from './assets/scene-loader.mjs';
 import { AudioDirector } from './directors/audio-director.mjs';
 import { StoryClock } from './clock.mjs';
 import { DebugPanel, ObservableEventLog } from './debug-panel.mjs';
@@ -22,9 +24,17 @@ export function createV0Player({ root, elements, story, assetBase, signal, debug
   const log = new ObservableEventLog(clock, (entry, entries) => panel.addEntry(entry, entries));
   const cleanups = [wireSubtitleToggle(elements)];
   const warn = (detail) => routeWarning(detail, null, log);
+  const bitmaps = createBitmapCache({
+    onOverBudget: ({ heldBytes, budgetBytes }) => warn({
+      type: 'media',
+      asset: 'cache',
+      message: `the scene on screen needs ${megabytes(heldBytes)} MB of decoded sheets against a ${megabytes(budgetBytes)} MB budget`,
+    }),
+  });
   let stage = null;
   let audio = null;
   let runtimeStory = null;
+  let loader = null;
   let destroyed = false;
   let startHandler = null;
   const ready = initialize();
@@ -38,6 +48,7 @@ export function createV0Player({ root, elements, story, assetBase, signal, debug
       for (const cleanup of cleanups) cleanup();
       stage?.destroy?.();
       audio?.destroy?.();
+      bitmaps.destroy();
       panel.destroy();
     },
   };
@@ -45,9 +56,16 @@ export function createV0Player({ root, elements, story, assetBase, signal, debug
   async function initialize() {
     try {
       runtimeStory = resolveStoryAssets(story, assetBase);
+      // The schedule is compiled here because the asset gate is the first thing
+      // that needs it: which sheets a scene draws is read off the timeline's
+      // ops, not guessed from the steps. Phase 8's runtime takes this call over.
+      const timeline = compileTimeline(runtimeStory);
       elements.title.textContent = runtimeStory.title ?? 'tonight’s story';
       stage = new StageRenderer(elements.stage, warn);
       audio = new AudioDirector(runtimeStory.audio, warn, { signal });
+      loader = createSceneLoader({
+        timeline, bundle: runtimeStory, cache: bitmaps, signal, onWarning: warn,
+      });
       await armStart();
     } catch (error) {
       if (error?.name !== 'AbortError') {
@@ -60,10 +78,12 @@ export function createV0Player({ root, elements, story, assetBase, signal, debug
   }
 
   async function armStart() {
-    const urls = firstPaintAssets(runtimeStory, runtimeStory.scenes?.[0]);
     elements.start.disabled = true;
-    const result = await preload(urls, {
-      signal,
+    // The whole first scene, kept in the cache while it is the scene on screen.
+    // Each failure has already said which asset it was, so there is no summary
+    // to add here: one broken sheet is one line in the log, not two.
+    await loader.loadScene(0, stageViewport(), {
+      keep: true,
       onProgress: (done, total) => {
         if (signal.aborted || destroyed) return;
         elements.status.textContent = total
@@ -72,13 +92,6 @@ export function createV0Player({ root, elements, story, assetBase, signal, debug
       },
     });
     throwIfAborted(signal);
-    if (result.failed > 0) {
-      warn({
-        type: 'media',
-        asset: 'preload',
-        message: `${result.failed} opening preload failed; playback may use placeholders`,
-      });
-    }
     elements.status.textContent = 'ready when you are';
     elements.start.disabled = false;
     startHandler = () => startStory();
@@ -94,6 +107,17 @@ export function createV0Player({ root, elements, story, assetBase, signal, debug
     warn({ type: 'playback', message: NO_RUNTIME });
     elements.status.textContent = NO_RUNTIME;
     elements.status.classList.add('is-error');
+  }
+
+  /**
+   * How much the picture is magnified between the sheet and the eye.
+   *
+   * Both numbers are asked for rather than derived here: the stage renderer is
+   * the one thing that measures stage DOM, and a second definition of the
+   * letterbox scale would drift from the one the picture is actually drawn at.
+   */
+  function stageViewport() {
+    return { fitScale: stage.fitScale(), dpr: globalThis.devicePixelRatio ?? 1 };
   }
 }
 
@@ -131,4 +155,8 @@ function writePreference(key, value) {
 
 function throwIfAborted(signal) {
   if (signal.aborted) throw new DOMException('player destroyed', 'AbortError');
+}
+
+function megabytes(bytes) {
+  return Math.round(bytes / (1024 * 1024));
 }
