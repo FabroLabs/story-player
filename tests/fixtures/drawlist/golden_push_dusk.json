@@ -1,0 +1,250 @@
+{
+  "instants": [
+    {
+      "t_ms": 1,
+      "list": {
+        "width": 1920,
+        "height": 1080,
+        "camera": {
+          "scale": 1,
+          "x": 0,
+          "y": 0
+        },
+        "commands": [
+          {
+            "op": "shadow",
+            "slug": "robin",
+            "cx": 884.54,
+            "cy": 1015.31,
+            "rx": 36,
+            "ry": 7.2,
+            "opacity": 0.34
+          },
+          {
+            "op": "sprite",
+            "slug": "robin",
+            "url": "fairytale-assets/mobile/sprites/bfd90fe8c99d53be771817cd47ae8463.webp",
+            "cell": [
+              0,
+              0
+            ],
+            "cells": [
+              7,
+              7
+            ],
+            "dx": 824.54,
+            "dy": 895.31,
+            "dw": 120,
+            "dh": 120,
+            "opacity": 1
+          }
+        ]
+      }
+    },
+    {
+      "t_ms": 4011,
+      "list": {
+        "width": 1920,
+        "height": 1080,
+        "camera": {
+          "scale": 1.55,
+          "x": -13.9997,
+          "y": -51.6551
+        },
+        "commands": [
+          {
+            "op": "shadow",
+            "slug": "robin",
+            "cx": 884.54,
+            "cy": 1015.31,
+            "rx": 36,
+            "ry": 7.2,
+            "opacity": 0.34
+          },
+          {
+            "op": "sprite",
+            "slug": "robin",
+            "url": "fairytale-assets/mobile/sprites/bfd90fe8c99d53be771817cd47ae8463.webp",
+            "cell": [
+              0,
+              0
+            ],
+            "cells": [
+              7,
+              7
+            ],
+            "dx": 824.54,
+            "dy": 895.31,
+            "dw": 120,
+            "dh": 120,
+            "opacity": 1
+          }
+        ]
+      }
+    },
+    {
+      "t_ms": 6427,
+      "list": {
+        "width": 1920,
+        "height": 1080,
+        "camera": {
+          "scale": 1,
+          "x": 0,
+          "y": 0
+        },
+        "commands": [
+          {
+            "op": "shadow",
+            "slug": "robin",
+            "cx": 884.54,
+            "cy": 1015.31,
+            "rx": 36,
+            "ry": 7.2,
+            "opacity": 0.34
+          },
+          {
+            "op": "sprite",
+            "slug": "robin",
+            "url": "fairytale-assets/mobile/sprites/bfd90fe8c99d53be771817cd47ae8463.webp",
+            "cell": [
+              3,
+              1
+            ],
+            "cells": [
+              7,
+              7
+            ],
+            "dx": 824.54,
+            "dy": 895.31,
+            "dw": 120,
+            "dh": 120,
+            "opacity": 1
+          }
+        ]
+      }
+    },
+    {
+      "t_ms": 7599,
+      "list": {
+        "width": 1920,
+        "height": 1080,
+        "camera": {
+          "scale": 1,
+          "x": 0,
+          "y": 0
+        },
+        "commands": [
+          {
+            "op": "shadow",
+            "slug": "robin",
+            "cx": 960.67,
+            "cy": 967.52,
+            "rx": 36,
+            "ry": 7.2,
+            "opacity": 0.34
+          },
+          {
+            "op": "sprite",
+            "slug": "robin",
+            "url": "fairytale-assets/mobile/sprites/bfd90fe8c99d53be771817cd47ae8463.webp",
+            "cell": [
+              0,
+              0
+            ],
+            "cells": [
+              7,
+              7
+            ],
+            "dx": 900.67,
+            "dy": 847.52,
+            "dw": 120,
+            "dh": 120,
+            "opacity": 1
+          }
+        ]
+      }
+    },
+    {
+      "t_ms": 9157,
+      "list": {
+        "width": 1920,
+        "height": 1080,
+        "camera": {
+          "scale": 1,
+          "x": 0,
+          "y": 0
+        },
+        "commands": [
+          {
+            "op": "shadow",
+            "slug": "robin",
+            "cx": 878.11,
+            "cy": 987.18,
+            "rx": 36,
+            "ry": 7.2,
+            "opacity": 0.34
+          },
+          {
+            "op": "sprite",
+            "slug": "robin",
+            "url": "fairytale-assets/mobile/sprites/bfd90fe8c99d53be771817cd47ae8463.webp",
+            "cell": [
+              0,
+              0
+            ],
+            "cells": [
+              7,
+              7
+            ],
+            "dx": 818.11,
+            "dy": 867.18,
+            "dw": 120,
+            "dh": 120,
+            "opacity": 1
+          }
+        ]
+      }
+    },
+    {
+      "t_ms": 11572,
+      "list": {
+        "width": 1920,
+        "height": 1080,
+        "camera": {
+          "scale": 1,
+          "x": 0,
+          "y": 0
+        },
+        "commands": [
+          {
+            "op": "shadow",
+            "slug": "robin",
+            "cx": 878.11,
+            "cy": 987.18,
+            "rx": 36,
+            "ry": 7.2,
+            "opacity": 0.34
+          },
+          {
+            "op": "sprite",
+            "slug": "robin",
+            "url": "fairytale-assets/mobile/sprites/bfd90fe8c99d53be771817cd47ae8463.webp",
+            "cell": [
+              2,
+              1
+            ],
+            "cells": [
+              7,
+              7
+            ],
+            "dx": 818.11,
+            "dy": 867.18,
+            "dw": 120,
+            "dh": 120,
+            "opacity": 1
+          }
+        ]
+      }
+    }
+  ]
+}

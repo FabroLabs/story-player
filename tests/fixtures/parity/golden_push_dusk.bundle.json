@@ -1,0 +1,1273 @@
+{
+  "audio": {
+    "bgm": {},
+    "sfx": {}
+  },
+  "cast": {
+    "robin": {
+      "capability": {
+        "angry": {
+          "left": "angry_left",
+          "right": "angry_right"
+        },
+        "fly": {
+          "left": "fly_left",
+          "right": "fly_right"
+        },
+        "happy": {
+          "camera": "happy",
+          "left": "happy_left"
+        },
+        "idle": {
+          "left": "idle_left",
+          "right": "idle_right"
+        },
+        "pet_reaction": {
+          "camera": "pet_reaction",
+          "left": "pet_reaction_left"
+        },
+        "sad": {
+          "camera": "sad",
+          "left": "sad_left"
+        },
+        "scared": {
+          "left": "scared_left",
+          "right": "scared_right"
+        },
+        "sleep": {
+          "camera": "sleep"
+        },
+        "surprised": {
+          "left": "surprised_left",
+          "right": "surprised_right"
+        },
+        "worried": {
+          "left": "worried_left",
+          "right": "worried_right"
+        }
+      },
+      "clips": {
+        "angry_left": {
+          "atlas": "fairytale-assets/sprites/animals/birds/robin/angry_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 12,
+          "frames": 48,
+          "grid": [
+            48,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/8294337065267cc3a69e2aa4cf692842.webp",
+            "320": "fairytale-assets/mobile/sprites/56ee5bf78b6155903d74eeca6d431c51.webp",
+            "384": "fairytale-assets/mobile/sprites/c4dbb8383a0549c3877cb248ce576ce5.webp",
+            "512": "fairytale-assets/mobile/sprites/9f924678901ed732d2066a70b0192640.webp"
+          },
+          "slug": "angry_left",
+          "spritesheet": "fairytale-assets/sprites/animals/birds/robin/angry_left/spritesheet.png",
+          "variant": null,
+          "verb": "angry"
+        },
+        "angry_right": {
+          "atlas": "fairytale-assets/sprites/animals/birds/robin/angry_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 24,
+          "frames": 48,
+          "grid": [
+            48,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/2d539b82962d4142066c070ccea5770b.webp",
+            "320": "fairytale-assets/mobile/sprites/8081ba1b5565d75f8f17670f2e259244.webp",
+            "384": "fairytale-assets/mobile/sprites/086fdfc5fb17f98785d02e9a80a5225f.webp",
+            "512": "fairytale-assets/mobile/sprites/feb16fc4965ea93213043a65ce3d1cd1.webp"
+          },
+          "slug": "angry_right",
+          "spritesheet": "fairytale-assets/sprites/animals/birds/robin/angry_right/spritesheet.png",
+          "variant": null,
+          "verb": "angry"
+        },
+        "fly_left": {
+          "atlas": "fairytale-assets/sprites/animals/birds/robin/fly_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 24,
+          "frames": 48,
+          "grid": [
+            48,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/b2e5f4a6705a2d5dc7fe7b1c12ce83cb.webp",
+            "320": "fairytale-assets/mobile/sprites/f00cc2c45e16c2dd83a2ab99faa892a9.webp",
+            "384": "fairytale-assets/mobile/sprites/65d31b49899e54bc417c1a2072e4a9fc.webp",
+            "512": "fairytale-assets/mobile/sprites/a20a0393dec3e372f8ee9946d33d4821.webp"
+          },
+          "slug": "fly_left",
+          "spritesheet": "fairytale-assets/sprites/animals/birds/robin/fly_left/spritesheet.png",
+          "variant": null,
+          "verb": "fly"
+        },
+        "fly_right": {
+          "atlas": "fairytale-assets/sprites/animals/birds/robin/fly_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 24,
+          "frames": 48,
+          "grid": [
+            48,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/0f5afa0dc88dbfc0ae08af57fd5da5bd.webp",
+            "320": "fairytale-assets/mobile/sprites/54a351d3f3b67ea628a7bcea3939bb04.webp",
+            "384": "fairytale-assets/mobile/sprites/318aac60c0a198f144984c118b5616d4.webp",
+            "512": "fairytale-assets/mobile/sprites/67e504394c998cfafa0e198bbd6db318.webp"
+          },
+          "slug": "fly_right",
+          "spritesheet": "fairytale-assets/sprites/animals/birds/robin/fly_right/spritesheet.png",
+          "variant": null,
+          "verb": "fly"
+        },
+        "happy": {
+          "atlas": "fairytale-assets/sprites/animals/birds/robin/happy/atlas.json",
+          "direction": null,
+          "facing": "camera",
+          "fps": 12,
+          "frames": 48,
+          "grid": [
+            48,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/72500fde52969d6556e2893d0fea5544.webp",
+            "320": "fairytale-assets/mobile/sprites/43abb9ea1f028701e7ea43fe0e3b8f44.webp",
+            "384": "fairytale-assets/mobile/sprites/44d28ae73889bb7e2f27c572979d8761.webp",
+            "512": "fairytale-assets/mobile/sprites/26d24b599e84fae209cfd61913dd602a.webp"
+          },
+          "slug": "happy",
+          "spritesheet": "fairytale-assets/sprites/animals/birds/robin/happy/spritesheet.png",
+          "variant": null,
+          "verb": "happy"
+        },
+        "happy_left": {
+          "atlas": "fairytale-assets/sprites/animals/birds/robin/happy_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 24,
+          "frames": 48,
+          "grid": [
+            48,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/02408b414bd196266d062469da69184b.webp",
+            "320": "fairytale-assets/mobile/sprites/8376ee6b8ab1f3df9deda940275e468b.webp",
+            "384": "fairytale-assets/mobile/sprites/e1412c43bfe032bb18b831f3a633a414.webp",
+            "512": "fairytale-assets/mobile/sprites/a08ca0d4257b5e936c2dc0b8fae14664.webp"
+          },
+          "slug": "happy_left",
+          "spritesheet": "fairytale-assets/sprites/animals/birds/robin/happy_left/spritesheet.png",
+          "variant": null,
+          "verb": "happy"
+        },
+        "idle_left": {
+          "atlas": "fairytale-assets/sprites/animals/birds/robin/idle_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 24,
+          "frames": 48,
+          "grid": [
+            48,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/96b9e1f90aa4404036fbd6d0d42bfa56.webp",
+            "320": "fairytale-assets/mobile/sprites/0f2c54f81e017a963ef9a7277cb0f25e.webp",
+            "384": "fairytale-assets/mobile/sprites/1c9dc06e64055010d3d7cf918714064a.webp",
+            "512": "fairytale-assets/mobile/sprites/2b7ae5a0dfeb96b90862e19b20b90170.webp"
+          },
+          "slug": "idle_left",
+          "spritesheet": "fairytale-assets/sprites/animals/birds/robin/idle_left/spritesheet.png",
+          "variant": null,
+          "verb": "idle"
+        },
+        "idle_right": {
+          "atlas": "fairytale-assets/sprites/animals/birds/robin/idle_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 24,
+          "frames": 48,
+          "grid": [
+            48,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/bfd90fe8c99d53be771817cd47ae8463.webp",
+            "320": "fairytale-assets/mobile/sprites/bde019634445e95c5d9bc7679bf1bd8b.webp",
+            "384": "fairytale-assets/mobile/sprites/5e7fc28fe73af5d90e29149555496de3.webp",
+            "512": "fairytale-assets/mobile/sprites/51015bee885dfdd38264e45328714cd1.webp"
+          },
+          "slug": "idle_right",
+          "spritesheet": "fairytale-assets/sprites/animals/birds/robin/idle_right/spritesheet.png",
+          "variant": null,
+          "verb": "idle"
+        },
+        "pet_reaction": {
+          "atlas": "fairytale-assets/sprites/animals/birds/robin/pet_reaction/atlas.json",
+          "direction": null,
+          "facing": "camera",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/11d7e5eebe46bde4aff16aaff0e8b306.webp",
+            "320": "fairytale-assets/mobile/sprites/6bf615975a2b4b440199712b78a2ccbe.webp",
+            "384": "fairytale-assets/mobile/sprites/e8b2861bed089cca430c61dda1ae7be8.webp",
+            "512": "fairytale-assets/mobile/sprites/72d61ca09a10236cbcdef4fabf040d77.webp"
+          },
+          "slug": "pet_reaction",
+          "spritesheet": "fairytale-assets/sprites/animals/birds/robin/pet_reaction/spritesheet.png",
+          "variant": null,
+          "verb": "pet_reaction"
+        },
+        "pet_reaction_left": {
+          "atlas": "fairytale-assets/sprites/animals/birds/robin/pet_reaction_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/65b68aa8a943f6786396be6fb3f00de1.webp",
+            "320": "fairytale-assets/mobile/sprites/5fff52e26904543b4737eba7d5f8c76e.webp",
+            "384": "fairytale-assets/mobile/sprites/08348ea5b169c01e9bef4e1bd9ce1388.webp",
+            "512": "fairytale-assets/mobile/sprites/c79ead043493f5b47bebd7d37f309764.webp"
+          },
+          "slug": "pet_reaction_left",
+          "spritesheet": "fairytale-assets/sprites/animals/birds/robin/pet_reaction_left/spritesheet.png",
+          "variant": null,
+          "verb": "pet_reaction"
+        },
+        "sad": {
+          "atlas": "fairytale-assets/sprites/animals/birds/robin/sad/atlas.json",
+          "direction": null,
+          "facing": "camera",
+          "fps": 12,
+          "frames": 48,
+          "grid": [
+            48,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/d5c08a4df39036a9a8f806b7a1a7edcc.webp",
+            "320": "fairytale-assets/mobile/sprites/602c0a4513425dbb408195bf5cafb2d2.webp",
+            "384": "fairytale-assets/mobile/sprites/9f62a6567e5b67396c6c01be5f3b21d6.webp",
+            "512": "fairytale-assets/mobile/sprites/6c7a749dbf1089e8d00de838730de626.webp"
+          },
+          "slug": "sad",
+          "spritesheet": "fairytale-assets/sprites/animals/birds/robin/sad/spritesheet.png",
+          "variant": null,
+          "verb": "sad"
+        },
+        "sad_left": {
+          "atlas": "fairytale-assets/sprites/animals/birds/robin/sad_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 24,
+          "frames": 48,
+          "grid": [
+            48,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/c45053e7dd7468c184aaf31f7018110c.webp",
+            "320": "fairytale-assets/mobile/sprites/47250d78b935db1367b46592488285c4.webp",
+            "384": "fairytale-assets/mobile/sprites/8f8b9db7e62f607ffa58a922a43af5f3.webp",
+            "512": "fairytale-assets/mobile/sprites/f59e99fe572bd33529d89319ad32ff1f.webp"
+          },
+          "slug": "sad_left",
+          "spritesheet": "fairytale-assets/sprites/animals/birds/robin/sad_left/spritesheet.png",
+          "variant": null,
+          "verb": "sad"
+        },
+        "scared_left": {
+          "atlas": "fairytale-assets/sprites/animals/birds/robin/scared_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 12,
+          "frames": 48,
+          "grid": [
+            48,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/39d19eddd813393cde97921b6d604610.webp",
+            "320": "fairytale-assets/mobile/sprites/7e4b2a10b796c7a8c0ddc1df9d11b16d.webp",
+            "384": "fairytale-assets/mobile/sprites/efed1d42d5cde1042bf9700ed4e685b4.webp",
+            "512": "fairytale-assets/mobile/sprites/a9f10e6a400d6d63c9fcc2c41af35bbc.webp"
+          },
+          "slug": "scared_left",
+          "spritesheet": "fairytale-assets/sprites/animals/birds/robin/scared_left/spritesheet.png",
+          "variant": null,
+          "verb": "scared"
+        },
+        "scared_right": {
+          "atlas": "fairytale-assets/sprites/animals/birds/robin/scared_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 24,
+          "frames": 48,
+          "grid": [
+            48,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/9a399df80e299f4e80004c5d0d999740.webp",
+            "320": "fairytale-assets/mobile/sprites/23c228dc191d2297cef46511df1ceda5.webp",
+            "384": "fairytale-assets/mobile/sprites/37dd1a64d658133ee67ef368b46dc876.webp",
+            "512": "fairytale-assets/mobile/sprites/1eef94599b60106220e743232d5d01fe.webp"
+          },
+          "slug": "scared_right",
+          "spritesheet": "fairytale-assets/sprites/animals/birds/robin/scared_right/spritesheet.png",
+          "variant": null,
+          "verb": "scared"
+        },
+        "sleep": {
+          "atlas": "fairytale-assets/sprites/animals/birds/robin/sleep/atlas.json",
+          "direction": null,
+          "facing": "camera",
+          "fps": 16,
+          "frames": 53,
+          "grid": [
+            53,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/214ef73241d716a4a24597720dd81362.webp",
+            "320": "fairytale-assets/mobile/sprites/e34452bda840a2ade3152b95faa8b07e.webp",
+            "384": "fairytale-assets/mobile/sprites/c785fbcd3c2a29fdfe7af3ff5f74f2eb.webp",
+            "512": "fairytale-assets/mobile/sprites/97f5044c3d9321ae4de84b601d50f83a.webp"
+          },
+          "slug": "sleep",
+          "spritesheet": "fairytale-assets/sprites/animals/birds/robin/sleep/spritesheet.png",
+          "variant": null,
+          "verb": "sleep"
+        },
+        "surprised_left": {
+          "atlas": "fairytale-assets/sprites/animals/birds/robin/surprised_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 24,
+          "frames": 48,
+          "grid": [
+            48,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/dd367863eb62eeb2d982569333f12bac.webp",
+            "320": "fairytale-assets/mobile/sprites/fe1232dac4b1be3c4f6e8a2c288946f9.webp",
+            "384": "fairytale-assets/mobile/sprites/d2fe5e2a0e47403b164154b435193c0c.webp",
+            "512": "fairytale-assets/mobile/sprites/2bca8fa755ddb336e220f2d452f3746a.webp"
+          },
+          "slug": "surprised_left",
+          "spritesheet": "fairytale-assets/sprites/animals/birds/robin/surprised_left/spritesheet.png",
+          "variant": null,
+          "verb": "surprised"
+        },
+        "surprised_right": {
+          "atlas": "fairytale-assets/sprites/animals/birds/robin/surprised_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 24,
+          "frames": 48,
+          "grid": [
+            48,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/41fe258903c5ac1b98747875dcaedb07.webp",
+            "320": "fairytale-assets/mobile/sprites/99b7f36f27ccb8614cdb69061ffba88c.webp",
+            "384": "fairytale-assets/mobile/sprites/4232d3dd4051f20b8ae528d08542d9d6.webp",
+            "512": "fairytale-assets/mobile/sprites/fcd33b51425c72d9b09802db148df567.webp"
+          },
+          "slug": "surprised_right",
+          "spritesheet": "fairytale-assets/sprites/animals/birds/robin/surprised_right/spritesheet.png",
+          "variant": null,
+          "verb": "surprised"
+        },
+        "worried_left": {
+          "atlas": "fairytale-assets/sprites/animals/birds/robin/worried_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 24,
+          "frames": 48,
+          "grid": [
+            48,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/f4ee5c39297075cd89b0698f055ae806.webp",
+            "320": "fairytale-assets/mobile/sprites/0e4193eff14ba7eb6a13b77c16c72d9a.webp",
+            "384": "fairytale-assets/mobile/sprites/cfb8b4d65fa46b342b7c4b5eaf91c279.webp",
+            "512": "fairytale-assets/mobile/sprites/5ce5328498b207a196dfb9be3dbd454e.webp"
+          },
+          "slug": "worried_left",
+          "spritesheet": "fairytale-assets/sprites/animals/birds/robin/worried_left/spritesheet.png",
+          "variant": null,
+          "verb": "worried"
+        },
+        "worried_right": {
+          "atlas": "fairytale-assets/sprites/animals/birds/robin/worried_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 24,
+          "frames": 48,
+          "grid": [
+            48,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/5a2abdc84788b9f888f1dadb1e6ed242.webp",
+            "320": "fairytale-assets/mobile/sprites/d66903228c673059fef060f9b54f3ac5.webp",
+            "384": "fairytale-assets/mobile/sprites/6a2bbd10661388ba600a4ea64df2319f.webp",
+            "512": "fairytale-assets/mobile/sprites/b31d4a687052ee1e61e98c48ead661e5.webp"
+          },
+          "slug": "worried_right",
+          "spritesheet": "fairytale-assets/sprites/animals/birds/robin/worried_right/spritesheet.png",
+          "variant": null,
+          "verb": "worried"
+        }
+      },
+      "display_name": "Ruby",
+      "height_cm": 12
+    }
+  },
+  "objects": {},
+  "scenes": [
+    {
+      "line": 8,
+      "place": "forest_clearing",
+      "plate": {
+        "default_zone": "foreground",
+        "poster": "fairytale-assets/live_backgrounds_posters/forest_clearing_live.jpg",
+        "resolution": [
+          1920,
+          1080
+        ],
+        "video": "fairytale-assets/live_backgrounds/forest/forest_clearing_live.mp4",
+        "zones": [
+          {
+            "depth": 1,
+            "description": "foreground - the open grass closest to the viewer. Where you can put main characters.",
+            "name": "foreground",
+            "polygon": [
+              [
+                20.3,
+                99.21
+              ],
+              [
+                71.84,
+                99.07
+              ],
+              [
+                71.78,
+                89.18
+              ],
+              [
+                21.11,
+                88.59
+              ],
+              [
+                20.77,
+                98.93
+              ]
+            ],
+            "scale": 1.0,
+            "surface": "floor"
+          },
+          {
+            "depth": 2,
+            "description": "midground - the grass further back, toward the tree line. Further from the viewer than the foreground.",
+            "name": "midground",
+            "polygon": [
+              [
+                20.63,
+                81.37
+              ],
+              [
+                20.89,
+                88.03
+              ],
+              [
+                76.46,
+                88.49
+              ],
+              [
+                75.85,
+                82.91
+              ],
+              [
+                20.58,
+                80.95
+              ]
+            ],
+            "scale": 0.7,
+            "surface": "floor"
+          },
+          {
+            "depth": null,
+            "description": "Sky / upper area.",
+            "name": "sky",
+            "polygon": [
+              [
+                0.0,
+                0.0
+              ],
+              [
+                100.0,
+                0.0
+              ],
+              [
+                100.0,
+                58.0
+              ],
+              [
+                0.0,
+                58.0
+              ]
+            ],
+            "scale": null,
+            "surface": "sky"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "beside": null,
+          "cmd": "put",
+          "facing": null,
+          "kind": "cmd",
+          "line": 9,
+          "objects": [],
+          "position": "center",
+          "subjects": [
+            "robin"
+          ],
+          "zone": null
+        },
+        {
+          "audio": "parity-jobs/parity/audio/12480a447e351492e634d163bb45facbf95288a9a5552a766b09e3d38c44b619.wav",
+          "duration_s": 1.611,
+          "kind": "chunk",
+          "line": 11,
+          "text": "The clearing glowed gold."
+        },
+        {
+          "cmd": "push_in",
+          "kind": "cmd",
+          "line": 12,
+          "speed": "slow",
+          "subjects": [],
+          "target": "left_edge"
+        },
+        {
+          "audio": "parity-jobs/parity/audio/947e1be76f24c30d779a6702a07209ac76a34927df9fc3d73f737034eb5253f0.wav",
+          "duration_s": 2.416,
+          "kind": "chunk",
+          "line": 13,
+          "text": "Beyond it, the fern tunnel waited."
+        },
+        {
+          "cmd": "pull_out",
+          "kind": "cmd",
+          "line": 14,
+          "speed": "slow",
+          "subjects": []
+        },
+        {
+          "audio": "parity-jobs/parity/audio/d6fca59a336d6e9043adc211428b6fa91c2388d67f492eaca7488e733ce172a2.wav",
+          "duration_s": 3.221,
+          "kind": "chunk",
+          "line": 15,
+          "text": "The gold faded softly across the whole clearing."
+        },
+        {
+          "cmd": "travel",
+          "destination": "forest_fern_tunnel",
+          "exit_anchor_pct": [
+            46.8,
+            97.1
+          ],
+          "kind": "cmd",
+          "line": 17,
+          "subjects": [
+            "robin"
+          ]
+        }
+      ],
+      "time": "day"
+    },
+    {
+      "line": 18,
+      "place": "forest_fern_tunnel",
+      "plate": {
+        "default_zone": "foreground_road",
+        "poster": "fairytale-assets/live_backgrounds_posters/forest_fern_tunnel_live.jpg",
+        "resolution": [
+          1920,
+          1080
+        ],
+        "video": "fairytale-assets/live_backgrounds/forest/forest_fern_tunnel_live.mp4",
+        "zones": [
+          {
+            "depth": 1,
+            "description": "foreground - the open road closest to the viewer. Where you can put main characters",
+            "name": "foreground_road",
+            "polygon": [
+              [
+                0.34,
+                80.42
+              ],
+              [
+                99.69,
+                79.34
+              ],
+              [
+                99.73,
+                99.29
+              ],
+              [
+                0.45,
+                99.29
+              ],
+              [
+                0.39,
+                80.47
+              ]
+            ],
+            "scale": 1.0,
+            "surface": "floor"
+          },
+          {
+            "depth": 2,
+            "description": "midground - the road further back. Further from the viewer than the foreground.",
+            "name": "midground_road",
+            "polygon": [
+              [
+                1.45,
+                80.06
+              ],
+              [
+                37.2,
+                71.85
+              ],
+              [
+                68.99,
+                69.94
+              ],
+              [
+                98.96,
+                78.07
+              ],
+              [
+                1.67,
+                80.19
+              ]
+            ],
+            "scale": 0.7,
+            "surface": "floor"
+          },
+          {
+            "depth": 3,
+            "description": "background - 3nd closest area to the user, furthest road. (Only use walk animals)",
+            "name": "background_road",
+            "polygon": [
+              [
+                34.49,
+                68.16
+              ],
+              [
+                39.91,
+                71.06
+              ],
+              [
+                63.06,
+                69.75
+              ],
+              [
+                55.09,
+                65.7
+              ],
+              [
+                49.76,
+                65.03
+              ],
+              [
+                41.66,
+                64.61
+              ],
+              [
+                35.04,
+                68.23
+              ]
+            ],
+            "scale": 0.3,
+            "surface": "floor"
+          },
+          {
+            "depth": null,
+            "description": "Sky / upper area.",
+            "name": "sky",
+            "polygon": [
+              [
+                0.0,
+                0.0
+              ],
+              [
+                100.0,
+                0.0
+              ],
+              [
+                100.0,
+                58.0
+              ],
+              [
+                0.0,
+                58.0
+              ]
+            ],
+            "scale": null,
+            "surface": "sky"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "audio": "parity-jobs/parity/audio/9fbe824b892711ed4042df9b1d80a04c00f6829fb056dddaabbbbe859474d260.wav",
+          "duration_s": 1.208,
+          "kind": "chunk",
+          "line": 20,
+          "text": "Green arches overhead."
+        },
+        {
+          "cmd": "travel",
+          "destination": "forest_glow",
+          "exit_anchor_pct": [
+            50,
+            94
+          ],
+          "kind": "cmd",
+          "line": 22,
+          "subjects": [
+            "robin"
+          ]
+        }
+      ],
+      "time": "day"
+    },
+    {
+      "line": 23,
+      "place": "forest_glow",
+      "plate": {
+        "default_zone": "zone",
+        "poster": "fairytale-assets/live_backgrounds_posters/forest_glow_live.jpg",
+        "resolution": [
+          1920,
+          1080
+        ],
+        "video": "fairytale-assets/live_backgrounds/forest/forest_glow_live.mp4",
+        "zones": [
+          {
+            "depth": null,
+            "description": "Sky / upper area.",
+            "name": "sky",
+            "polygon": [
+              [
+                0.0,
+                0.0
+              ],
+              [
+                100.0,
+                0.0
+              ],
+              [
+                100.0,
+                58.0
+              ],
+              [
+                0.0,
+                58.0
+              ]
+            ],
+            "scale": null,
+            "surface": "sky"
+          },
+          {
+            "depth": null,
+            "description": "",
+            "name": "zone",
+            "polygon": [
+              [
+                6.53,
+                83.13
+              ],
+              [
+                7.88,
+                82.36
+              ],
+              [
+                9.44,
+                82.17
+              ],
+              [
+                10.96,
+                82.17
+              ],
+              [
+                12.47,
+                82.27
+              ],
+              [
+                13.98,
+                82.36
+              ],
+              [
+                15.7,
+                82.36
+              ],
+              [
+                17.27,
+                82.36
+              ],
+              [
+                18.94,
+                82.36
+              ],
+              [
+                20.72,
+                82.56
+              ],
+              [
+                22.4,
+                82.56
+              ],
+              [
+                24.12,
+                82.56
+              ],
+              [
+                25.9,
+                82.65
+              ],
+              [
+                27.52,
+                82.65
+              ],
+              [
+                29.2,
+                82.65
+              ],
+              [
+                30.92,
+                82.65
+              ],
+              [
+                32.49,
+                82.65
+              ],
+              [
+                34.05,
+                82.65
+              ],
+              [
+                35.62,
+                82.65
+              ],
+              [
+                37.24,
+                82.65
+              ],
+              [
+                39.02,
+                82.65
+              ],
+              [
+                40.58,
+                82.56
+              ],
+              [
+                42.15,
+                82.56
+              ],
+              [
+                44.04,
+                82.56
+              ],
+              [
+                45.93,
+                82.84
+              ],
+              [
+                47.81,
+                82.84
+              ],
+              [
+                49.38,
+                82.84
+              ],
+              [
+                51.75,
+                82.84
+              ],
+              [
+                54.24,
+                82.84
+              ],
+              [
+                55.96,
+                82.84
+              ],
+              [
+                57.64,
+                82.75
+              ],
+              [
+                59.26,
+                82.94
+              ],
+              [
+                61.04,
+                82.94
+              ],
+              [
+                62.87,
+                83.04
+              ],
+              [
+                64.71,
+                83.04
+              ],
+              [
+                66.38,
+                83.04
+              ],
+              [
+                68.32,
+                83.04
+              ],
+              [
+                69.89,
+                83.04
+              ],
+              [
+                71.4,
+                83.04
+              ],
+              [
+                73.12,
+                83.04
+              ],
+              [
+                74.74,
+                83.04
+              ],
+              [
+                76.36,
+                83.04
+              ],
+              [
+                77.93,
+                82.65
+              ],
+              [
+                79.55,
+                82.56
+              ],
+              [
+                81.06,
+                82.17
+              ],
+              [
+                82.62,
+                81.98
+              ],
+              [
+                84.13,
+                81.98
+              ],
+              [
+                85.11,
+                83.23
+              ],
+              [
+                85.16,
+                84.86
+              ],
+              [
+                84.73,
+                86.49
+              ],
+              [
+                84.35,
+                88.12
+              ],
+              [
+                83.86,
+                89.75
+              ],
+              [
+                83.05,
+                91.38
+              ],
+              [
+                82.3,
+                92.82
+              ],
+              [
+                82.08,
+                94.45
+              ],
+              [
+                82.08,
+                96.28
+              ],
+              [
+                82.08,
+                97.91
+              ],
+              [
+                82.08,
+                99.54
+              ],
+              [
+                80.57,
+                100.0
+              ],
+              [
+                79.06,
+                100.0
+              ],
+              [
+                77.39,
+                100.0
+              ],
+              [
+                75.5,
+                100.0
+              ],
+              [
+                73.56,
+                100.0
+              ],
+              [
+                71.07,
+                100.0
+              ],
+              [
+                69.24,
+                100.0
+              ],
+              [
+                67.03,
+                100.0
+              ],
+              [
+                65.46,
+                100.0
+              ],
+              [
+                63.41,
+                100.0
+              ],
+              [
+                61.25,
+                100.0
+              ],
+              [
+                58.99,
+                100.0
+              ],
+              [
+                57.2,
+                100.0
+              ],
+              [
+                55.69,
+                100.0
+              ],
+              [
+                53.97,
+                100.0
+              ],
+              [
+                52.02,
+                100.0
+              ],
+              [
+                49.97,
+                100.0
+              ],
+              [
+                47.98,
+                100.0
+              ],
+              [
+                46.36,
+                100.0
+              ],
+              [
+                44.79,
+                100.0
+              ],
+              [
+                42.74,
+                100.0
+              ],
+              [
+                40.91,
+                100.0
+              ],
+              [
+                38.75,
+                100.0
+              ],
+              [
+                36.75,
+                100.0
+              ],
+              [
+                35.19,
+                100.0
+              ],
+              [
+                33.46,
+                100.0
+              ],
+              [
+                31.95,
+                100.0
+              ],
+              [
+                30.17,
+                100.0
+              ],
+              [
+                28.39,
+                100.0
+              ],
+              [
+                26.39,
+                100.0
+              ],
+              [
+                24.39,
+                100.0
+              ],
+              [
+                22.61,
+                100.0
+              ],
+              [
+                21.1,
+                100.0
+              ],
+              [
+                19.59,
+                100.0
+              ],
+              [
+                17.81,
+                100.0
+              ],
+              [
+                16.14,
+                100.0
+              ],
+              [
+                14.57,
+                100.0
+              ],
+              [
+                13.06,
+                100.0
+              ],
+              [
+                11.55,
+                100.0
+              ],
+              [
+                10.04,
+                100.0
+              ],
+              [
+                8.8,
+                98.58
+              ],
+              [
+                7.93,
+                96.56
+              ],
+              [
+                7.45,
+                95.03
+              ],
+              [
+                7.18,
+                93.11
+              ],
+              [
+                7.02,
+                91.38
+              ],
+              [
+                6.96,
+                89.85
+              ],
+              [
+                6.96,
+                88.31
+              ],
+              [
+                6.75,
+                86.78
+              ],
+              [
+                6.58,
+                85.24
+              ],
+              [
+                6.31,
+                83.71
+              ]
+            ],
+            "scale": null,
+            "surface": "floor"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "audio": "parity-jobs/parity/audio/f3b9b78714ce03eeb9c71197397c88f646f0187228334d2f9157c78aada37971.wav",
+          "duration_s": 2.416,
+          "kind": "chunk",
+          "line": 25,
+          "text": "And the dim began to glow."
+        }
+      ],
+      "time": "dusk"
+    }
+  ],
+  "source": "story_examples/golden_push_dusk.story",
+  "storylang_version": 0,
+  "title": "Golden: push and dusk",
+  "world": "forest"
+}

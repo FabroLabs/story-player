@@ -1,0 +1,393 @@
+{
+  "duration_ms": 11572,
+  "events": [
+    {
+      "line": 8,
+      "op": "scene",
+      "place": "forest_clearing",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 0
+    },
+    {
+      "cmd": "put",
+      "detail": {
+        "beside": null,
+        "facing": null,
+        "objects": [],
+        "position": "center",
+        "subjects": [
+          "robin"
+        ],
+        "zone": null
+      },
+      "kind": "cmd",
+      "line": 9,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 0
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "right",
+        "slug": "robin",
+        "verb": "idle"
+      },
+      "kind": "warning",
+      "line": 9,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 0
+    },
+    {
+      "clip": "idle_right",
+      "line": 9,
+      "op": "place",
+      "scene_index": 0,
+      "slug": "robin",
+      "source": "stage",
+      "t_ms": 0,
+      "x": 46.07000000000001
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/12480a447e351492e634d163bb45facbf95288a9a5552a766b09e3d38c44b619.wav",
+        "duration_s": 1.611,
+        "text": "The clearing glowed gold."
+      },
+      "kind": "chunk",
+      "line": 11,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 0
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 0,
+      "text": "The clearing glowed gold."
+    },
+    {
+      "cmd": "push_in",
+      "detail": {
+        "speed": "slow",
+        "subjects": [],
+        "target": "left_edge"
+      },
+      "kind": "cmd",
+      "line": 12,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 1611
+    },
+    {
+      "line": null,
+      "op": "push_in",
+      "scene_index": 0,
+      "source": "stage",
+      "speed": "slow",
+      "t_ms": 1611,
+      "x": 25.454,
+      "y": 93.91829070455891
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/947e1be76f24c30d779a6702a07209ac76a34927df9fc3d73f737034eb5253f0.wav",
+        "duration_s": 2.416,
+        "text": "Beyond it, the fern tunnel waited."
+      },
+      "kind": "chunk",
+      "line": 13,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 1611
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 1611,
+      "text": "Beyond it, the fern tunnel waited."
+    },
+    {
+      "cmd": "pull_out",
+      "detail": {
+        "speed": "slow",
+        "subjects": []
+      },
+      "kind": "cmd",
+      "line": 14,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 4027
+    },
+    {
+      "line": null,
+      "op": "pull_out",
+      "scene_index": 0,
+      "source": "stage",
+      "speed": "slow",
+      "t_ms": 4027
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/d6fca59a336d6e9043adc211428b6fa91c2388d67f492eaca7488e733ce172a2.wav",
+        "duration_s": 3.221,
+        "text": "The gold faded softly across the whole clearing."
+      },
+      "kind": "chunk",
+      "line": 15,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 4027
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 4027,
+      "text": "The gold faded softly across the whole clearing."
+    },
+    {
+      "cmd": "travel",
+      "detail": {
+        "destination": "forest_fern_tunnel",
+        "exit_anchor_pct": [
+          46.8,
+          97.1
+        ],
+        "subjects": [
+          "robin"
+        ]
+      },
+      "kind": "cmd",
+      "line": 17,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 7248
+    },
+    {
+      "clip": "fly_right",
+      "duration_ms": 350,
+      "line": 17,
+      "op": "depart",
+      "scene_index": 0,
+      "slug": "robin",
+      "source": "stage",
+      "t_ms": 7248,
+      "x": 46.8,
+      "y": 97.1
+    },
+    {
+      "line": 17,
+      "op": "exit",
+      "scene_index": 0,
+      "slug": "robin",
+      "source": "stage",
+      "t_ms": 7598
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 7598,
+      "text": ""
+    },
+    {
+      "line": null,
+      "op": "camera_reset",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 7598
+    },
+    {
+      "line": 18,
+      "op": "scene",
+      "place": "forest_fern_tunnel",
+      "scene_index": 1,
+      "source": "stage",
+      "t_ms": 7598
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "right",
+        "slug": "robin",
+        "verb": "idle"
+      },
+      "kind": "warning",
+      "line": 18,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 7598
+    },
+    {
+      "clip": "idle_right",
+      "line": 18,
+      "op": "place",
+      "scene_index": 1,
+      "slug": "robin",
+      "source": "stage",
+      "t_ms": 7598,
+      "x": 50.035000000000004
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/9fbe824b892711ed4042df9b1d80a04c00f6829fb056dddaabbbbe859474d260.wav",
+        "duration_s": 1.208,
+        "text": "Green arches overhead."
+      },
+      "kind": "chunk",
+      "line": 20,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 7598
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 1,
+      "source": "stage",
+      "t_ms": 7598,
+      "text": "Green arches overhead."
+    },
+    {
+      "cmd": "travel",
+      "detail": {
+        "destination": "forest_glow",
+        "exit_anchor_pct": [
+          50,
+          94
+        ],
+        "subjects": [
+          "robin"
+        ]
+      },
+      "kind": "cmd",
+      "line": 22,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 8806
+    },
+    {
+      "clip": "fly_left",
+      "duration_ms": 350,
+      "line": 22,
+      "op": "depart",
+      "scene_index": 1,
+      "slug": "robin",
+      "source": "stage",
+      "t_ms": 8806,
+      "x": 50,
+      "y": 94
+    },
+    {
+      "line": 22,
+      "op": "exit",
+      "scene_index": 1,
+      "slug": "robin",
+      "source": "stage",
+      "t_ms": 9156
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 1,
+      "source": "stage",
+      "t_ms": 9156,
+      "text": ""
+    },
+    {
+      "line": null,
+      "op": "camera_reset",
+      "scene_index": 1,
+      "source": "stage",
+      "t_ms": 9156
+    },
+    {
+      "line": 23,
+      "op": "scene",
+      "place": "forest_glow",
+      "scene_index": 2,
+      "source": "stage",
+      "t_ms": 9156
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "right",
+        "slug": "robin",
+        "verb": "idle"
+      },
+      "kind": "warning",
+      "line": 23,
+      "scene_index": 2,
+      "source": "step",
+      "t_ms": 9156
+    },
+    {
+      "clip": "idle_right",
+      "line": 23,
+      "op": "place",
+      "scene_index": 2,
+      "slug": "robin",
+      "source": "stage",
+      "t_ms": 9156,
+      "x": 45.735
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/f3b9b78714ce03eeb9c71197397c88f646f0187228334d2f9157c78aada37971.wav",
+        "duration_s": 2.416,
+        "text": "And the dim began to glow."
+      },
+      "kind": "chunk",
+      "line": 25,
+      "scene_index": 2,
+      "source": "step",
+      "t_ms": 9156
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 2,
+      "source": "stage",
+      "t_ms": 9156,
+      "text": "And the dim began to glow."
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 2,
+      "source": "stage",
+      "t_ms": 11572,
+      "text": ""
+    },
+    {
+      "line": null,
+      "op": "camera_reset",
+      "scene_index": 2,
+      "source": "stage",
+      "t_ms": 11572
+    },
+    {
+      "line": null,
+      "op": "end",
+      "scene_index": 2,
+      "source": "stage",
+      "t_ms": 11572
+    }
+  ],
+  "storylang_version": 0,
+  "timeline_version": 1,
+  "title": "Golden: push and dusk"
+}

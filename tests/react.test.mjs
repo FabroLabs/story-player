@@ -35,7 +35,7 @@ test('caller-supplied React mounts, replaces, and unmounts the plain player unde
   assert.equal(host.dataset.owner, 'wizard');
   assert.equal(host.getAttribute('aria-label'), 'bedtime player');
   assert.equal(host.shadowRoot.querySelector('h1').textContent, 'First moon');
-  assert.ok(browser.imageSources.includes('https://storage.example/assets/dell.jpg'));
+  assert.ok(browser.assetRequests.includes('https://storage.example/assets/dell.jpg'));
 
   await act(async () => {
     root.render(React.createElement(StrictMode, null, React.createElement(StoryPlayer, {
@@ -48,7 +48,7 @@ test('caller-supplied React mounts, replaces, and unmounts the plain player unde
   assert.equal(target.firstElementChild, host, 'story replacement discarded the React-owned host');
   assert.equal(host.shadowRoot.querySelector('h1').textContent, 'Second moon');
 
-  const beforeAssetReplace = browser.imageSources.length;
+  const beforeAssetReplace = browser.assetRequests.length;
   await act(async () => {
     root.render(React.createElement(StrictMode, null, React.createElement(StoryPlayer, {
       story: story('Second moon'),
@@ -59,7 +59,7 @@ test('caller-supplied React mounts, replaces, and unmounts the plain player unde
   });
   assert.equal(target.firstElementChild, host, 'asset-base replacement discarded the React-owned host');
   assert.ok(
-    browser.imageSources.slice(beforeAssetReplace)
+    browser.assetRequests.slice(beforeAssetReplace)
       .includes('https://other-storage.example/root/assets/dell.jpg'),
   );
 
@@ -74,6 +74,25 @@ test('caller-supplied React mounts, replaces, and unmounts the plain player unde
   });
   assert.equal(target.firstElementChild, host, 'debug replacement discarded the React-owned host');
   assert.equal(host.shadowRoot.querySelector('.debug-panel').getAttribute('aria-hidden'), 'false');
+
+  // `perf` is a player option, not a DOM attribute: unhandled, it lands on the
+  // host `div` and React warns about it while the measurement never happens.
+  await act(async () => {
+    root.render(React.createElement(StrictMode, null, React.createElement(StoryPlayer, {
+      story: story('Second moon'),
+      assetBase: 'https://other-storage.example/root',
+      debug: true,
+      perf: true,
+      className: 'story-slot',
+    })));
+    await settle();
+  });
+  assert.equal(host.getAttribute('perf'), null, 'the perf option was spread onto the host element');
+  assert.match(
+    host.shadowRoot.querySelector('.event-list').textContent,
+    /capability/,
+    'the React adapter did not pass perf to the player',
+  );
 
   await act(async () => root.unmount());
   assert.equal(host.shadowRoot.childNodes.length, 0, 'React cleanup left the plain player mounted');
@@ -119,6 +138,19 @@ function installBrowser() {
   }
   const previousResizeObserver = globalThis.ResizeObserver;
   const previousImage = globalThis.Image;
+  const previousFetch = globalThis.fetch;
+  const previousCreateImageBitmap = globalThis.createImageBitmap;
+  // jsdom has no `fetch` worth the name and node's real one would leave this
+  // suite asking the network for `storage.example`. Both asset seams answer
+  // here, and what they were asked for is the assertion.
+  const assetRequests = [];
+  globalThis.fetch = async (url) => {
+    assetRequests.push(String(url));
+    return { ok: true, status: 200, blob: async () => ({ pixels: { width: 8, height: 8 } }) };
+  };
+  globalThis.createImageBitmap = async (blob) => ({
+    width: blob?.pixels?.width ?? 1, height: blob?.pixels?.height ?? 1, close() {},
+  });
   class ImmediateImage {
     #listeners = new Map();
     addEventListener(type, handler) { this.#listeners.set(type, handler); }
@@ -139,11 +171,16 @@ function installBrowser() {
 
   return {
     imageSources,
+    assetRequests,
     restore() {
       if (previousResizeObserver === undefined) delete globalThis.ResizeObserver;
       else globalThis.ResizeObserver = previousResizeObserver;
       if (previousImage === undefined) delete globalThis.Image;
       else globalThis.Image = previousImage;
+      if (previousFetch === undefined) delete globalThis.fetch;
+      else globalThis.fetch = previousFetch;
+      if (previousCreateImageBitmap === undefined) delete globalThis.createImageBitmap;
+      else globalThis.createImageBitmap = previousCreateImageBitmap;
       for (const [name, descriptor] of saved) {
         if (descriptor) Object.defineProperty(globalThis, name, descriptor);
         else delete globalThis[name];

@@ -1,0 +1,3 @@
+# tests/repository-contract.test.mjs asserts workflow fixtures byte-for-byte with LF,
+# so the working tree must hold LF on every platform, not just where git guesses it.
+* text=auto eol=lf
