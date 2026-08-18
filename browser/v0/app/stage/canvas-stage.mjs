@@ -27,6 +27,24 @@ const SHADOW_INK = '2, 3, 12';
 const MISSING_INK = ['rgba(245, 220, 163, 0.28)', 'rgba(27, 31, 67, 0.88)'];
 const TAU = Math.PI * 2;
 
+// How long a character may be missing before the placeholder is shown.
+//
+// A sheet that decodes inside this is never seen as a blob: the stage draws
+// nothing for that character and the next frame has the picture. Anything
+// longer than about this is a gap a viewer notices, and a lozenge that says
+// "somebody is standing here" beats a hole in the story.
+const MISSING_GRACE_MS = 150;
+
+// The remembered frame is a thumbnail, not a copy: it stands in for a character
+// while its sheet is re-decoded, at whatever size the stage draws it, and a
+// stand-in nobody looks twice at does not need the sharpness of the real one.
+// Ten characters at this size is about a megabyte.
+const MEMORY_PX = 256;
+
+// A cast, not a story: characters that left three scenes ago are not coming
+// back into this frame, and their thumbnails should not outlive them.
+const MEMORY_SLUGS = 12;
+
 /**
  * `elements` is the template's stage bag; only `frame`, `stage` and `canvas`
  * are touched here.
@@ -38,8 +56,14 @@ const TAU = Math.PI * 2;
  */
 export function createCanvasStage(elements, {
   onWarning = () => {}, dprCap = DPR_CAP, shadows = true,
+  now = () => globalThis.performance?.now?.() ?? 0,
 } = {}) {
   const context = elements.canvas?.getContext?.('2d') ?? null;
+  // The last frame each character was drawn at, as a thumbnail of its own. A
+  // decoded sheet cannot be held for this: the cache closes a bitmap when it
+  // evicts it, which is exactly the moment this exists for.
+  const memory = new Map();
+  const missedSince = new Map();
   let density = dprCap;
   let shadowed = shadows;
   let plate = [0, 0];
@@ -88,7 +112,7 @@ export function createCanvasStage(elements, {
     shadowed = nextShadows !== false;
     if (!last) return;
     sizeStage(last.list.width, last.list.height);
-    paintDrawList(context, last.list, { lookup: last.lookup, scale: renderScale, shadows: shadowed });
+    paint(last.list, last.lookup);
   }
 
   /**
@@ -108,8 +132,90 @@ export function createCanvasStage(elements, {
     const list = buildDrawList(state, sheets);
     sizeStage(list.width, list.height);
     last = { list, lookup: lookupOf(sheets) };
-    paintDrawList(context, list, { lookup: last.lookup, scale: renderScale, shadows: shadowed });
+    paint(list, last.lookup);
     return list;
+  }
+
+  function paint(list, lookup) {
+    paintDrawList(context, list, {
+      lookup,
+      scale: renderScale,
+      shadows: shadowed,
+      onPainted: remember,
+      onMissing: standIn,
+    });
+  }
+
+  /**
+   * Keep this character's current cell, in case its sheet goes away.
+   *
+   * Copied only when the cell changes — a clip runs at twelve to sixteen frames
+   * a second against a loop drawing twenty-four, so most frames cost nothing —
+   * and into the character's own canvas, reused, so a story does not allocate
+   * one per frame.
+   */
+  function remember(command, drawable) {
+    if (command.op !== 'sprite' || destroyed) return;
+    const key = `${command.url} ${command.cell[0]},${command.cell[1]}`;
+    const held = memory.get(command.slug);
+    missedSince.delete(command.slug);
+    if (held?.key === key) {
+      memory.delete(command.slug);
+      memory.set(command.slug, held);
+      return;
+    }
+    const [columns, rows] = command.cells;
+    const cellWidth = sourceWidth(drawable) / columns;
+    const cellHeight = sourceHeight(drawable) / rows;
+    if (!(cellWidth > 0) || !(cellHeight > 0)) return;
+    const shrink = Math.min(1, MEMORY_PX / Math.max(cellWidth, cellHeight));
+    const width = Math.max(1, Math.round(cellWidth * shrink));
+    const height = Math.max(1, Math.round(cellHeight * shrink));
+    const canvas = held?.canvas ?? createCanvas();
+    const into = canvas?.getContext?.('2d');
+    if (!into) return;
+    canvas.width = width;
+    canvas.height = height;
+    into.drawImage(
+      drawable,
+      command.cell[0] * cellWidth, command.cell[1] * cellHeight, cellWidth, cellHeight,
+      0, 0, width, height,
+    );
+    // Deleted before it is set so the map stays in least-recently-drawn order:
+    // when the cast outgrows the budget, the character nobody has drawn for the
+    // longest is the one whose thumbnail goes.
+    memory.delete(command.slug);
+    memory.set(command.slug, { canvas, key });
+    if (memory.size > MEMORY_SLUGS) memory.delete(memory.keys().next().value);
+  }
+
+  /**
+   * What to draw for a character whose sheet is not there.
+   *
+   * Answers `true` when it has handled the command, which includes deciding to
+   * draw NOTHING: for the first breath of a miss the picture is better off
+   * without a blob that a decode landing a frame later would replace. The
+   * placeholder is the last resort, for somebody who has never been on screen.
+   */
+  function standIn(into, command) {
+    const held = memory.get(command.slug);
+    if (held?.canvas) {
+      into.globalAlpha = command.opacity;
+      into.drawImage(held.canvas, command.dx, command.dy, command.dw, command.dh);
+      into.globalAlpha = 1;
+      return true;
+    }
+    const first = missedSince.get(command.slug);
+    if (first === undefined) {
+      missedSince.set(command.slug, now());
+      return true;
+    }
+    return now() - first < MISSING_GRACE_MS;
+  }
+
+  function createCanvas() {
+    const owner = elements.canvas?.ownerDocument ?? globalThis.document ?? null;
+    return owner?.createElement?.('canvas') ?? null;
   }
 
   function destroy() {
@@ -118,6 +224,11 @@ export function createCanvasStage(elements, {
     observer?.disconnect();
     observer = null;
     last = null;
+    // The remembered frames go with the stage: they are canvases of their own,
+    // and a destroyed player holding a megabyte of thumbnails is the leak this
+    // file is otherwise careful about.
+    memory.clear();
+    missedSince.clear();
     if (!context) return;
     context.setTransform(1, 0, 0, 1, 0, 0);
     context.clearRect(0, 0, backing[0], backing[1]);
@@ -214,7 +325,13 @@ export function sceneSheets(plan, cache) {
  * `(camera.scale * p + camera.offset) * scale`, which is the same mapping the
  * video plate writes into its CSS transform from the same framing.
  */
-export function paintDrawList(context, list, { lookup = () => null, scale = 1, shadows = true } = {}) {
+export function paintDrawList(context, list, {
+  lookup = () => null, scale = 1, shadows = true,
+  // The stage's memory of what each character last looked like, and where it is
+  // told about it. Defaulted away so the list still paints on its own — the
+  // goldens and the draw-list tests execute it with nothing behind them.
+  onMissing = () => false, onPainted = () => {},
+} = {}) {
   const { camera } = list;
   context.setTransform(1, 0, 0, 1, 0, 0);
   context.clearRect(0, 0, Math.round(list.width * scale), Math.round(list.height * scale));
@@ -245,13 +362,14 @@ export function paintDrawList(context, list, { lookup = () => null, scale = 1, s
     // truly failed was named once by the loader; a second line per frame would
     // bury the log.
     if (!drawable) {
-      paintMissing(context, command);
+      if (!onMissing(context, command)) paintMissing(context, command);
       continue;
     }
     context.globalAlpha = command.opacity;
     if (command.op === 'prop') paintProp(context, command, drawable);
     else paintSprite(context, command, drawable);
     context.globalAlpha = 1;
+    onPainted(command, drawable);
   }
 }
 

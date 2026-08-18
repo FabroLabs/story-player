@@ -71,7 +71,7 @@ test('a tier that changes nothing repaints nothing, and one before the first dra
 });
 
 /** A stage whose frame is `width`x`height` CSS pixels. */
-function mounted(t, { frame = [1920, 1080], dpr = 1 } = {}) {
+function mounted(t, { frame = [1920, 1080], dpr = 1, now = () => 0 } = {}) {
   const dom = installDom();
   t.after(dom.restore);
   const original = globalThis.devicePixelRatio;
@@ -86,7 +86,7 @@ function mounted(t, { frame = [1920, 1080], dpr = 1 } = {}) {
   const elements = fakeStageElements();
   elements.frame.getBoundingClientRect = () => ({ width: frame[0], height: frame[1] });
   const warnings = [];
-  const stage = createCanvasStage(elements, { onWarning: (detail) => warnings.push(detail) });
+  const stage = createCanvasStage(elements, { onWarning: (detail) => warnings.push(detail), now });
   t.after(() => stage.destroy());
   return { elements, stage, warnings, context: elements.canvas.context, resize: () => resizers.forEach((run) => run()) };
 }
@@ -175,16 +175,53 @@ test('the shadow gives the canvas back exactly as it found it', (t) => {
   assert.equal(context.depth(), 0, 'a save was never restored');
 });
 
-test('a sheet that has not decoded yet draws the placeholder, never a hole', (t) => {
-  const { stage, context } = mounted(t);
-  stage.draw(
+test('a sheet that has not decoded yet is a breath of nothing, then the placeholder', (t) => {
+  // A decode that lands on the next frame should never have been announced with
+  // a blob: at twenty-four frames a second a viewer sees the lozenge flash and
+  // reads it as a fault. Only a character that stays missing gets one.
+  let clock = 0;
+  const { stage, context } = mounted(t, { now: () => clock });
+  const paint = () => stage.draw(
     stageState({ actors: [{ slug: 'ruby', x: 50, feetY: 90, heightPx: 200, clip: 'idle' }] }),
     book({ drawables: {} }),
   );
+  const lozenge = () => context.of('ellipse').filter(([, , rx]) => rx === 100);
+
+  paint();
   assert.deepEqual(context.of('drawImage'), []);
+  assert.deepEqual(lozenge(), [], 'a blob for a sheet that may be there next frame');
+
+  // Frames keep coming while the decode is in flight; none of them announces it.
+  clock = 100;
+  paint();
+  assert.deepEqual(lozenge(), [], 'the placeholder was painted before the grace was over');
+
+  clock = 200;
+  paint();
   // The lozenge `.sprite.is-missing` used to paint, in the character's own box.
-  const [placeholder] = context.of('ellipse').filter(([, , rx]) => rx === 100);
-  assert.deepEqual(placeholder.slice(0, 4), [960, 872, 100, 100]);
+  assert.deepEqual(lozenge().at(0).slice(0, 4), [960, 872, 100, 100]);
+});
+
+test('a character whose sheet went away keeps its last drawing', (t) => {
+  // The bitmap cache closes a sheet when it evicts it, so nothing can hold the
+  // decoded pixels — the stage keeps a thumbnail of the cell it last drew and
+  // stands that in. A wrong pose is a character; a lozenge is a fault.
+  const { stage, context } = mounted(t);
+  const actors = [{ slug: 'ruby', x: 50, feetY: 90, heightPx: 200, clip: 'idle' }];
+  stage.draw(stageState({ actors }), book({ drawables: { 'ruby.webp': bitmap(64, 64) } }));
+
+  const from = context.calls.length;
+  stage.draw(stageState({ actors }), book({ drawables: {} }));
+  const since = context.calls.slice(from);
+
+  const drawn = since.filter(([name]) => name === 'drawImage');
+  assert.equal(drawn.length, 1, 'the character was not stood in for');
+  assert.deepEqual(drawn[0].slice(2, 6), [860, 772, 200, 200], 'the stand-in was drawn somewhere other than the box');
+  assert.deepEqual(
+    since.filter(([name]) => name === 'createLinearGradient'),
+    [],
+    'the placeholder was painted over a character we still had a picture of',
+  );
 });
 
 test('a rendition that is not square is cut along its own two axes', (t) => {
