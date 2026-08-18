@@ -1,25 +1,25 @@
 import { compileTimeline } from '../core/timeline/compile.mjs';
 import { createBitmapCache } from './assets/bitmap-cache.mjs';
 import { createSceneLoader } from './assets/scene-loader.mjs';
-import { AudioDirector } from './directors/audio-director.mjs';
 import { StoryClock } from './clock.mjs';
 import { DebugPanel, ObservableEventLog } from './debug-panel.mjs';
-import { createCanvasStage } from './stage/canvas-stage.mjs';
+import { createTimelinePlayer } from './timeline-player.mjs';
 import { resolveStoryAssets } from './urls.mjs';
 import { routeWarning } from './warning-router.mjs';
 
 const SUBTITLES_KEY = 'storytime:subtitles';
 
-// The live director that used to drive this file is gone: a story's schedule is
-// now compiled once, up front, by `core/timeline/compile.mjs`. The runtime that
-// plays that schedule — clock, media, canvas, controls — is the next piece of
-// work, and until it lands the player mounts, loads its opening and says so
-// rather than pretending to perform. Nothing publishes from here in the
-// meantime: the CDN build is cut from `main`, and this never reaches it.
-const NO_RUNTIME = 'this build has no playback runtime yet';
-
+/**
+ * The player, from the outside: mount, gate, begin, play, release.
+ *
+ * What lives here is everything that is true before there is a performance —
+ * the clock the log stamps its entries with, the decoded-bitmap cache, the
+ * begin ceremony, the subtitle preference — and nothing that is about playing.
+ * The performance itself is `timeline-player.mjs`: one compiled schedule, one
+ * loop, one function of t.
+ */
 export function createV0Player({ root, elements, story, assetBase, signal, debug = false }) {
-  const clock = new StoryClock({ signal });
+  const clock = new StoryClock();
   const panel = new DebugPanel(elements.debug, debug, { eventTarget: root });
   const log = new ObservableEventLog(clock, (entry, entries) => panel.addEntry(entry, entries));
   const cleanups = [wireSubtitleToggle(elements)];
@@ -31,9 +31,10 @@ export function createV0Player({ root, elements, story, assetBase, signal, debug
       message: `the scene on screen needs ${megabytes(heldBytes)} MB of decoded sheets against a ${megabytes(budgetBytes)} MB budget`,
     }),
   });
-  let stage = null;
-  let audio = null;
-  let runtimeStory = null;
+  // The log button opens the panel, so a build that has no panel open to it has
+  // no button either — a control that does nothing is worse than one absence.
+  elements.debugToggle.hidden = !debug;
+  let runtime = null;
   let loader = null;
   let destroyed = false;
   let startHandler = null;
@@ -46,8 +47,7 @@ export function createV0Player({ root, elements, story, assetBase, signal, debug
       destroyed = true;
       if (startHandler) elements.start.removeEventListener('click', startHandler);
       for (const cleanup of cleanups) cleanup();
-      stage?.destroy?.();
-      audio?.destroy?.();
+      runtime?.destroy();
       bitmaps.destroy();
       panel.destroy();
     },
@@ -55,16 +55,27 @@ export function createV0Player({ root, elements, story, assetBase, signal, debug
 
   async function initialize() {
     try {
-      runtimeStory = resolveStoryAssets(story, assetBase);
-      // The schedule is compiled here because the asset gate is the first thing
-      // that needs it: which sheets a scene draws is read off the timeline's
-      // ops, not guessed from the steps. Phase 8's runtime takes this call over.
+      const runtimeStory = resolveStoryAssets(story, assetBase);
+      // Compiled once, here, because everything downstream needs it: the asset
+      // gate reads which sheets a scene draws off the timeline's ops, the
+      // runtime plays it, and the debug download carries it so a recorded
+      // session can be replayed against the engine's own copy.
       const timeline = compileTimeline(runtimeStory);
+      panel.attachTimeline(timeline);
       elements.title.textContent = runtimeStory.title ?? 'tonight’s story';
-      stage = createCanvasStage(elements.stage, { onWarning: warn });
-      audio = new AudioDirector(runtimeStory.audio, warn, { signal });
+      elements.badge.name.textContent = runtimeStory.title ?? '';
       loader = createSceneLoader({
         timeline, bundle: runtimeStory, cache: bitmaps, signal, onWarning: warn,
+      });
+      runtime = createTimelinePlayer({
+        elements,
+        bundle: runtimeStory,
+        timeline,
+        clock,
+        loader,
+        cache: bitmaps,
+        onWarning: warn,
+        signal,
       });
       await armStart();
     } catch (error) {
@@ -82,14 +93,11 @@ export function createV0Player({ root, elements, story, assetBase, signal, debug
     // The whole first scene, kept in the cache while it is the scene on screen.
     // Each failure has already said which asset it was, so there is no summary
     // to add here: one broken sheet is one line in the log, not two.
-    await loader.loadScene(0, stageViewport(), {
-      keep: true,
-      onProgress: (done, total) => {
-        if (signal.aborted || destroyed) return;
-        elements.status.textContent = total
-          ? `loading the opening… ${done}/${total}`
-          : 'ready when you are';
-      },
+    await runtime.prepare((done, total) => {
+      if (signal.aborted || destroyed) return;
+      elements.status.textContent = total
+        ? `loading the opening… ${done}/${total}`
+        : 'ready when you are';
     });
     throwIfAborted(signal);
     elements.status.textContent = 'ready when you are';
@@ -101,23 +109,8 @@ export function createV0Player({ root, elements, story, assetBase, signal, debug
   function startStory() {
     if (destroyed || signal.aborted) return;
     elements.start.disabled = true;
-    // The reason goes on the status line rather than into the log alone, and
-    // the title keeps the story's own name: "paused" would read as a state this
-    // build could come back from, and this one cannot.
-    warn({ type: 'playback', message: NO_RUNTIME });
-    elements.status.textContent = NO_RUNTIME;
-    elements.status.classList.add('is-error');
-  }
-
-  /**
-   * How much the picture is magnified between the sheet and the eye.
-   *
-   * Both numbers are asked for rather than derived here: the canvas stage is
-   * the one thing that measures stage DOM, and a second definition of the
-   * letterbox scale would drift from the one the picture is actually drawn at.
-   */
-  function stageViewport() {
-    return { fitScale: stage.fitScale(), dpr: globalThis.devicePixelRatio ?? 1 };
+    elements.ceremony.classList.add('is-gone');
+    runtime.begin();
   }
 }
 

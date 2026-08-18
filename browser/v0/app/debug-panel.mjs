@@ -15,6 +15,11 @@ export class ObservableEventLog extends EventLog {
   }
 }
 
+// The list is a tail, not an archive: the download carries every entry, so the
+// only thing an unbounded list of nodes buys is a slower panel on the story
+// that needed it most.
+const VISIBLE_ENTRIES = 500;
+
 export class DebugPanel {
   #elements;
   #document;
@@ -23,6 +28,7 @@ export class DebugPanel {
   #timers = new Set();
   #urls = new Set();
   #entries = [];
+  #timeline = null;
   #open = false;
   #destroyed = false;
 
@@ -41,6 +47,18 @@ export class DebugPanel {
     if (initiallyOpen) this.open();
   }
 
+  /**
+   * The schedule the story is being played from, for the download.
+   *
+   * A log of what went wrong answers "what did the player do"; the timeline
+   * answers "what was it asked to do", and only the two together let a session
+   * be checked against the engine's own copy of the same compile.
+   */
+  attachTimeline(timeline) {
+    if (this.#destroyed) return;
+    this.#timeline = timeline ?? null;
+  }
+
   addEntry(entry, entries) {
     if (this.#destroyed) return;
     this.#entries = entries;
@@ -53,6 +71,9 @@ export class DebugPanel {
     heading.textContent = `${time}s · ${label}`;
     item.append(heading, this.#document.createElement('br'), this.#document.createTextNode(JSON.stringify(entry.detail ?? {})));
     this.#elements.list.append(item);
+    while (this.#elements.list.children.length > VISIBLE_ENTRIES) {
+      this.#elements.list.children[0].remove();
+    }
     this.#elements.list.scrollTop = this.#elements.list.scrollHeight;
   }
 
@@ -109,8 +130,12 @@ export class DebugPanel {
     this.#status('downloaded');
   }
 
+  // The timeline verbatim with the log beside it, so `jq .events` on a
+  // downloaded session and on the engine's `story.timeline.json` are the same
+  // question — that diff is what proves both ran the same compiler.
   #json() {
-    return `${JSON.stringify(this.#entries, null, 2)}\n`;
+    const payload = this.#timeline ? { ...this.#timeline, log: this.#entries } : this.#entries;
+    return `${JSON.stringify(payload, null, 2)}\n`;
   }
 
   #status(message) {
@@ -144,6 +169,7 @@ export class DebugPanel {
     for (const url of this.#urls) URL.revokeObjectURL(url);
     this.#urls.clear();
     this.#entries = [];
+    this.#timeline = null;
   }
 }
 

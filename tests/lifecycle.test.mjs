@@ -2,8 +2,10 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { createStoryPlayer } from '../browser/embed.mjs';
-import { AudioDirector } from '../browser/v0/app/directors/audio-director.mjs';
+import { createMediaScheduler } from '../browser/v0/app/media-scheduler.mjs';
 import { createCanvasStage } from '../browser/v0/app/stage/canvas-stage.mjs';
+import { resolveStoryAssets } from '../browser/v0/app/urls.mjs';
+import { compileTimeline } from '../browser/v0/core/timeline/compile.mjs';
 import { fakeStageElements, installDom } from './_dom.mjs';
 
 function loadingStory() {
@@ -106,43 +108,32 @@ test('invalid media rejects ready and leaves a concise in-player error', async (
   player.destroy();
 });
 
-test('audio destroy cancels a pending media start so late play cannot restart it', async (t) => {
+test('scheduler destroy releases a sound whose play never settled, and survives its refusal', async (t) => {
   const originalAudio = globalThis.Audio;
-  const originalSetTimeout = globalThis.setTimeout;
-  const originalClearTimeout = globalThis.clearTimeout;
-  let resolvePlay;
+  let refusePlay;
   let media;
-  globalThis.setTimeout = () => 71;
-  globalThis.clearTimeout = () => {};
-  globalThis.Audio = class {
-    constructor() {
-      media = this;
-      this.playing = false;
-      this.removed = false;
-    }
-    addEventListener() {}
-    play() {
-      return new Promise((resolve) => {
-        resolvePlay = () => { this.playing = true; resolve(); };
-      });
-    }
-    pause() { this.playing = false; }
-    removeAttribute() { this.removed = true; }
-  };
-  t.after(() => {
-    globalThis.Audio = originalAudio;
-    globalThis.setTimeout = originalSetTimeout;
-    globalThis.clearTimeout = originalClearTimeout;
+  globalThis.Audio = fakeAudio((instance) => {
+    media = instance;
+    return new Promise((_, reject) => { refusePlay = reject; });
   });
+  t.after(() => { globalThis.Audio = originalAudio; });
 
-  const audio = new AudioDirector({ sfx: { bell: 'https://storage.example/assets/bell.wav' } });
-  audio.playSound('bell');
-  audio.destroy();
-  resolvePlay();
-  await Promise.resolve();
-  await Promise.resolve();
-  assert.equal(media.playing, false);
+  const warnings = [];
+  const scheduler = createMediaScheduler({ ...bellStory(), onWarning: (detail) => warnings.push(detail) });
+  scheduler.advance(0, 1);
+  scheduler.destroy();
+  assert.equal(media.paused, true);
   assert.equal(media.removed, true);
+
+  // A browser rejects the `play()` promise of a medium that was paused before
+  // it started, and that rejection arrives after teardown. It must land in the
+  // scheduler's own catch — an unhandled rejection here would take the page's
+  // error handler with it — and it must not add a warning to a player that is
+  // already gone.
+  refusePlay(new DOMException('interrupted by pause', 'AbortError'));
+  await Promise.resolve();
+  await Promise.resolve();
+  assert.deepEqual(warnings, []);
 });
 
 test('failed opening preloads resolve ready but record a structured warning', async (t) => {
@@ -163,41 +154,28 @@ test('failed opening preloads resolve ready but record a structured warning', as
   player.destroy();
 });
 
-test('failed sound start is released before whole-player teardown', async (t) => {
+test('a sound that fails is released once, not again at teardown', async (t) => {
   const originalAudio = globalThis.Audio;
-  const originalSetTimeout = globalThis.setTimeout;
-  const originalClearTimeout = globalThis.clearTimeout;
-  let fireDeadline;
-  let pauses = 0;
-  globalThis.setTimeout = (callback) => { fireDeadline = callback; return 81; };
-  globalThis.clearTimeout = () => {};
-  globalThis.Audio = class {
-    addEventListener() {}
-    play() { return new Promise(() => {}); }
-    pause() { pauses += 1; }
-    removeAttribute() {}
-  };
-  t.after(() => {
-    globalThis.Audio = originalAudio;
-    globalThis.setTimeout = originalSetTimeout;
-    globalThis.clearTimeout = originalClearTimeout;
+  let media;
+  globalThis.Audio = fakeAudio((instance) => {
+    media = instance;
+    return new Promise(() => {});
   });
+  t.after(() => { globalThis.Audio = originalAudio; });
 
-  const audio = new AudioDirector({ sfx: { bell: 'https://storage.example/assets/bell.wav' } });
-  audio.playSound('bell');
-  fireDeadline();
-  await Promise.resolve();
-  await Promise.resolve();
-  const releasedPauses = pauses;
-  audio.destroy();
-  assert.equal(pauses, releasedPauses, 'destroy found failed sound retained in the owned-media set');
+  const warnings = [];
+  const scheduler = createMediaScheduler({ ...bellStory(), onWarning: (detail) => warnings.push(detail) });
+  scheduler.advance(0, 1);
+  media.fire('error');
+  const releasedPauses = media.pauses;
+  assert.equal(releasedPauses, 1);
+  assert.equal(warnings.length, 1);
+  assert.match(warnings[0].message, /sound playback failed/);
+  scheduler.destroy();
+  assert.equal(media.pauses, releasedPauses, 'destroy found a failed sound retained in the owned-media set');
 });
 
-// PHASE-8: pressing start no longer performs anything — the live director is
-// gone and the runtime that plays a compiled timeline is the next piece of
-// work. Un-skip with it; what these two pin (an unlock failure is survivable,
-// destroy releases every timer and listener mid-playback) is unchanged policy.
-test.skip('synchronous audio unlock failure becomes a warning and playback still starts', async (t) => {
+test('synchronous audio unlock failure becomes a warning and playback still starts', async (t) => {
   const dom = installDom();
   t.after(dom.restore);
   window.AudioContext = class { constructor() { throw new Error('blocked constructor'); } };
@@ -211,7 +189,7 @@ test.skip('synchronous audio unlock failure becomes a warning and playback still
   player.destroy();
 });
 
-test.skip('destroy during active playback cancels clock work and plate readiness listeners', async (t) => {
+test('destroy during active playback cancels clock work and plate readiness listeners', async (t) => {
   const dom = installDom();
   t.after(dom.restore);
   const originalAudio = globalThis.Audio;
@@ -268,7 +246,11 @@ test.skip('destroy during active playback cancels clock work and plate readiness
   // while this test was still skipped, so whoever un-skips it in phase 8 gets a
   // red for a real reason or none at all.
   assert.equal(video.listenerCount('playing'), 1);
-  assert.ok([...timers.values()].some(({ milliseconds }) => milliseconds === 64_000));
+  // The only timer a performance arms now is the plate's readiness deadline.
+  // The narration one is gone with the director that awaited each line: the
+  // schedule is compiled, so a file that never starts costs the story nothing
+  // and needs no clock to notice it.
+  assert.ok([...timers.values()].some(({ milliseconds }) => milliseconds === 6_000));
   player.destroy();
   assert.equal(video.listenerCount('playing'), 0);
   assert.equal(video.listenerCount('error'), 0);
@@ -328,6 +310,80 @@ test('destroy clears debug download timers and revokes its object URL', async (t
   assert.equal(timers.size, 0);
   assert.deepEqual(revoked, ['blob:story-log']);
 });
+
+test('the downloaded session is the compiled timeline with the log beside it', async (t) => {
+  const dom = installDom();
+  t.after(dom.restore);
+  const originalCreate = URL.createObjectURL;
+  const originalRevoke = URL.revokeObjectURL;
+  let captured = null;
+  URL.createObjectURL = (blob) => { captured = blob; return 'blob:story-log'; };
+  URL.revokeObjectURL = () => {};
+  t.after(() => {
+    URL.createObjectURL = originalCreate;
+    URL.revokeObjectURL = originalRevoke;
+  });
+  const host = document.createElement('div');
+  const story = loadingStory();
+  const player = createStoryPlayer(host, { story, assetBase: 'https://storage.example/', debug: true });
+  await player.ready;
+
+  findByText(host.shadowRoot, 'download').dispatch('click');
+  const payload = JSON.parse(await captured.text());
+  const timeline = compileTimeline(resolveStoryAssets(story, 'https://storage.example/'));
+
+  // `jq .events` on a downloaded session and on the engine's own
+  // `story.timeline.json` have to be the same question — that diff is what
+  // proves both ran the same compiler.
+  assert.deepEqual(payload.events, timeline.events);
+  assert.equal(payload.timeline_version, timeline.timeline_version);
+  assert.equal(payload.duration_ms, timeline.duration_ms);
+  assert.ok(Array.isArray(payload.log), 'the log went missing from the download');
+  player.destroy();
+});
+
+/** One sound effect at t=0, which is the smallest thing the scheduler plays. */
+function bellStory() {
+  return {
+    timeline: {
+      timeline_version: 1,
+      storylang_version: 0,
+      duration_ms: 1_000,
+      events: [{
+        source: 'step',
+        kind: 'cmd',
+        cmd: 'sound',
+        t_ms: 0,
+        detail: { name: 'bell' },
+        line: 3,
+        scene_index: 0,
+      }],
+    },
+    bundle: {
+      storylang_version: 0,
+      audio: { sfx: { bell: 'https://storage.example/assets/bell.wav' }, bgm: {} },
+    },
+  };
+}
+
+/** An `Audio` whose `play()` settles however the test wants it to. */
+function fakeAudio(onPlay = () => Promise.resolve()) {
+  return class {
+    constructor(url) {
+      this.url = url;
+      this.paused = true;
+      this.removed = false;
+      this.pauses = 0;
+      this.volume = 1;
+      this.listeners = new Map();
+    }
+    addEventListener(type, handler) { this.listeners.set(type, handler); }
+    fire(type) { this.listeners.get(type)?.({ type }); }
+    play() { this.paused = false; return onPlay(this); }
+    pause() { this.paused = true; this.pauses += 1; }
+    removeAttribute() { this.removed = true; }
+  };
+}
 
 function findByClass(root, name) {
   if (root.className?.split(/\s+/).includes(name)) return root;

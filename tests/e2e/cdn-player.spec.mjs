@@ -49,13 +49,10 @@ test.afterAll(async () => {
 
 test.beforeEach(() => { requests.length = 0; });
 
-// PHASE-8: both of these press start and wait for a performance. The live
-// director is gone and the runtime that plays a compiled timeline is the next
-// piece of work — un-skip them with it, whole, rather than trimming the
-// assertions that fail. What they alone cover in a REAL browser meanwhile —
-// two players on one page, the React adapter under StrictMode, the media
-// request log — is only covered in jsdom until then.
-test.skip('plain JavaScript mounts two players, plays qualified media, and destroys/remounts cleanly', async ({ page }) => {
+// What these two cover in a REAL browser and nothing else does: two players on
+// one page, the React adapter under StrictMode, and the media request log of a
+// story driven from its begin button to its end overlay.
+test('plain JavaScript mounts two players, plays qualified media, and destroys/remounts cleanly', async ({ page }) => {
   await page.goto(`${application.url}/plain-js.html`);
   await page.evaluate(() => window.__mounted);
 
@@ -120,7 +117,7 @@ test('unsafe media is refused in the Shadow DOM without making an escaped reques
   expect(requests.some(({ path: requestPath }) => requestPath.includes('escape'))).toBe(false);
 });
 
-test.skip('the caller-supplied React factory renders the same classic player under StrictMode', async ({ page }) => {
+test('the caller-supplied React factory renders the same classic player under StrictMode', async ({ page }) => {
   await page.goto(`${application.url}/react.html`);
   await page.evaluate(() => window.__mounted);
   const host = page.locator('#react-player');

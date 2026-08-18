@@ -1,101 +1,60 @@
+﻿/**
+ * Story time: the one number every plane of the picture is drawn from.
+ *
+ * It is wall time with a hole in it. Paused, `now()` answers the instant it was
+ * paused at and keeps answering it however long the viewer is away, so a cast
+ * drawn from `stateAt(now())`, a plate aimed from the same framing and a
+ * narration held at its own offset all stop together and all continue together.
+ * Seeking moves the hole instead of the clock: the origin is rewritten so that
+ * `now()` is the instant asked for, running or not.
+ */
 export class StoryClock {
   #now;
-  #signal;
-  #startedAt = null;
+  #origin = null;
+  #held = 0;
+  #running = false;
 
-  constructor({ now = defaultNow, signal = null } = {}) {
+  constructor({ now = defaultNow } = {}) {
     this.#now = now;
-    this.#signal = signal;
   }
 
+  /** Run from wherever the clock is standing. Idempotent, like resume. */
   start() {
-    if (this.#startedAt === null) this.#startedAt = this.#now();
+    if (this.#running) return;
+    this.#origin = this.#now() - this.#held;
+    this.#running = true;
   }
 
   now() {
-    return this.#startedAt === null ? 0 : Math.max(0, Math.round(this.#now() - this.#startedAt));
+    if (!this.#running) return this.#held;
+    return Math.max(0, Math.round(this.#now() - this.#origin));
   }
 
-  wait(milliseconds) {
-    return wait(milliseconds, setTimeout, { signal: this.#signal });
+  get running() {
+    return this.#running;
   }
-}
 
-export function wait(milliseconds, setTimer = setTimeout, { signal = null, clearTimer = clearTimeout } = {}) {
-  return new Promise((resolve, reject) => {
-    if (signal?.aborted) {
-      reject(abortError());
-      return;
-    }
-    let timer;
-    const onAbort = () => {
-      clearTimer(timer);
-      signal.removeEventListener('abort', onAbort);
-      reject(abortError());
-    };
-    timer = setTimer(() => {
-      signal?.removeEventListener('abort', onAbort);
-      resolve();
-    }, Math.max(0, milliseconds));
-    signal?.addEventListener('abort', onAbort, { once: true });
-  });
-}
+  /** Freeze at the instant on screen. Nothing after this moves until `start`. */
+  pause() {
+    if (!this.#running) return;
+    this.#held = this.now();
+    this.#running = false;
+  }
 
-export function withTimeout(promise, milliseconds, options = {}) {
-  const {
-    fallback = null,
-    onTimeout = () => {},
-    setTimer = setTimeout,
-    clearTimer = clearTimeout,
-    signal = null,
-  } = options;
-
-  return new Promise((resolve, reject) => {
-    if (signal?.aborted) {
-      reject(abortError());
-      return;
-    }
-    let settled = false;
-    const finish = (complete) => {
-      if (settled) return false;
-      settled = true;
-      signal?.removeEventListener('abort', onAbort);
-      complete();
-      return true;
-    };
-    const onAbort = () => {
-      clearTimer(timer);
-      finish(() => reject(abortError()));
-    };
-    const timer = setTimer(() => {
-      finish(() => {
-        onTimeout();
-        resolve({ timedOut: true, value: fallback });
-      });
-    }, Math.max(0, milliseconds));
-    signal?.addEventListener('abort', onAbort, { once: true });
-
-    Promise.resolve(promise).then(
-      (value) => {
-        finish(() => {
-          clearTimer(timer);
-          resolve({ timedOut: false, value });
-        });
-      },
-      (error) => {
-        finish(() => {
-          clearTimer(timer);
-          reject(error);
-        });
-      },
-    );
-  });
+  /**
+   * Stand at `milliseconds`, running or not.
+   *
+   * Rounded and floored here rather than at every call site: `stateAt` refuses a
+   * non-finite t, and a negative one would read as "before the story", which is
+   * not an instant this player has.
+   */
+  seek(milliseconds) {
+    const t = Number.isFinite(milliseconds) ? Math.max(0, Math.round(milliseconds)) : 0;
+    this.#held = t;
+    if (this.#running) this.#origin = this.#now() - t;
+  }
 }
 
 function defaultNow() {
   return performance.now();
-}
-
-function abortError() {
-  return new DOMException('player destroyed', 'AbortError');
 }
