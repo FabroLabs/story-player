@@ -125,6 +125,43 @@ test('the window must be full before the rule can fire', () => {
   assert.equal(watch.sample(5000, 50), true);
 });
 
+// Every other test here feeds round numbers, and round numbers hid a rule that
+// could only fire when one frame landed EXACTLY `windowMs` after another. Real
+// animation frames are 16.7 ms apart and never do.
+test('the rule fires on frames that do not land on round milliseconds', () => {
+  const watch = createSlowFrameWatch();
+  let fired = false;
+  for (let t = 0; t < 8_000; t += 66.7) fired = watch.sample(t, 66.7) || fired;
+  assert.equal(fired, true, 'five seconds of nothing but slow frames did not demote');
+});
+
+test('a stop longer than the window opens a new one, not a full one', () => {
+  const watch = createSlowFrameWatch();
+  for (let t = 0; t < 3_000; t += 16.7) watch.sample(t, 16.7);
+  // A minute later — a pause, a hidden tab, a phone that locked — and the first
+  // frame back costs 40 ms, which is what waking up costs. One slow frame is
+  // 100% of a window that only looks full because it is holding one sample.
+  assert.equal(watch.sample(63_000, 40), false, 'one slow frame after a pause demoted a healthy machine');
+  assert.equal(watch.sample(63_040, 40), false);
+});
+
+test('a recorder is paused until the story plays, so the gate is not our lag', () => {
+  const log = fakeLog();
+  const [scope, clock] = clockedScope();
+  const perf = createPerfRecorder({ log, scope });
+  perf.scene(0);
+  // A viewer who left the begin ceremony open for a minute: the browser clamps
+  // a background tab's timers to a second, and none of it is this player's
+  // lateness.
+  clock.at = 60_000;
+  scope.timers[0].fn();
+  perf.frame(60_000);
+  perf.frame(60_016);
+  perf.flush();
+
+  assert.equal(log.entries.at(-1).lag_p95_ms, null, 'idling at the gate was reported as a jammed main thread');
+});
+
 test('a frame exactly at the threshold has not missed it', () => {
   const watch = createSlowFrameWatch({ windowMs: 400 });
   let fired = false;
@@ -265,6 +302,10 @@ test('a pause does not become a frame, and its silence is not our lag', () => {
   const log = fakeLog();
   const [scope, clock] = clockedScope();
   const perf = createPerfRecorder({ log, scope });
+  // A recorder starts paused — it is built at mount, and the ceremony a viewer
+  // leaves open is not lateness this player caused. The story playing is what
+  // opens the probe.
+  perf.resume();
   perf.scene(0);
   perf.frame(0);
   perf.frame(16);
@@ -530,6 +571,7 @@ test('the lag probe reports how late a tick was, and re-bases on arrival', () =>
   const timer = scope.timers[0];
   assert.equal(timer.ms, LAG_PROBE_MS);
 
+  perf.resume();
   perf.scene(0);
   clock.at = 1000;
   timer.fn();
@@ -548,6 +590,7 @@ test('a tick that arrives early is not negative lateness', () => {
   const log = fakeLog();
   const [scope, clock] = clockedScope();
   const perf = createPerfRecorder({ log, scope });
+  perf.resume();
   perf.scene(0);
   clock.at = 100;
   scope.timers[0].fn();

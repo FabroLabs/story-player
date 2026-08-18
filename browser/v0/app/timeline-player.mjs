@@ -15,26 +15,43 @@
  */
 
 import { stateAt } from '../core/state/state.mjs';
+import { DEFAULT_DRAW_HZ, tierSettings } from './capability.mjs';
 import { createControls } from './controls.mjs';
 import { createMediaScheduler } from './media-scheduler.mjs';
+import { createPerfRecorder } from './perf.mjs';
 import { createCanvasStage, sceneSheets } from './stage/canvas-stage.mjs';
 import { createVideoPlate } from './stage/video-plate.mjs';
 
-// 24 fps is the ceiling the phone client holds and the cadence the sprite sheets
-// were authored at; asking for more would redraw the same cells.
-const FRAME_INTERVAL_MS = 1000 / 24;
 const SKIP_MS = 10_000;
 
 export function createTimelinePlayer({
-  elements, bundle, timeline, clock, loader, cache, onWarning = () => {}, signal = null,
+  elements, bundle, timeline, clock, loader, cache, log = null,
+  capability = tierSettings('high'), perf = false, onWarning = () => {}, signal = null,
 }) {
   const durationMs = Math.max(0, Math.round(timeline?.duration_ms ?? 0));
-  const stage = createCanvasStage(elements.stage, { onWarning });
+  // 24 fps is the ceiling the phone client holds and the cadence the sprite
+  // sheets were authored at; a weak machine is given half of it rather than a
+  // number of its own, so the loop skips every other tick exactly.
+  let tier = {
+    dprCap: capability.dprCap,
+    drawHz: capability.drawHz || DEFAULT_DRAW_HZ,
+    shadows: capability.shadows !== false,
+  };
+  let frameIntervalMs = 1000 / tier.drawHz;
+  const stage = createCanvasStage(elements.stage, {
+    onWarning, dprCap: capability.dprCap, shadows: capability.shadows,
+  });
   const plate = createVideoPlate(elements.stage, { onWarning });
   const media = createMediaScheduler({ timeline, bundle, onWarning });
   const controls = createControls(elements.controls, {
     onToggle: toggle, onSeek: seekTo, onSkip: skip,
   });
+  // Opt-in, because measuring costs a `PerformanceObserver`, a quarter-second
+  // timer and a per-frame push on machines that are already the reason it
+  // exists. What it may change is the tier, and only downwards.
+  const recorder = perf && log
+    ? createPerfRecorder({ log, tier: capability.tier ?? 'high', signal, onDemote: applyTier })
+    : null;
   const reported = new Set();
   const document = elements.stage.frame?.ownerDocument ?? globalThis.document ?? null;
   const listeners = [];
@@ -61,7 +78,18 @@ export function createTimelinePlayer({
   listen(globalThis.window ?? null, 'pagehide', hide);
 
   return {
-    viewport, prepare, begin, destroy, play, pause, seekTo, isPlaying: () => clock.running,
+    viewport,
+    prepare,
+    begin,
+    destroy,
+    play,
+    pause,
+    seekTo,
+    isPlaying: () => clock.running,
+    // Sections are written at scene boundaries, so the scene ON SCREEN has not
+    // been written yet — and that is exactly the scene somebody downloading a
+    // log in the middle of it is asking about.
+    flushPerf: (reason = 'flush') => recorder?.flush(reason) ?? null,
   };
 
   /**
@@ -72,11 +100,22 @@ export function createTimelinePlayer({
    * drift from the one the picture is actually drawn at.
    */
   function viewport() {
-    return { fitScale: stage.fitScale(), dpr: globalThis.devicePixelRatio ?? 1 };
+    // The tier's own ceiling goes with it: a sheet chosen for 2x and drawn at
+    // 1.5x is bytes a weak device downloaded and decoded for nothing, which is
+    // the opposite of what demoting it was for.
+    return {
+      fitScale: stage.fitScale(),
+      dpr: globalThis.devicePixelRatio ?? 1,
+      dprCap: tier.dprCap,
+    };
   }
 
   /** The gate: the whole opening scene decoded, then the first frame drawn. */
   async function prepare(onProgress = () => {}) {
+    // The plate answers for its own element: `video-plate.mjs` is the only file
+    // that touches the `<video>`, and the recorder asks it rather than reaching
+    // past it.
+    recorder?.watchVideo({ getVideoPlaybackQuality: () => plate.quality() });
     await loader.loadScene(0, viewport(), { keep: true, onProgress });
     if (destroyed || signal?.aborted) return;
     render(0, { force: true });
@@ -109,6 +148,7 @@ export function createTimelinePlayer({
     clock.start();
     plate.play();
     media.resume();
+    recorder?.resume();
     startLoop();
     render(clock.now(), { force: true });
     // A tab that was already hidden when the story was told to play never gets
@@ -124,6 +164,7 @@ export function createTimelinePlayer({
     stopLoop();
     plate.pause();
     media.pause();
+    recorder?.pause();
     // The sliver between the last frame and this click is time the story stood
     // at but never crossed. It is given up rather than replayed on resume: at
     // most one frame of cues, and firing them a pause later would put a line
@@ -181,6 +222,24 @@ export function createTimelinePlayer({
     media.destroy();
     plate.destroy();
     stage.destroy();
+    recorder?.destroy();
+  }
+
+  /**
+   * A tier the recorder lowered, applied to everything it means.
+   *
+   * The picture gets cheaper in three places at once — fewer device pixels,
+   * fewer draws, no shadows — and the cache stops holding as much, because the
+   * machine that produced five seconds of slow frames is the one whose tab gets
+   * reloaded out from under the child.
+   */
+  function applyTier(name) {
+    if (destroyed) return;
+    const next = tierSettings(name);
+    tier = { dprCap: next.dprCap, drawHz: next.drawHz, shadows: next.shadows };
+    frameIntervalMs = 1000 / next.drawHz;
+    stage.setTier({ dprCap: next.dprCap, shadows: next.shadows });
+    cache?.setBudget?.(next.bitmapBudget);
   }
 
   // A hidden tab is a paused story that remembers it was playing. The browser
@@ -216,8 +275,12 @@ export function createTimelinePlayer({
   function tick(frameMs) {
     if (destroyed) return;
     frame = requestAnimationFrame(tick);
-    const now = Number.isFinite(frameMs) ? frameMs : lastFrameAt + FRAME_INTERVAL_MS;
-    if (now - lastFrameAt < FRAME_INTERVAL_MS) return;
+    const now = Number.isFinite(frameMs) ? frameMs : lastFrameAt + frameIntervalMs;
+    // Every animation frame, not every drawn one: what the recorder is asking
+    // is whether the BROWSER is keeping up with its own display, and the draw
+    // cadence is deliberately slower than that.
+    recorder?.frame(now);
+    if (now - lastFrameAt < frameIntervalMs) return;
     lastFrameAt = now;
     render(clock.now());
   }
@@ -280,6 +343,9 @@ export function createTimelinePlayer({
     if (state.sceneIndex === sceneIndex) return;
     sceneIndex = state.sceneIndex;
     signature = null;
+    // One perf section per scene, so a log from a slow phone says WHERE it was
+    // slow rather than that it was.
+    recorder?.scene(sceneIndex);
     elements.badge.scene.textContent = sceneIndex === null
       ? ''
       : `scene ${sceneIndex + 1} of ${bundle?.scenes?.length ?? sceneIndex + 1}`;
@@ -322,6 +388,8 @@ export function createTimelinePlayer({
     stopLoop();
     plate.pause();
     media.pause();
+    recorder?.flush('end');
+    recorder?.pause();
     elements.stage.end.hidden = false;
     controls.update({ tMs: durationMs, playing: false, ended: true });
   }

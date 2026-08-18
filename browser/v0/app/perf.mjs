@@ -112,16 +112,36 @@ export function createSlowFrameWatch({
   slowShare = SLOW_FRAME_SHARE,
 } = {}) {
   let samples = [];
+  // When this window opened, which is NOT the age of the oldest sample still in
+  // it: the samples older than `windowMs` are dropped on every call, so the
+  // retained span is almost always just under the window. Testing fullness
+  // against that span asks for a frame that lands exactly `windowMs` after
+  // another one — true for a test that feeds round numbers, and false for every
+  // real animation frame there has ever been.
+  let openedAt = null;
+  const reset = () => {
+    samples = [];
+    openedAt = null;
+  };
   return {
+    reset,
+
     sample(tMs, deltaMs) {
+      // A sample that lands a whole window after the last one is not the same
+      // stretch of playing: the story was paused, hidden, or seeked. Carrying
+      // the old opening time across that gap would leave the window reading as
+      // full with one sample in it, and the first slow frame after a pause
+      // would demote the picture on its own.
+      if (samples.length && tMs - samples[samples.length - 1].t > windowMs) reset();
+      if (openedAt === null) openedAt = tMs;
       samples.push({ t: tMs, slow: deltaMs > slowFrameMs });
       while (samples.length > 1 && tMs - samples[0].t > windowMs) samples.shift();
-      if (tMs - samples[0].t < windowMs) return false;
+      if (tMs - openedAt < windowMs) return false;
       const slow = samples.filter((sample) => sample.slow).length;
       if (slow / samples.length <= slowShare) return false;
       // Cleared rather than kept: the next demotion earns its own five seconds,
       // measured on the tier we just moved to.
-      samples = [];
+      reset();
       return true;
     },
     size() {
@@ -155,7 +175,12 @@ export function createPerfRecorder({
   let longestFrameMs = 0;
   let lagSamples = [];
   let lagDue = null;
-  let paused = false;
+  // Paused until the story is actually played. The recorder is built at mount,
+  // and the minutes a viewer may leave the begin ceremony open are minutes when
+  // nothing here is causing lateness — a background tab clamps timers to a
+  // second, and the whole opening scene would be logged with a 750 ms p95 on a
+  // machine that was idle and healthy.
+  let paused = true;
   let video = null;
   let videoBaseline = null;
   let videoRefused = false;
@@ -215,14 +240,22 @@ export function createPerfRecorder({
     if (destroyed) return;
     paused = true;
     lastFrameMs = null;
+    // The five seconds a demotion is measured over must be five seconds of
+    // PLAYING. Frames from before a pause and frames from after it are not one
+    // stretch, however close their timestamps look.
+    watch.reset();
   }
 
   function resume() {
     if (destroyed) return;
     paused = false;
     lastFrameMs = null;
-    // Re-based, or the whole pause is reported as one enormous late tick.
-    if (lagTimer !== null) lagDue = finiteNow() ?? lagDue;
+    // Re-based, or the whole pause is reported as one enormous late tick — and
+    // re-based to when the next tick is DUE, not to now: a probe that expected
+    // itself immediately would report its own interval as lateness on the first
+    // tick after every resume.
+    const at = lagTimer === null ? null : finiteNow();
+    if (at !== null) lagDue = at + LAG_PROBE_MS;
   }
 
   function watchVideo(element) {

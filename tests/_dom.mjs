@@ -137,6 +137,12 @@ export function fakeElement(tag = 'div') {
     return Promise.resolve();
   };
   element.load = () => {};
+  if (tag === 'video') {
+    // What a real plate answers the perf recorder with. Settable by a test:
+    // `element.quality = { droppedVideoFrames: 3, totalVideoFrames: 100 }`.
+    element.quality = { droppedVideoFrames: 0, totalVideoFrames: 0 };
+    element.getVideoPlaybackQuality = () => element.quality;
+  }
   if (tag === 'canvas') {
     // One context per element, as a real canvas hands out: asking twice must
     // not silently hand back a second, empty recorder.

@@ -36,8 +36,12 @@ const TAU = Math.PI * 2;
  * chosen for 2x is a full third more pixels to fill with nothing sharper to
  * put in them.
  */
-export function createCanvasStage(elements, { onWarning = () => {}, dprCap = DPR_CAP } = {}) {
+export function createCanvasStage(elements, {
+  onWarning = () => {}, dprCap = DPR_CAP, shadows = true,
+} = {}) {
   const context = elements.canvas?.getContext?.('2d') ?? null;
+  let density = dprCap;
+  let shadowed = shadows;
   let plate = [0, 0];
   let backing = [0, 0];
   let renderScale = 0;
@@ -68,7 +72,24 @@ export function createCanvasStage(elements, { onWarning = () => {}, dprCap = DPR
     observer.observe(elements.frame);
   }
 
-  return { fitScale, draw, destroy };
+  return { fitScale, draw, setTier, destroy };
+
+  /**
+   * Take the numbers a lower tier asks for, mid-story.
+   *
+   * Repainted from the last list rather than left for the next frame: a
+   * demotion happens because frames are already scarce, and the first thing the
+   * viewer should see from it is the cheaper picture, not one more expensive one.
+   */
+  function setTier({ dprCap: nextCap = density, shadows: nextShadows = shadowed } = {}) {
+    if (destroyed) return;
+    if (nextCap === density && nextShadows === shadowed) return;
+    density = Number.isFinite(nextCap) && nextCap > 0 ? nextCap : density;
+    shadowed = nextShadows !== false;
+    if (!last) return;
+    sizeStage(last.list.width, last.list.height);
+    paintDrawList(context, last.list, { lookup: last.lookup, scale: renderScale, shadows: shadowed });
+  }
 
   /**
    * The stage's letterbox scale, measured now.
@@ -87,7 +108,7 @@ export function createCanvasStage(elements, { onWarning = () => {}, dprCap = DPR
     const list = buildDrawList(state, sheets);
     sizeStage(list.width, list.height);
     last = { list, lookup: lookupOf(sheets) };
-    paintDrawList(context, list, { lookup: last.lookup, scale: renderScale });
+    paintDrawList(context, list, { lookup: last.lookup, scale: renderScale, shadows: shadowed });
     return list;
   }
 
@@ -116,8 +137,7 @@ export function createCanvasStage(elements, { onWarning = () => {}, dprCap = DPR
       elements.stage.style.height = `${height}px`;
     }
     const scale = fitStage() ?? 1;
-    const density = Math.min(positive(globalThis.devicePixelRatio) || 1, dprCap);
-    renderScale = scale * density;
+    renderScale = scale * Math.min(positive(globalThis.devicePixelRatio) || 1, density);
     const pixels = [
       Math.max(1, Math.round(width * renderScale)),
       Math.max(1, Math.round(height * renderScale)),
@@ -140,7 +160,7 @@ export function createCanvasStage(elements, { onWarning = () => {}, dprCap = DPR
       return;
     }
     sizeStage(last.list.width, last.list.height);
-    paintDrawList(context, last.list, { lookup: last.lookup, scale: renderScale });
+    paintDrawList(context, last.list, { lookup: last.lookup, scale: renderScale, shadows: shadowed });
   }
 
   function fitStage() {
@@ -194,7 +214,7 @@ export function sceneSheets(plan, cache) {
  * `(camera.scale * p + camera.offset) * scale`, which is the same mapping the
  * video plate writes into its CSS transform from the same framing.
  */
-export function paintDrawList(context, list, { lookup = () => null, scale = 1 } = {}) {
+export function paintDrawList(context, list, { lookup = () => null, scale = 1, shadows = true } = {}) {
   const { camera } = list;
   context.setTransform(1, 0, 0, 1, 0, 0);
   context.clearRect(0, 0, Math.round(list.width * scale), Math.round(list.height * scale));
@@ -212,7 +232,10 @@ export function paintDrawList(context, list, { lookup = () => null, scale = 1 } 
 
   for (const command of list.commands) {
     if (command.op === 'shadow') {
-      paintShadow(context, command);
+      // The low tier draws no shadows: a radial gradient per character per
+      // frame is the most expensive thing on the list and the least of what a
+      // viewer is looking at.
+      if (shadows) paintShadow(context, command);
       continue;
     }
     const drawable = command.url ? lookup(command.url) : null;

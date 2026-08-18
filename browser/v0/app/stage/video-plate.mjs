@@ -40,7 +40,30 @@ export function createVideoPlate(elements, { onWarning = () => {}, gestureTarget
 
   plate.style.transformOrigin = CAMERA_ORIGIN;
 
-  return { showScene, aim, play, pause, destroy };
+  return { showScene, aim, play, pause, quality, destroy };
+
+  /**
+   * What the decoder has managed, for whoever is measuring.
+   *
+   * Answered here rather than by handing the `<video>` out, because this file
+   * is the only one that touches the plate element — a second reader of it is
+   * how the two planes end up disagreeing about which scene is on screen.
+   * `null` means the browser has no such counter, which is not the same as a
+   * plate that dropped nothing.
+   */
+  function quality() {
+    if (destroyed) return null;
+    try {
+      const measured = video.getVideoPlaybackQuality?.();
+      if (!measured) return null;
+      return {
+        droppedVideoFrames: measured.droppedVideoFrames ?? 0,
+        totalVideoFrames: measured.totalVideoFrames ?? 0,
+      };
+    } catch {
+      return null;
+    }
+  }
 
   /**
    * Open a scene's plate: poster first, then the video, playing as soon as the

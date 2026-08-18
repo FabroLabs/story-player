@@ -40,7 +40,7 @@ export function defaultBudgetBytes(navigatorLike = globalThis.navigator) {
 }
 
 export function createBitmapCache({
-  budgetBytes = defaultBudgetBytes(),
+  budgetBytes: startingBudgetBytes = defaultBudgetBytes(),
   decode = decodeDrawable,
   onOverBudget = () => {},
 } = {}) {
@@ -48,6 +48,7 @@ export function createBitmapCache({
   // the front of the map is always the least recently used.
   const entries = new Map();
   const inFlight = new Map();
+  let budgetBytes = startingBudgetBytes;
   let kept = new Set();
   let heldBytes = 0;
   let destroyed = false;
@@ -109,6 +110,20 @@ export function createBitmapCache({
     /** The sheets that may not be evicted — the scene on screen. */
     keep(urls) {
       kept = new Set(urls);
+    },
+
+    /**
+     * Lower the ceiling mid-story, which is what a demotion does.
+     *
+     * Evicts immediately rather than waiting for the next decode: the reason
+     * the tier fell is that this machine is already struggling, and holding the
+     * old budget until the next scene opens is holding it through exactly the
+     * minutes that made it fall.
+     */
+    setBudget(bytes) {
+      if (!Number.isFinite(bytes) || bytes <= 0 || bytes === budgetBytes) return;
+      budgetBytes = bytes;
+      evict();
     },
 
     get bytes() {

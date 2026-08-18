@@ -69,6 +69,44 @@ test('over budget, the least recently used goes first — and is closed, not dro
   assert.equal(a.closed, false, 'a bitmap still in the cache must not be closed');
 });
 
+test('a lowered budget evicts at once, and never the scene on screen', async () => {
+  const { decode } = countingDecoder({ 'a.webp': 100, 'b.webp': 100, 'c.webp': 100 });
+  const oneSheet = 100 * 100 * 4;
+  const reports = [];
+  const cache = createBitmapCache({
+    decode, budgetBytes: oneSheet * 3, onOverBudget: (detail) => reports.push(detail),
+  });
+  cache.keep(['a.webp']);
+  const a = await cache.load('a.webp');
+  const b = await cache.load('b.webp');
+  await cache.load('c.webp');
+  assert.equal(cache.bytes, oneSheet * 3);
+
+  // A demotion lowers the ceiling mid-story. Waiting for the next decode would
+  // hold the old one through exactly the minutes that caused the demotion.
+  cache.setBudget(oneSheet);
+  assert.deepEqual([cache.has('a.webp'), cache.has('b.webp'), cache.has('c.webp')], [true, false, false]);
+  assert.equal(b.closed, true);
+  assert.equal(a.closed, false, 'the scene on screen was evicted by a lower budget');
+  assert.deepEqual(reports, []);
+
+  // Below what the kept scene alone costs, the cache says so rather than
+  // pretending the ceiling holds.
+  cache.setBudget(1);
+  assert.equal(cache.has('a.webp'), true);
+  assert.deepEqual(reports.at(-1), { heldBytes: oneSheet, budgetBytes: 1, kept: 1 });
+});
+
+test('a budget that is not a budget changes nothing', async () => {
+  const { decode, calls } = countingDecoder({ 'a.webp': 100 });
+  const cache = createBitmapCache({ decode, budgetBytes: 100 * 100 * 4 });
+  await cache.load('a.webp');
+
+  for (const value of [Number.NaN, 0, -5, undefined, 100 * 100 * 4]) cache.setBudget(value);
+  assert.equal(cache.has('a.webp'), true, 'a nonsense budget threw the cache away');
+  assert.deepEqual(calls, ['a.webp']);
+});
+
 test('the scene on screen is never evicted, however tight the budget', async () => {
   const { decode } = countingDecoder({ 'a.webp': 100, 'b.webp': 100, 'c.webp': 100 });
   const cache = createBitmapCache({ decode, budgetBytes: 1 });

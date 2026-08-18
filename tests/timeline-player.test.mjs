@@ -246,9 +246,11 @@ test('a warning stateAt repeats every frame is logged once', async (t) => {
   // `stateAt` hands back every warning raised up to t, so the same sentence
   // arrives on every frame for the rest of the story. Unpinned, a regression
   // floods the panel twenty-four times a second.
-  const player = await mount(t, (story) => {
-    const [slug] = Object.keys(story.cast);
-    story.cast[slug].clips = {};
+  const player = await mount(t, {
+    doctor: (story) => {
+      const [slug] = Object.keys(story.cast);
+      story.cast[slug].clips = {};
+    },
   });
   player.start();
   for (let at = 200; at <= 12_000; at += 200) player.frames.advanceTo(at);
@@ -272,6 +274,271 @@ test('a warning stateAt repeats every frame is logged once', async (t) => {
   player.destroy();
 });
 
+test('a machine that says it is weak is drawn for cheaply', async (t) => {
+  const weak = await mount(t, {
+    machine: { deviceMemory: 2, hardwareConcurrency: 2, devicePixelRatio: 3 },
+  });
+  weak.start();
+  const cheap = draws(weak, 1_000);
+  weak.destroy();
+
+  const strong = await mount(t, {
+    machine: { deviceMemory: 8, hardwareConcurrency: 8, devicePixelRatio: 3 },
+  });
+  strong.start();
+  const full = draws(strong, 1_000);
+
+  // 12 Hz against 24: the loop skips every other tick, and the work per second
+  // halves with it.
+  assert.ok(cheap.painted > 0 && full.painted > 0, 'neither tier drew anything at all');
+  assert.ok(
+    cheap.painted <= full.painted * 0.6,
+    `the low tier drew ${cheap.painted} frames against the default tier's ${full.painted}`,
+  );
+  // The shadow under each character is the most expensive thing on the list.
+  assert.equal(cheap.shadows, 0, 'the low tier still painted shadows');
+  assert.ok(full.shadows > 0, 'the default tier stopped painting shadows');
+  // And the canvas is backed at 1.5x rather than the ladder's 2x ceiling.
+  assert.ok(cheap.backing < full.backing, `low backed the canvas at ${cheap.backing}, default at ${full.backing}`);
+  strong.destroy();
+});
+
+test('perf: true measures each scene, and a demotion says so', async (t) => {
+  const player = await mount(t, { options: { debug: true, perf: true } });
+  player.start();
+
+  // Frames a hundred milliseconds apart: three times the 34 ms a frame may take
+  // before it is counted slow, held for long enough to fill two demotion
+  // windows. This is what a machine that cannot keep up looks like.
+  for (let at = 100; at <= 12_000; at += 100) player.frames.advanceTo(at);
+
+  // Read before the download: downloading flushes the open section, and what
+  // the panel shows after that is a section with no frames in it yet.
+  const summary = player.perfSummary.textContent;
+  const logged = await player.log();
+  const perf = logged.filter((entry) => entry.kind === 'perf');
+  const tiers = perf.filter((entry) => entry.reason === 'tier');
+  assert.ok(perf.length > tiers.length, 'no scene section was written at all');
+  assert.deepEqual(
+    tiers.map((entry) => `${entry.from}→${entry.to}`),
+    ['high→mid', 'mid→low'],
+    'the tier did not fall twice under five seconds of slow frames each',
+  );
+  const measured = perf.find((entry) => entry.reason !== 'tier');
+  assert.ok(measured.frames > 0, 'a section was written with no frames in it');
+  assert.equal(measured.frame_ms.p95 >= 100, true, 'the p95 does not reflect the frames it was fed');
+  // The panel shows the LAST thing measured, and by now that is a scene running
+  // on the tier the demotions arrived at.
+  assert.match(summary, /^scene \d+ · low · \d+ frames · p95 \d+/);
+  assert.equal(player.perfSummary.hidden, false);
+  // The download closed the section the story was in, rather than leaving the
+  // scene on screen out of the log a bug report is made of.
+  assert.equal(perf.at(-1).reason, 'download');
+
+  player.destroy();
+});
+
+test('a demotion makes the picture cheaper while the story is still running', async (t) => {
+  // Starting on `mid` — a 4 GB phone — because `mid` costs the picture nothing
+  // and only the step below it is visible. One demotion, inside a story that is
+  // still playing on the other side of it.
+  const player = await mount(t, {
+    options: { debug: true, perf: true },
+    machine: { deviceMemory: 4, hardwareConcurrency: 8, devicePixelRatio: 3 },
+  });
+  player.start();
+  const before = draws(player, 1_000);
+
+  slowFrames(player, 6_000);
+  const logged = await player.log();
+  assert.deepEqual(
+    logged.filter((entry) => entry.reason === 'tier').map((entry) => `${entry.from}→${entry.to}`),
+    ['mid→low'],
+    'exactly one demotion should have happened by now',
+  );
+
+  const after = draws(player, 1_000);
+  assert.ok(after.painted > 0, 'the loop stopped drawing altogether');
+  assert.ok(
+    after.painted <= before.painted * 0.6,
+    `after two demotions the loop still drew ${after.painted} against ${before.painted}`,
+  );
+  assert.ok(before.shadows > 0 && after.shadows === 0, 'the low tier is still painting shadows');
+  assert.ok(after.backing < before.backing, `the canvas is still backed at ${after.backing} device pixels`);
+  player.destroy();
+});
+
+test('the log says which machine it came from, and only when asked to measure', async (t) => {
+  const player = await mount(t, {
+    options: { debug: true, perf: true },
+    machine: { deviceMemory: 2, hardwareConcurrency: 2, devicePixelRatio: 3 },
+  });
+  const logged = await player.log();
+  const capability = logged.filter((entry) => entry.kind === 'capability');
+
+  assert.equal(capability.length, 1);
+  assert.deepEqual(capability[0], {
+    t_ms: 0,
+    kind: 'capability',
+    tier: 'low',
+    reasons: ['device-memory-low', 'cores-low'],
+    device_memory: 2,
+    cores: 2,
+    dpr: 3,
+    draw_hz: 12,
+    dpr_cap: 1.5,
+    shadows: false,
+    reduced_motion: false,
+  });
+  player.destroy();
+});
+
+test('the tier sizes the decoded-sheet budget the cache is built with', async (t) => {
+  // Sheets big enough that a scene costs more than the halved budget and less
+  // than the full one: the mid tier is the budget and nothing else, so this is
+  // the only place its wiring is visible.
+  const huge = () => ({ width: 3_600, height: 3_600 });
+  const mid = await mount(t, {
+    options: { debug: true },
+    machine: { deviceMemory: 4, hardwareConcurrency: 8 },
+    assets: huge,
+  });
+  const strong = await mount(t, {
+    options: { debug: true },
+    machine: { deviceMemory: 16, hardwareConcurrency: 16 },
+    assets: huge,
+  });
+
+  // Both machines are over their ceiling with sheets this big; what the wiring
+  // decides is WHICH ceiling each of them was given.
+  const ceiling = (player) => player.warnings()
+    .map((line) => /against a (\d+) MB budget/.exec(line)?.[1])
+    .find(Boolean);
+  assert.equal(ceiling(mid), '48', 'a 4 GB machine kept the full budget');
+  assert.equal(ceiling(strong), '96', 'a 16 GB machine was given the halved budget');
+  mid.destroy();
+  strong.destroy();
+});
+
+test('measuring costs nothing when nobody asked for it, and is released when they did', async (t) => {
+  const scope = watchScope(t);
+  const quiet = await mount(t, { options: { debug: true } });
+  assert.deepEqual(
+    { intervals: scope.intervals, observers: scope.observers },
+    { intervals: 0, observers: 0 },
+    'a player nobody asked to measure still armed a timer or an observer',
+  );
+  quiet.destroy();
+
+  const measured = await mount(t, { options: { debug: true, perf: true } });
+  assert.equal(scope.intervals, 1);
+  assert.equal(scope.observers, 1);
+  measured.destroy();
+  assert.equal(scope.cleared, 1, 'the lag probe outlived the player');
+  assert.equal(scope.disconnected, 1, 'the long-frame observer outlived the player');
+});
+
+test('what the plate dropped is measured through the plate, not around it', async (t) => {
+  const player = await mount(t, { options: { debug: true, perf: true } });
+  player.start();
+  player.frames.advanceTo(500);
+  player.video.quality = { droppedVideoFrames: 7, totalVideoFrames: 400 };
+
+  const first = (await player.log()).filter((entry) => entry.kind === 'perf').at(-1);
+  assert.equal(first.video_dropped, 7, 'the plate dropped frames nobody counted');
+  assert.equal(first.video_total, 400);
+
+  // The counters belong to the resource and only ever climb, so what a section
+  // reports is what happened DURING it.
+  player.video.quality = { droppedVideoFrames: 9, totalVideoFrames: 700 };
+  const second = (await player.log()).filter((entry) => entry.kind === 'perf').at(-1);
+  assert.equal(second.video_dropped, 2);
+  assert.equal(second.video_total, 300, 'the counters are read as deltas from the last section');
+  player.destroy();
+});
+
+/** Count what a `perf: true` player arms on the global scope, and what it frees. */
+function watchScope(t) {
+  const originals = {
+    setInterval: globalThis.setInterval,
+    clearInterval: globalThis.clearInterval,
+    PerformanceObserver: globalThis.PerformanceObserver,
+  };
+  const counts = { intervals: 0, cleared: 0, observers: 0, disconnected: 0 };
+  globalThis.setInterval = () => { counts.intervals += 1; return 77; };
+  globalThis.clearInterval = () => { counts.cleared += 1; };
+  globalThis.PerformanceObserver = class {
+    static supportedEntryTypes = ['long-animation-frame'];
+    constructor() { counts.observers += 1; }
+    observe() {}
+    disconnect() { counts.disconnected += 1; }
+  };
+  t.after(() => Object.assign(globalThis, originals));
+  return counts;
+}
+
+test('a player nobody asked to measure writes no perf section', async (t) => {
+  const player = await mount(t, { options: { debug: true } });
+  player.start();
+  for (let at = 100; at <= 6_000; at += 100) player.frames.advanceTo(at);
+
+  const logged = await player.log();
+  assert.deepEqual(logged.filter((entry) => entry.kind === 'perf'), []);
+  assert.deepEqual(logged.filter((entry) => entry.kind === 'capability'), []);
+  assert.equal(player.perfSummary.hidden, true);
+  player.destroy();
+});
+
+/** The panel's own download, parsed — the same path a bug report takes. */
+async function download(root) {
+  const original = URL.createObjectURL;
+  const originalRevoke = URL.revokeObjectURL;
+  let captured = null;
+  URL.createObjectURL = (blob) => { captured = blob; return 'blob:test'; };
+  URL.revokeObjectURL = () => {};
+  try {
+    findByText(root, 'download')?.dispatch('click');
+  } finally {
+    URL.createObjectURL = original;
+    URL.revokeObjectURL = originalRevoke;
+  }
+  const payload = JSON.parse(await captured.text());
+  return payload.log ?? payload;
+}
+
+function findByText(root, text) {
+  if (root.textContent === text) return root;
+  for (const child of root.children ?? []) {
+    const found = findByText(child, text);
+    if (found) return found;
+  }
+  return null;
+}
+
+/**
+ * `windowMs` of frames a hundred milliseconds apart — three times what a frame
+ * may take before it is counted slow. What a machine that cannot keep up looks
+ * like to the recorder.
+ */
+function slowFrames(player, windowMs) {
+  const start = player.frames.wall();
+  for (let at = start + 100; at <= start + windowMs; at += 100) player.frames.advanceTo(at);
+}
+
+/** Drive `windowMs` of frames and report what the canvas actually did. */
+function draws(player, windowMs) {
+  const context = player.canvas.context;
+  const from = context.calls.length;
+  const start = player.frames.wall();
+  for (let at = start + 50; at <= start + windowMs; at += 50) player.frames.advanceTo(at);
+  const since = context.calls.slice(from).map(([name]) => name);
+  return {
+    painted: since.filter((name) => name === 'clearRect').length,
+    shadows: since.filter((name) => name === 'createRadialGradient').length,
+    backing: player.canvas.sizes.at(-1)?.[1] ?? 0,
+  };
+}
+
 /** The transport's own clock text, so a test never hand-writes `0:10`. */
 function clockText(milliseconds) {
   const total = Math.max(0, Math.round(milliseconds / 1000));
@@ -293,8 +560,15 @@ function firstNarrationAfter(timeline, fromMs) {
  * test's hands. `story` is the parity corpus, so what plays is a real compile
  * of a real bundle rather than a fixture written to suit the runtime.
  */
-async function mount(t, doctor = () => {}) {
-  const dom = installDom();
+async function mount(t, { doctor = () => {}, options = {}, machine = null, assets } = {}) {
+  const dom = installDom(assets ? { assets } : {});
+  if (machine) {
+    // The probe reads the navigator and the device pixel ratio, so a test that
+    // wants a weak machine says so the way a weak machine does.
+    globalThis.navigator = { ...globalThis.navigator, ...machine };
+    if (machine.devicePixelRatio) globalThis.devicePixelRatio = machine.devicePixelRatio;
+    t.after(() => { delete globalThis.devicePixelRatio; });
+  }
   const frames = virtualFrames();
   const audio = installAudio();
   t.after(() => {
@@ -308,7 +582,10 @@ async function mount(t, doctor = () => {}) {
   const bundle = resolveStoryAssets(structuredClone(raw), ASSET_BASE);
   const timeline = compileTimeline(bundle);
   const host = document.createElement('div');
-  const player = createStoryPlayer(host, { story: raw, assetBase: ASSET_BASE });
+  const player = createStoryPlayer(host, { story: raw, assetBase: ASSET_BASE, ...options });
+  // Torn down even when an assertion throws first: the perf recorder holds a
+  // real interval, and a leaked one keeps the whole test process alive.
+  t.after(() => player.destroy());
   await player.ready;
 
   const root = host.shadowRoot;
@@ -334,6 +611,12 @@ async function mount(t, doctor = () => {}) {
     ceremony: findByClass(root, 'start-ceremony'),
     startButton: findByClass(root, 'start-button'),
     entries: () => findByClass(root, 'event-list').children.length,
+    warnings: () => [...findByClass(root, 'event-list').children]
+      .map((item) => item.childNodes.at(-1)?.textContent ?? ''),
+    perfSummary: findByClass(root, 'perf-summary'),
+    // The log as the download carries it — the only way in from outside, and
+    // the same path a bug report takes.
+    log: () => download(root),
     start: () => findByClass(root, 'start-button').dispatch('click'),
     hide() {
       document_.visibilityState = 'hidden';
@@ -423,6 +706,7 @@ function virtualFrames() {
       wall = milliseconds;
     },
     pending: () => queue.size,
+    wall: () => wall,
     restore() {
       performance.now = originalNow;
       globalThis.requestAnimationFrame = originalRequest;

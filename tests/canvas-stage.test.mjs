@@ -38,6 +38,38 @@ function book({ url = 'ruby.webp', grid = [1, 1], drawables = {} } = {}) {
   };
 }
 
+test('a lowered tier repaints at once, cheaper, without waiting for a frame', (t) => {
+  const { stage, context, elements } = mounted(t, { dpr: 3 });
+  const drawables = { 'ruby.webp': bitmap(64, 64) };
+  const state = stageState({ actors: [{ slug: 'ruby', clip: 'idle', x: 50, feetY: 900, heightPx: 300 }] });
+  stage.draw(state, book({ drawables }));
+  const backing = elements.canvas.width;
+  assert.ok(context.of('createRadialGradient').length > 0, 'the default tier drew no shadow to begin with');
+
+  const from = context.calls.length;
+  stage.setTier({ dprCap: 1.5, shadows: false });
+  const since = context.calls.slice(from).map(([name]) => name);
+
+  // Repainted here, not at the next frame: a demotion can land while the story
+  // is paused, at the gate, or after the end, and none of those are followed by
+  // another frame.
+  assert.equal(since.filter((name) => name === 'clearRect').length, 1, 'the demotion did not repaint');
+  assert.equal(since.filter((name) => name === 'createRadialGradient').length, 0, 'the low tier still painted a shadow');
+  assert.ok(since.includes('drawImage'), 'the low tier stopped drawing the cast');
+  assert.ok(elements.canvas.width < backing, `the canvas is still backed at ${elements.canvas.width} device pixels`);
+});
+
+test('a tier that changes nothing repaints nothing, and one before the first draw is harmless', (t) => {
+  const { stage, context } = mounted(t);
+  stage.setTier({ dprCap: 1.5, shadows: false });
+  assert.deepEqual(context.calls, [], 'a stage with nothing drawn yet painted a demotion');
+
+  stage.draw(stageState(), book());
+  const after = context.calls.length;
+  stage.setTier({ dprCap: 1.5, shadows: false });
+  assert.equal(context.calls.length, after, 'the same tier was applied twice');
+});
+
 /** A stage whose frame is `width`x`height` CSS pixels. */
 function mounted(t, { frame = [1920, 1080], dpr = 1 } = {}) {
   const dom = installDom();

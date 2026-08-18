@@ -1,6 +1,7 @@
 import { compileTimeline } from '../core/timeline/compile.mjs';
 import { createBitmapCache } from './assets/bitmap-cache.mjs';
 import { createSceneLoader } from './assets/scene-loader.mjs';
+import { probeCapability } from './capability.mjs';
 import { StoryClock } from './clock.mjs';
 import { DebugPanel, ObservableEventLog } from './debug-panel.mjs';
 import { createTimelinePlayer } from './timeline-player.mjs';
@@ -18,13 +19,19 @@ const SUBTITLES_KEY = 'storytime:subtitles';
  * The performance itself is `timeline-player.mjs`: one compiled schedule, one
  * loop, one function of t.
  */
-export function createV0Player({ root, elements, story, assetBase, signal, debug = false }) {
+export function createV0Player({
+  root, elements, story, assetBase, signal, debug = false, perf = false,
+}) {
   const clock = new StoryClock();
   const panel = new DebugPanel(elements.debug, debug, { eventTarget: root });
   const log = new ObservableEventLog(clock, (entry, entries) => panel.addEntry(entry, entries));
   const cleanups = [wireSubtitleToggle(elements)];
   const warn = (detail) => routeWarning(detail, null, log);
+  // Read once, before anything is decoded or drawn: the cache is sized from it,
+  // the canvas is backed from it, and the loop is paced by it.
+  const capability = probeCapability(globalThis);
   const bitmaps = createBitmapCache({
+    budgetBytes: capability.bitmapBudget,
     onOverBudget: ({ heldBytes, budgetBytes }) => warn({
       type: 'media',
       asset: 'cache',
@@ -62,6 +69,23 @@ export function createV0Player({ root, elements, story, assetBase, signal, debug
       // session can be replayed against the engine's own copy.
       const timeline = compileTimeline(runtimeStory);
       panel.attachTimeline(timeline);
+      // Only when somebody asked to measure: a log that carries a perf section
+      // has to say which machine produced it, and a log that does not should
+      // not carry an entry nobody will read.
+      if (perf) {
+        log.append({
+          kind: 'capability',
+          tier: capability.tier,
+          reasons: capability.reasons,
+          device_memory: capability.deviceMemory,
+          cores: capability.cores,
+          dpr: capability.dpr,
+          draw_hz: capability.drawHz,
+          dpr_cap: capability.dprCap,
+          shadows: capability.shadows,
+          reduced_motion: capability.reducedMotion,
+        });
+      }
       elements.title.textContent = runtimeStory.title ?? 'tonight’s story';
       elements.badge.name.textContent = runtimeStory.title ?? '';
       loader = createSceneLoader({
@@ -74,9 +98,13 @@ export function createV0Player({ root, elements, story, assetBase, signal, debug
         clock,
         loader,
         cache: bitmaps,
+        capability,
+        log,
+        perf,
         onWarning: warn,
         signal,
       });
+      if (perf) panel.beforeSerialize(() => runtime.flushPerf('download'));
       await armStart();
     } catch (error) {
       if (error?.name !== 'AbortError') {

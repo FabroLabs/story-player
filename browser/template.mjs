@@ -66,6 +66,11 @@ export function createPlayerTemplate(root, { stylesheet = STYLESHEET } = {}) {
   const debugCopy = element(document, 'button', { type: 'button', text: 'copy json' });
   const debugDownload = element(document, 'button', { type: 'button', text: 'download' });
   const debugStatus = element(document, 'span', { className: 'debug-status', role: 'status' });
+  // The perf section: the last thing measured, in one line, above the entries.
+  // Hidden until something measures, so a player mounted without `perf: true`
+  // shows no empty box where numbers would be.
+  const debugPerf = element(document, 'p', { className: 'perf-summary', hidden: '' });
+  debugPerf.hidden = true;
   const debugPanel = element(document, 'aside', {
     className: 'debug-panel', 'aria-label': 'event log', 'aria-hidden': 'true', inert: '',
   }, [
@@ -75,7 +80,9 @@ export function createPlayerTemplate(root, { stylesheet = STYLESHEET } = {}) {
         element(document, 'h2', { text: 'event log' }),
       ]), debugClose,
     ]),
-    element(document, 'div', { className: 'debug-actions' }, [debugCopy, debugDownload, debugStatus]), debugList,
+    element(document, 'div', { className: 'debug-actions' }, [debugCopy, debugDownload, debugStatus]),
+    debugPerf,
+    debugList,
   ]);
   debugPanel.setAttribute('inert', '');
   root.replaceChildren(link, shell, debugPanel);
@@ -85,7 +92,7 @@ export function createPlayerTemplate(root, { stylesheet = STYLESHEET } = {}) {
     stage: { frame, stage, canvas, plate, poster, video, subtitle, mediaNote, end },
     debug: {
       panel: debugPanel, toggle: debugToggle, close: debugClose, copy: debugCopy,
-      download: debugDownload, list: debugList, status: debugStatus,
+      download: debugDownload, list: debugList, status: debugStatus, perf: debugPerf,
     },
   };
 }

@@ -623,6 +623,17 @@ button:focus-visible {
 
 .debug-status { margin-left: auto; color: var(--accent-soft); font-size: 0.66rem; }
 
+/* The perf section: one line, above the entries, only once something measured. */
+.perf-summary {
+  margin: 0;
+  padding: 0.6rem 0.15rem 0;
+  color: var(--accent-soft);
+  font: 0.68rem/1.5 ui-monospace, "SFMono-Regular", Consolas, monospace;
+  overflow-wrap: anywhere;
+}
+
+.perf-summary[hidden] { display: none; }
+
 .event-list {
   margin: 0;
   padding: 0.8rem 0 2rem;

@@ -75,6 +75,25 @@ test('caller-supplied React mounts, replaces, and unmounts the plain player unde
   assert.equal(target.firstElementChild, host, 'debug replacement discarded the React-owned host');
   assert.equal(host.shadowRoot.querySelector('.debug-panel').getAttribute('aria-hidden'), 'false');
 
+  // `perf` is a player option, not a DOM attribute: unhandled, it lands on the
+  // host `div` and React warns about it while the measurement never happens.
+  await act(async () => {
+    root.render(React.createElement(StrictMode, null, React.createElement(StoryPlayer, {
+      story: story('Second moon'),
+      assetBase: 'https://other-storage.example/root',
+      debug: true,
+      perf: true,
+      className: 'story-slot',
+    })));
+    await settle();
+  });
+  assert.equal(host.getAttribute('perf'), null, 'the perf option was spread onto the host element');
+  assert.match(
+    host.shadowRoot.querySelector('.event-list').textContent,
+    /capability/,
+    'the React adapter did not pass perf to the player',
+  );
+
   await act(async () => root.unmount());
   assert.equal(host.shadowRoot.childNodes.length, 0, 'React cleanup left the plain player mounted');
 });
