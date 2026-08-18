@@ -17,9 +17,25 @@ DOM—no iframe, npm package, standalone page, or player-owned Story JSON fetch.
 </script>
 ```
 
+It is a timeline player. The bundle is compiled once to a schedule, every frame
+is a pure function of that schedule, and the picture is one canvas 2D stage over
+the hardware-decoded video plate:
+
+```text
+story.json → compileTimeline(bundle) → stateAt(timeline, bundle, t) → canvas
+```
+
+The story clock is pausable and seekable behind play/pause, skip and progress
+controls; sprite sheets load as display-sized webp renditions instead of the
+originals; a weak device is put on a cheaper tier rather than into a slideshow.
+`tooling.v0` exports the same `compileTimeline`, `stateAt`, render rules and
+`V0_POLICY` that the engine's tools and the phone client run, so every client
+plays one schedule.
+
 See [Embedding and operations](docs/embedding.md) for the plain JavaScript and
-React APIs, stable versus immutable URLs, storage/CORS configuration,
-publishing, rollback, and GitLab migration.
+React APIs, how it plays, controls, renditions and device tiers, stable versus
+immutable URLs, storage/CORS configuration, publishing, rollback, and GitLab
+migration.
 
 ## Development
 

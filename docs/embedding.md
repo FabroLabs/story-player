@@ -18,6 +18,53 @@ Every media value inside the bundle must already be bucket-qualified, such as
 `jobs/<story-id>/audio/<digest>.wav`. The player resolves both against the same
 base, for example `https://storage.example/`.
 
+Beside `story` and `assetBase`, `options` accepts two booleans, both off by
+default:
+
+- `debug: true` shows the log button and its drawer, and the log downloaded from
+  that drawer carries the compiled timeline.
+- `perf: true` measures the running player—frame times per scene, long frames,
+  event-loop lag, dropped video frames—into the same log, after one `capability`
+  entry naming the device tier and the signals that chose it. It is also what
+  allows a sustained run of slow frames to demote the tier mid-story.
+
+`tooling.v0` is the deterministic surface other clients share: `compileTimeline`,
+`TIMELINE_OPS`, `stateAt`, the pure render rules (`frameIndexAt`, `frameCell`,
+`spriteHeightForCm`, `floorYAtX`, `zoneNamed`, `selectFacingClip`,
+`selectLocomotion`), and the frozen `V0_POLICY`.
+
+## How it plays
+
+One pure path, and every client runs the same one:
+
+```text
+story.json → compileTimeline(bundle) → stateAt(timeline, bundle, t) → canvas
+```
+
+`compileTimeline` is pure and synchronous: the parsed bundle in, the whole
+schedule out—`{timeline_version, storylang_version, title, duration_ms, events}`
+with every event stamped `t_ms`. It fetches nothing and reads no clock, and the
+same bundle always compiles to the same bytes. The engine's timeline tool calls
+this exact function out of the published artifact, so the browser and the phone
+play one schedule rather than two implementations of it.
+
+`stateAt` is one frame: a pure function of that timeline, the bundle and an
+instant in milliseconds, answering with the actors on stage, their clips and
+frame cells, the camera framing, the subtitle showing, and the warnings crossed
+on the way. It interprets the timeline and never re-decides it.
+
+The picture is a single canvas 2D stage drawn over the hardware-decoded
+`<video>` plate, both inside the player's open Shadow DOM. Camera framing is a
+CSS transform on the plate and the matching `ctx.setTransform` on the canvas,
+written only when the framing moves. Subtitles, the media note and the controls
+stay ordinary DOM.
+
+The story clock is pausable and seekable, and audio follows it: each cue starts
+at its own `t_ms` and is aligned by `currentTime`, so blocked or late audio
+never holds up the picture. The loop redraws only when the frame changed, and
+never faster than 24 Hz. A story that is paused, hidden, ended or destroyed
+schedules nothing.
+
 ## Plain JavaScript
 
 ```html
@@ -62,9 +109,54 @@ export function Performance({ story }) {
 }
 ```
 
-Changing `story`, `assetBase`, or `debug` destroys the previous instance before
-mounting the replacement. Unmounting destroys the instance. React StrictMode is
-supported.
+Changing `story`, `assetBase`, `debug`, or `perf` destroys the previous instance
+before mounting the replacement. Unmounting destroys the instance. React
+StrictMode is supported.
+
+## Controls
+
+The player owns its transport, inside the Shadow DOM and below the stage. It
+appears when the story begins, not while the opening ceremony is still up:
+play/pause, skip back and forward ten seconds, a draggable progress bar with the
+elapsed time and the minutes left, and the subtitle toggle.
+
+Keyboard, while the stage frame has focus: space or `k` toggles play, the arrow
+keys skip ten seconds, `Home` and `End` seek to the start and the end. Keys are
+ignored while a text field has focus, and space and enter are left to whichever
+button has focus so the drawer and toggle stay reachable.
+
+Seeking is a seek of the story, not of a video: the clock moves, the next frame
+is `stateAt` at the new instant, and the narration and music the instant lands
+inside restart from the right offset through `currentTime`. A sound effect the
+seek landed in the middle of stays silent until the story crosses its next cue.
+
+## Sheets, renditions and device tiers
+
+Every clip in a current bundle carries `renditions`—the content-addressed webp
+ladder at 200, 320, 384 and 512 px, the same one the phone client reads. The
+player asks for the smallest step that covers the sprite's drawn height times
+the stage's fit scale, the capped device pixel ratio, and the largest camera
+magnification that scene reaches; when a ladder exists the original sheet is
+never requested. Renditions are re-gridded during the encode—a one-row strip
+becomes near-square—and the player derives that grid rather than reading the
+bundle's, which describes the original.
+
+A bundle built before renditions existed still plays. It falls back to the
+original sheets and says so once per sheet in the log.
+
+The device tier is probed once, before the first frame, from `deviceMemory`,
+`hardwareConcurrency` and 2D-canvas support:
+
+| tier | what changes |
+|---|---|
+| `high` | full budget: 96 MB of decoded sheets, DPR capped at 2, 24 Hz, ground shadows |
+| `mid` | the decoded-sheet budget halves to 48 MB; the picture is identical |
+| `low` | DPR capped at 1.5, 12 Hz draw cadence, 48 MB, no ground shadows |
+
+With `perf: true`, frames that stay slow for five seconds demote the tier while
+the story runs; the tier never climbs back inside one session. A browser that
+gives no 2D context at all is not a failure to mount: the canvas draws nothing,
+one warning names the reason, and the poster, subtitles and audio still play.
 
 ## Stable and immutable URLs
 
@@ -94,6 +186,15 @@ anonymous `s3:GetObject`, which covers browser GET and HEAD, and its CORS rule
 permits cross-origin GET/HEAD. No write operation is public. The player script,
 Story JSON, and media may share one storage origin while remaining in separate
 buckets.
+
+The media buckets need that same cross-origin GET/HEAD rule. Sprite sheets are
+no longer CSS backgrounds: they are fetched with `mode: 'cors'` and
+`credentials: 'omit'`, then decoded with `createImageBitmap` (falling back to
+`Image.decode`) before they can be drawn into the canvas. A media bucket without
+a CORS rule fails every sheet request from a host on another origin, and the
+story plays with placeholder silhouettes and one warning per sheet. Poster and
+plate video are plain elements and would still load, which is why the symptom
+looks like missing characters rather than a missing background.
 
 Publisher configuration:
 
