@@ -79,6 +79,11 @@ button:focus-visible {
   background: var(--ink);
 }
 
+/* The frame is focusable so the keys have somewhere to live when the overlay
+   withdraws, and a ring around the whole picture would be the player shouting
+   about its own plumbing. The controls keep their own `:focus-visible` rings. */
+.stage-frame:focus { outline: none; }
+
 .stage-letterbox {
   position: absolute;
   inset: 0;
@@ -185,6 +190,90 @@ button:focus-visible {
 
 .story-name:empty,
 .story-scene:empty { display: none; }
+
+/* The mark a click leaves in the middle of the picture.
+
+   Out of the pointer's way at all times: what a viewer is clicking is the
+   picture, and a circle that swallowed the second click of a double-tap would
+   make the switch feel broken. It is drawn only while it is fading, which is
+   the whole of what it says — "that click did something". */
+.stage-flash {
+  position: absolute;
+  z-index: 7;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  pointer-events: none;
+  opacity: 0;
+}
+
+.stage-flash.is-on {
+  animation: flash-mark 620ms ease-out forwards;
+}
+
+@keyframes flash-mark {
+  from { opacity: 0.92; transform: scale(0.82); }
+  to { opacity: 0; transform: scale(1.28); }
+}
+
+/* The transport's own two colours, at the size a mark on the picture wants:
+   the circle a click leaves is the same button the bar shows, drawn where the
+   click happened. A neutral grey disc read as a browser's chrome rather than
+   as this player's. */
+.flash-mark {
+  display: grid;
+  place-content: center;
+  width: clamp(3.6rem, 9vw, 5.4rem);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  color: var(--on-accent);
+  background: var(--accent);
+  box-shadow: 0 0.4rem 1.6rem rgba(4, 12, 10, 0.45);
+}
+
+/* The same two glyphs the transport draws, at the size this circle wants. */
+.flash-mark::before {
+  content: '';
+  width: 0;
+  height: 0;
+  margin-left: 0.3rem;
+  border-top: 0.8rem solid transparent;
+  border-bottom: 0.8rem solid transparent;
+  border-left: 1.3rem solid currentColor;
+}
+
+.stage-flash.is-pause .flash-mark::before {
+  width: 1.24rem;
+  height: 1.5rem;
+  margin-left: 0;
+  border: 0;
+  background: linear-gradient(
+    to right,
+    currentColor 0 0.42rem,
+    transparent 0.42rem 0.82rem,
+    currentColor 0.82rem 1.24rem
+  );
+}
+
+/* The player's own two toggles, opposite the name. Everything else a viewer
+   expects up here — close, cast, parental, overflow — belongs to the page that
+   mounted us, which is why this row is short and pinned to the corner rather
+   than spread across the top. */
+.stage-actions {
+  position: absolute;
+  z-index: 8;
+  top: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: clamp(0.7rem, 2vw, 1.15rem) clamp(0.9rem, 2.4vw, 1.5rem);
+}
+
+/* The row is withdrawn until the story begins, and `display: flex` above would
+   beat the UA rule behind `hidden` — the same trap `.quiet-button[hidden]` is
+   spelled out for. */
+.stage-actions[hidden] { display: none; }
 
 .start-ceremony,
 .end-overlay {
@@ -295,14 +384,14 @@ button:focus-visible {
    which cost the picture a third of the stage with the text empty. Everything
    visible now belongs to the text below, which comes and goes with the words.
 
-   The type size lives here rather than on .subtitle because .subtitle is an
-   inline box: an inline box takes no max-width, so the line length has to be
-   measured by its container — and `ch` only means "a character of the subtitle"
-   if the container is set in the subtitle's own size. 44ch less 1ch of padding
-   each side is the ~42ch the caption houses hold as the readable maximum.
+   The type size lives here rather than on .subtitle because the line length is
+   measured by the container — and `ch` only means "a character of the subtitle"
+   if the container is set in the subtitle's own size. The mockup's caption is a
+   long single line at about a fifty-character measure, which is why this is
+   wider and smaller than the two-line block it replaced.
 
    The bottom padding clears the control bar: the words sit above the transport
-   rather than behind it. */
+   rather than behind it — and follow it down when a tap takes it away. */
 .subtitle-wrap {
   position: absolute;
   z-index: 6;
@@ -310,36 +399,36 @@ button:focus-visible {
   right: 0;
   bottom: 0;
   margin-inline: auto;
-  max-width: 44ch;
-  padding: 0 1ch clamp(5rem, 13vw, 9rem);
-  font-size: clamp(1rem, 2.35vw, 2.35rem);
-  line-height: 1.65;
+  max-width: 56ch;
+  padding: 0 1ch clamp(4.8rem, 13vw, 8.5rem);
+  font-size: clamp(0.95rem, 1.45vw, 1.5rem);
+  line-height: 1.55;
   text-align: center;
   text-wrap: balance;
   pointer-events: none;
+  transition: padding-bottom 180ms ease;
 }
 
-/* Inline, so the box hugs the words instead of the stage, and `clone` so the
-   second and third lines of a long sentence each get their own padded box
-   rather than one ragged shape spanning them.
+.stage-frame.is-bare .subtitle-wrap { padding-bottom: clamp(1.6rem, 4vw, 3rem); }
 
-   The line-height above is what keeps those boxes apart, and it is measured,
-   not chosen: an inline box is as tall as the font's content area, which is
-   1.33em here — not 1em — so a box is 1.33 + 2 × 0.1 = 1.53em and anything
-   under that leading makes neighbouring lines overlap. They are translucent,
-   so an overlap is not a near miss: it paints a darker seam across the words.
-   1.65 leaves ~0.1em of stage showing between lines at every clamp size. */
+/* One box around the whole line, hugging the words rather than the stage: the
+   mockup draws a single rounded plate under the caption, not a padded box per
+   line. `inline-block` is what gives that — it shrink-wraps like an inline box
+   but takes the container's measure, so a sentence that does wrap stays inside
+   one shape instead of a ragged stack of them.
+
+   Lighter than it was, too. At 650 against a moving picture the caption read as
+   a label; the design's weight is a reading voice, and the plate behind it is
+   what carries the contrast. */
 .subtitle {
-  display: inline;
+  display: inline-block;
   margin: 0;
-  padding: 0.1em 0.5em;
+  padding: 0.34em 0.9em;
   color: #ffffff;
-  font-weight: 650;
+  font-weight: 500;
   letter-spacing: 0.005em;
   background: var(--caption);
-  border-radius: 0.28em;
-  -webkit-box-decoration-break: clone;
-  box-decoration-break: clone;
+  border-radius: 0.55em;
 }
 
 /* An inline box with padding still paints that padding when it holds no text,
@@ -403,12 +492,34 @@ button:focus-visible {
   right: 0;
   bottom: 0;
   display: grid;
-  gap: 0.35rem;
-  padding: clamp(1.4rem, 4vw, 2.6rem) clamp(0.8rem, 2.4vw, 1.6rem) clamp(0.7rem, 1.8vw, 1.1rem);
+  gap: 0.15rem;
+  /* The bar rides low, the way every video transport does: what is under it is
+     two short rows, not a stack. */
+  padding: clamp(1.4rem, 4vw, 2.6rem) clamp(0.8rem, 2.4vw, 1.6rem) clamp(0.45rem, 1.1vw, 0.7rem);
   background: linear-gradient(to top, rgba(3, 10, 12, 0.72), rgba(3, 10, 12, 0.34) 45%, transparent);
 }
 
 .controls[hidden] { display: none; }
+
+/* The overlay withdraws from a story nobody is pointing at, and comes back the
+   moment they are — the whole overlay, because a name and a subtitle toggle
+   floating over a story with no transport under them read as leftovers rather
+   than as chrome. `visibility` rather than `opacity` alone: a control faded to
+   nothing is still in the tab order and still takes the click that was meant
+   for the picture. */
+.controls,
+.story-badge,
+.stage-actions {
+  transition: opacity 180ms ease, visibility 0s;
+}
+
+.stage-frame.is-bare .controls,
+.stage-frame.is-bare .story-badge,
+.stage-frame.is-bare .stage-actions {
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 180ms ease, visibility 0s linear 180ms;
+}
 
 .scrub {
   position: relative;

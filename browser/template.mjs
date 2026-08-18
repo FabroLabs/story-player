@@ -55,10 +55,30 @@ export function createPlayerTemplate(root, { stylesheet = STYLESHEET } = {}) {
   ]);
   end.hidden = true;
   const badge = createBadge(document);
-  const controls = createControlBar(document, { subtitles, debugToggle });
-  const frame = element(document, 'section', { className: 'stage-frame', 'aria-label': 'story stage' }, [
+  const controls = createControlBar(document);
+  // The two toggles the player owns, over the picture and out of the
+  // transport's way — where the mockup puts the subtitle toggle. The host's own
+  // chrome (close, cast, parental, overflow) continues this row on the page
+  // that mounted us; the player never draws those.
+  // Withdrawn until the story begins, like the transport it used to live in:
+  // a `cc` pill painted over the opening ceremony is both the first thing a
+  // Tab lands on and a control for a story nobody has started.
+  const actions = element(document, 'div', { className: 'stage-actions', hidden: '' }, [subtitles, debugToggle]);
+  actions.hidden = true;
+  // The mark a click leaves in the middle of the picture: the same shape every
+  // video player draws when the pointer, rather than the transport, changed the
+  // story's mind. It never takes a pointer of its own — what is under it is the
+  // picture, and the picture is the switch.
+  const flashMark = element(document, 'span', { className: 'flash-mark' });
+  const flash = element(document, 'div', { className: 'stage-flash', 'aria-hidden': 'true' }, [flashMark]);
+  // `tabindex="-1"`: not a tab stop, but focusABLE — the keys are read here, so
+  // when the overlay withdraws under a button a click left focused, the focus
+  // is moved here rather than out of the player altogether.
+  const frame = element(document, 'section', {
+    className: 'stage-frame', 'aria-label': 'story stage', tabindex: '-1',
+  }, [
     element(document, 'div', { className: 'stage-letterbox', 'aria-hidden': 'true' }),
-    stage, badge.root, ceremony, subtitleArea, end, controls.root,
+    stage, flash, badge.root, actions, ceremony, subtitleArea, end, controls.root,
   ]);
   const shell = element(document, 'main', { className: 'player-shell' }, [frame]);
   const debugClose = element(document, 'button', { className: 'icon-button', type: 'button', 'aria-label': 'close event log', text: '×' });
@@ -88,7 +108,10 @@ export function createPlayerTemplate(root, { stylesheet = STYLESHEET } = {}) {
   root.replaceChildren(link, shell, debugPanel);
   return {
     title, status, start, ceremony, subtitles, subtitleArea, debugToggle, badge,
-    controls: { ...controls, frame },
+    // `stage`, `actions` and `flash` are the transport's, not the renderer's:
+    // the picture is the play switch, the mark is what a click leaves on it,
+    // and the actions row appears with the bar when the story begins.
+    controls: { ...controls, frame, stage, actions, flash },
     stage: { frame, stage, canvas, plate, poster, video, subtitle, mediaNote, end },
     debug: {
       panel: debugPanel, toggle: debugToggle, close: debugClose, copy: debugCopy,
@@ -118,7 +141,7 @@ function createBadge(document) {
  * same thing. Everything a pointer can do here, the keyboard can do too — the
  * handlers live in `v0/app/controls.mjs`.
  */
-function createControlBar(document, { subtitles, debugToggle }) {
+function createControlBar(document) {
   const fill = element(document, 'div', { className: 'scrub-fill' });
   const handle = element(document, 'div', { className: 'scrub-handle' });
   const scrub = element(document, 'div', {
@@ -151,7 +174,7 @@ function createControlBar(document, { subtitles, debugToggle }) {
     element(document, 'div', { className: 'control-row' }, [
       remaining,
       element(document, 'div', { className: 'transport' }, [back, toggle, forward]),
-      element(document, 'div', { className: 'side-buttons' }, [subtitles, debugToggle]),
+      element(document, 'div', { className: 'side-buttons' }),
     ]),
   ]);
   root.hidden = true;

@@ -101,12 +101,12 @@ test('the subtitle line and the media note reserve no height of their own', () =
 });
 
 test('the subtitle background belongs to the text, so it hugs the words', () => {
-  // What replaces the band: an inline box per wrapped line (the webvtt/BBC
-  // shape). `display: inline` is the load-bearing half — a block element with
-  // a background paints a full-width bar even with one short word in it, which
-  // is the band bug rebuilt one element lower. `box-decoration-break: clone`
-  // is what gives the second and third wrapped lines their own padded box
-  // instead of one ragged shape spanning all three.
+  // What replaces the band. The load-bearing half is that the box shrink-wraps:
+  // a block element with a background paints a full-width bar even with one
+  // short word in it, which is the band bug rebuilt one element lower. Whether
+  // it hugs as `inline` (a padded box per wrapped line, the webvtt shape) or as
+  // `inline-block` (one plate under the whole caption, which is what the design
+  // draws) is a look, and the look may change; painting the stage may not.
   const declarations = declarationsFor(read('styles.css'), 'subtitle');
   const painted = withProperty(declarations, 'background');
   assert.ok(painted.length > 0, '.subtitle has no background of its own — the words are unreadable over a light plate');
@@ -116,12 +116,37 @@ test('the subtitle background belongs to the text, so it hugs the words', () => 
     .filter((one) => one.property === 'display' && !one.selector.includes(':empty'))
     .map((one) => one.value);
   assert.ok(
-    display.includes('inline'),
-    `.subtitle paints a background without being inline, so one short word paints a stage-wide bar (display: ${display.join(', ') || 'unset'})`,
+    display.some((value) => ['inline', 'inline-block'].includes(value)),
+    `.subtitle paints a background without hugging its words, so one short word paints a stage-wide bar (display: ${display.join(', ') || 'unset'})`,
   );
+  // Cloning only means anything for the per-line shape; a single plate wants
+  // exactly the opposite, so it is asserted where it belongs — with `inline`.
+  if (display.includes('inline')) {
+    assert.ok(
+      declarations.some((one) => one.property.endsWith('box-decoration-break') && one.value === 'clone'),
+      '.subtitle is inline but does not clone its box across wrapped lines',
+    );
+  }
+});
+
+test('the caption plate is measured by its container, never by the stage', () => {
+  // With the box `inline` this needed no saying — `width` does not apply to a
+  // non-replaced inline box, so a stage-wide plate was impossible. As one
+  // `inline-block` it is two edits away: a width on the text, or the wrap's
+  // measure removed. Both of those are the band bug again, so both are said.
+  const css = read('styles.css');
+
+  const wrap = declarationsFor(css, 'subtitle-wrap');
   assert.ok(
-    declarations.some((one) => one.property.endsWith('box-decoration-break') && one.value === 'clone'),
-    '.subtitle does not clone its box across wrapped lines',
+    withProperty(wrap, 'max-width').length > 0,
+    'nothing bounds the caption line, so a long sentence paints across the whole picture',
+  );
+
+  const plate = declarationsFor(css, 'subtitle');
+  assert.deepEqual(
+    withProperty(plate, 'width').map((one) => `${one.property}: ${one.value}`),
+    [],
+    '.subtitle takes a width of its own, so it no longer hugs its words',
   );
 });
 

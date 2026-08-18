@@ -8,6 +8,7 @@
  */
 
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import test from 'node:test';
 
 import { createPlayerTemplate } from '../browser/template.mjs';
@@ -15,6 +16,9 @@ import { createControls } from '../browser/v0/app/controls.mjs';
 import { installDom } from './_dom.mjs';
 
 const STORY_MS = 600_000;
+// `createControls`'s own default, and the length the stylesheet draws the mark
+// fading over. Two copies of one number, which is why they are compared below.
+const FLASH_MS = 620;
 
 test('the bar stays out of the way until the story begins', (t) => {
   const { bar, controls, seen } = bench(t);
@@ -146,6 +150,247 @@ test('the transport buttons and the keyboard mean the same three things', (t) =>
   assert.equal(seen.toggles, 3, 'a key meant for a focused button reached the transport instead');
 });
 
+test('the picture is the play switch, and the click leaves a mark saying so', async (t) => {
+  const { bar, controls, seen } = bench(t, { flashMs: 20 });
+  controls.arm(STORY_MS);
+  controls.show();
+  controls.update({ tMs: 0, playing: true });
+
+  bar.stage.dispatch('click');
+  assert.equal(seen.toggles, 1, 'the picture did not toggle the story');
+  await tick();
+  assert.equal(bar.flash.classList.contains('is-on'), true, 'the click left no mark on the picture');
+  assert.equal(bar.flash.classList.contains('is-pause'), true, 'a click that pauses drew the play glyph');
+
+  // The mark is a moment, not a state.
+  await tick(30);
+  assert.equal(bar.flash.classList.contains('is-on'), false, 'the mark stayed on the picture');
+
+  // And the other way round: a click on a paused story offers play.
+  controls.update({ tMs: 0, playing: false });
+  bar.stage.dispatch('click');
+  await tick();
+  assert.equal(bar.flash.classList.contains('is-pause'), false);
+});
+
+test('the overlay follows the pointer and withdraws from a story left alone', async (t) => {
+  const { bar, controls } = bench(t, { idleMs: 20 });
+  controls.arm(STORY_MS);
+  controls.show();
+  controls.update({ tMs: 0, playing: true });
+  assert.equal(bar.frame.classList.contains('is-bare'), false, 'the story began with its overlay already gone');
+
+  await tick(40);
+  assert.equal(bar.frame.classList.contains('is-bare'), true, 'a running story kept its transport over the picture');
+
+  bar.frame.dispatch('pointermove');
+  assert.equal(bar.frame.classList.contains('is-bare'), false, 'the pointer did not bring the overlay back');
+
+  // A pointer that leaves takes the overlay with it — there is nothing left to
+  // reach for it with.
+  bar.frame.dispatch('pointerleave');
+  assert.equal(bar.frame.classList.contains('is-bare'), true);
+});
+
+test('a paused story keeps its transport under the pointer, and not once it leaves', async (t) => {
+  // Standing still is not the same as being left: the one thing a viewer who
+  // stopped a story is looking for is the way to start it again, so the
+  // countdown does not run — but a picture nobody is pointing at is a picture.
+  const { bar, controls } = bench(t, { idleMs: 20 });
+  controls.arm(STORY_MS);
+  controls.show();
+  controls.update({ tMs: 1_000, playing: false });
+
+  await tick(40);
+  assert.equal(
+    bar.frame.classList.contains('is-bare'),
+    false,
+    'a paused story hid its own transport with the pointer still on it',
+  );
+
+  bar.frame.dispatch('pointerleave');
+  assert.equal(
+    bar.frame.classList.contains('is-bare'),
+    true,
+    'the transport stayed over a paused picture nobody was pointing at',
+  );
+});
+
+test('a key brings the overlay back before it does anything else', (t) => {
+  // A keyboard has no pointer to wake the overlay with.
+  const { bar, controls, seen } = bench(t, { idleMs: 5_000 });
+  controls.arm(STORY_MS);
+  controls.show();
+  controls.update({ tMs: 0, playing: true });
+  bar.frame.dispatch('pointerleave');
+  assert.equal(bar.frame.classList.contains('is-bare'), true);
+
+  bar.frame.dispatch('keydown', { key: ' ' });
+  assert.equal(bar.frame.classList.contains('is-bare'), false, 'the overlay stayed hidden from a keyboard');
+  assert.equal(seen.toggles, 1, 'the key that revealed the overlay was swallowed by it');
+});
+
+test('the frames a story draws do not keep restarting the countdown', async (t) => {
+  // `update()` is called on every drawn frame, twenty-four a second, which is
+  // why waking lives inside the mode WRITE rather than beside it: moved one
+  // line out, the timer is cleared and re-set every 42 ms and the overlay never
+  // withdraws from a story that is playing normally.
+  const { bar, controls } = bench(t, { idleMs: 30 });
+  controls.arm(STORY_MS);
+  controls.show();
+  const until = Date.now() + 90;
+  while (Date.now() < until) {
+    controls.update({ tMs: 1_000, playing: true });
+    await tick(5);
+  }
+
+  assert.equal(bar.frame.classList.contains('is-bare'), true, 'the drawing itself held the overlay open');
+});
+
+test('a story that has ended keeps the way to play it again', async (t) => {
+  // The end card covers the picture, so the click that would bring the overlay
+  // back cannot reach the stage: an ended story that withdrew its transport
+  // could not be replayed at all.
+  const { bar, controls } = bench(t, { idleMs: 20 });
+  controls.arm(STORY_MS);
+  controls.show();
+  controls.update({ tMs: STORY_MS, playing: false, ended: true });
+
+  await tick(40);
+  assert.equal(bar.frame.classList.contains('is-bare'), false, 'the replay transport withdrew from a finished story');
+});
+
+test('a second click gives the mark a second life', async (t) => {
+  const { bar, controls } = bench(t, { flashMs: 60 });
+  controls.arm(STORY_MS);
+  controls.show();
+
+  bar.stage.dispatch('click');
+  await tick(30);
+  assert.equal(bar.flash.classList.contains('is-on'), true);
+
+  bar.stage.dispatch('click');
+  assert.equal(bar.flash.classList.contains('is-on'), false, 'the mark was not taken off before being put back');
+  await tick(40);
+  // 70 ms after the FIRST click: its own timer would have stripped the second
+  // mark here if it had not been cleared.
+  assert.equal(bar.flash.classList.contains('is-on'), true, 'the first click’s timer wiped the second mark');
+  await tick(40);
+  assert.equal(bar.flash.classList.contains('is-on'), false, 'the mark outstayed its life');
+});
+
+test('a tap does not take the transport away', (t) => {
+  // A device with no hover fires `pointerleave` right after every `pointerup`.
+  // Obeyed, it would leave a phone showing the transport only while a finger is
+  // held down.
+  const { bar, controls } = bench(t);
+  controls.arm(STORY_MS);
+  controls.show();
+  controls.update({ tMs: 0, playing: true });
+
+  bar.frame.dispatch('pointerdown', { pointerType: 'touch' });
+  bar.stage.dispatch('click');
+  bar.frame.dispatch('pointerleave', { pointerType: 'touch' });
+
+  assert.equal(bar.frame.classList.contains('is-bare'), false, 'the tap ended by hiding what it had just revealed');
+});
+
+test('what a keyboard is on is not taken away under it', async (t) => {
+  // A control made `visibility: hidden` under a focus ring drops that focus out
+  // of the player, and every key with it — the only `keydown` listener is
+  // inside the frame the focus has just left.
+  const { bar, controls } = bench(t, { idleMs: 20 });
+  controls.arm(STORY_MS);
+  controls.show();
+  controls.update({ tMs: 0, playing: true });
+  bar.frame.getRootNode = () => ({ activeElement: bar.toggle });
+  // A key is what put the focus there, and a key is all this viewer has.
+  bar.frame.dispatch('keydown', { key: 'ArrowRight' });
+
+  await tick(40);
+  assert.equal(bar.frame.classList.contains('is-bare'), false, 'the countdown blurred a focused control');
+  bar.frame.dispatch('pointerleave');
+  assert.equal(bar.frame.classList.contains('is-bare'), false, 'the pointer leaving blurred a focused control');
+});
+
+test('a button a click left focused does not hold the overlay open', async (t) => {
+  // Clicking `cc` with a mouse leaves it focused without a keyboard being
+  // anywhere near it. Read as "somebody is on this control", it kept the
+  // transport on screen for the rest of the story, hover or no hover.
+  const { bar, controls } = bench(t, { idleMs: 20 });
+  controls.arm(STORY_MS);
+  controls.show();
+  controls.update({ tMs: 0, playing: true });
+  let parked = 0;
+  bar.frame.focus = () => { parked += 1; };
+  bar.frame.getRootNode = () => ({ activeElement: bar.toggle });
+  // The pointer is what put the focus there — the click itself.
+  bar.frame.dispatch('pointerdown');
+
+  await tick(40);
+  assert.equal(bar.frame.classList.contains('is-bare'), true, 'a click-focused button froze the overlay');
+  // And the keys go with it: the frame is where they are read.
+  assert.equal(parked, 1, 'the focus was left on a control that has just been hidden');
+});
+
+test('the bar being dragged does not vanish under the pointer', async (t) => {
+  const { bar, controls } = bench(t, { idleMs: 20 });
+  controls.arm(STORY_MS);
+  controls.show();
+  controls.update({ tMs: 0, playing: true });
+  bar.scrub.dispatch('pointerdown', { clientX: 960, pointerId: 1 });
+
+  await tick(40);
+  assert.equal(bar.frame.classList.contains('is-bare'), false, 'the scrub withdrew from the hand holding it');
+  bar.scrub.dispatch('pointerup', { clientX: 960, pointerId: 1 });
+});
+
+test('the toggles over the picture arrive with the transport, not before it', (t) => {
+  const { bar, controls } = bench(t);
+  controls.arm(STORY_MS);
+
+  assert.equal(bar.actions.hidden, true, 'the cc pill was painted over the opening ceremony');
+  controls.show();
+  assert.equal(bar.actions.hidden, false, 'the toggles never arrived with the story');
+});
+
+test('the stylesheet carries the two rules this behaviour leans on', () => {
+  // Both are invisible in a call log and load-bearing in a browser: the mark
+  // covers the whole stage, and `is-bare` has to take its controls out of the
+  // tab order rather than merely fade them.
+  const css = fs.readFileSync(new URL('../browser/styles.css', import.meta.url), 'utf8');
+
+  assert.match(
+    css,
+    /\.stage-flash\s*\{[^}]*pointer-events:\s*none/,
+    'the mark can swallow every click meant for the picture',
+  );
+  assert.match(
+    css,
+    /\.stage-frame\.is-bare[^{]*\{[^}]*visibility:\s*hidden/,
+    'a withdrawn overlay is still focusable and still takes the tap meant for the picture',
+  );
+  assert.match(css, /\.stage-actions\[hidden\]\s*\{\s*display:\s*none/, 'the withdrawn actions row still paints');
+
+  // The mark's life is one number written twice: the class is stripped by a
+  // timer here and the fade is drawn by an animation there. Apart, the mark is
+  // cut off mid-fade or leaves a fully drawn circle sitting on the picture.
+  const animation = /animation:\s*flash-mark\s+(\d+)ms/.exec(css);
+  assert.ok(animation, 'the mark has no animation to fade with');
+  assert.equal(Number(animation[1]), FLASH_MS, 'the mark is stripped at a different moment than it is drawn');
+});
+
+test('the picture is not a switch until the story has begun', (t) => {
+  // The ceremony is on top of the stage, so this cannot normally be reached
+  // before begin — but the bar is what decides what "live" means, and a click
+  // that started a story behind its own opening would be a story nobody chose.
+  const { bar, controls, seen } = bench(t);
+  controls.arm(STORY_MS);
+
+  bar.stage.dispatch('click');
+  assert.deepEqual(seen, { toggles: 0, seeks: [], skips: [] });
+});
+
 test('destroy leaves nothing listening', (t) => {
   const { bar, controls, seen } = bench(t);
   controls.arm(STORY_MS);
@@ -158,7 +403,12 @@ test('destroy leaves nothing listening', (t) => {
   assert.deepEqual(seen, { toggles: 0, seeks: [], skips: [] });
 });
 
-function bench(t) {
+/** Let the overlay's countdown and the mark's timers run. */
+function tick(ms = 0) {
+  return new Promise((resolve) => { setTimeout(resolve, ms); });
+}
+
+function bench(t, { idleMs, flashMs } = {}) {
   const dom = installDom();
   t.after(dom.restore);
   const host = document.createElement('div');
@@ -176,6 +426,9 @@ function bench(t) {
       if (settled) landed.push(milliseconds);
     },
     onSkip: (milliseconds) => seen.skips.push(milliseconds),
+    ...(idleMs === undefined ? {} : { idleMs }),
+    ...(flashMs === undefined ? {} : { flashMs }),
   });
+  t.after(() => controls.destroy());
   return { bar: elements.controls, controls, seen, landed };
 }

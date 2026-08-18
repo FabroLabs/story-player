@@ -477,6 +477,23 @@ test('a warning stateAt repeats every frame is logged once', async (t) => {
   player.destroy();
 });
 
+test('the log button belongs to a debug build, and to no other', async (t) => {
+  // It used to sit in a corner of the control bar; it now sits over the picture
+  // beside `cc`, where an embedder would see it on every story. The withdrawal
+  // is one line in `main.mjs` and was pinned by nothing.
+  const quiet = await mount(t);
+  assert.equal(quiet.logToggle.hidden, true, 'a shipped player offers its viewer an event log');
+  quiet.destroy();
+
+  const noisy = await mount(t, { options: { debug: true } });
+  assert.equal(noisy.logToggle.hidden, false, 'a debug build hid the drawer nobody else can open');
+  // And the row it now lives in arrives with the story, not over the ceremony.
+  assert.equal(noisy.actions.hidden, true, 'the toggles were painted over the opening ceremony');
+  noisy.start();
+  assert.equal(noisy.actions.hidden, false);
+  noisy.destroy();
+});
+
 test('what the compiler refused reaches the log, once, before a frame is drawn', async (t) => {
   // The compiler records every refusal into the schedule — a clip the bundle
   // never carried, a character nobody could place, a camera target it could not
@@ -849,6 +866,10 @@ async function mount(t, { doctor = () => {}, options = {}, machine = null, asset
       .map((item) => item.childNodes.at(-1)?.textContent ?? ''),
     perfSummary: findByClass(root, 'perf-summary'),
     mediaNote: findByClass(root, 'media-note'),
+    actions: findByClass(root, 'stage-actions'),
+    // The label flips with the drawer it opens, and `debug: true` opens it at
+    // mount — so the button has to be asked for by both of its names.
+    logToggle: findByLabel(root, 'open event log') ?? findByLabel(root, 'close event log'),
     // The log as the download carries it — the only way in from outside, and
     // the same path a bug report takes.
     log: () => download(root),
@@ -969,6 +990,15 @@ function installAudio() {
     removeAttribute() { this.removed = true; }
   };
   return { opened, restore: () => { globalThis.Audio = original; } };
+}
+
+function findByLabel(root, label) {
+  if (root.getAttribute?.('aria-label') === label) return root;
+  for (const child of root.children ?? []) {
+    const found = findByLabel(child, label);
+    if (found) return found;
+  }
+  return null;
 }
 
 function findByClass(root, name) {

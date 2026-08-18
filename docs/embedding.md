@@ -115,15 +115,27 @@ StrictMode is supported.
 
 ## Controls
 
-The player owns its transport, inside the Shadow DOM and below the stage. It
-appears when the story begins, not while the opening ceremony is still up:
-play/pause, skip back and forward ten seconds, a draggable progress bar with the
-elapsed time and the minutes left, and the subtitle toggle.
+The player owns its transport, inside the Shadow DOM. It appears when the story
+begins, not while the opening ceremony is still up: play/pause, skip back and
+forward ten seconds, and a draggable progress bar with the elapsed time and the
+minutes left, below the stage; the subtitle toggle sits over the picture at the
+top right, with the story's name opposite it. A host that draws its own chrome
+up there — close, cast, parental, overflow — owns that row; the player never
+adds to it.
+
+The picture itself is the play/pause switch, and a click on it leaves the round
+mark every video player draws. The overlay follows the pointer: it comes back
+whenever the pointer moves over the player, and withdraws after about two and a
+half seconds of stillness or as soon as the pointer leaves. A story that is
+paused or over keeps its transport while the pointer is on it, and so does a bar
+being dragged or a control holding focus. Touch is exempt from the leave rule,
+because a device with no hover reports one after every tap.
 
 Keyboard, while the stage frame has focus: space or `k` toggles play, the arrow
-keys skip ten seconds, `Home` and `End` seek to the start and the end. Keys are
-ignored while a text field has focus, and space and enter are left to whichever
-button has focus so the drawer and toggle stay reachable.
+keys skip ten seconds, `Home` and `End` seek to the start and the end. Any key
+brings the overlay back first. Keys are ignored while a text field has focus,
+and space and enter are left to whichever button has focus so the drawer and
+toggle stay reachable.
 
 Seeking is a seek of the story, not of a video: the clock moves, the next frame
 is `stateAt` at the new instant, and the narration and music the instant lands
