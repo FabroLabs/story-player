@@ -28,7 +28,13 @@ export async function buildCdn({ commit, outfile = path.join(ROOT, 'dist', 'stor
     format: 'iife',
     legalComments: 'none',
     metafile: true,
-    minify: false,
+    // Every visitor's browser downloads this before a story can start, so the
+    // bytes are the product's first impression on a slow connection. esbuild's
+    // minifier is deterministic, which the whole delivery chain depends on:
+    // `build.json` states a SHA-256 and the cluster's mirror refuses an
+    // artifact that does not match it, so a non-reproducible minifier would
+    // break deployment rather than merely change the output.
+    minify: true,
     outfile: target,
     platform: 'browser',
     sourcemap: false,
