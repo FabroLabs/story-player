@@ -18,8 +18,19 @@
 - Keep package metadata private at `0.0.0-development`. `dist/` is generated,
   ignored, and never committed.
 - Never commit credentials, `.npmrc`, registry configuration, or a
-  credential-bearing URL. The publisher uses `RUSTFS_URL`, the exact public
-  `story-player` bucket, shared credentials, and an optional region.
+  credential-bearing URL. Deployment publishes to GitHub releases with the job's
+  own token; there is no store credential in this repository any more.
+- `main` is where work lands; **`production` is what is deployed**. A merge into
+  `production` runs `deploy-player.yml`, which gates the release on the full
+  suite and then moves the rolling `latest` tag.
+- CD is **pull, not push**: the cluster's MinIO is ClusterIP-only, so a runner
+  cannot write to it. A CronJob in the cluster fetches `latest`, verifies
+  `build.json` and promotes `stable/`. The RustFS push workflow that used to
+  write an S3 bucket directly is gone; its scripts remain, uncalled, for any
+  deployment whose store IS reachable.
+- `build.json` is the whole contract — commit, byte count, SHA-256. Never
+  publish one of the two files without the other, and never edit an immutable
+  release.
 - Immutable commit objects are create-only and must be anonymously verified
   before stable promotion. Promote stable metadata last. Rollback only from a
   verified immutable full-commit object. Never upload from a developer shell

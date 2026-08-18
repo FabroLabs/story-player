@@ -1,0 +1,26 @@
+# The build is byte-reproducible, and that is load-bearing: `build.json` states
+# a SHA-256, the cluster's mirror refuses an artifact that does not match it, and
+# story-engine-v2 pins the same digest in `story-player.lock.json`.
+#
+# Line endings are therefore part of the contract. Git stores LF, but a checkout
+# on Windows with the default `core.autocrlf=true` writes CRLF into the working
+# tree — and the bundler copies those bytes straight through, so the same commit
+# builds ~1.5 KB larger with a completely different digest. Someone verifying a
+# release from a Windows machine would conclude the artifact had been tampered
+# with, when the only difference was their checkout.
+#
+# `eol=lf` pins the working tree to what CI has, so the digest is reproducible on
+# every platform.
+* text=auto eol=lf
+
+# Binary assets must never be touched by the text filter.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.woff binary
+*.woff2 binary
+*.mp3 binary
+*.mp4 binary
+*.wav binary

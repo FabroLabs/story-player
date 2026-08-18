@@ -95,47 +95,59 @@ permits cross-origin GET/HEAD. No write operation is public. The player script,
 Story JSON, and media may share one storage origin while remaining in separate
 buckets.
 
-Publisher configuration:
+## Branches and deployment
 
-```dotenv
-RUSTFS_URL=https://storage.example
-STORY_PLAYER_BUCKET=story-player
-RUSTFS_ACCESS_KEY=provided-by-secret-store
-RUSTFS_SECRET_KEY=provided-by-secret-store
-RUSTFS_REGION=us-east-1
-```
+`main` is where work lands. **`production` is what is deployed** — merging into
+it is the deliberate act that publishes a player, and nothing else in this
+repository moves what the cluster serves.
 
-`RUSTFS_URL` is one HTTP(S) origin with no bucket, path, credentials, query, or
-fragment. The credentials are paired and are never part of browser URLs or
-logs.
+A merge into `production` runs **Deploy player**
+(`.github/workflows/deploy-player.yml`):
 
-## Promotion and rollback
+1. `verify` — unit tests, a deterministic build, real Chromium
+   plain-JavaScript/React tests, and the repository contract;
+2. `release` — rebuilds, writes `build.json` (commit, byte count, SHA-256),
+   creates the immutable `build-<commit>` release, then moves the rolling
+   `latest` tag onto those bytes, and finally re-downloads both published assets
+   and byte-compares them against what it just built.
 
-Pull-request and `main` CI run unit tests, a deterministic build, and real
-Chromium plain-JavaScript/React tests. A separate serialized workflow publishes
-only after green `main` CI:
+The `release` job cannot start unless `verify` passes.
 
-1. create/configure the public bucket without overwriting conflicting policy;
-2. create immutable script and metadata with `If-None-Match: *`;
-3. accept a repeat only when existing bytes and headers are identical;
-4. verify immutable bytes through anonymous HTTP;
-5. write and anonymously verify stable script;
-6. write and anonymously verify stable metadata last.
+## How the bytes reach the store
 
-Configure `RUSTFS_URL` and optional `RUSTFS_REGION` as variables, and the access
-and secret keys as secrets in the protected `cdn-production` GitHub
-environment. `STORY_PLAYER_BUCKET` is fixed by the workflow.
+Delivery is **pull, not push.** The store this player is consumed from — MinIO
+in the moonykids cluster — is a ClusterIP service with no Ingress, so GitHub's
+runners cannot write to it, and exposing an object store's write API to the
+internet to ship a 141 KB file would be a far larger change than the thing it
+delivers.
 
-To roll back, run the **Publish CDN** workflow manually with a full commit. The
-rollback reads that immutable metadata and script anonymously, verifies their
-headers, byte length, SHA-256, and embedded commit, then promotes those exact
-bytes. It never rebuilds or edits an immutable object.
+So a CronJob inside the cluster
+(`infra/manifests/47-player-updater.yaml`, every 10 minutes) watches `latest`,
+verifies all three fields in `build.json` before it trusts a byte, mirrors into
+`story-player/builds/<commit>/` and promotes `stable/`. Nothing inbound is
+opened and the store credential never leaves the cluster. Expect the site to be
+serving a new player within about ten minutes of a green deploy.
+
+There was previously a second workflow that wrote straight into a RustFS bucket
+over S3 from the runner. It has been removed: it delivered to a store nothing
+now reads from, and two publish paths meant two answers to "which bytes are
+live". The S3 publisher scripts (`scripts/publish-cdn.mjs`,
+`scripts/rollback-cdn.mjs`, `scripts/storage-config.mjs`) and their tests remain
+for any deployment whose store IS reachable — nothing in CI calls them.
+
+## Rollback
+
+Pick the immutable `build-<commit>` release and pin the consumer to it. In the
+moonykids cluster that is `infra/scripts/17-player-rollback.sh <full-commit>`,
+which writes `stable/pinned.json`; the mirror keeps ingesting new builds but
+will not promote over the pin until it is removed. Nothing is rebuilt and no
+immutable release is ever edited.
 
 ## GitLab migration
 
-The output and storage layout do not depend on GitHub. A protected GitLab runner
-can run the same Node 22 commands, provide the same five environment variables,
-and serialize `npm run publish:cdn` after green default-branch CI. Copy the
-workflow gates—not credentials—into GitLab CI. Existing stable and immutable
-browser URLs remain unchanged as long as the RustFS endpoint and bucket remain
-the same.
+The output and release layout do not depend on GitHub beyond the release API. A
+protected GitLab runner can run the same Node 22 commands and publish the same
+two files — `story-player.js` and `build.json` — anywhere a consumer can fetch
+over HTTPS. What must not change is the contract: the consumer verifies commit,
+byte count and SHA-256 before promoting, so any host works as long as both files
+are served together and `build.json` describes the bytes beside it.
