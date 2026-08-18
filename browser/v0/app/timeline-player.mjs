@@ -70,6 +70,9 @@ export function createTimelinePlayer({
   let ended = false;
   let started = false;
   let resumeWhenVisible = false;
+  // A pointer is down on the scrub bar: the picture follows it, the sound is
+  // held until it lands. See `seekTo`.
+  let scrubbing = false;
   let destroyed = false;
 
   listen(document, 'visibilitychange', () => {
@@ -153,6 +156,13 @@ export function createTimelinePlayer({
     resumeWhenVisible = false;
     clock.start();
     plate.play();
+    // Play pressed with the pointer still down on the bar: the landing the
+    // release would have made is made now, or the story would come back
+    // sounding the line it was dragged away from.
+    if (scrubbing) {
+      scrubbing = false;
+      media.seek(clock.now());
+    }
     media.resume();
     recorder?.resume();
     startLoop();
@@ -171,11 +181,14 @@ export function createTimelinePlayer({
     plate.pause();
     media.pause();
     recorder?.pause();
-    // The sliver between the last frame and this click is time the story stood
-    // at but never crossed. It is given up rather than replayed on resume: at
-    // most one frame of cues, and firing them a pause later would put a line
-    // half a second behind its own subtitle.
-    mediaNextMs = clock.now() + 1;
+    // `mediaNextMs` is deliberately left where the last frame put it. The sliver
+    // between that frame and this click is time the story stood at but never
+    // crossed, and a line whose cue falls inside it has not been started yet.
+    // Story time does not move while paused, so on resume the first frame
+    // crosses that sliver at most one frame late — the line starts from the top
+    // (`LATE_START_MS`), a few tens of milliseconds after its subtitle. Skipping
+    // the sliver instead lost the line for good: subtitle on screen, nothing to
+    // hear, until the next cue.
     render(clock.now(), { force: true });
   }
 
@@ -193,16 +206,21 @@ export function createTimelinePlayer({
    * SOUNDING there — and the two questions have different answers for every
    * sound effect the seek jumped over.
    */
-  function seekTo(milliseconds) {
+  function seekTo(milliseconds, { settled = true } = {}) {
     if (destroyed) return;
     const t = clamp(milliseconds);
     clock.seek(t);
     if (started) {
-      media.seek(t);
-      // Scrubbing a paused story moves what WOULD be sounding into place and
-      // freezes it there; the resume plays it from the offset the seek chose.
-      // Without this, dragging the bar of a paused story talks.
-      if (!clock.running) media.pause();
+      if (settled) {
+        placeSound(t);
+      } else if (!scrubbing) {
+        // The first move of a drag: what was sounding is hushed and held, and
+        // nothing is opened until the pointer lands. Placing the sound on every
+        // move opened one narration element per pointer event — a fetch and a
+        // decoder each — and threw it away on the next.
+        scrubbing = true;
+        media.pause();
+      }
     }
     mediaNextMs = t + 1;
     // Scrubbing back out of the end takes the end overlay with it, but it does
@@ -212,6 +230,22 @@ export function createTimelinePlayer({
       elements.stage.end.hidden = true;
     }
     render(t, { force: true });
+  }
+
+  /**
+   * The sound of the instant landed on.
+   *
+   * Scrubbing a paused story moves what WOULD be sounding into place and
+   * freezes it there; the resume plays it from the offset the seek chose.
+   * Without the pause, dragging the bar of a paused story talks. A RUNNING
+   * story resumes what the drag hushed — its music, still held — around the
+   * line the landing opened.
+   */
+  function placeSound(t) {
+    scrubbing = false;
+    media.seek(t);
+    if (clock.running) media.resume();
+    else media.pause();
   }
 
   function skip(deltaMs) {
@@ -308,8 +342,9 @@ export function createTimelinePlayer({
     // it stands at — by the pause itself, by a scrub, by a resize — and handing
     // that instant to the scheduler would start the line that happens to fall
     // in the sliver since the last frame, reading itself out over a frozen
-    // picture.
-    if (started && clock.running) {
+    // picture. A story being dragged is running but hushed: its sound is placed
+    // once, where the pointer lands, not started at every instant it passes.
+    if (started && clock.running && !scrubbing) {
       if (t >= mediaNextMs) {
         media.advance(mediaNextMs, t + 1);
         mediaNextMs = t + 1;

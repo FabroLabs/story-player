@@ -21,24 +21,39 @@ export function createControls(elements, {
   const last = { fraction: null, at: null, total: null, remaining: null, mode: null };
   let durationMs = 0;
   let dragging = false;
+  let draggedToMs = null;
   let destroyed = false;
 
   listen(elements.toggle, 'click', () => live() && onToggle());
   listen(elements.back, 'click', () => live() && onSkip(-SKIP_MS));
   listen(elements.forward, 'click', () => live() && onSkip(SKIP_MS));
+  // A drag is many seeks and one landing. Every pointer position moves the
+  // picture at once (`settled: false`) — that is what makes a scrub bar worth
+  // dragging — but only the position the pointer is LET GO at is where the
+  // story is asked to sound (`settled: true`). Placing the sound on every move
+  // opened a narration element per pointer event, dozens a second, each one a
+  // fetch and a decoder the next move threw away.
   listen(elements.scrub, 'pointerdown', (event) => {
     if (!live()) return;
     dragging = true;
     capture('set', event.pointerId);
-    seekTo(event);
+    seekTo(event, false);
   });
   listen(elements.scrub, 'pointermove', (event) => {
-    if (dragging && live()) seekTo(event);
+    if (dragging && live()) seekTo(event, false);
   });
   for (const type of ['pointerup', 'pointercancel']) {
     listen(elements.scrub, type, (event) => {
+      const wasDragging = dragging;
       dragging = false;
       capture('release', event.pointerId);
+      if (!wasDragging || !live()) return;
+      // Where the pointer is now if the browser still says, else where the last
+      // move left the story: a `pointercancel` carries no useful position.
+      const landed = fractionOf(event);
+      if (landed !== null) draggedToMs = landed * durationMs;
+      if (draggedToMs !== null) onSeek(draggedToMs, { settled: true });
+      draggedToMs = null;
     });
   }
   // On the frame rather than on the ShadowRoot: the root already carries the
@@ -142,11 +157,18 @@ export function createControls(elements, {
    * A bar with no width yet — measured before its first layout — would make
    * every fraction Infinity or NaN, so it seeks nowhere instead.
    */
-  function seekTo(event) {
+  function seekTo(event, settled = true) {
+    const fraction = fractionOf(event);
+    if (fraction === null) return;
+    const milliseconds = fraction * durationMs;
+    if (!settled) draggedToMs = milliseconds;
+    onSeek(milliseconds, { settled });
+  }
+
+  function fractionOf(event) {
     const box = elements.scrub.getBoundingClientRect?.();
-    if (!box || !(box.width > 0) || !Number.isFinite(event.clientX)) return;
-    const fraction = Math.max(0, Math.min(1, (event.clientX - box.left) / box.width));
-    onSeek(fraction * durationMs);
+    if (!box || !(box.width > 0) || !Number.isFinite(event?.clientX)) return null;
+    return Math.max(0, Math.min(1, (event.clientX - box.left) / box.width));
   }
 
   /**

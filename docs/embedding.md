@@ -129,6 +129,8 @@ Seeking is a seek of the story, not of a video: the clock moves, the next frame
 is `stateAt` at the new instant, and the narration and music the instant lands
 inside restart from the right offset through `currentTime`. A sound effect the
 seek landed in the middle of stays silent until the story crosses its next cue.
+While the bar is being dragged the picture follows the pointer and the sound is
+held; it is placed once, where the pointer is let go.
 
 ## Sheets, renditions and device tiers
 

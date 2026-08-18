@@ -18,6 +18,7 @@ import { createSceneLoader } from '../browser/v0/app/assets/scene-loader.mjs';
 import { sceneSheets } from '../browser/v0/app/stage/canvas-stage.mjs';
 import { buildDrawList } from '../browser/v0/app/stage/draw-list.mjs';
 import { resolveStoryAssets } from '../browser/v0/app/urls.mjs';
+import { soundingAt } from '../browser/v0/core/state/cues.mjs';
 import { stateAt } from '../browser/v0/core/state/state.mjs';
 import { compileTimeline } from '../browser/v0/core/timeline/compile.mjs';
 import { read } from './_parity.mjs';
@@ -180,6 +181,77 @@ test('pausing between two frames does not start the line it is standing on', asy
   player.destroy();
 });
 
+test('the line a pause stood on is heard when the story resumes', async (t) => {
+  const player = await mount(t);
+  const cue = firstNarrationAfter(player.timeline, 1_000);
+  player.start();
+  // Same shape as the test above — last frame just before the line, the click
+  // just after it — and then the OTHER half: the viewer comes back. Story time
+  // has not moved, so the resume's first frame crosses the sliver the pause
+  // stood in and starts the line, a few tens of milliseconds after its cue.
+  // Skipping that sliver on pause lost the line for good: its subtitle on
+  // screen, nothing to hear, until the next cue came round.
+  player.frames.advanceTo(cue - 30);
+  const opened = player.audio.length;
+  player.frames.setWall(cue + 10);
+  player.bar.toggle.dispatch('click');
+  assert.equal(player.audio.length, opened, 'the pause itself started the next line');
+
+  // Minutes may pass on the wall; none pass in the story.
+  player.frames.setWall(cue + 90_000);
+  player.bar.toggle.dispatch('click');
+  assert.equal(player.audio.length, opened + 1, 'the line the pause stood on was never heard');
+  const line = player.audio.at(-1);
+  assert.equal(line.paused, false, 'the resumed line is not playing');
+  assert.equal(line.currentTime, 0, 'a line a frame late should start from the top, not inside the file');
+  player.destroy();
+});
+
+test('dragging the bar moves the picture at every position and places the sound once, where the pointer lands', async (t) => {
+  const player = await mount(t);
+  player.start();
+  player.frames.advanceTo(2_000);
+  const opened = player.audio.length;
+  const box = player.bar.scrub.getBoundingClientRect();
+  const at = (fraction) => ({ clientX: box.left + (box.width * fraction), pointerId: 1 });
+
+  // A drag from a fifth of the story to a third of it, in twelve pointer events,
+  // with the loop running between them. Every one of those positions is inside
+  // a narration line in this corpus, so a runtime that placed the sound per
+  // move would open a dozen narration elements — a fetch and a decoder each —
+  // and throw eleven of them away.
+  player.bar.scrub.dispatch('pointerdown', at(0.2));
+  const seen = new Set([player.bar.at.textContent]);
+  for (let step = 1; step <= 11; step += 1) {
+    player.bar.scrub.dispatch('pointermove', at(0.2 + (step * 0.01)));
+    player.frames.advanceTo(2_000 + (step * 40));
+    seen.add(player.bar.at.textContent);
+  }
+  assert.ok(seen.size >= 2, 'the picture did not follow the drag');
+  assert.equal(player.audio.length, opened, `the drag opened ${player.audio.length - opened} narration elements before the pointer landed`);
+  assert.equal(player.audio.every((media) => media.paused), true, 'a story being dragged is still talking');
+
+  // The landing: the one line sounding there, from inside the file, playing —
+  // the story is running. What `soundingAt` says, and nothing the drag passed.
+  const landedMs = Math.round(player.timeline.duration_ms * 0.31);
+  const { narration } = soundingAt(player.timeline, player.bundle, landedMs);
+  assert.ok(narration, 'pick a landing inside a line — the corpus moved');
+  player.bar.scrub.dispatch('pointerup', at(0.31));
+  assert.equal(player.audio.length, opened + 1, 'letting go did not place the sound exactly once');
+  const line = player.audio.at(-1);
+  assert.equal(line.url, narration.media, 'the landing opened a line other than the one sounding there');
+  assert.equal(line.paused, false, 'the landing placed a line but did not play it');
+  assert.equal(
+    line.currentTime,
+    narration.offsetMs > 120 ? narration.offsetMs / 1000 : 0,
+    'the landing did not start the line where the story is',
+  );
+  // And the loop keeps crossing time afterwards: the next cue still fires.
+  player.frames.advanceTo(2_000 + (12 * 40));
+  assert.ok(player.frames.pending() > 0, 'the loop stopped after the drag');
+  player.destroy();
+});
+
 test('seeking a paused story places the sound without playing it', async (t) => {
   const player = await mount(t);
   player.start();
@@ -188,6 +260,7 @@ test('seeking a paused story places the sound without playing it', async (t) => 
 
   const box = player.bar.scrub.getBoundingClientRect();
   player.bar.scrub.dispatch('pointerdown', { clientX: box.left + (box.width * 0.3), pointerId: 1 });
+  player.bar.scrub.dispatch('pointerup', { clientX: box.left + (box.width * 0.3), pointerId: 1 });
   assert.equal(player.audio.every((media) => media.paused), true, 'scrubbing a paused story talks');
 
   player.bar.toggle.dispatch('click');

@@ -77,7 +77,7 @@ test('play, pause and replay are the same button in three states', (t) => {
 });
 
 test('a pointer on the bar seeks to where it landed, and stops when it is let go', (t) => {
-  const { bar, controls, seen } = bench(t);
+  const { bar, controls, seen, landed } = bench(t);
   controls.arm(STORY_MS);
   controls.show();
 
@@ -88,16 +88,26 @@ test('a pointer on the bar seeks to where it landed, and stops when it is let go
 
   bar.scrub.dispatch('pointermove', { clientX: 480, pointerId: 1 });
   assert.deepEqual(seen.seeks, [300_000, 150_000]);
+  // A drag moves the picture at every position and asks for the sound at
+  // none of them: that is the difference between a scrub and a seek.
+  assert.deepEqual(landed, [], 'a drag in flight asked for the sound to be placed');
 
+  // Letting go is the one landing, at the position the pointer was let go at.
   bar.scrub.dispatch('pointerup', { clientX: 480, pointerId: 1 });
+  assert.deepEqual(landed, [150_000]);
   bar.scrub.dispatch('pointermove', { clientX: 1_440, pointerId: 1 });
-  assert.deepEqual(seen.seeks, [300_000, 150_000], 'the bar kept seeking after the pointer was released');
+  assert.deepEqual(seen.seeks, [300_000, 150_000, 150_000], 'the bar kept seeking after the pointer was released');
+  assert.deepEqual(landed, [150_000], 'a released pointer landed the story twice');
 
   // A pointer beyond either end of the bar is a fraction outside 0..1, and a
   // story has no time there.
   bar.scrub.dispatch('pointerdown', { clientX: -400, pointerId: 2 });
   bar.scrub.dispatch('pointermove', { clientX: 9_000, pointerId: 2 });
   assert.deepEqual(seen.seeks.slice(-2), [0, STORY_MS]);
+  // A cancelled pointer carries no position worth reading; the story lands
+  // where the last move left it rather than nowhere.
+  bar.scrub.dispatch('pointercancel', { pointerId: 2 });
+  assert.deepEqual(landed, [150_000, STORY_MS]);
 });
 
 test('the transport buttons and the keyboard mean the same three things', (t) => {
@@ -155,10 +165,17 @@ function bench(t) {
   const root = host.attachShadow({ mode: 'open' });
   const elements = createPlayerTemplate(root);
   const seen = { toggles: 0, seeks: [], skips: [] };
+  // `landed` is the subset the runtime is asked to SOUND at: a settled seek.
+  // Not in `seen`, so the "nothing reached the callbacks" assertions above keep
+  // their exact shape.
+  const landed = [];
   const controls = createControls(elements.controls, {
     onToggle: () => { seen.toggles += 1; },
-    onSeek: (milliseconds) => seen.seeks.push(milliseconds),
+    onSeek: (milliseconds, { settled = true } = {}) => {
+      seen.seeks.push(milliseconds);
+      if (settled) landed.push(milliseconds);
+    },
     onSkip: (milliseconds) => seen.skips.push(milliseconds),
   });
-  return { bar: elements.controls, controls, seen };
+  return { bar: elements.controls, controls, seen, landed };
 }
