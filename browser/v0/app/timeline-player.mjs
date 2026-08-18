@@ -42,7 +42,7 @@ export function createTimelinePlayer({
     onWarning, dprCap: capability.dprCap, shadows: capability.shadows,
   });
   const plate = createVideoPlate(elements.stage, { onWarning });
-  const media = createMediaScheduler({ timeline, bundle, onWarning });
+  const media = createMediaScheduler({ timeline, bundle, onWarning: mediaWarned });
   const controls = createControls(elements.controls, {
     onToggle: toggle, onSeek: seekTo, onSkip: skip,
   });
@@ -59,6 +59,7 @@ export function createTimelinePlayer({
   let sceneIndex = null;
   let signature = null;
   let subtitle = null;
+  let note = '';
   // The first instant the scheduler has not been told about yet. Cues are
   // half-open — `[from, to)` — so a story whose first line starts at t=0 needs
   // the very first slice to be `[0, 1)`, and a seek to t needs the cue AT t to
@@ -136,7 +137,12 @@ export function createTimelinePlayer({
     // Warmed one scene at a time, during playback and behind the story's own
     // streaming: a burst of sheets here would starve the narration and the plate
     // the viewer is waiting on right now.
-    void loader.queueRemainingScenes(1, viewport(), {}).catch(warmingFailed);
+    //
+    // The viewport is handed over as the QUESTION, not as the answer it had at
+    // this instant: a tier demotion lowers `dprCap` and a resize moves the
+    // letterbox, and a queue holding the begin-time numbers would spend the
+    // rest of the story fetching sheets `openScene` will never ask for.
+    void loader.queueRemainingScenes(1, viewport, {}).catch(warmingFailed);
   }
 
   function play() {
@@ -329,6 +335,29 @@ export function createTimelinePlayer({
     if (next === subtitle) return;
     subtitle = next;
     elements.stage.subtitle.textContent = next;
+    // The note belongs to the line it was raised for. A new line — or the
+    // silence between two — is the end of it.
+    showNote('');
+  }
+
+  /**
+   * The one media failure a viewer without the debug drawer can see.
+   *
+   * The director this runtime replaced wrote this sentence under the subtitle
+   * whenever a line's audio would not play; the element, its stylesheet rule
+   * and its test outlived the writer. A line that cannot be heard is still a
+   * line that can be read, and the subtitle for it is already on screen.
+   */
+  function mediaWarned(detail) {
+    if (detail?.asset === 'narration') showNote('narration unavailable · read along');
+    onWarning(detail);
+  }
+
+  function showNote(text) {
+    const next = text ?? '';
+    if (next === note) return;
+    note = next;
+    elements.stage.mediaNote.textContent = next;
   }
 
   /**
@@ -355,9 +384,20 @@ export function createTimelinePlayer({
       return;
     }
     const view = viewport();
+    const opened = sceneIndex;
     sheets = sceneSheets(loader.plan(sceneIndex, view), cache);
     plate.showScene(bundle?.scenes?.[sceneIndex]?.plate ?? null);
-    void loader.loadScene(sceneIndex, view, { keep: true }).catch(warmingFailed);
+    void loader.loadScene(sceneIndex, view, { keep: true })
+      // A running story draws the sheets as they land, on its next frame. A
+      // PAUSED one has no next frame: a scrub into a scene that is not decoded
+      // yet painted placeholders and stopped, and they stayed on screen until
+      // somebody pressed play. Only for the scene still on screen — a cut that
+      // has already happened has its own paint coming.
+      .then(() => {
+        if (destroyed || clock.running || opened !== sceneIndex) return;
+        render(clock.now(), { force: true });
+      })
+      .catch(warmingFailed);
   }
 
   /**

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Story time: the one number every plane of the picture is drawn from.
  *
  * It is wall time with a hole in it. Paused, `now()` answers the instant it was

@@ -69,6 +69,7 @@ export function createV0Player({
       // session can be replayed against the engine's own copy.
       const timeline = compileTimeline(runtimeStory);
       panel.attachTimeline(timeline);
+      logCompileRefusals(timeline);
       // Only when somebody asked to measure: a log that carries a perf section
       // has to say which machine produced it, and a log that does not should
       // not carry an entry nobody will read.
@@ -139,6 +140,45 @@ export function createV0Player({
     elements.start.disabled = true;
     elements.ceremony.classList.add('is-gone');
     runtime.begin();
+  }
+
+  /**
+   * What the compiler refused, said out loud once, before the story starts.
+   *
+   * The compiler records every refusal into the schedule — a clip the bundle
+   * never carried, a character nobody could place, a camera target it could not
+   * resolve — so that a step which was not performed is never merely absent.
+   * Nothing at runtime reads those events back: `stateAt` hands `source: step`
+   * entries to the band layout and returns, and the cue reader only knows
+   * narration, sound and music. Between the live director and here, they went
+   * from the panel's warning list to nowhere.
+   *
+   * They are logged at mount rather than as the story crosses them because they
+   * are facts about the STORY, not about this performance: the same bundle
+   * compiles to the same refusals on every device, before a single frame is
+   * drawn, and their own `t_ms` keeps them in the order they will be reached.
+   *
+   * Said once per distinct refusal, at the first instant it was raised — the
+   * same rule the runtime, the scene loader and the media scheduler already
+   * follow. A missing clip is refused at every idle the character has, and a
+   * panel holding forty copies of one sentence is a panel nobody reads. The
+   * attached timeline still carries every occurrence for a download to count.
+   */
+  function logCompileRefusals(timeline) {
+    const said = new Set();
+    for (const event of timeline?.events ?? []) {
+      if (event.kind !== 'warning') continue;
+      const key = JSON.stringify(event.detail);
+      if (said.has(key)) continue;
+      said.add(key);
+      log.append({
+        t_ms: event.t_ms,
+        scene_index: event.scene_index ?? null,
+        line: event.line ?? null,
+        kind: 'warning',
+        detail: event.detail,
+      });
+    }
   }
 }
 

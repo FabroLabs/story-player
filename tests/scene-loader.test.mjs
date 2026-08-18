@@ -225,6 +225,53 @@ test('later scenes are warmed in playing order, one at a time', async () => {
   assert.deepEqual(cache.kept(), [], 'a scene being warmed ahead is not the scene on screen');
 });
 
+test('the warm queue asks what the viewport is at every scene, not once at the start', async () => {
+  // The queue outlives a tier demotion: it is started at `begin()` and still
+  // running minutes later, when the machine may have been put on a cheaper
+  // tier or the window resized. Holding the numbers it was started with, it
+  // spends the rest of the story fetching sheets the scene will not be opened
+  // with — on exactly the devices that demoted.
+  const timeline = read('golden_push_dusk', 'timeline');
+  const bundle = read('golden_push_dusk', 'bundle');
+  const cache = fakeCache();
+  const loader = createSceneLoader({ timeline, bundle, cache });
+  // A stage big enough that the two ceilings land on different rungs of the
+  // ladder — and neither of them on the rung a viewport of nothing would pick,
+  // which is what a plan built from the function object itself comes out as.
+  let dprCap = 2;
+  const viewport = () => ({ fitScale: 2, dpr: 3, dprCap });
+  let boundary = 0;
+
+  await loader.queueRemainingScenes(1, viewport, {
+    onScene: (index) => {
+      // Demoted between the two scenes, the way the recorder does it.
+      if (index !== 1) return;
+      boundary = cache.loaded.length;
+      dprCap = 1.5;
+    },
+  });
+
+  const urls = (view) => [...new Set(loader.plan(2, view).sheets.map((sheet) => sheet.url))];
+  const demoted = new Set(urls({ fitScale: 2, dpr: 3, dprCap: 1.5 }));
+  assert.notDeepEqual(
+    [...demoted],
+    urls({ fitScale: 2, dpr: 3, dprCap: 2 }),
+    'the two ceilings choose the same sheets: this proves nothing',
+  );
+  assert.notDeepEqual(
+    [...demoted],
+    urls({}),
+    'the demoted plan is the one a viewport of nothing gives: this proves nothing',
+  );
+  const warmed = cache.loaded.slice(boundary).filter((url) => url.includes('/sprites/'));
+  assert.ok(warmed.length > 0, 'the last scene was warmed with no sheets at all');
+  assert.deepEqual(
+    warmed.filter((url) => !demoted.has(url)),
+    [],
+    'the queue warmed the last scene with the sheets of the tier the story had left',
+  );
+});
+
 test('the gate fetches its scene all at once — somebody is watching the progress line', async () => {
   const timeline = read('golden_push_dusk', 'timeline');
   const bundle = read('golden_push_dusk', 'bundle');

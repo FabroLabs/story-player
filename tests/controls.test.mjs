@@ -123,6 +123,17 @@ test('the transport buttons and the keyboard mean the same three things', (t) =>
   // Somebody typing into the page that embeds us is not steering the story.
   bar.frame.dispatch('keydown', { key: ' ', target: { tagName: 'INPUT' } });
   assert.equal(seen.toggles, 2);
+
+  // `k` is the second play/pause key every video player has, and the docs
+  // promise it.
+  bar.frame.dispatch('keydown', { key: 'k' });
+  assert.equal(seen.toggles, 3);
+
+  // Enter belongs to whatever button has focus — `cc`, the log drawer, the
+  // transport itself. Swallowed here, a keyboard user cannot press any of them.
+  bar.frame.dispatch('keydown', { key: 'Enter', target: { tagName: 'BUTTON' } });
+  bar.frame.dispatch('keydown', { key: ' ', target: { tagName: 'BUTTON' } });
+  assert.equal(seen.toggles, 3, 'a key meant for a focused button reached the transport instead');
 });
 
 test('destroy leaves nothing listening', (t) => {

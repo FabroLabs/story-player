@@ -282,7 +282,11 @@ export function createSceneLoader({
    */
   async function queueRemainingScenes(fromIndex, viewport = {}, { onScene = () => {} } = {}) {
     for (let index = fromIndex; index < sceneCount(); index += 1) {
-      const result = await loadScene(index, viewport, { concurrency: 1 });
+      // Asked again for every scene when the caller passes a function: the
+      // queue outlives a tier demotion and a resize, and the sheets a scene is
+      // warmed with have to be the ones it will be opened with.
+      const view = typeof viewport === 'function' ? viewport() : viewport;
+      const result = await loadScene(index, view, { concurrency: 1 });
       throwIfAborted(signal);
       onScene(index, result.total);
     }

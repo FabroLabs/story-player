@@ -104,9 +104,19 @@ export function createMediaScheduler({ timeline, bundle, onWarning = () => {} })
     if (narration && tMs >= narration.endsAtMs) stopNarration(tMs);
   }
 
+  /**
+   * Everything sounding stops, and is remembered until it is resumed.
+   *
+   * The set is added to rather than rebuilt, because pausing an already paused
+   * story is ordinary: every seek of one pauses again (`timeline-player.mjs`
+   * freezes what the scrub moved into place), and a replay pauses at the end
+   * and again at zero. A rebuild found each medium already paused, skipped it,
+   * and handed `resume` an empty set — so a viewer who paused, dragged the bar
+   * and pressed play lost the scene's music for the rest of the story, with
+   * `setMusic` returning early on the name it was still holding.
+   */
   function pause() {
     if (destroyed) return;
-    held = new Set();
     for (const media of owned.keys()) {
       if (media.paused) continue;
       held.add(media);
@@ -206,6 +216,11 @@ export function createMediaScheduler({ timeline, bundle, onWarning = () => {} })
       warn(media, 'sound playback failed');
       release(media);
     }, { once: true });
+    // A medium that is fetching and getting nothing neither rejects `play()`
+    // nor fires `error` — it fires this, and until the deleted start-timeout
+    // watchdog was replaced by it, a scene that lost its effects said nothing
+    // anywhere.
+    media.addEventListener('stalled', () => warn(media, 'sound stalled before it was heard'), { once: true });
     play(media, 'sound would not start');
   }
 
@@ -239,6 +254,7 @@ export function createMediaScheduler({ timeline, bundle, onWarning = () => {} })
         release(media);
       }
     }, { once: true });
+    media.addEventListener('stalled', () => warn(media, 'music stalled before it was heard'), { once: true });
     fadeTo(media, narration ? DUCKED_MUSIC_VOLUME : MUSIC_VOLUME, MUSIC_FADE_MS, tMs);
     play(media, 'music would not start', () => {
       if (music?.media === media) music = null;
@@ -307,7 +323,13 @@ export function createMediaScheduler({ timeline, bundle, onWarning = () => {} })
    */
   function play(media, message, onRefusal = () => {}) {
     const refused = (error) => {
-      if (error?.name !== 'AbortError') warn(media, message);
+      // A medium this file paused is a medium this file still owns. Releasing
+      // it here stripped its `src` while `narration` still pointed at it: a
+      // scrub of a paused story re-opened the line, paused it one statement
+      // later, and the rejection that arrived from that pause killed the line
+      // and left the music ducked for the length of a line nobody could hear.
+      if (error?.name === 'AbortError') return;
+      warn(media, message);
       onRefusal();
       release(media);
     };

@@ -39,6 +39,27 @@ test('compiling twice writes the same bytes', () => {
   assert.equal(serialize(compileTimeline(bundle)), serialize(compileTimeline(bundle)));
 });
 
+// Twice-the-same-bytes is also what an idempotent normalisation IN PLACE would
+// give — a default written into the caller's own bundle on the way past. The
+// engine hands this function the bundle it then writes to `story.json`, and the
+// browser hands it the object the host fetched: a compiler that edits either
+// breaks a law two repositories away, in a file nobody was looking at.
+test('compiling a story does not touch the story it was handed', () => {
+  const bundle = deepFreeze(read('golden_push_dusk', 'bundle'));
+  const before = JSON.stringify(bundle);
+
+  const timeline = compileTimeline(bundle);
+
+  assert.ok(timeline.events.length > 0, 'the frozen bundle compiled to nothing');
+  assert.equal(JSON.stringify(bundle), before);
+});
+
+function deepFreeze(value) {
+  if (!value || typeof value !== 'object' || Object.isFrozen(value)) return value;
+  for (const nested of Object.values(value)) deepFreeze(nested);
+  return Object.freeze(value);
+}
+
 // A published op nothing exercises is an op no client can trust: the phone
 // reads this table to know what it must draw, and a name in it that no fixture
 // ever produced is a promise this repo has never once kept.

@@ -181,6 +181,72 @@ test('the pause this file performs itself is not a failure', async (t) => {
   assert.deepEqual(warnings, []);
 });
 
+test('a scrub of a paused story does not cost it its music', (t) => {
+  // What the runtime does for a scrub of a PAUSED story: pause, seek, and
+  // pause again to freeze what the seek moved into place. The second pause
+  // finds every medium already stopped — and used to hand `resume` an empty
+  // set, which left the scene's music silent for the rest of the story.
+  const media = installAudio(t);
+  const scheduler = createMediaScheduler(story());
+
+  scheduler.advance(0, 1);
+  const [music] = media;
+  scheduler.pause();
+  scheduler.seek(4_000);
+  scheduler.pause();
+  scheduler.resume();
+
+  assert.equal(music.paused, false, 'the music never came back from a paused scrub');
+  assert.equal(
+    media.filter((item) => item.url === CALM).length,
+    1,
+    'the track was re-opened rather than resumed',
+  );
+});
+
+test('the pause this file performs itself does not throw the line away', async (t) => {
+  // The same `AbortError`, from the other side: it must not be reported, AND
+  // the medium it names must survive it. Releasing there stripped the `src` of
+  // the line a scrub had just placed, leaving `narration` pointing at a dead
+  // element — silence, with the music ducked under it for the length of a line
+  // nobody could hear.
+  const media = installAudio(t, { onPlay: () => refusal('AbortError') });
+  const warnings = [];
+  const scheduler = createMediaScheduler({ ...story(), onWarning: (detail) => warnings.push(detail) });
+
+  scheduler.advance(0, 1);
+  scheduler.pause();
+  scheduler.seek(3_500);
+  scheduler.pause();
+  await settle();
+
+  const line = media.at(-1);
+  assert.equal(line.url, NARRATION_TWO);
+  assert.equal(line.removed, false, 'the pause released the line the seek had just placed');
+  scheduler.resume();
+  assert.equal(line.paused, false, 'the line could not be resumed: it had been let go');
+  assert.deepEqual(warnings, []);
+});
+
+test('a sound or a track that stalls before it is heard says so', (t) => {
+  // Neither rejects `play()` nor fires `error`: a medium that is fetching and
+  // getting nothing fires this instead, and the start-timeout watchdog that
+  // used to catch it went with the live director.
+  const media = installAudio(t);
+  const warnings = [];
+  const scheduler = createMediaScheduler({ ...story(), onWarning: (detail) => warnings.push(detail) });
+
+  scheduler.advance(0, 1);
+  scheduler.advance(1, 2_600);
+  media[0].fire('stalled');
+  media.find((item) => item.url === THUD).fire('stalled');
+
+  assert.deepEqual(
+    warnings.map((warning) => `${warning.asset}: ${warning.message}`).sort(),
+    ['bgm: music stalled before it was heard', 'sfx: sound stalled before it was heard'],
+  );
+});
+
 test('a broken line is one line in the log, not two', async (t) => {
   const media = installAudio(t, { onPlay: () => refusal('NotSupportedError') });
   const warnings = [];

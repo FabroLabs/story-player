@@ -285,6 +285,40 @@ test('the easing solver is the curve, not an approximation of it', () => {
   assert.ok(easeIn(0.5) < 0.4);
 });
 
+test('the curves are the four control points the policy names, not a shape like them', () => {
+  // Everything above holds for any curve of roughly this shape, and the two
+  // published numbers are what the phone client re-implements from the same
+  // documented `cubic-bezier(.2,.72,.24,1)`. Retuned quietly, every push, pan
+  // and walk-off fade would sit a few percent from where the other client puts
+  // it — for the whole middle of every transition, which is where a viewer
+  // actually looks.
+  //
+  // Evaluated here in Bernstein form and bisected on x: different arithmetic
+  // from the solver's Newton step, so this agrees with the CONTROL POINTS
+  // rather than with the module.
+  const curve = (x1, y1, x2, y2) => (progress) => {
+    const axis = (c1, c2) => (t) => (3 * ((1 - t) ** 2) * t * c1) + (3 * (1 - t) * (t ** 2) * c2) + (t ** 3);
+    const x = axis(x1, x2);
+    const y = axis(y1, y2);
+    let low = 0;
+    let high = 1;
+    for (let step_ = 0; step_ < 60; step_ += 1) {
+      const middle = (low + high) / 2;
+      if (x(middle) < progress) low = middle;
+      else high = middle;
+    }
+    return y((low + high) / 2);
+  };
+  const camera = curve(0.2, 0.72, 0.24, 1);
+  const departure = curve(0.42, 0, 1, 1);
+
+  for (let step_ = 5; step_ <= 95; step_ += 5) {
+    const at = step_ / 100;
+    assert.ok(Math.abs(easeCamera(at) - camera(at)) < 1e-5, `the camera curve is no longer .2,.72,.24,1 at ${at}`);
+    assert.ok(Math.abs(easeIn(at) - departure(at)) < 1e-5, `the departure fade is no longer ease-in at ${at}`);
+  }
+});
+
 function pose({ x, feetY, heightPx }) {
   return { x, feetY, heightPx };
 }

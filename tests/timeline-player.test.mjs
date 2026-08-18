@@ -191,7 +191,128 @@ test('seeking a paused story places the sound without playing it', async (t) => 
   assert.equal(player.audio.every((media) => media.paused), true, 'scrubbing a paused story talks');
 
   player.bar.toggle.dispatch('click');
-  assert.equal(player.audio.some((media) => !media.paused), true, 'the sound the seek placed never resumed');
+  // Every medium the scheduler still holds, not just one of them: `some` passed
+  // on the line the seek had just opened while a track the first pause held was
+  // never restarted at all. (The corpus story carries no music, so the set that
+  // regression really cost is pinned in `media-scheduler.test.mjs`.)
+  const live = player.audio.filter((media) => !media.removed);
+  assert.ok(live.length > 0, 'the seek left the story with nothing to resume');
+  assert.equal(live.every((media) => !media.paused), true, 'the sound the seek placed never resumed');
+  player.destroy();
+});
+
+test('a paused seek into a scene that is still decoding draws it when the sheets land', async (t) => {
+  const player = await mount(t);
+  // Every sheet from here on is held: the seek lands on a scene the cache has
+  // nothing for, which is what a scrub into a story's last minute really is on
+  // a slow link.
+  const real = globalThis.fetch;
+  let release = () => {};
+  const held = new Promise((resolve) => { release = resolve; });
+  let holding = true;
+  globalThis.fetch = async (url, init) => {
+    if (holding) await held;
+    return real(url, init);
+  };
+  t.after(() => { globalThis.fetch = real; });
+  const drawn = () => player.canvas.context.calls.filter(([name]) => name === 'drawImage').length;
+
+  player.start();
+  player.frames.advanceTo(1_000);
+  player.bar.toggle.dispatch('click');
+  const box = player.bar.scrub.getBoundingClientRect();
+  player.bar.scrub.dispatch('pointerdown', { clientX: box.left + (box.width * 0.95), pointerId: 1 });
+  const placeholders = drawn();
+
+  holding = false;
+  release();
+  await settle();
+
+  // A running story would have drawn them on its next frame. A paused one has
+  // no next frame: without a repaint when the decode lands, the placeholder
+  // lozenges stay on screen until somebody presses play.
+  assert.ok(
+    drawn() > placeholders,
+    'the sheets arrived and nothing drew them: the paused stage stayed on placeholders',
+  );
+  player.destroy();
+});
+
+test('a line whose audio fails says so on the stage, and the next line clears it', async (t) => {
+  const player = await mount(t);
+  player.start();
+  player.frames.advanceTo(300);
+  const line = player.audio.find((media) => media.url?.includes('/audio/'));
+  assert.ok(line, 'the story under test opened no narration to fail');
+
+  line.listeners.get('error')?.({ type: 'error' });
+  assert.equal(
+    player.mediaNote.textContent,
+    'narration unavailable · read along',
+    'a line that could not be heard said nothing a viewer without the log can see',
+  );
+
+  // The note belongs to the line it was raised for.
+  const subtitle = player.subtitle.textContent;
+  for (let at = 400; at <= 6_000 && player.subtitle.textContent === subtitle; at += 100) {
+    player.frames.advanceTo(at);
+  }
+  assert.notEqual(player.subtitle.textContent, subtitle, 'the story never reached another line');
+  assert.equal(player.mediaNote.textContent, '', 'the note outlived the line it was raised for');
+  player.destroy();
+});
+
+test('the skip buttons move ten seconds from where the story is', async (t) => {
+  // `seekTo(delta)` instead of `seekTo(now + delta)` passes every controls test
+  // there is — the bar only ever reports the number it handed over — and turns
+  // skip-back into "jump to the beginning" from anywhere in the story.
+  const player = await mount(t);
+  const duration = player.timeline.duration_ms;
+  player.start();
+  player.frames.advanceTo(1_000);
+  player.bar.toggle.dispatch('click');
+
+  const box = player.bar.scrub.getBoundingClientRect();
+  player.bar.scrub.dispatch('pointerdown', { clientX: box.left + (box.width * 0.95), pointerId: 1 });
+  const landed = Math.round(duration * 0.95);
+  assert.equal(player.bar.at.textContent, clockText(landed));
+
+  player.bar.back.dispatch('click');
+  assert.equal(
+    player.bar.at.textContent,
+    clockText(Math.max(0, landed - 10_000)),
+    'the skip landed somewhere other than ten seconds back from where the story stood',
+  );
+  player.destroy();
+});
+
+test('a demotion lowers the ceiling the cache holds sheets against', async (t) => {
+  // Sheets too big for either budget, so the cache reports its ceiling every
+  // time a scene is loaded — the only place the number is observable from
+  // outside, and the only proof the demotion reached the cache at all.
+  const player = await mount(t, {
+    options: { debug: true, perf: true },
+    machine: { deviceMemory: 16, hardwareConcurrency: 16 },
+    assets: () => ({ width: 3_600, height: 3_600 }),
+  });
+  const ceilings = () => player.warnings()
+    .map((line) => /against a (\d+) MB budget/.exec(line)?.[1])
+    .filter(Boolean);
+  player.start();
+  assert.equal(ceilings().at(-1), '96', 'a 16 GB machine did not start on the full budget');
+
+  slowFrames(player, 6_000);
+  const logged = await player.log();
+  assert.deepEqual(
+    logged.filter((entry) => entry.reason === 'tier').map((entry) => `${entry.from}→${entry.to}`),
+    ['high→mid'],
+    'exactly one demotion should have happened by now',
+  );
+
+  // The next scene is loaded against whatever ceiling the cache is on now.
+  player.frames.advanceTo(8_000);
+  await settle();
+  assert.equal(ceilings().at(-1), '48', 'the demotion never reached the cache');
   player.destroy();
 });
 
@@ -266,11 +387,46 @@ test('a warning stateAt repeats every frame is logged once', async (t) => {
     true,
     'the state core stopped carrying old warnings forward, so this proves nothing',
   );
+  // The list also carries the compiler's own refusals now — written once at
+  // mount by `main.mjs`, and this doctored story raises those too — so the
+  // count is no longer one number. What must hold is that nothing repeats, and
+  // that every runtime warning is in there.
+  const logged = player.warnings();
   assert.equal(
-    player.entries(),
-    new Set(late).size,
+    logged.length,
+    new Set(logged).size,
     'a warning stateAt repeats on every frame reached the log more than once',
   );
+  assert.ok(
+    logged.length >= new Set(late).size,
+    'the runtime warnings never reached the log at all',
+  );
+  player.destroy();
+});
+
+test('what the compiler refused reaches the log, once, before a frame is drawn', async (t) => {
+  // The compiler records every refusal into the schedule — a clip the bundle
+  // never carried, a character nobody could place, a camera target it could not
+  // resolve — and nothing at runtime read those events back: `stateAt` hands
+  // `source: step` entries to the band layout and returns. Between the live
+  // director and the rewrite they went from the panel's list to nowhere, and a
+  // story that quietly lost a character had a clean log.
+  const player = await mount(t, {
+    options: { debug: true },
+    doctor: (story) => {
+      const [slug] = Object.keys(story.cast);
+      story.cast[slug].clips = {};
+    },
+  });
+
+  const raised = player.timeline.events.filter((event) => event.kind === 'warning');
+  const logged = (await player.log()).filter(
+    (entry) => entry.kind === 'warning' && entry.detail?.policy === raised[0]?.detail?.policy,
+  );
+
+  assert.ok(raised.length > 1, 'the doctored story raised no repeated refusal to say once');
+  assert.equal(logged.length, 1, 'a refusal raised at three instants was said three times');
+  assert.equal(logged[0].t_ms, raised[0].t_ms, 'the refusal lost the instant it was raised at');
   player.destroy();
 });
 
@@ -539,6 +695,11 @@ function draws(player, windowMs) {
   };
 }
 
+/** Let the fetches, decodes and their `.then`s reach their handlers. */
+function settle() {
+  return new Promise((resolve) => { setTimeout(resolve, 0); });
+}
+
 /** The transport's own clock text, so a test never hand-writes `0:10`. */
 function clockText(milliseconds) {
   const total = Math.max(0, Math.round(milliseconds / 1000));
@@ -614,6 +775,7 @@ async function mount(t, { doctor = () => {}, options = {}, machine = null, asset
     warnings: () => [...findByClass(root, 'event-list').children]
       .map((item) => item.childNodes.at(-1)?.textContent ?? ''),
     perfSummary: findByClass(root, 'perf-summary'),
+    mediaNote: findByClass(root, 'media-note'),
     // The log as the download carries it — the only way in from outside, and
     // the same path a bug report takes.
     log: () => download(root),
