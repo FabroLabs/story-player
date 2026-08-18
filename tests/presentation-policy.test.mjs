@@ -1,8 +1,18 @@
+/**
+ * The size law: how many pixels tall a character is drawn, and how close a
+ * shot size gets to them.
+ *
+ * This file used to hold the DOM stage's own state machinery as well — an actor
+ * registry, a motion wait, a spritesheet load tracker. All three went with the
+ * renderer in phase 7 (the schedule is compiled up front now, and the asset
+ * layer owns loading), and what is left is the half that was never about the
+ * DOM: presentation policy, which the compiler, `stateAt`, the rendition picker
+ * and the phone all read.
+ */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { ActorRegistry } from '../browser/v0/app/stage/actor-registry.mjs';
-import { waitForActorAction } from '../browser/v0/app/stage/action-wait.mjs';
 import {
   CLOSE_SCALE_CEILING,
   SPRITE_SOURCE_PX,
@@ -11,76 +21,6 @@ import {
   drawnSpriteHeightPx,
   spriteHeightForCm,
 } from '../browser/v0/app/stage/presentation-policy.mjs';
-import { SpriteAssetTracker } from '../browser/v0/app/stage/sprite-assets.mjs';
-
-test('invalidates a pending move when a later clip replacement supersedes it', () => {
-  const registry = new ActorRegistry();
-  const ruby = { name: 'ruby' };
-  registry.attach('ruby', ruby);
-  const move = registry.begin('ruby');
-
-  registry.supersede('ruby');
-
-  assert.equal(registry.isCurrent(move), false);
-});
-
-test('cannot remove a replacement actor when an old-scene departure settles late', () => {
-  const registry = new ActorRegistry();
-  const oldRuby = { scene: 1 };
-  registry.attach('ruby', oldRuby);
-  const departure = registry.begin('ruby');
-  registry.clear();
-
-  const newRuby = { scene: 2 };
-  registry.attach('ruby', newRuby);
-
-  assert.equal(registry.remove(departure), false);
-  assert.equal(registry.get('ruby'), newRuby);
-});
-
-test('superseding a motion settles its wait without a later timeout warning', async () => {
-  const registry = new ActorRegistry();
-  registry.attach('ruby', {});
-  const move = registry.begin('ruby');
-  const pending = cancellableWait(move);
-
-  registry.supersede('ruby');
-
-  assert.deepEqual(await pending.result, { timedOut: false, value: { cancelled: true } });
-  pending.fireDeadline();
-  assert.equal(pending.warningCount(), 0);
-});
-
-test('clearing a scene settles old departure waits without a timeout warning', async () => {
-  const registry = new ActorRegistry();
-  registry.attach('ruby', {});
-  const departure = registry.begin('ruby');
-  const pending = cancellableWait(departure);
-
-  registry.clear();
-
-  assert.deepEqual(await pending.result, { timedOut: false, value: { cancelled: true } });
-  pending.fireDeadline();
-  assert.equal(pending.warningCount(), 0);
-});
-
-test('treats a slow spritesheet as recoverable and warns only once before late success', () => {
-  const assets = new SpriteAssetTracker();
-  assets.start('sprite.png');
-
-  assert.deepEqual(assets.markSlow('sprite.png'), { state: 'slow', placeholder: true, warn: true });
-  assert.deepEqual(assets.markSlow('sprite.png'), { state: 'slow', placeholder: true, warn: false });
-  assert.deepEqual(assets.markReady('sprite.png'), { state: 'ready', placeholder: false, warn: false });
-});
-
-test('keeps a truly failed spritesheet on its placeholder and logs the url once', () => {
-  const assets = new SpriteAssetTracker();
-  assets.start('broken.png');
-
-  assert.deepEqual(assets.markFailed('broken.png'), { state: 'failed', placeholder: true, warn: true });
-  assert.deepEqual(assets.markReady('broken.png'), { state: 'failed', placeholder: true, warn: false });
-  assert.deepEqual(assets.markFailed('broken.png'), { state: 'failed', placeholder: true, warn: false });
-});
 
 test('keeps tiny cast readable while scaling larger cast from height', () => {
   assert.equal(spriteHeightForCm(12), 120); // ruby / robin
@@ -175,18 +115,3 @@ test('gives an unmeasured character the readable minimum rather than a NaN', () 
   }
   assert.equal(spriteHeightForCm(Infinity), 72);
 });
-
-function cancellableWait(action) {
-  let deadline;
-  let warnings = 0;
-  const result = waitForActorAction(action, new Promise(() => {}), 500, {
-    setTimer: (callback) => { deadline = callback; return 12; },
-    clearTimer: () => {},
-    onTimeout: () => { warnings += 1; },
-  });
-  return {
-    result,
-    fireDeadline: () => deadline(),
-    warningCount: () => warnings,
-  };
-}

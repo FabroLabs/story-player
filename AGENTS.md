@@ -12,9 +12,11 @@
 - Every media value is `<bucket>/<object-key>`. Preserve strict path validation
   before resolving it under `assetBase`.
 - `browser/v0/core/**` is pure logic. Only
-  `browser/v0/app/stage/stage-renderer.mjs` touches stage DOM. Preserve
-  deterministic behavior; policy changes require contract tests and downstream
-  mobile parity regeneration.
+  `browser/v0/app/stage/canvas-stage.mjs` (which measures stage DOM and owns the
+  2D context) and `browser/v0/app/stage/video-plate.mjs` (which owns the plate
+  `<video>`) touch stage DOM; `browser/v0/app/stage/draw-list.mjs` between them
+  is pure. Preserve deterministic behavior; policy changes require contract
+  tests and downstream mobile parity regeneration.
 - Keep package metadata private at `0.0.0-development`. `dist/` is generated,
   ignored, and never committed.
 - Never commit credentials, `.npmrc`, registry configuration, or a

@@ -9,11 +9,17 @@ import {
 /**
  * Where the camera is pointing at t.
  *
- * The arithmetic below moved here verbatim from the DOM stage renderer, which
- * still imports it — one definition, and that renderer's test suite is what
- * proves the move changed nothing. What is new is the last two functions: a
- * transition the browser used to run is now a number this file computes, so a
- * seek to the middle of a push lands where the push had got to.
+ * The arithmetic below moved here verbatim from the DOM stage renderer, whose
+ * suite proved at the time that the move changed nothing. That renderer and its
+ * suite are both gone now — the canvas stage reads a framing out of `stateAt`
+ * rather than owning one — so what holds this file today is `state-motion`'s
+ * camera tests, `state-refusals`' two camera refusals, and the drawlist goldens,
+ * which carry a real push, a real pan and a subject-framed shot out of the
+ * parity corpus.
+ *
+ * What is new is the last two functions: a transition the browser used to run
+ * is now a number this file computes, so a seek to the middle of a push lands
+ * where the push had got to.
  */
 
 export const PLATE_CENTRE = Object.freeze({ x: 50, y: 50 });

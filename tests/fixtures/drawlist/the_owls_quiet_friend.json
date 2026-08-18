@@ -1,0 +1,1116 @@
+{
+  "instants": [
+    {
+      "t_ms": 1,
+      "list": {
+        "width": 1920,
+        "height": 1080,
+        "camera": {
+          "scale": 1,
+          "x": 0,
+          "y": 0
+        },
+        "commands": [
+          {
+            "op": "shadow",
+            "slug": "owl",
+            "cx": 960,
+            "cy": 969.6,
+            "rx": 105,
+            "ry": 21,
+            "opacity": 0.34
+          },
+          {
+            "op": "sprite",
+            "slug": "owl",
+            "url": "fairytale-assets/mobile/sprites/68929b790fbff94ccc34241ea50f5e07.webp",
+            "cell": [
+              0,
+              0
+            ],
+            "cells": [
+              5,
+              5
+            ],
+            "dx": 785,
+            "dy": 619.6,
+            "dw": 350,
+            "dh": 350,
+            "opacity": 1
+          }
+        ]
+      }
+    },
+    {
+      "t_ms": 32552,
+      "list": {
+        "width": 1920,
+        "height": 1080,
+        "camera": {
+          "scale": 1,
+          "x": 0,
+          "y": 0
+        },
+        "commands": [
+          {
+            "op": "shadow",
+            "slug": "owl",
+            "cx": 960,
+            "cy": 896.52,
+            "rx": 105,
+            "ry": 21,
+            "opacity": 0.34
+          },
+          {
+            "op": "sprite",
+            "slug": "owl",
+            "url": "fairytale-assets/mobile/sprites/68929b790fbff94ccc34241ea50f5e07.webp",
+            "cell": [
+              0,
+              0
+            ],
+            "cells": [
+              5,
+              5
+            ],
+            "dx": 785,
+            "dy": 546.52,
+            "dw": 350,
+            "dh": 350,
+            "opacity": 1
+          },
+          {
+            "op": "shadow",
+            "slug": "squirrel",
+            "cx": 576,
+            "cy": 897.12,
+            "rx": 66,
+            "ry": 13.2,
+            "opacity": 0.34
+          },
+          {
+            "op": "sprite",
+            "slug": "squirrel",
+            "url": "fairytale-assets/mobile/sprites/719a0ead78d3cd90c31b21f763670c49.webp",
+            "cell": [
+              0,
+              0
+            ],
+            "cells": [
+              5,
+              5
+            ],
+            "dx": 466,
+            "dy": 677.12,
+            "dw": 220,
+            "dh": 220,
+            "opacity": 1
+          },
+          {
+            "op": "shadow",
+            "slug": "rabbit",
+            "cx": 1344,
+            "cy": 916.59,
+            "rx": 75,
+            "ry": 15,
+            "opacity": 0.34
+          },
+          {
+            "op": "sprite",
+            "slug": "rabbit",
+            "url": "fairytale-assets/mobile/sprites/1c8d84f49866193dde9abe423ac85209.webp",
+            "cell": [
+              0,
+              0
+            ],
+            "cells": [
+              5,
+              5
+            ],
+            "dx": 1219,
+            "dy": 666.59,
+            "dw": 250,
+            "dh": 250,
+            "opacity": 1
+          }
+        ]
+      }
+    },
+    {
+      "t_ms": 65565,
+      "list": {
+        "width": 1920,
+        "height": 1080,
+        "camera": {
+          "scale": 1,
+          "x": 0,
+          "y": 0
+        },
+        "commands": [
+          {
+            "op": "shadow",
+            "slug": "owl",
+            "cx": 564.76,
+            "cy": 1014.51,
+            "rx": 105,
+            "ry": 21,
+            "opacity": 0.34
+          },
+          {
+            "op": "sprite",
+            "slug": "owl",
+            "url": "fairytale-assets/mobile/sprites/f484643c8a961ce1507ea178853d897d.webp",
+            "cell": [
+              0,
+              0
+            ],
+            "cells": [
+              5,
+              5
+            ],
+            "dx": 389.76,
+            "dy": 664.51,
+            "dw": 350,
+            "dh": 350,
+            "opacity": 1
+          },
+          {
+            "op": "shadow",
+            "slug": "squirrel",
+            "cx": 884.54,
+            "cy": 1015.31,
+            "rx": 66,
+            "ry": 13.2,
+            "opacity": 0.34
+          },
+          {
+            "op": "sprite",
+            "slug": "squirrel",
+            "url": "fairytale-assets/mobile/sprites/549396ede22236d06facc0db6b8348dc.webp",
+            "cell": [
+              0,
+              0
+            ],
+            "cells": [
+              5,
+              5
+            ],
+            "dx": 774.54,
+            "dy": 795.31,
+            "dw": 220,
+            "dh": 220,
+            "opacity": 1
+          },
+          {
+            "op": "shadow",
+            "slug": "rabbit",
+            "cx": 1119.54,
+            "cy": 1015.9,
+            "rx": 75,
+            "ry": 15,
+            "opacity": 0.34
+          },
+          {
+            "op": "sprite",
+            "slug": "rabbit",
+            "url": "fairytale-assets/mobile/sprites/bc97cb16b73d8618cb67ffec6eb305e2.webp",
+            "cell": [
+              0,
+              0
+            ],
+            "cells": [
+              5,
+              5
+            ],
+            "dx": 994.54,
+            "dy": 765.9,
+            "dw": 250,
+            "dh": 250,
+            "opacity": 1
+          },
+          {
+            "op": "shadow",
+            "slug": "robin",
+            "cx": 1304.54,
+            "cy": 1016.37,
+            "rx": 36,
+            "ry": 7.2,
+            "opacity": 0.34
+          },
+          {
+            "op": "sprite",
+            "slug": "robin",
+            "url": "fairytale-assets/mobile/sprites/96b9e1f90aa4404036fbd6d0d42bfa56.webp",
+            "cell": [
+              0,
+              0
+            ],
+            "cells": [
+              7,
+              7
+            ],
+            "dx": 1244.54,
+            "dy": 896.37,
+            "dw": 120,
+            "dh": 120,
+            "opacity": 1
+          }
+        ]
+      }
+    },
+    {
+      "t_ms": 74810,
+      "list": {
+        "width": 1920,
+        "height": 1080,
+        "camera": {
+          "scale": 1.55,
+          "x": -13.9997,
+          "y": -51.6551
+        },
+        "commands": [
+          {
+            "op": "shadow",
+            "slug": "owl",
+            "cx": 564.76,
+            "cy": 1014.51,
+            "rx": 105,
+            "ry": 21,
+            "opacity": 0.34
+          },
+          {
+            "op": "sprite",
+            "slug": "owl",
+            "url": "fairytale-assets/mobile/sprites/f484643c8a961ce1507ea178853d897d.webp",
+            "cell": [
+              0,
+              2
+            ],
+            "cells": [
+              5,
+              5
+            ],
+            "dx": 389.76,
+            "dy": 664.51,
+            "dw": 350,
+            "dh": 350,
+            "opacity": 1
+          },
+          {
+            "op": "shadow",
+            "slug": "squirrel",
+            "cx": 884.54,
+            "cy": 1015.31,
+            "rx": 66,
+            "ry": 13.2,
+            "opacity": 0.34
+          },
+          {
+            "op": "sprite",
+            "slug": "squirrel",
+            "url": "fairytale-assets/mobile/sprites/549396ede22236d06facc0db6b8348dc.webp",
+            "cell": [
+              0,
+              2
+            ],
+            "cells": [
+              5,
+              5
+            ],
+            "dx": 774.54,
+            "dy": 795.31,
+            "dw": 220,
+            "dh": 220,
+            "opacity": 1
+          },
+          {
+            "op": "shadow",
+            "slug": "rabbit",
+            "cx": 1119.54,
+            "cy": 1015.9,
+            "rx": 75,
+            "ry": 15,
+            "opacity": 0.34
+          },
+          {
+            "op": "sprite",
+            "slug": "rabbit",
+            "url": "fairytale-assets/mobile/sprites/bc97cb16b73d8618cb67ffec6eb305e2.webp",
+            "cell": [
+              0,
+              2
+            ],
+            "cells": [
+              5,
+              5
+            ],
+            "dx": 994.54,
+            "dy": 765.9,
+            "dw": 250,
+            "dh": 250,
+            "opacity": 1
+          },
+          {
+            "op": "shadow",
+            "slug": "robin",
+            "cx": 1304.54,
+            "cy": 1016.37,
+            "rx": 36,
+            "ry": 7.2,
+            "opacity": 0.34
+          },
+          {
+            "op": "sprite",
+            "slug": "robin",
+            "url": "fairytale-assets/mobile/sprites/96b9e1f90aa4404036fbd6d0d42bfa56.webp",
+            "cell": [
+              1,
+              4
+            ],
+            "cells": [
+              7,
+              7
+            ],
+            "dx": 1244.54,
+            "dy": 896.37,
+            "dw": 120,
+            "dh": 120,
+            "opacity": 1
+          }
+        ]
+      }
+    },
+    {
+      "t_ms": 107627,
+      "list": {
+        "width": 1920,
+        "height": 1080,
+        "camera": {
+          "scale": 1,
+          "x": 0,
+          "y": 0
+        },
+        "commands": [
+          {
+            "op": "shadow",
+            "slug": "owl",
+            "cx": 778.18,
+            "cy": 946.01,
+            "rx": 105,
+            "ry": 21,
+            "opacity": 0.34
+          },
+          {
+            "op": "sprite",
+            "slug": "owl",
+            "url": "fairytale-assets/mobile/sprites/68929b790fbff94ccc34241ea50f5e07.webp",
+            "cell": [
+              0,
+              0
+            ],
+            "cells": [
+              5,
+              5
+            ],
+            "dx": 603.18,
+            "dy": 596.01,
+            "dw": 350,
+            "dh": 350,
+            "opacity": 1
+          },
+          {
+            "op": "shadow",
+            "slug": "squirrel",
+            "cx": 466.91,
+            "cy": 943.87,
+            "rx": 66,
+            "ry": 13.2,
+            "opacity": 0.34
+          },
+          {
+            "op": "sprite",
+            "slug": "squirrel",
+            "url": "fairytale-assets/mobile/sprites/719a0ead78d3cd90c31b21f763670c49.webp",
+            "cell": [
+              0,
+              0
+            ],
+            "cells": [
+              5,
+              5
+            ],
+            "dx": 356.91,
+            "dy": 723.87,
+            "dw": 220,
+            "dh": 220,
+            "opacity": 1
+          },
+          {
+            "op": "shadow",
+            "slug": "rabbit",
+            "cx": 1089.45,
+            "cy": 967.23,
+            "rx": 75,
+            "ry": 15,
+            "opacity": 0.34
+          },
+          {
+            "op": "sprite",
+            "slug": "rabbit",
+            "url": "fairytale-assets/mobile/sprites/1c8d84f49866193dde9abe423ac85209.webp",
+            "cell": [
+              0,
+              0
+            ],
+            "cells": [
+              5,
+              5
+            ],
+            "dx": 964.45,
+            "dy": 717.23,
+            "dw": 250,
+            "dh": 250,
+            "opacity": 1
+          },
+          {
+            "op": "shadow",
+            "slug": "robin",
+            "cx": 1400.72,
+            "cy": 948.66,
+            "rx": 36,
+            "ry": 7.2,
+            "opacity": 0.34
+          },
+          {
+            "op": "sprite",
+            "slug": "robin",
+            "url": "fairytale-assets/mobile/sprites/96b9e1f90aa4404036fbd6d0d42bfa56.webp",
+            "cell": [
+              0,
+              0
+            ],
+            "cells": [
+              7,
+              7
+            ],
+            "dx": 1340.72,
+            "dy": 828.66,
+            "dw": 120,
+            "dh": 120,
+            "opacity": 1
+          }
+        ]
+      }
+    },
+    {
+      "t_ms": 138617,
+      "list": {
+        "width": 1920,
+        "height": 1080,
+        "camera": {
+          "scale": 1,
+          "x": 0,
+          "y": 0
+        },
+        "commands": [
+          {
+            "op": "shadow",
+            "slug": "owl",
+            "cx": 778.18,
+            "cy": 946.01,
+            "rx": 105,
+            "ry": 21,
+            "opacity": 0.34
+          },
+          {
+            "op": "sprite",
+            "slug": "owl",
+            "url": "fairytale-assets/mobile/sprites/4ff16e03adb9b7dd0b4d19602d4e9af8.webp",
+            "cell": [
+              4,
+              3
+            ],
+            "cells": [
+              5,
+              5
+            ],
+            "dx": 603.18,
+            "dy": 596.01,
+            "dw": 350,
+            "dh": 350,
+            "opacity": 1
+          },
+          {
+            "op": "shadow",
+            "slug": "squirrel",
+            "cx": 466.91,
+            "cy": 943.87,
+            "rx": 66,
+            "ry": 13.2,
+            "opacity": 0.34
+          },
+          {
+            "op": "sprite",
+            "slug": "squirrel",
+            "url": "fairytale-assets/mobile/sprites/719a0ead78d3cd90c31b21f763670c49.webp",
+            "cell": [
+              1,
+              4
+            ],
+            "cells": [
+              5,
+              5
+            ],
+            "dx": 356.91,
+            "dy": 723.87,
+            "dw": 220,
+            "dh": 220,
+            "opacity": 1
+          },
+          {
+            "op": "shadow",
+            "slug": "rabbit",
+            "cx": 1089.45,
+            "cy": 967.23,
+            "rx": 75,
+            "ry": 15,
+            "opacity": 0.34
+          },
+          {
+            "op": "sprite",
+            "slug": "rabbit",
+            "url": "fairytale-assets/mobile/sprites/1c8d84f49866193dde9abe423ac85209.webp",
+            "cell": [
+              1,
+              4
+            ],
+            "cells": [
+              5,
+              5
+            ],
+            "dx": 964.45,
+            "dy": 717.23,
+            "dw": 250,
+            "dh": 250,
+            "opacity": 1
+          },
+          {
+            "op": "shadow",
+            "slug": "robin",
+            "cx": 1400.72,
+            "cy": 948.66,
+            "rx": 36,
+            "ry": 7.2,
+            "opacity": 0.34
+          },
+          {
+            "op": "sprite",
+            "slug": "robin",
+            "url": "fairytale-assets/mobile/sprites/96b9e1f90aa4404036fbd6d0d42bfa56.webp",
+            "cell": [
+              2,
+              3
+            ],
+            "cells": [
+              7,
+              7
+            ],
+            "dx": 1340.72,
+            "dy": 828.66,
+            "dw": 120,
+            "dh": 120,
+            "opacity": 1
+          }
+        ]
+      }
+    },
+    {
+      "t_ms": 148619,
+      "list": {
+        "width": 1920,
+        "height": 1080,
+        "camera": {
+          "scale": 1,
+          "x": 0,
+          "y": 0
+        },
+        "commands": [
+          {
+            "op": "shadow",
+            "slug": "owl",
+            "cx": 883.94,
+            "cy": 987.34,
+            "rx": 105,
+            "ry": 21,
+            "opacity": 0.34
+          },
+          {
+            "op": "sprite",
+            "slug": "owl",
+            "url": "fairytale-assets/mobile/sprites/68929b790fbff94ccc34241ea50f5e07.webp",
+            "cell": [
+              0,
+              0
+            ],
+            "cells": [
+              5,
+              5
+            ],
+            "dx": 708.94,
+            "dy": 637.34,
+            "dw": 350,
+            "dh": 350,
+            "opacity": 1
+          },
+          {
+            "op": "shadow",
+            "slug": "squirrel",
+            "cx": 575.33,
+            "cy": 986.31,
+            "rx": 66,
+            "ry": 13.2,
+            "opacity": 0.34
+          },
+          {
+            "op": "sprite",
+            "slug": "squirrel",
+            "url": "fairytale-assets/mobile/sprites/719a0ead78d3cd90c31b21f763670c49.webp",
+            "cell": [
+              0,
+              0
+            ],
+            "cells": [
+              5,
+              5
+            ],
+            "dx": 465.33,
+            "dy": 766.31,
+            "dw": 220,
+            "dh": 220,
+            "opacity": 1
+          },
+          {
+            "op": "shadow",
+            "slug": "rabbit",
+            "cx": 1183.94,
+            "cy": 988.06,
+            "rx": 75,
+            "ry": 15,
+            "opacity": 0.34
+          },
+          {
+            "op": "sprite",
+            "slug": "rabbit",
+            "url": "fairytale-assets/mobile/sprites/1c8d84f49866193dde9abe423ac85209.webp",
+            "cell": [
+              0,
+              0
+            ],
+            "cells": [
+              5,
+              5
+            ],
+            "dx": 1058.94,
+            "dy": 738.06,
+            "dw": 250,
+            "dh": 250,
+            "opacity": 1
+          },
+          {
+            "op": "shadow",
+            "slug": "robin",
+            "cx": 1483.68,
+            "cy": 987.19,
+            "rx": 36,
+            "ry": 7.2,
+            "opacity": 0.34
+          },
+          {
+            "op": "sprite",
+            "slug": "robin",
+            "url": "fairytale-assets/mobile/sprites/96b9e1f90aa4404036fbd6d0d42bfa56.webp",
+            "cell": [
+              0,
+              0
+            ],
+            "cells": [
+              7,
+              7
+            ],
+            "dx": 1423.68,
+            "dy": 867.19,
+            "dw": 120,
+            "dh": 120,
+            "opacity": 1
+          }
+        ]
+      }
+    },
+    {
+      "t_ms": 178815,
+      "list": {
+        "width": 1920,
+        "height": 1080,
+        "camera": {
+          "scale": 1,
+          "x": 0,
+          "y": 0
+        },
+        "commands": [
+          {
+            "op": "shadow",
+            "slug": "owl",
+            "cx": 964.13,
+            "cy": 866.62,
+            "rx": 105,
+            "ry": 21,
+            "opacity": 0.34
+          },
+          {
+            "op": "sprite",
+            "slug": "owl",
+            "url": "fairytale-assets/mobile/sprites/68929b790fbff94ccc34241ea50f5e07.webp",
+            "cell": [
+              0,
+              0
+            ],
+            "cells": [
+              5,
+              5
+            ],
+            "dx": 789.13,
+            "dy": 516.62,
+            "dw": 350,
+            "dh": 350,
+            "opacity": 1
+          },
+          {
+            "op": "shadow",
+            "slug": "squirrel",
+            "cx": 587.62,
+            "cy": 897.75,
+            "rx": 66,
+            "ry": 13.2,
+            "opacity": 0.34
+          },
+          {
+            "op": "sprite",
+            "slug": "squirrel",
+            "url": "fairytale-assets/mobile/sprites/719a0ead78d3cd90c31b21f763670c49.webp",
+            "cell": [
+              0,
+              0
+            ],
+            "cells": [
+              5,
+              5
+            ],
+            "dx": 477.62,
+            "dy": 677.75,
+            "dw": 220,
+            "dh": 220,
+            "opacity": 1
+          },
+          {
+            "op": "shadow",
+            "slug": "rabbit",
+            "cx": 1340.64,
+            "cy": 900.33,
+            "rx": 75,
+            "ry": 15,
+            "opacity": 0.34
+          },
+          {
+            "op": "sprite",
+            "slug": "rabbit",
+            "url": "fairytale-assets/mobile/sprites/1c8d84f49866193dde9abe423ac85209.webp",
+            "cell": [
+              0,
+              0
+            ],
+            "cells": [
+              5,
+              5
+            ],
+            "dx": 1215.64,
+            "dy": 650.33,
+            "dw": 250,
+            "dh": 250,
+            "opacity": 1
+          },
+          {
+            "op": "shadow",
+            "slug": "robin",
+            "cx": 1717.15,
+            "cy": 991.48,
+            "rx": 36,
+            "ry": 7.2,
+            "opacity": 0.34
+          },
+          {
+            "op": "sprite",
+            "slug": "robin",
+            "url": "fairytale-assets/mobile/sprites/96b9e1f90aa4404036fbd6d0d42bfa56.webp",
+            "cell": [
+              0,
+              0
+            ],
+            "cells": [
+              7,
+              7
+            ],
+            "dx": 1657.15,
+            "dy": 871.48,
+            "dw": 120,
+            "dh": 120,
+            "opacity": 1
+          }
+        ]
+      }
+    },
+    {
+      "t_ms": 205083,
+      "list": {
+        "width": 1920,
+        "height": 1080,
+        "camera": {
+          "scale": 1,
+          "x": 0,
+          "y": 0
+        },
+        "commands": [
+          {
+            "op": "shadow",
+            "slug": "owl",
+            "cx": 951.17,
+            "cy": 901.85,
+            "rx": 105,
+            "ry": 21,
+            "opacity": 0.34
+          },
+          {
+            "op": "sprite",
+            "slug": "owl",
+            "url": "fairytale-assets/mobile/sprites/68929b790fbff94ccc34241ea50f5e07.webp",
+            "cell": [
+              0,
+              0
+            ],
+            "cells": [
+              5,
+              5
+            ],
+            "dx": 776.17,
+            "dy": 551.85,
+            "dw": 350,
+            "dh": 350,
+            "opacity": 1
+          },
+          {
+            "op": "shadow",
+            "slug": "squirrel",
+            "cx": 584.76,
+            "cy": 907.55,
+            "rx": 66,
+            "ry": 13.2,
+            "opacity": 0.34
+          },
+          {
+            "op": "sprite",
+            "slug": "squirrel",
+            "url": "fairytale-assets/mobile/sprites/719a0ead78d3cd90c31b21f763670c49.webp",
+            "cell": [
+              0,
+              0
+            ],
+            "cells": [
+              5,
+              5
+            ],
+            "dx": 474.76,
+            "dy": 687.55,
+            "dw": 220,
+            "dh": 220,
+            "opacity": 1
+          },
+          {
+            "op": "shadow",
+            "slug": "rabbit",
+            "cx": 1317.58,
+            "cy": 908.12,
+            "rx": 75,
+            "ry": 15,
+            "opacity": 0.34
+          },
+          {
+            "op": "sprite",
+            "slug": "rabbit",
+            "url": "fairytale-assets/mobile/sprites/1c8d84f49866193dde9abe423ac85209.webp",
+            "cell": [
+              0,
+              0
+            ],
+            "cells": [
+              5,
+              5
+            ],
+            "dx": 1192.58,
+            "dy": 658.12,
+            "dw": 250,
+            "dh": 250,
+            "opacity": 1
+          },
+          {
+            "op": "shadow",
+            "slug": "robin",
+            "cx": 1683.99,
+            "cy": 906.65,
+            "rx": 36,
+            "ry": 7.2,
+            "opacity": 0.34
+          },
+          {
+            "op": "sprite",
+            "slug": "robin",
+            "url": "fairytale-assets/mobile/sprites/96b9e1f90aa4404036fbd6d0d42bfa56.webp",
+            "cell": [
+              0,
+              0
+            ],
+            "cells": [
+              7,
+              7
+            ],
+            "dx": 1623.99,
+            "dy": 786.65,
+            "dw": 120,
+            "dh": 120,
+            "opacity": 1
+          }
+        ]
+      }
+    },
+    {
+      "t_ms": 246808,
+      "list": {
+        "width": 1920,
+        "height": 1080,
+        "camera": {
+          "scale": 1,
+          "x": 0,
+          "y": 0
+        },
+        "commands": [
+          {
+            "op": "shadow",
+            "slug": "owl",
+            "cx": 951.17,
+            "cy": 901.85,
+            "rx": 105,
+            "ry": 21,
+            "opacity": 0.34
+          },
+          {
+            "op": "sprite",
+            "slug": "owl",
+            "url": "fairytale-assets/mobile/sprites/dd5d933373e4f4acd6150596fb1e9f0f.webp",
+            "cell": [
+              5,
+              4
+            ],
+            "cells": [
+              9,
+              9
+            ],
+            "dx": 776.17,
+            "dy": 551.85,
+            "dw": 350,
+            "dh": 350,
+            "opacity": 1
+          },
+          {
+            "op": "shadow",
+            "slug": "squirrel",
+            "cx": 584.76,
+            "cy": 907.55,
+            "rx": 66,
+            "ry": 13.2,
+            "opacity": 0.34
+          },
+          {
+            "op": "sprite",
+            "slug": "squirrel",
+            "url": "fairytale-assets/mobile/sprites/5badb2b8c8c5f5ef4d8527248231b101.webp",
+            "cell": [
+              2,
+              1
+            ],
+            "cells": [
+              9,
+              9
+            ],
+            "dx": 474.76,
+            "dy": 687.55,
+            "dw": 220,
+            "dh": 220,
+            "opacity": 1
+          },
+          {
+            "op": "shadow",
+            "slug": "rabbit",
+            "cx": 1317.58,
+            "cy": 908.12,
+            "rx": 75,
+            "ry": 15,
+            "opacity": 0.34
+          },
+          {
+            "op": "sprite",
+            "slug": "rabbit",
+            "url": "fairytale-assets/mobile/sprites/e22e3b37a723cab8b03e22c4f3a677b9.webp",
+            "cell": [
+              4,
+              4
+            ],
+            "cells": [
+              7,
+              6
+            ],
+            "dx": 1192.58,
+            "dy": 658.12,
+            "dw": 250,
+            "dh": 250,
+            "opacity": 1
+          },
+          {
+            "op": "shadow",
+            "slug": "robin",
+            "cx": 1683.99,
+            "cy": 906.65,
+            "rx": 36,
+            "ry": 7.2,
+            "opacity": 0.34
+          },
+          {
+            "op": "sprite",
+            "slug": "robin",
+            "url": "fairytale-assets/mobile/sprites/214ef73241d716a4a24597720dd81362.webp",
+            "cell": [
+              1,
+              0
+            ],
+            "cells": [
+              8,
+              7
+            ],
+            "dx": 1623.99,
+            "dy": 786.65,
+            "dw": 120,
+            "dh": 120,
+            "opacity": 1
+          }
+        ]
+      }
+    }
+  ]
+}

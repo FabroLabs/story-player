@@ -188,6 +188,30 @@ test('a pan brings its x to the middle, lifting the scale to reach at all', () =
   assert.notDeepEqual(framing(3399), framing(3400), 'the ride was over before its own 400 ms');
 });
 
+test('no framing this player can reach ever uncovers the stage', () => {
+  // The coverage law, swept rather than sampled. The DOM renderer's suite swept
+  // it and went with the renderer; what is left here otherwise pins one scale
+  // and two pan targets, and the two cases that law exists for are neither: a
+  // pan out of a subject-framed close-up (scales past 3x are ordinary — a
+  // hedgehog frames at 3.41x), and a pan aimed at an off-plate anchor, which is
+  // exactly what a follow ride does when its subject walks out at -8 or 108.
+  for (let scale = 1; scale <= 3.5; scale += 0.25) {
+    for (let x = -8; x <= 108; x += 4) {
+      const framed = story([
+        stage(1000, 'shot', { size: 'close', x: 50, y: 50, scale }),
+        stage(2000, 'pan', { x, speed: 'slow', duration_ms: null }),
+      ]);
+      const camera = stateAt(framed.timeline, framed.bundle, 4400).camera;
+      const near = camera.x;
+      const far = camera.x + (100 * camera.scale);
+      assert.ok(
+        near <= 0 && far >= 100 && camera.y <= 0 && camera.y + (100 * camera.scale) >= 100,
+        `a pan to ${x} at ${scale}x showed the stage behind the plate: ${JSON.stringify(camera)}`,
+      );
+    }
+  }
+});
+
 // A push composes off the framing the last op ASKED for, not off the picture:
 // interrupting a pull-out that is still gliding down from 3x must not leave the
 // push magnifying from wherever it happened to have got to.

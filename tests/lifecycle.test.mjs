@@ -3,7 +3,7 @@ import test from 'node:test';
 
 import { createStoryPlayer } from '../browser/embed.mjs';
 import { AudioDirector } from '../browser/v0/app/directors/audio-director.mjs';
-import { StageRenderer } from '../browser/v0/app/stage/stage-renderer.mjs';
+import { createCanvasStage } from '../browser/v0/app/stage/canvas-stage.mjs';
 import { fakeStageElements, installDom } from './_dom.mjs';
 
 function loadingStory() {
@@ -42,6 +42,28 @@ test('destroy before ready aborts preload, settles ready, and removes the surfac
   await Promise.resolve();
   await Promise.resolve();
   assert.equal(host.shadowRoot.children.length, 0, 'late preload work repainted a destroyed player');
+});
+
+test('a mounted player really got its canvas', async (t) => {
+  // Both ways the stage can end up with no context are unit-tested; what this
+  // asks is that the SHIPPED wiring hits neither. Drop `canvas` from the
+  // template's element bag, or rename the class, and the player warns once and
+  // then draws nothing for the rest of the story — over a plate that plays and
+  // subtitles that keep coming, which is exactly the kind of failure somebody
+  // calls "the video is fine but the animals are gone".
+  const dom = installDom();
+  t.after(dom.restore);
+  const host = document.createElement('div');
+  const player = createStoryPlayer(host, {
+    story: loadingStory(),
+    assetBase: 'https://storage.example/',
+  });
+  await player.ready;
+
+  const lines = [...findByClass(host.shadowRoot, 'event-list').children]
+    .map((entry) => entry.childNodes.at(-1)?.textContent ?? '');
+  assert.deepEqual(lines.filter((line) => /stage-canvas|canvas context/.test(line)), []);
+  player.destroy();
 });
 
 test('a destroyed host can be remounted without sharing the old controller', async (t) => {
@@ -241,10 +263,14 @@ test.skip('destroy during active playback cancels clock work and plate readiness
   findByClass(host.shadowRoot, 'start-button').dispatch('click');
   for (let turn = 0; turn < 12 && media.length < 2; turn += 1) await Promise.resolve();
   assert.equal(media.length, 2, 'music and narration did not both start');
-  assert.equal(video.listenerCount('canplay'), 1);
+  // `playing`, not `canplay`: the canvas-era plate waits for the first frame to
+  // be on screen, not for the browser's opinion that it could start. Corrected
+  // while this test was still skipped, so whoever un-skips it in phase 8 gets a
+  // red for a real reason or none at all.
+  assert.equal(video.listenerCount('playing'), 1);
   assert.ok([...timers.values()].some(({ milliseconds }) => milliseconds === 64_000));
   player.destroy();
-  assert.equal(video.listenerCount('canplay'), 0);
+  assert.equal(video.listenerCount('playing'), 0);
   assert.equal(video.listenerCount('error'), 0);
   assert.equal(host.shadowRoot.childNodes.length, 0);
   assert.equal(timers.size, 0, 'destroy left playback or readiness timers armed');
@@ -255,23 +281,18 @@ test.skip('destroy during active playback cancels clock work and plate readiness
   await Promise.resolve();
 });
 
-test('stage destroy cancels animation and observation exactly once', (t) => {
+test('stage destroy stops observing the frame, exactly once', (t) => {
   const dom = installDom();
   t.after(dom.restore);
   let disconnected = 0;
-  let cancelled = null;
   globalThis.ResizeObserver = class {
     observe() {}
     disconnect() { disconnected += 1; }
   };
-  globalThis.requestAnimationFrame = () => 42;
-  globalThis.cancelAnimationFrame = (id) => { cancelled = id; };
-  const stage = new StageRenderer(fakeStageElements());
-  stage.startAnimation();
+  const stage = createCanvasStage(fakeStageElements());
   stage.destroy();
   stage.destroy();
-  assert.equal(cancelled, 42);
-  assert.equal(disconnected, 1);
+  assert.equal(disconnected, 1, 'the resize observer outlived the stage, or was disconnected twice');
 });
 
 test('destroy clears debug download timers and revokes its object URL', async (t) => {
@@ -306,33 +327,6 @@ test('destroy clears debug download timers and revokes its object URL', async (t
   player.destroy();
   assert.equal(timers.size, 0);
   assert.deepEqual(revoked, ['blob:story-log']);
-});
-
-test('stage destroy cancels a pending sprite deadline and detaches its image source', (t) => {
-  const dom = installDom();
-  t.after(dom.restore);
-  const originalSetTimeout = globalThis.setTimeout;
-  const originalClearTimeout = globalThis.clearTimeout;
-  const timers = new Set();
-  let timerId = 0;
-  globalThis.setTimeout = () => { timerId += 1; timers.add(timerId); return timerId; };
-  globalThis.clearTimeout = (id) => { timers.delete(id); };
-  t.after(() => {
-    globalThis.setTimeout = originalSetTimeout;
-    globalThis.clearTimeout = originalClearTimeout;
-  });
-  const stage = new StageRenderer(fakeStageElements());
-  stage.placeCharacter('fox', {
-    display_name: 'Fox', height_cm: 80,
-    clips: { idle: { spritesheet: 'https://storage.example/assets/fox.png', frames: 1 } },
-  }, 50, 'idle');
-  const image = dom.lastImage();
-  assert.equal(timers.size, 1);
-  assert.match(image.src, /fox\.png/);
-
-  stage.destroy();
-  assert.equal(timers.size, 0);
-  assert.equal(image.src, '');
 });
 
 function findByClass(root, name) {

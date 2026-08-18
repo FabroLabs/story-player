@@ -15,16 +15,22 @@ export function createPlayerTemplate(root, { stylesheet = STYLESHEET } = {}) {
   }, [element(document, 'span', { text: 'log', 'aria-hidden': 'true' })]);
   const header = element(document, 'header', { className: 'player-header' }, [brand, subtitles, debugToggle]);
   const poster = element(document, 'div', { className: 'plate-poster' });
-  const video = element(document, 'video', { className: 'plate-video', muted: '', loop: '', playsinline: '', preload: 'metadata' });
+  // `preload="auto"`: the plate is asked to play the instant its source is set,
+  // so waiting for a readiness event before fetching would cost every scene
+  // opening a round trip. The plate layer is what the camera transforms — the
+  // poster and the video move together, under the canvas.
+  const video = element(document, 'video', { className: 'plate-video', muted: '', loop: '', playsinline: '', preload: 'auto' });
   video.muted = true;
   video.loop = true;
   const plate = element(document, 'div', { className: 'plate-layer' }, [poster, video]);
-  const sprites = element(document, 'div', { className: 'sprite-layer' });
-  const camera = element(document, 'div', { className: 'camera-layer' }, [
-    element(document, 'div', { className: 'drift-layer' }, [plate, sprites]),
-  ]);
+  // One canvas for the whole cast. It is hidden from assistive technology on
+  // purpose: its content changes twenty-four times a second and carries no text,
+  // and what a screen reader needs from a story is the subtitle area below,
+  // which is a live region.
+  const canvas = element(document, 'canvas', { className: 'stage-canvas', 'aria-hidden': 'true' });
   const stage = element(document, 'div', { className: 'logical-stage' }, [
-    camera,
+    plate,
+    canvas,
     element(document, 'div', { className: 'stage-vignette', 'aria-hidden': 'true' }),
   ]);
   const title = element(document, 'h1', { text: 'preparing your story…' });
@@ -73,7 +79,7 @@ export function createPlayerTemplate(root, { stylesheet = STYLESHEET } = {}) {
   root.replaceChildren(link, shell, debugPanel);
   return {
     title, status, start, ceremony, subtitles, subtitleArea, debugToggle,
-    stage: { frame, stage, camera, plate, poster, video, sprites, subtitle, mediaNote, end },
+    stage: { frame, stage, canvas, plate, poster, video, subtitle, mediaNote, end },
     debug: {
       panel: debugPanel, toggle: debugToggle, close: debugClose, copy: debugCopy,
       download: debugDownload, list: debugList, status: debugStatus,

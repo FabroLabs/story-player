@@ -1,0 +1,191 @@
+{
+  "instants": [
+    {
+      "t_ms": 1,
+      "list": {
+        "width": 1920,
+        "height": 1080,
+        "camera": {
+          "scale": 1,
+          "x": 0,
+          "y": 0
+        },
+        "commands": []
+      }
+    },
+    {
+      "t_ms": 2416,
+      "list": {
+        "width": 1920,
+        "height": 1080,
+        "camera": {
+          "scale": 1,
+          "x": 0,
+          "y": 0
+        },
+        "commands": [
+          {
+            "op": "shadow",
+            "slug": "rabbit",
+            "cx": 777.98,
+            "cy": 946,
+            "rx": 75,
+            "ry": 15,
+            "opacity": 0.34
+          },
+          {
+            "op": "sprite",
+            "slug": "rabbit",
+            "url": "fairytale-assets/mobile/sprites/5877f05c0a64117a8ed1f523b061d79e.webp",
+            "cell": [
+              0,
+              0
+            ],
+            "cells": [
+              5,
+              5
+            ],
+            "dx": 652.98,
+            "dy": 696,
+            "dw": 250,
+            "dh": 250,
+            "opacity": 1
+          },
+          {
+            "op": "shadow",
+            "slug": "apple_red",
+            "cx": 1363.53,
+            "cy": 641.03,
+            "rx": 24,
+            "ry": 4.8,
+            "opacity": 0.34
+          },
+          {
+            "op": "prop",
+            "slug": "apple_red",
+            "url": "fairytale-assets/objects/food_and_drink/apple_red.svg",
+            "dx": 1323.53,
+            "dy": 561.03,
+            "dw": 80,
+            "dh": 80,
+            "opacity": 1
+          },
+          {
+            "op": "shadow",
+            "slug": "fox",
+            "cx": 1103.18,
+            "cy": 967.14,
+            "rx": 120,
+            "ry": 24,
+            "opacity": 0.34
+          },
+          {
+            "op": "sprite",
+            "slug": "fox",
+            "url": "fairytale-assets/mobile/sprites/1c3de335dbb058ab362ba3eb17a147fc.webp",
+            "cell": [
+              0,
+              0
+            ],
+            "cells": [
+              7,
+              7
+            ],
+            "dx": 903.18,
+            "dy": 567.14,
+            "dw": 400,
+            "dh": 400,
+            "opacity": 1
+          }
+        ]
+      }
+    },
+    {
+      "t_ms": 2417,
+      "list": {
+        "width": 1920,
+        "height": 1080,
+        "camera": {
+          "scale": 1,
+          "x": 0,
+          "y": 0
+        },
+        "commands": [
+          {
+            "op": "shadow",
+            "slug": "rabbit",
+            "cx": 777.98,
+            "cy": 946,
+            "rx": 75,
+            "ry": 15,
+            "opacity": 0.34
+          },
+          {
+            "op": "sprite",
+            "slug": "rabbit",
+            "url": "fairytale-assets/mobile/sprites/5877f05c0a64117a8ed1f523b061d79e.webp",
+            "cell": [
+              0,
+              0
+            ],
+            "cells": [
+              5,
+              5
+            ],
+            "dx": 652.98,
+            "dy": 696,
+            "dw": 250,
+            "dh": 250,
+            "opacity": 1
+          },
+          {
+            "op": "shadow",
+            "slug": "apple_red",
+            "cx": 1363.53,
+            "cy": 641.03,
+            "rx": 24,
+            "ry": 4.8,
+            "opacity": 0.34
+          },
+          {
+            "op": "prop",
+            "slug": "apple_red",
+            "url": "fairytale-assets/objects/food_and_drink/apple_red.svg",
+            "dx": 1323.53,
+            "dy": 561.03,
+            "dw": 80,
+            "dh": 80,
+            "opacity": 1
+          },
+          {
+            "op": "shadow",
+            "slug": "fox",
+            "cx": 1103.18,
+            "cy": 967.14,
+            "rx": 120,
+            "ry": 24,
+            "opacity": 0.34
+          },
+          {
+            "op": "sprite",
+            "slug": "fox",
+            "url": "fairytale-assets/mobile/sprites/1c3de335dbb058ab362ba3eb17a147fc.webp",
+            "cell": [
+              0,
+              0
+            ],
+            "cells": [
+              7,
+              7
+            ],
+            "dx": 903.18,
+            "dy": 567.14,
+            "dw": 400,
+            "dh": 400,
+            "opacity": 1
+          }
+        ]
+      }
+    }
+  ]
+}

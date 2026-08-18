@@ -4,7 +4,7 @@ import { createSceneLoader } from './assets/scene-loader.mjs';
 import { AudioDirector } from './directors/audio-director.mjs';
 import { StoryClock } from './clock.mjs';
 import { DebugPanel, ObservableEventLog } from './debug-panel.mjs';
-import { StageRenderer } from './stage/stage-renderer.mjs';
+import { createCanvasStage } from './stage/canvas-stage.mjs';
 import { resolveStoryAssets } from './urls.mjs';
 import { routeWarning } from './warning-router.mjs';
 
@@ -61,7 +61,7 @@ export function createV0Player({ root, elements, story, assetBase, signal, debug
       // ops, not guessed from the steps. Phase 8's runtime takes this call over.
       const timeline = compileTimeline(runtimeStory);
       elements.title.textContent = runtimeStory.title ?? 'tonight’s story';
-      stage = new StageRenderer(elements.stage, warn);
+      stage = createCanvasStage(elements.stage, { onWarning: warn });
       audio = new AudioDirector(runtimeStory.audio, warn, { signal });
       loader = createSceneLoader({
         timeline, bundle: runtimeStory, cache: bitmaps, signal, onWarning: warn,
@@ -112,7 +112,7 @@ export function createV0Player({ root, elements, story, assetBase, signal, debug
   /**
    * How much the picture is magnified between the sheet and the eye.
    *
-   * Both numbers are asked for rather than derived here: the stage renderer is
+   * Both numbers are asked for rather than derived here: the canvas stage is
    * the one thing that measures stage DOM, and a second definition of the
    * letterbox scale would drift from the one the picture is actually drawn at.
    */

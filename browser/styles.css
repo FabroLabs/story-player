@@ -136,42 +136,25 @@ button:focus-visible {
   background: #090b1c;
 }
 
-.camera-layer,
-.drift-layer,
 .plate-layer,
 .plate-poster,
 .plate-video,
-.sprite-layer,
+.stage-canvas,
 .stage-vignette {
   position: absolute;
   inset: 0;
 }
 
-/* the camera aims through `transform` alone, so its origin never moves — see
-   the framing model in v0/app/stage/stage-renderer.mjs */
-.camera-layer {
-  transform-origin: 0 0;
-  transform: translate(0%, 0%) scale(1);
-  will-change: transform;
-}
-
-.drift-layer {
-  overflow: hidden;
-  animation: world-drift 26s ease-in-out infinite alternate;
-  will-change: transform;
-}
-
-/* the far plane. Inert unless the renderer says otherwise: only a parallax below
-   1 gives it a move of its own, and only then does it want the camera's origin
-   and a compositor layer to carry that move on — see v0/app/stage/stage-renderer.mjs */
+/* The plate is what the camera moves: the poster and the video ride it
+   together, under the canvas. The transform is written by
+   v0/app/stage/video-plate.mjs on the story's clock — never as a CSS
+   transition, so pausing the story stops the ground with the cast — and the
+   origin is pinned here because a moving origin would snap the picture
+   mid-move. */
 .plate-layer {
   z-index: 0;
-}
-
-.plate-layer.is-parallaxed {
   transform-origin: 0 0;
   transform: translate(0%, 0%) scale(1);
-  will-change: transform;
 }
 
 .plate-poster {
@@ -196,30 +179,16 @@ button:focus-visible {
 
 .plate-video.is-ready { opacity: 1; }
 
-.sprite-layer { z-index: 2; }
-
-.sprite {
-  position: absolute;
-  background-repeat: no-repeat;
-  /* No background-color. The sprite BOX is square; a character or a prop is
-     not, so a tinted box draws a dim rectangle around everything — and
-     `drop-shadow` then traces that rectangle instead of the artwork's
-     silhouette, which is what made it read as a lit panel rather than a
-     shadow. It hid for a long time at 14% under large sprites on busy plates;
-     zones made it plain, because a far character is a small solid tile and a
-     prop on a bright tabletop has nothing to hide behind. A placeholder tint
-     belongs on `.is-missing`, which has one, not on every sprite. */
-  background-position: 0 0;
-  filter: drop-shadow(0 1.2rem 1rem rgba(2, 3, 12, 0.38));
-  transform: translateX(-50%);
-  transform-origin: 50% 100%;
-  will-change: left, top, opacity, background-position;
-}
-
-.sprite.is-missing {
-  border-radius: 48% 48% 40% 40%;
-  background-image: linear-gradient(155deg, rgba(245, 220, 163, 0.28), rgba(27, 31, 67, 0.88)) !important;
-  box-shadow: 0 0 2rem rgba(245, 220, 163, 0.12);
+/* The whole cast, in one element. Sized in CSS to the logical stage and backed
+   in device pixels by v0/app/stage/canvas-stage.mjs; a canvas is a replaced
+   element, so `inset: 0` alone would leave it at its intrinsic 300x150 and the
+   picture would be stretched. No filter and no shadow here — the shadow under
+   each character is drawn into the canvas, which costs one ellipse instead of a
+   full-silhouette blur per sprite per frame. */
+.stage-canvas {
+  z-index: 2;
+  width: 100%;
+  height: 100%;
 }
 
 .stage-vignette {
@@ -239,8 +208,11 @@ button:focus-visible {
   justify-items: center;
   text-align: center;
   padding: 2rem;
-  background: linear-gradient(180deg, rgba(6, 7, 22, 0.52), rgba(5, 6, 18, 0.82));
-  backdrop-filter: blur(9px);
+  /* A gradient, and nothing behind it. `backdrop-filter` here blurred the
+     whole stage under the overlay — a full-frame filter over a playing video
+     and a canvas, on the two occasions a story is least able to spare it: the
+     first frame and the last. */
+  background: linear-gradient(180deg, rgba(6, 7, 22, 0.72), rgba(5, 6, 18, 0.92));
   transition: opacity 700ms ease, visibility 700ms ease;
 }
 
@@ -504,11 +476,6 @@ button:focus-visible {
 
 .event-list strong { color: #f4e2b6; font-weight: 600; }
 .event-list .warning { color: #ffc9a4; }
-
-@keyframes world-drift {
-  from { transform: scale(1.012) translate3d(-0.18%, -0.12%, 0); }
-  to { transform: scale(1.018) translate3d(0.22%, 0.15%, 0); }
-}
 
 @media (max-width: 700px) {
   .player-shell { min-height: auto; padding: 0.65rem; gap: 0.5rem; }
