@@ -1,0 +1,583 @@
+{
+  "duration_ms": 31387,
+  "events": [
+    {
+      "line": 10,
+      "op": "scene",
+      "place": "forest_berry_dell",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 0
+    },
+    {
+      "cmd": "put",
+      "detail": {
+        "beside": null,
+        "facing": null,
+        "objects": [],
+        "position": "left_third",
+        "subjects": [
+          "rabbit"
+        ],
+        "zone": null
+      },
+      "kind": "cmd",
+      "line": 11,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 0
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "right",
+        "slug": "rabbit",
+        "verb": "idle"
+      },
+      "kind": "warning",
+      "line": 11,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 0
+    },
+    {
+      "clip": "idle_right",
+      "line": 11,
+      "op": "place",
+      "scene_index": 0,
+      "slug": "rabbit",
+      "source": "stage",
+      "t_ms": 0,
+      "x": 32.202
+    },
+    {
+      "cmd": "put",
+      "detail": {
+        "beside": null,
+        "facing": "rabbit",
+        "objects": [],
+        "position": "right_third",
+        "subjects": [
+          "squirrel"
+        ],
+        "zone": null
+      },
+      "kind": "cmd",
+      "line": 12,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 0
+    },
+    {
+      "clip": "idle_left",
+      "line": 12,
+      "op": "place",
+      "scene_index": 0,
+      "slug": "squirrel",
+      "source": "stage",
+      "t_ms": 0,
+      "x": 60.458
+    },
+    {
+      "cmd": "music",
+      "detail": {
+        "name": "calm",
+        "subjects": []
+      },
+      "kind": "cmd",
+      "line": 13,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 0
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/6730768f78b427e9f46168300368deb7baa112b3aee8049cc7f00c9e0de4ddc6.wav",
+        "duration_s": 10.067,
+        "text": "Deep in the forest, in a dell where the berries grew fat and sweet, Pip the rabbit and Nutkin the squirrel were filling their basket."
+      },
+      "kind": "chunk",
+      "line": 15,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 0
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 0,
+      "text": "Deep in the forest, in a dell where the berries grew fat and sweet, Pip the rabbit and Nutkin the squirrel were filling their basket."
+    },
+    {
+      "cmd": "emote",
+      "detail": {
+        "emotion": "happy",
+        "facing": null,
+        "subjects": [
+          "rabbit"
+        ]
+      },
+      "kind": "cmd",
+      "line": 17,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 10067
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "right",
+        "slug": "rabbit",
+        "verb": "happy"
+      },
+      "kind": "warning",
+      "line": 17,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 10067
+    },
+    {
+      "clip": "happy_right_jumping",
+      "line": 17,
+      "op": "clip",
+      "scene_index": 0,
+      "slug": "rabbit",
+      "source": "stage",
+      "t_ms": 10067
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/275a54f3dd4c36b1ed4db76d06dbde4588b182e07d458b007d94497979a81b93.wav",
+        "duration_s": 3.221,
+        "text": "Pop! went the berries. Plink! went the basket."
+      },
+      "kind": "chunk",
+      "line": 18,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 10067
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 10067,
+      "text": "Pop! went the berries. Plink! went the basket."
+    },
+    {
+      "cmd": "sound",
+      "detail": {
+        "name": "pop",
+        "subjects": []
+      },
+      "kind": "cmd",
+      "line": 19,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 13288
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/24b8a2a2d8a8ab78c993c6747968ec819eca24f86def9e7ea05a9e184c7090eb.wav",
+        "duration_s": 4.43,
+        "text": "Pip was so happy she did a little jump. And then—"
+      },
+      "kind": "chunk",
+      "line": 20,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 13288
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 13288,
+      "text": "Pip was so happy she did a little jump. And then—"
+    },
+    {
+      "cmd": "sound",
+      "detail": {
+        "name": "thud",
+        "subjects": []
+      },
+      "kind": "cmd",
+      "line": 21,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 17718
+    },
+    {
+      "detail": {
+        "steps": [
+          {
+            "cmd": "emote",
+            "emotion": "surprised",
+            "facing": null,
+            "kind": "cmd",
+            "line": 23,
+            "subjects": [
+              "rabbit",
+              "squirrel"
+            ]
+          },
+          {
+            "cmd": "music",
+            "kind": "cmd",
+            "line": 24,
+            "name": "off",
+            "subjects": []
+          }
+        ]
+      },
+      "kind": "together",
+      "line": 22,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 17718
+    },
+    {
+      "cmd": "emote",
+      "detail": {
+        "emotion": "surprised",
+        "facing": null,
+        "subjects": [
+          "rabbit",
+          "squirrel"
+        ],
+        "together_line": 22
+      },
+      "kind": "cmd",
+      "line": 23,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 17718
+    },
+    {
+      "cmd": "music",
+      "detail": {
+        "name": "off",
+        "subjects": [],
+        "together_line": 22
+      },
+      "kind": "cmd",
+      "line": 24,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 17718
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "right",
+        "slug": "rabbit",
+        "verb": "surprised"
+      },
+      "kind": "warning",
+      "line": 23,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 17718
+    },
+    {
+      "clip": "surprised_right",
+      "line": 23,
+      "op": "clip",
+      "scene_index": 0,
+      "slug": "rabbit",
+      "source": "stage",
+      "t_ms": 17718
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "left",
+        "slug": "squirrel",
+        "verb": "surprised"
+      },
+      "kind": "warning",
+      "line": 23,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 17718
+    },
+    {
+      "clip": "surprised_left",
+      "line": 23,
+      "op": "clip",
+      "scene_index": 0,
+      "slug": "squirrel",
+      "source": "stage",
+      "t_ms": 17718
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/73eab4a2cb5ae781878b8973bb9167ad3cd3e3c24041a2c607cb210def59acb8.wav",
+        "duration_s": 1,
+        "text": "THUD."
+      },
+      "kind": "chunk",
+      "line": 25,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 17718
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 17718,
+      "text": "THUD."
+    },
+    {
+      "cmd": "pause",
+      "detail": {
+        "seconds": 1.5,
+        "subjects": []
+      },
+      "kind": "cmd",
+      "line": 26,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 18718
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/c24eb75fdf20626519a7ca9d757d0923ae969cb124c87c3cc68ab81b39630d4c.wav",
+        "duration_s": 3.624,
+        "text": "The basket went still. Pip's ears went straight up."
+      },
+      "kind": "chunk",
+      "line": 27,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 20218
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 20218,
+      "text": "The basket went still. Pip's ears went straight up."
+    },
+    {
+      "cmd": "push_in",
+      "detail": {
+        "speed": "slow",
+        "subjects": [],
+        "target": "rabbit"
+      },
+      "kind": "cmd",
+      "line": 28,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 23842
+    },
+    {
+      "line": null,
+      "op": "push_in",
+      "scene_index": 0,
+      "source": "stage",
+      "speed": "slow",
+      "t_ms": 23842,
+      "x": 32.202,
+      "y": 87.59768789808916
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/879d42c2cf5d708786b2c7967be3df4924085daadf7ebdccbe522d6eb49de817.wav",
+        "duration_s": 3.221,
+        "text": "'What… was that?' whispered Pip. Nutkin didn't know."
+      },
+      "kind": "chunk",
+      "line": 29,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 23842
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 23842,
+      "text": "'What… was that?' whispered Pip. Nutkin didn't know."
+    },
+    {
+      "cmd": "emote",
+      "detail": {
+        "emotion": "worried",
+        "facing": null,
+        "subjects": [
+          "rabbit",
+          "squirrel"
+        ]
+      },
+      "kind": "cmd",
+      "line": 30,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 27063
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "right",
+        "slug": "rabbit",
+        "verb": "worried"
+      },
+      "kind": "warning",
+      "line": 30,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 27063
+    },
+    {
+      "clip": "worried_right",
+      "line": 30,
+      "op": "clip",
+      "scene_index": 0,
+      "slug": "rabbit",
+      "source": "stage",
+      "t_ms": 27063
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "left",
+        "slug": "squirrel",
+        "verb": "worried"
+      },
+      "kind": "warning",
+      "line": 30,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 27063
+    },
+    {
+      "clip": "worried_left",
+      "line": 30,
+      "op": "clip",
+      "scene_index": 0,
+      "slug": "squirrel",
+      "source": "stage",
+      "t_ms": 27063
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/c94ed6a38cbaa758a875bcf25e5ca288184d707239ee3c2fd9f1027c3d07a9b8.wav",
+        "duration_s": 3.221,
+        "text": "And not knowing, somehow, was the worst part."
+      },
+      "kind": "chunk",
+      "line": 31,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 27063
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 27063,
+      "text": "And not knowing, somehow, was the worst part."
+    },
+    {
+      "cmd": "travel",
+      "detail": {
+        "destination": "forest_path",
+        "exit_anchor_pct": [
+          36.2,
+          99.2
+        ],
+        "subjects": [
+          "rabbit",
+          "squirrel"
+        ]
+      },
+      "kind": "cmd",
+      "line": 33,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 30284
+    },
+    {
+      "clip": "move_right",
+      "duration_ms": 350,
+      "line": 33,
+      "op": "depart",
+      "scene_index": 0,
+      "slug": "rabbit",
+      "source": "stage",
+      "t_ms": 30284,
+      "x": 36.2,
+      "y": 99.2
+    },
+    {
+      "clip": "move_left",
+      "duration_ms": 1103,
+      "line": 33,
+      "op": "depart",
+      "scene_index": 0,
+      "slug": "squirrel",
+      "source": "stage",
+      "t_ms": 30284,
+      "x": 36.2,
+      "y": 99.2
+    },
+    {
+      "line": 33,
+      "op": "exit",
+      "scene_index": 0,
+      "slug": "rabbit",
+      "source": "stage",
+      "t_ms": 30634
+    },
+    {
+      "line": 33,
+      "op": "exit",
+      "scene_index": 0,
+      "slug": "squirrel",
+      "source": "stage",
+      "t_ms": 31387
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 31387,
+      "text": ""
+    },
+    {
+      "line": null,
+      "op": "camera_reset",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 31387
+    },
+    {
+      "line": null,
+      "op": "end",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 31387
+    }
+  ],
+  "storylang_version": 0,
+  "timeline_version": 1,
+  "title": "The Thud in the Forest"
+}

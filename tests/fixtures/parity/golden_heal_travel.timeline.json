@@ -1,0 +1,279 @@
+{
+  "duration_ms": 2416,
+  "events": [
+    {
+      "line": 9,
+      "op": "scene",
+      "place": "forest_berry_dell",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 0
+    },
+    {
+      "cmd": "put",
+      "detail": {
+        "beside": null,
+        "facing": null,
+        "objects": [],
+        "place": "forest_stump_round",
+        "position": "center",
+        "subjects": [
+          "rabbit"
+        ],
+        "zone": null
+      },
+      "kind": "cmd",
+      "line": 10,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 0
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/fb07163409cdac7c9e3581c3addabf8ceb10f467ef1dfbcefdc38fde69642a71.wav",
+        "duration_s": 2.416,
+        "text": "Pip hops toward the old stump."
+      },
+      "kind": "chunk",
+      "line": 12,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 0
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 0,
+      "text": "Pip hops toward the old stump."
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 2416,
+      "text": ""
+    },
+    {
+      "line": null,
+      "op": "camera_reset",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 2416
+    },
+    {
+      "line": 14,
+      "op": "scene",
+      "place": "forest_stump_round",
+      "scene_index": 1,
+      "source": "stage",
+      "t_ms": 2416
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "right",
+        "slug": "rabbit",
+        "verb": "idle"
+      },
+      "kind": "warning",
+      "line": 14,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 2416
+    },
+    {
+      "clip": "idle_right",
+      "line": 14,
+      "op": "place",
+      "scene_index": 1,
+      "slug": "rabbit",
+      "source": "stage",
+      "t_ms": 2416,
+      "x": 40.53
+    },
+    {
+      "cmd": "put",
+      "detail": {
+        "beside": null,
+        "facing": null,
+        "object_zones": {
+          "apple_red": "zone_1"
+        },
+        "objects": [
+          "apple_red"
+        ],
+        "position": "right_third",
+        "subjects": [
+          "apple_red"
+        ],
+        "zone": "zone_1"
+      },
+      "kind": "cmd",
+      "line": 17,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 2416
+    },
+    {
+      "line": 17,
+      "op": "place_object",
+      "scene_index": 1,
+      "slug": "apple_red",
+      "source": "stage",
+      "t_ms": 2416,
+      "x": 71.017,
+      "zone": "zone_1"
+    },
+    {
+      "cmd": "put",
+      "detail": {
+        "beside": null,
+        "facing": null,
+        "objects": [],
+        "position": "center",
+        "subjects": [
+          "fox"
+        ],
+        "zone": null
+      },
+      "kind": "cmd",
+      "line": 20,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 2416
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "right",
+        "slug": "fox",
+        "verb": "idle"
+      },
+      "kind": "warning",
+      "line": 20,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 2416
+    },
+    {
+      "clip": "idle_right",
+      "line": 20,
+      "op": "place",
+      "scene_index": 1,
+      "slug": "fox",
+      "source": "stage",
+      "t_ms": 2416,
+      "x": 40.53
+    },
+    {
+      "cmd": "put",
+      "detail": {
+        "beside": "left",
+        "facing": null,
+        "objects": [],
+        "position": "fox",
+        "subjects": [
+          "rabbit"
+        ],
+        "zone": null
+      },
+      "kind": "cmd",
+      "line": 21,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 2416
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "right",
+        "slug": "rabbit",
+        "verb": "idle"
+      },
+      "kind": "warning",
+      "line": 21,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 2416
+    },
+    {
+      "clip": "idle_right",
+      "line": 21,
+      "op": "place",
+      "scene_index": 1,
+      "slug": "rabbit",
+      "source": "stage",
+      "t_ms": 2416,
+      "x": 40.52
+    },
+    {
+      "cmd": "emote",
+      "detail": {
+        "emotion": "happy",
+        "facing": null,
+        "subjects": [
+          "rabbit"
+        ]
+      },
+      "kind": "cmd",
+      "line": 22,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 2416
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "right",
+        "slug": "rabbit",
+        "verb": "happy"
+      },
+      "kind": "warning",
+      "line": 22,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 2416
+    },
+    {
+      "clip": "happy_right_jumping",
+      "line": 22,
+      "op": "clip",
+      "scene_index": 1,
+      "slug": "rabbit",
+      "source": "stage",
+      "t_ms": 2416
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 1,
+      "source": "stage",
+      "t_ms": 2416,
+      "text": ""
+    },
+    {
+      "line": null,
+      "op": "camera_reset",
+      "scene_index": 1,
+      "source": "stage",
+      "t_ms": 2416
+    },
+    {
+      "line": null,
+      "op": "end",
+      "scene_index": 1,
+      "source": "stage",
+      "t_ms": 2416
+    }
+  ],
+  "storylang_version": 0,
+  "timeline_version": 1,
+  "title": "Golden: healed travel"
+}

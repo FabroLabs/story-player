@@ -1,0 +1,2884 @@
+{
+  "audio": {
+    "bgm": {
+      "calm": "fairytale-assets/audio/bgm/calm.ogg"
+    },
+    "sfx": {
+      "pop": "fairytale-assets/audio/sfx/pop.ogg",
+      "thud": "fairytale-assets/audio/sfx/thud.ogg"
+    }
+  },
+  "cast": {
+    "bear": {
+      "capability": {
+        "angry": {
+          "left": "angry_left",
+          "right": "angry_right"
+        },
+        "happy": {
+          "left": "happy_left",
+          "right": "happy_right"
+        },
+        "idle": {
+          "left": "idle_left",
+          "right": "idle_right"
+        },
+        "move": {
+          "left": "move_left",
+          "right": "move_right"
+        },
+        "pet_reaction": {
+          "left": "pet_reaction_left",
+          "right": "pet_reaction_right"
+        },
+        "sad": {
+          "left": "sad_left",
+          "right": "sad_right"
+        },
+        "scared": {
+          "left": "scared_left",
+          "right": "scared_right"
+        },
+        "sleep": {
+          "left": "sleep_left",
+          "right": "sleep_right"
+        },
+        "surprised": {
+          "left": "surprised_left",
+          "right": "surprised_right"
+        },
+        "worried": {
+          "left": "worried_left",
+          "right": "worried_right"
+        }
+      },
+      "clips": {
+        "angry_left": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/bear/angry_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 16,
+          "frames": 65,
+          "grid": [
+            65,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/0e23663ed64f124296d6053c944d7ed6.webp",
+            "320": "fairytale-assets/mobile/sprites/c40d3a80c46ab3a6df31de22c43f96ff.webp",
+            "384": "fairytale-assets/mobile/sprites/37e365212e488223ed6937b287a49e1b.webp",
+            "512": "fairytale-assets/mobile/sprites/0df3fded9bd2b71fe024534b935aaacc.webp"
+          },
+          "slug": "angry_left",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/bear/angry_left/spritesheet.png",
+          "variant": null,
+          "verb": "angry"
+        },
+        "angry_right": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/bear/angry_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 16,
+          "frames": 65,
+          "grid": [
+            65,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/302038edef34f8e8ab0f08b097e14e97.webp",
+            "320": "fairytale-assets/mobile/sprites/94d5d892a57f2d592d8559efe8e68d37.webp",
+            "384": "fairytale-assets/mobile/sprites/b37ff7e2e13a1310febc7c8ed99bba97.webp",
+            "512": "fairytale-assets/mobile/sprites/3f2a7ea7c99ef3c77e455d4e2e3031ff.webp"
+          },
+          "slug": "angry_right",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/bear/angry_right/spritesheet.png",
+          "variant": null,
+          "verb": "angry"
+        },
+        "happy_left": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/bear/happy_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/993f85401d7840bd32a4bc5e4e2df4e9.webp",
+            "320": "fairytale-assets/mobile/sprites/1cde297a31db3a0304de1e7c8fe9ff58.webp",
+            "384": "fairytale-assets/mobile/sprites/395c17b8c3bf008904feafc8109576fe.webp",
+            "512": "fairytale-assets/mobile/sprites/ee1e9a0e31e934266c3362d445901799.webp"
+          },
+          "slug": "happy_left",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/bear/happy_left/spritesheet.png",
+          "variant": null,
+          "verb": "happy"
+        },
+        "happy_right": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/bear/happy_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/62a928095c98949875215321ec98752b.webp",
+            "320": "fairytale-assets/mobile/sprites/ea00486057c26a2dd848934f2d854d48.webp",
+            "384": "fairytale-assets/mobile/sprites/44cfe0a732dad18a67a7a29dc14a7a00.webp",
+            "512": "fairytale-assets/mobile/sprites/2dfe3e1b5a08cd7797f7a2c8dbb6e87a.webp"
+          },
+          "slug": "happy_right",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/bear/happy_right/spritesheet.png",
+          "variant": null,
+          "verb": "happy"
+        },
+        "idle_left": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/bear/idle_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/49f312d1f642d06b2e7f52f45c5b08c6.webp",
+            "320": "fairytale-assets/mobile/sprites/8a00934a9d0ffaf13f919e2b8f66c5da.webp",
+            "384": "fairytale-assets/mobile/sprites/af77f679bd3e839167e20fcdb10aca5f.webp",
+            "512": "fairytale-assets/mobile/sprites/61a2ee34fb191e850d368ac1fc427508.webp"
+          },
+          "slug": "idle_left",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/bear/idle_left/spritesheet.png",
+          "variant": null,
+          "verb": "idle"
+        },
+        "idle_right": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/bear/idle_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/ccefc6c1304f0f3bb1c4dd21c3d8424a.webp",
+            "320": "fairytale-assets/mobile/sprites/c6b53e64a34549afd15ab5ab63988152.webp",
+            "384": "fairytale-assets/mobile/sprites/5a35cf3b1cc2011107edf7097372877f.webp",
+            "512": "fairytale-assets/mobile/sprites/339c2edcf72e674a7d0a3b4bf94e3a81.webp"
+          },
+          "slug": "idle_right",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/bear/idle_right/spritesheet.png",
+          "variant": null,
+          "verb": "idle"
+        },
+        "move_left": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/bear/move_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/6f6be73c6583a632355c9c9629727cb8.webp",
+            "320": "fairytale-assets/mobile/sprites/c67e5f7c66390c2ce88831f03484272e.webp",
+            "384": "fairytale-assets/mobile/sprites/b07c4982124f3316b1be730f95c75db8.webp",
+            "512": "fairytale-assets/mobile/sprites/ea6ec604af25e1846fa6c8cf43d49164.webp"
+          },
+          "slug": "move_left",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/bear/move_left/spritesheet.png",
+          "variant": null,
+          "verb": "move"
+        },
+        "move_right": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/bear/move_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/434af99c93f1bdb823b6a236e3fc8753.webp",
+            "320": "fairytale-assets/mobile/sprites/f3fc523e2765437d95804651c003784c.webp",
+            "384": "fairytale-assets/mobile/sprites/544815d25372e5bc87a165e9295d75bb.webp",
+            "512": "fairytale-assets/mobile/sprites/4e6cb2ef4f94fb5c4c04860d370ce41d.webp"
+          },
+          "slug": "move_right",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/bear/move_right/spritesheet.png",
+          "variant": null,
+          "verb": "move"
+        },
+        "pet_reaction_left": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/bear/pet_reaction_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/88a440ce9e4a39196e85641615f7f11a.webp",
+            "320": "fairytale-assets/mobile/sprites/3903d14d036c93ffd5a446f2198e2c75.webp",
+            "384": "fairytale-assets/mobile/sprites/70bfcff7d901428229b00aa2b5c6b6f6.webp",
+            "512": "fairytale-assets/mobile/sprites/796bf88ea2633e635868af71337b4a6f.webp"
+          },
+          "slug": "pet_reaction_left",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/bear/pet_reaction_left/spritesheet.png",
+          "variant": null,
+          "verb": "pet_reaction"
+        },
+        "pet_reaction_right": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/bear/pet_reaction_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/a707d6552efc76e99c3b6c8c2defe9d2.webp",
+            "320": "fairytale-assets/mobile/sprites/d2e02c31abdc7ee1fd7c6953ab2e0712.webp",
+            "384": "fairytale-assets/mobile/sprites/bc7a51ace816a8d278b1d06754bf720b.webp",
+            "512": "fairytale-assets/mobile/sprites/6df7635bb9f51a439bbd13ab278d4bf4.webp"
+          },
+          "slug": "pet_reaction_right",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/bear/pet_reaction_right/spritesheet.png",
+          "variant": null,
+          "verb": "pet_reaction"
+        },
+        "sad_left": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/bear/sad_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/0117c82508bbfb20d4a833eeaf1d78c4.webp",
+            "320": "fairytale-assets/mobile/sprites/ba3ba3affbf6082304ba8e5fbf569570.webp",
+            "384": "fairytale-assets/mobile/sprites/60380431f1c6a0214bb59c2a39b25bae.webp",
+            "512": "fairytale-assets/mobile/sprites/d7cd6e1c67e5c779c6d8c818ff28e084.webp"
+          },
+          "slug": "sad_left",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/bear/sad_left/spritesheet.png",
+          "variant": null,
+          "verb": "sad"
+        },
+        "sad_right": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/bear/sad_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/56eb68c2396c1c3f55dce2a7674e8c96.webp",
+            "320": "fairytale-assets/mobile/sprites/33c93f069bc33e494bae167d87343467.webp",
+            "384": "fairytale-assets/mobile/sprites/4860da063121be9d3a8fcd02b79f4783.webp",
+            "512": "fairytale-assets/mobile/sprites/2576e735171433a4388318304e785594.webp"
+          },
+          "slug": "sad_right",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/bear/sad_right/spritesheet.png",
+          "variant": null,
+          "verb": "sad"
+        },
+        "scared_left": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/bear/scared_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 16,
+          "frames": 44,
+          "grid": [
+            44,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/4e080b634eef0a5c42b389b02e63d972.webp",
+            "320": "fairytale-assets/mobile/sprites/eed45f74108c34049290a71582b85bde.webp",
+            "384": "fairytale-assets/mobile/sprites/0736d0bb866c235d9f70ca7ffea39101.webp",
+            "512": "fairytale-assets/mobile/sprites/5278e911d4090fcd2879238ad86821df.webp"
+          },
+          "slug": "scared_left",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/bear/scared_left/spritesheet.png",
+          "variant": null,
+          "verb": "scared"
+        },
+        "scared_right": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/bear/scared_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 12,
+          "frames": 44,
+          "grid": [
+            44,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/225834925d415f43d3fb44a3a41adeac.webp",
+            "320": "fairytale-assets/mobile/sprites/366468c61187969b045f88549c976532.webp",
+            "384": "fairytale-assets/mobile/sprites/6f494c257124c58ab860ce516f8f2ad4.webp",
+            "512": "fairytale-assets/mobile/sprites/15995d7ea1f082f055e490ced8a55f1d.webp"
+          },
+          "slug": "scared_right",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/bear/scared_right/spritesheet.png",
+          "variant": null,
+          "verb": "scared"
+        },
+        "sleep_left": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/bear/sleep_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 16,
+          "frames": 51,
+          "grid": [
+            51,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/7b80a44baf68c164ad5a37c215a7c66c.webp",
+            "320": "fairytale-assets/mobile/sprites/90a8fb6a98ab8da364b3ce5769ab8530.webp",
+            "384": "fairytale-assets/mobile/sprites/7dc223b47e8c5e04502230abe67a6d92.webp",
+            "512": "fairytale-assets/mobile/sprites/0e1309caad9cd5108477500ab9fb6563.webp"
+          },
+          "slug": "sleep_left",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/bear/sleep_left/spritesheet.png",
+          "variant": null,
+          "verb": "sleep"
+        },
+        "sleep_right": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/bear/sleep_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 16,
+          "frames": 51,
+          "grid": [
+            51,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/2da50675bfa02fa4c0378d6a93434f8a.webp",
+            "320": "fairytale-assets/mobile/sprites/6c3a75e9bddfa0d93f273577284b0f1d.webp",
+            "384": "fairytale-assets/mobile/sprites/ababebd57d6de527076011150c0a2d95.webp",
+            "512": "fairytale-assets/mobile/sprites/53a8ab21356459e392b2445937aace57.webp"
+          },
+          "slug": "sleep_right",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/bear/sleep_right/spritesheet.png",
+          "variant": null,
+          "verb": "sleep"
+        },
+        "surprised_left": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/bear/surprised_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 16,
+          "frames": 32,
+          "grid": [
+            32,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/bb6f12b3b7768cbb5b342edf5eb36c38.webp",
+            "320": "fairytale-assets/mobile/sprites/ee0c843e87825a90f226ed5ca6b92d51.webp",
+            "384": "fairytale-assets/mobile/sprites/b1ddb2dcf058f5313d30dc0e39495c59.webp",
+            "512": "fairytale-assets/mobile/sprites/6c4a276e26e45de98e779f6b1c75514c.webp"
+          },
+          "slug": "surprised_left",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/bear/surprised_left/spritesheet.png",
+          "variant": null,
+          "verb": "surprised"
+        },
+        "surprised_right": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/bear/surprised_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 12,
+          "frames": 32,
+          "grid": [
+            32,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/48084c17669e350d40266f137e4ed85b.webp",
+            "320": "fairytale-assets/mobile/sprites/6b23a3cf3572157e57c15067a722a559.webp",
+            "384": "fairytale-assets/mobile/sprites/50811d78c37b8cb633d0d1b02276e96d.webp",
+            "512": "fairytale-assets/mobile/sprites/18383be8e8ad5b0529f7ba1d42a9ca99.webp"
+          },
+          "slug": "surprised_right",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/bear/surprised_right/spritesheet.png",
+          "variant": null,
+          "verb": "surprised"
+        },
+        "worried_left": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/bear/worried_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 16,
+          "frames": 81,
+          "grid": [
+            81,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/0550e257889476807a9e7ee1433c44fa.webp",
+            "320": "fairytale-assets/mobile/sprites/70be6da932a834101c48db3b4dce63bc.webp",
+            "384": "fairytale-assets/mobile/sprites/ea5ba0fd54aa3945ed08044d1cd2f649.webp",
+            "512": "fairytale-assets/mobile/sprites/e7a24173b032faa16b108163457eebe4.webp"
+          },
+          "slug": "worried_left",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/bear/worried_left/spritesheet.png",
+          "variant": null,
+          "verb": "worried"
+        },
+        "worried_right": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/bear/worried_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 16,
+          "frames": 81,
+          "grid": [
+            81,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/5989529196ce93e2482321a5b0c69cfc.webp",
+            "320": "fairytale-assets/mobile/sprites/4b90837d7fad466908e9c31c32dfa72e.webp",
+            "384": "fairytale-assets/mobile/sprites/cd953efc972a3f1aaba60a1de29d5fd7.webp",
+            "512": "fairytale-assets/mobile/sprites/146c299f95c939c496f9d98cbed4a9e0.webp"
+          },
+          "slug": "worried_right",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/bear/worried_right/spritesheet.png",
+          "variant": null,
+          "verb": "worried"
+        }
+      },
+      "display_name": "Barnaby",
+      "height_cm": 110
+    },
+    "deer": {
+      "capability": {
+        "angry": {
+          "camera": "angry",
+          "left": "angry_left",
+          "right": "angry_right"
+        },
+        "happy": {
+          "left": "happy_left",
+          "right": "happy_right"
+        },
+        "idle": {
+          "left": "idle_left",
+          "right": "idle_right"
+        },
+        "move": {
+          "left": "move_left",
+          "right": "move_right"
+        },
+        "pet_reaction": {
+          "left": "pet_reaction_left",
+          "right": "pet_reaction_right"
+        },
+        "sad": {
+          "left": "sad_left",
+          "right": "sad_right"
+        },
+        "scared": {
+          "left": "scared_left",
+          "right": "scared_right"
+        },
+        "sleep": {
+          "left": "sleep_left",
+          "right": "sleep_right"
+        },
+        "surprised": {
+          "left": "surprised_left",
+          "right": "surprised_right"
+        },
+        "worried": {
+          "left": "worried_left",
+          "right": "worried_right"
+        }
+      },
+      "clips": {
+        "angry": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/deer/angry/atlas.json",
+          "direction": null,
+          "facing": "camera",
+          "fps": 16,
+          "frames": 65,
+          "grid": [
+            65,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/aa5027a7d434061ef8af2a1794268310.webp",
+            "320": "fairytale-assets/mobile/sprites/c334ecb63cb9870fa1721d338e759133.webp",
+            "384": "fairytale-assets/mobile/sprites/9acb77de4249f4c47255be646b86a3b0.webp",
+            "512": "fairytale-assets/mobile/sprites/964d37f922795bd06e1091f845e07dcd.webp"
+          },
+          "slug": "angry",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/deer/angry/spritesheet.png",
+          "variant": null,
+          "verb": "angry"
+        },
+        "angry_left": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/deer/angry_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 16,
+          "frames": 65,
+          "grid": [
+            65,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/405b0e078f83740366d26000dfd5adcd.webp",
+            "320": "fairytale-assets/mobile/sprites/c6c76a6684231d7889b169530727361c.webp",
+            "384": "fairytale-assets/mobile/sprites/57e30cdcf48b92d36dc646c8f5ce0c0f.webp",
+            "512": "fairytale-assets/mobile/sprites/c94639f743f6685204698cca61e09854.webp"
+          },
+          "slug": "angry_left",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/deer/angry_left/spritesheet.png",
+          "variant": null,
+          "verb": "angry"
+        },
+        "angry_right": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/deer/angry_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 16,
+          "frames": 65,
+          "grid": [
+            65,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/76712a7ad2d1db96b824c51c7d14b7db.webp",
+            "320": "fairytale-assets/mobile/sprites/740d7b26b9dc6e0ad2ccad8a5dab594f.webp",
+            "384": "fairytale-assets/mobile/sprites/92547501519f869943ea94f525d78e7c.webp",
+            "512": "fairytale-assets/mobile/sprites/09b9439a56ba680818d64dfdac03c325.webp"
+          },
+          "slug": "angry_right",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/deer/angry_right/spritesheet.png",
+          "variant": null,
+          "verb": "angry"
+        },
+        "happy_left": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/deer/happy_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 16,
+          "frames": 65,
+          "grid": [
+            65,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/ebdc6b3c28234d1233ad00e523224f92.webp",
+            "320": "fairytale-assets/mobile/sprites/db7d114bf3cccf40d21b95e20414dc27.webp",
+            "384": "fairytale-assets/mobile/sprites/81c3f0e9656ba5f9aa0a574e3e38572c.webp",
+            "512": "fairytale-assets/mobile/sprites/24f5509baa539646fc9662e547b7d616.webp"
+          },
+          "slug": "happy_left",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/deer/happy_left/spritesheet.png",
+          "variant": null,
+          "verb": "happy"
+        },
+        "happy_right": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/deer/happy_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 16,
+          "frames": 65,
+          "grid": [
+            65,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/4cadf02fbb7c238779b4e23388baa74d.webp",
+            "320": "fairytale-assets/mobile/sprites/c3dcfe6112c0fe9a1a3aa0432c1d4a9c.webp",
+            "384": "fairytale-assets/mobile/sprites/600e37693c51ec6aff42033c1fe96ae8.webp",
+            "512": "fairytale-assets/mobile/sprites/874b90cd042f2d17c4bb5ee9dbc92b13.webp"
+          },
+          "slug": "happy_right",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/deer/happy_right/spritesheet.png",
+          "variant": null,
+          "verb": "happy"
+        },
+        "idle_left": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/deer/idle_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 16,
+          "frames": 65,
+          "grid": [
+            65,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/744dc3d6c89d478dfaf4f621716b23f2.webp",
+            "320": "fairytale-assets/mobile/sprites/7936daf651f788ff04d78bc6a103a5f3.webp",
+            "384": "fairytale-assets/mobile/sprites/7258a38755dbee3fedb11858273156c1.webp",
+            "512": "fairytale-assets/mobile/sprites/a0e28b5033072adb3cbfc5b4fd05f40f.webp"
+          },
+          "slug": "idle_left",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/deer/idle_left/spritesheet.png",
+          "variant": null,
+          "verb": "idle"
+        },
+        "idle_right": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/deer/idle_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 16,
+          "frames": 65,
+          "grid": [
+            65,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/90ef6c85e61344aef2cbcf63711f9bc8.webp",
+            "320": "fairytale-assets/mobile/sprites/b318692e104ba48d0478e07672c52e4f.webp",
+            "384": "fairytale-assets/mobile/sprites/b871a7c166ea9f17495968e0deeaa6f3.webp",
+            "512": "fairytale-assets/mobile/sprites/2fed80c0ab6ae5ee7dc5a70fb07248c6.webp"
+          },
+          "slug": "idle_right",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/deer/idle_right/spritesheet.png",
+          "variant": null,
+          "verb": "idle"
+        },
+        "move_left": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/deer/move_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/ea0495497f3587a54ae06cdfc01e900c.webp",
+            "320": "fairytale-assets/mobile/sprites/6429eb474215fed5b9b7900856a0af3e.webp",
+            "384": "fairytale-assets/mobile/sprites/62693eaa31653f1244539c9b97f905ac.webp",
+            "512": "fairytale-assets/mobile/sprites/b7d7f97a297d1e6139ab04d93e363bd1.webp"
+          },
+          "slug": "move_left",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/deer/move_left/spritesheet.png",
+          "variant": null,
+          "verb": "move"
+        },
+        "move_right": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/deer/move_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/b60684f9efeb7c4cf011445d8db895f7.webp",
+            "320": "fairytale-assets/mobile/sprites/0c35c15f2c215055f7222a4371033453.webp",
+            "384": "fairytale-assets/mobile/sprites/ff38d9687df8b0e6ef9edde249df6816.webp",
+            "512": "fairytale-assets/mobile/sprites/0cdcdb75f409abd466b357673ae86e79.webp"
+          },
+          "slug": "move_right",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/deer/move_right/spritesheet.png",
+          "variant": null,
+          "verb": "move"
+        },
+        "pet_reaction_left": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/deer/pet_reaction_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/34e1c662c0aff6e02498cd2a4ff214a9.webp",
+            "320": "fairytale-assets/mobile/sprites/9875aff393840a3503efeddcea3637ae.webp",
+            "384": "fairytale-assets/mobile/sprites/9518086f4c432569d77bb75702dc4973.webp",
+            "512": "fairytale-assets/mobile/sprites/6b2f51e61bf9505a0c423bef5ea080be.webp"
+          },
+          "slug": "pet_reaction_left",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/deer/pet_reaction_left/spritesheet.png",
+          "variant": null,
+          "verb": "pet_reaction"
+        },
+        "pet_reaction_right": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/deer/pet_reaction_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/b7689b7ac5694d4b27ae5ddc3c37c87d.webp",
+            "320": "fairytale-assets/mobile/sprites/541b462488276477e58539627692c4fb.webp",
+            "384": "fairytale-assets/mobile/sprites/7992f8955ab3066bb6b6f8b581a4df4a.webp",
+            "512": "fairytale-assets/mobile/sprites/ae123f50f8cbb2bbc4281fcd04c96df1.webp"
+          },
+          "slug": "pet_reaction_right",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/deer/pet_reaction_right/spritesheet.png",
+          "variant": null,
+          "verb": "pet_reaction"
+        },
+        "sad_left": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/deer/sad_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 16,
+          "frames": 65,
+          "grid": [
+            65,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/c5caeea7050b5f7d24742387246eed4a.webp",
+            "320": "fairytale-assets/mobile/sprites/f2d1ab739f918e063960ee7404d7fc25.webp",
+            "384": "fairytale-assets/mobile/sprites/0a69c0f5984a002957165cf17bb288a6.webp",
+            "512": "fairytale-assets/mobile/sprites/1feee5853a11f33ac93f6233003fa719.webp"
+          },
+          "slug": "sad_left",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/deer/sad_left/spritesheet.png",
+          "variant": null,
+          "verb": "sad"
+        },
+        "sad_right": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/deer/sad_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 16,
+          "frames": 65,
+          "grid": [
+            65,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/b306bdc481759f549305f710ec3103be.webp",
+            "320": "fairytale-assets/mobile/sprites/6eec1aea60c41f305cd30188ca785711.webp",
+            "384": "fairytale-assets/mobile/sprites/93d64a17406df34aceceb4da3be85e98.webp",
+            "512": "fairytale-assets/mobile/sprites/0eeb1efa8341d972aaa27be92ef13e5e.webp"
+          },
+          "slug": "sad_right",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/deer/sad_right/spritesheet.png",
+          "variant": null,
+          "verb": "sad"
+        },
+        "scared_left": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/deer/scared_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 16,
+          "frames": 65,
+          "grid": [
+            65,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/bf64aa89d4e4e5aa0ef1ee8d3fc13f11.webp",
+            "320": "fairytale-assets/mobile/sprites/bff0e6f08fd35d5264ee756517e0d4a6.webp",
+            "384": "fairytale-assets/mobile/sprites/027d0c34a960cb9b8a17179558a6b054.webp",
+            "512": "fairytale-assets/mobile/sprites/79a21e1fc344ec5ae868331e0a8aecb3.webp"
+          },
+          "slug": "scared_left",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/deer/scared_left/spritesheet.png",
+          "variant": null,
+          "verb": "scared"
+        },
+        "scared_right": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/deer/scared_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 16,
+          "frames": 65,
+          "grid": [
+            65,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/97ed73c25c09dbd54959228bd68b4ff5.webp",
+            "320": "fairytale-assets/mobile/sprites/c8fba28383d571bda91051013ff81180.webp",
+            "384": "fairytale-assets/mobile/sprites/8c5c86ced33bc65b7ab79cda2ac4b574.webp",
+            "512": "fairytale-assets/mobile/sprites/677910187d1f5b3c2998f865a7a4822b.webp"
+          },
+          "slug": "scared_right",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/deer/scared_right/spritesheet.png",
+          "variant": null,
+          "verb": "scared"
+        },
+        "sleep_left": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/deer/sleep_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 16,
+          "frames": 65,
+          "grid": [
+            65,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/8467ab5795c9afad7f1e384be76aac68.webp",
+            "320": "fairytale-assets/mobile/sprites/b4c05a2aad9a47f148c57c489c05ea09.webp",
+            "384": "fairytale-assets/mobile/sprites/71cb3b94a6c129c94084a40902361138.webp",
+            "512": "fairytale-assets/mobile/sprites/729b00173179247df06e50284f2ca147.webp"
+          },
+          "slug": "sleep_left",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/deer/sleep_left/spritesheet.png",
+          "variant": null,
+          "verb": "sleep"
+        },
+        "sleep_right": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/deer/sleep_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 16,
+          "frames": 65,
+          "grid": [
+            65,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/2f823c59d8ca17c53bdcd331dbc0850c.webp",
+            "320": "fairytale-assets/mobile/sprites/830ae7a30c4cb57b4a4642d682edcc90.webp",
+            "384": "fairytale-assets/mobile/sprites/7944c82a1256002e2cb21bd7f0075743.webp",
+            "512": "fairytale-assets/mobile/sprites/b4f71356b1f3b753102c806133bfc2f7.webp"
+          },
+          "slug": "sleep_right",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/deer/sleep_right/spritesheet.png",
+          "variant": null,
+          "verb": "sleep"
+        },
+        "surprised_left": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/deer/surprised_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 16,
+          "frames": 65,
+          "grid": [
+            65,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/55e953f722c86ae1717de984bc338b3c.webp",
+            "320": "fairytale-assets/mobile/sprites/bd0aa31f10f2df53654691bd21936719.webp",
+            "384": "fairytale-assets/mobile/sprites/c87dd74129a934aab755db50cb2907aa.webp",
+            "512": "fairytale-assets/mobile/sprites/dcb92e0c816d0494ec0fe66ac8474102.webp"
+          },
+          "slug": "surprised_left",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/deer/surprised_left/spritesheet.png",
+          "variant": null,
+          "verb": "surprised"
+        },
+        "surprised_right": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/deer/surprised_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 16,
+          "frames": 65,
+          "grid": [
+            65,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/ca458e579f5d3c4accef399ab0229f22.webp",
+            "320": "fairytale-assets/mobile/sprites/cc65a8f49d2e7e7b0ee40a5f49ef886f.webp",
+            "384": "fairytale-assets/mobile/sprites/3d046c343247cb0e8133e9880204b61d.webp",
+            "512": "fairytale-assets/mobile/sprites/de9ed8feddc8bec4e73c754c82cb27a2.webp"
+          },
+          "slug": "surprised_right",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/deer/surprised_right/spritesheet.png",
+          "variant": null,
+          "verb": "surprised"
+        },
+        "worried_left": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/deer/worried_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 16,
+          "frames": 65,
+          "grid": [
+            65,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/8a3bd05b7efa40809826e8dbdeecd379.webp",
+            "320": "fairytale-assets/mobile/sprites/a80b413b807d27ea036c4132321a29d5.webp",
+            "384": "fairytale-assets/mobile/sprites/a1b746e3508f12229dcdb576203aee85.webp",
+            "512": "fairytale-assets/mobile/sprites/5af1b383b0a63c1ef6bab948b0469b21.webp"
+          },
+          "slug": "worried_left",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/deer/worried_left/spritesheet.png",
+          "variant": null,
+          "verb": "worried"
+        },
+        "worried_right": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/deer/worried_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 16,
+          "frames": 65,
+          "grid": [
+            65,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/5c3f5a22de25cd3225609daffd36b620.webp",
+            "320": "fairytale-assets/mobile/sprites/d2a1cd20d259c9d251a849e924ce1d94.webp",
+            "384": "fairytale-assets/mobile/sprites/d2193a294c2e438009f05d74973b5aa6.webp",
+            "512": "fairytale-assets/mobile/sprites/488893e55f8634a5471d74d810dc951f.webp"
+          },
+          "slug": "worried_right",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/deer/worried_right/spritesheet.png",
+          "variant": null,
+          "verb": "worried"
+        }
+      },
+      "display_name": "Dara",
+      "height_cm": 100
+    },
+    "owl": {
+      "capability": {
+        "angry": {
+          "camera": "angry"
+        },
+        "fly": {
+          "left": "fly_left",
+          "right": "fly_right"
+        },
+        "happy": {
+          "camera": "happy",
+          "left": "happy_left"
+        },
+        "idle": {
+          "left": "idle_left",
+          "right": "idle_right"
+        },
+        "pet_reaction": {
+          "camera": "pet_reaction",
+          "left": "pet_reaction_left"
+        },
+        "sad": {
+          "camera": "sad",
+          "left": "sad_left"
+        },
+        "scared": {
+          "camera": "scared"
+        },
+        "sleep": {
+          "camera": "sleep"
+        },
+        "surprised": {
+          "camera": "surprised"
+        },
+        "worried": {
+          "camera": "worried"
+        }
+      },
+      "clips": {
+        "angry": {
+          "atlas": "fairytale-assets/sprites/animals/birds/owl/angry/atlas.json",
+          "direction": null,
+          "facing": "camera",
+          "fps": 16,
+          "frames": 65,
+          "grid": [
+            65,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/e3fe1793076f83d80ae859f4c58641fd.webp",
+            "320": "fairytale-assets/mobile/sprites/1b373a2047e0efdf2e2504aa1b50ee4b.webp",
+            "384": "fairytale-assets/mobile/sprites/943f361ddfef14b1162bb011abb4ad0d.webp",
+            "512": "fairytale-assets/mobile/sprites/07fb464a5ea707f0bce4ca679fbfc722.webp"
+          },
+          "slug": "angry",
+          "spritesheet": "fairytale-assets/sprites/animals/birds/owl/angry/spritesheet.png",
+          "variant": null,
+          "verb": "angry"
+        },
+        "fly_left": {
+          "atlas": "fairytale-assets/sprites/animals/birds/owl/fly_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/aa412be573aa9f4770ec2a66ea3376c5.webp",
+            "320": "fairytale-assets/mobile/sprites/5418a842cabdb3776128da4d21929fe1.webp",
+            "384": "fairytale-assets/mobile/sprites/ef1ad2733ad9a0009264b51bba7afdfa.webp",
+            "512": "fairytale-assets/mobile/sprites/d1b67ec2e1ef0e36d7bb441c253bc2cb.webp"
+          },
+          "slug": "fly_left",
+          "spritesheet": "fairytale-assets/sprites/animals/birds/owl/fly_left/spritesheet.png",
+          "variant": null,
+          "verb": "fly"
+        },
+        "fly_right": {
+          "atlas": "fairytale-assets/sprites/animals/birds/owl/fly_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/8bc203cd0e0aeb2c20a75df148a6ed41.webp",
+            "320": "fairytale-assets/mobile/sprites/838023d03bc59d2eef59f7f1096f424f.webp",
+            "384": "fairytale-assets/mobile/sprites/03b1d4e821f0ae1f242767788cc00307.webp",
+            "512": "fairytale-assets/mobile/sprites/3adb29970910af5fd0657afbfbf56233.webp"
+          },
+          "slug": "fly_right",
+          "spritesheet": "fairytale-assets/sprites/animals/birds/owl/fly_right/spritesheet.png",
+          "variant": null,
+          "verb": "fly"
+        },
+        "happy": {
+          "atlas": "fairytale-assets/sprites/animals/birds/owl/happy/atlas.json",
+          "direction": null,
+          "facing": "camera",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/e2b0c0810dbde6828902eac0f2872ca7.webp",
+            "320": "fairytale-assets/mobile/sprites/54ef716063fa1552ca97658bf6127710.webp",
+            "384": "fairytale-assets/mobile/sprites/4ff16e03adb9b7dd0b4d19602d4e9af8.webp",
+            "512": "fairytale-assets/mobile/sprites/53edebcd9a0a38b95170db82d8e8841a.webp"
+          },
+          "slug": "happy",
+          "spritesheet": "fairytale-assets/sprites/animals/birds/owl/happy/spritesheet.png",
+          "variant": null,
+          "verb": "happy"
+        },
+        "happy_left": {
+          "atlas": "fairytale-assets/sprites/animals/birds/owl/happy_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/e0e66eefd9aad51f9ff36a643d9a1f82.webp",
+            "320": "fairytale-assets/mobile/sprites/5daedd945d0dd292bc1982180c0381d3.webp",
+            "384": "fairytale-assets/mobile/sprites/597368512d4f32410fe066228670a232.webp",
+            "512": "fairytale-assets/mobile/sprites/b18f87f770dcb54ecbba36ecc6880479.webp"
+          },
+          "slug": "happy_left",
+          "spritesheet": "fairytale-assets/sprites/animals/birds/owl/happy_left/spritesheet.png",
+          "variant": null,
+          "verb": "happy"
+        },
+        "idle_left": {
+          "atlas": "fairytale-assets/sprites/animals/birds/owl/idle_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/c71cf13b8b67f343cd1e1ff36267a246.webp",
+            "320": "fairytale-assets/mobile/sprites/40c85d407a38ba2825ffd54eb74eeac6.webp",
+            "384": "fairytale-assets/mobile/sprites/63de7091764aeb213057c7916fd4d641.webp",
+            "512": "fairytale-assets/mobile/sprites/8fb3d77cc9f368d538822341b5a3a9b2.webp"
+          },
+          "slug": "idle_left",
+          "spritesheet": "fairytale-assets/sprites/animals/birds/owl/idle_left/spritesheet.png",
+          "variant": null,
+          "verb": "idle"
+        },
+        "idle_right": {
+          "atlas": "fairytale-assets/sprites/animals/birds/owl/idle_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/13bdd0d5b0e5c7a4ef838aab89e0e0b7.webp",
+            "320": "fairytale-assets/mobile/sprites/ba4c398d9ea33a3f047c647a2fd80cdd.webp",
+            "384": "fairytale-assets/mobile/sprites/68929b790fbff94ccc34241ea50f5e07.webp",
+            "512": "fairytale-assets/mobile/sprites/f484643c8a961ce1507ea178853d897d.webp"
+          },
+          "slug": "idle_right",
+          "spritesheet": "fairytale-assets/sprites/animals/birds/owl/idle_right/spritesheet.png",
+          "variant": null,
+          "verb": "idle"
+        },
+        "pet_reaction": {
+          "atlas": "fairytale-assets/sprites/animals/birds/owl/pet_reaction/atlas.json",
+          "direction": null,
+          "facing": "camera",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/05757a1bce8463018e1242ae014fcad1.webp",
+            "320": "fairytale-assets/mobile/sprites/f514a2028b939c6940d864964e5ca41d.webp",
+            "384": "fairytale-assets/mobile/sprites/f02e38aa9285e82dcfff5eaad17ad5f3.webp",
+            "512": "fairytale-assets/mobile/sprites/21ebb3c5046d2d5d0825b2c01cfe10a8.webp"
+          },
+          "slug": "pet_reaction",
+          "spritesheet": "fairytale-assets/sprites/animals/birds/owl/pet_reaction/spritesheet.png",
+          "variant": null,
+          "verb": "pet_reaction"
+        },
+        "pet_reaction_left": {
+          "atlas": "fairytale-assets/sprites/animals/birds/owl/pet_reaction_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/c883e629d4a09b0831dbfb23b677035a.webp",
+            "320": "fairytale-assets/mobile/sprites/83d97bd18a94cdc1b761a407b7c1ee7a.webp",
+            "384": "fairytale-assets/mobile/sprites/1d5eac74e121b4b331a74f23c61c669e.webp",
+            "512": "fairytale-assets/mobile/sprites/5fc4f83b9ff0ce98eb37339395858ab7.webp"
+          },
+          "slug": "pet_reaction_left",
+          "spritesheet": "fairytale-assets/sprites/animals/birds/owl/pet_reaction_left/spritesheet.png",
+          "variant": null,
+          "verb": "pet_reaction"
+        },
+        "sad": {
+          "atlas": "fairytale-assets/sprites/animals/birds/owl/sad/atlas.json",
+          "direction": null,
+          "facing": "camera",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/6e76b602aed7ad28dc65674ed5854f80.webp",
+            "320": "fairytale-assets/mobile/sprites/2fcc8b653bd8bb6b49b3973aeb899595.webp",
+            "384": "fairytale-assets/mobile/sprites/7d06e0943ad4c2a201a751856c7445f0.webp",
+            "512": "fairytale-assets/mobile/sprites/21bcba00d010b2b5ae00a57592644ae8.webp"
+          },
+          "slug": "sad",
+          "spritesheet": "fairytale-assets/sprites/animals/birds/owl/sad/spritesheet.png",
+          "variant": null,
+          "verb": "sad"
+        },
+        "sad_left": {
+          "atlas": "fairytale-assets/sprites/animals/birds/owl/sad_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/456bcbec95878935e61595effde86bce.webp",
+            "320": "fairytale-assets/mobile/sprites/048419d80fa8a699a3ba982a32599e0f.webp",
+            "384": "fairytale-assets/mobile/sprites/cf5a404670490f25df206a8614922f38.webp",
+            "512": "fairytale-assets/mobile/sprites/de2cbe7ee4ab535c207e0f9404c5d4ec.webp"
+          },
+          "slug": "sad_left",
+          "spritesheet": "fairytale-assets/sprites/animals/birds/owl/sad_left/spritesheet.png",
+          "variant": null,
+          "verb": "sad"
+        },
+        "scared": {
+          "atlas": "fairytale-assets/sprites/animals/birds/owl/scared/atlas.json",
+          "direction": null,
+          "facing": "camera",
+          "fps": 16,
+          "frames": 65,
+          "grid": [
+            65,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/7e351136ac981ed1baa4874cccafcd6d.webp",
+            "320": "fairytale-assets/mobile/sprites/3f5d2980f68874a8ade158bb0b06f7c1.webp",
+            "384": "fairytale-assets/mobile/sprites/f2296bbe57fff1b88bc21e1f56e43bc8.webp",
+            "512": "fairytale-assets/mobile/sprites/3fd43ff9c310eface381ee9f0de3a4c6.webp"
+          },
+          "slug": "scared",
+          "spritesheet": "fairytale-assets/sprites/animals/birds/owl/scared/spritesheet.png",
+          "variant": null,
+          "verb": "scared"
+        },
+        "sleep": {
+          "atlas": "fairytale-assets/sprites/animals/birds/owl/sleep/atlas.json",
+          "direction": null,
+          "facing": "camera",
+          "fps": 16,
+          "frames": 81,
+          "grid": [
+            81,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/8de047f2159679ca3c3a466af9e6d1fa.webp",
+            "320": "fairytale-assets/mobile/sprites/2bc479ed40969581f9b565e8067a374a.webp",
+            "384": "fairytale-assets/mobile/sprites/dd5d933373e4f4acd6150596fb1e9f0f.webp",
+            "512": "fairytale-assets/mobile/sprites/a1ade48a84c9aeb81e9e8c449b624cd2.webp"
+          },
+          "slug": "sleep",
+          "spritesheet": "fairytale-assets/sprites/animals/birds/owl/sleep/spritesheet.png",
+          "variant": null,
+          "verb": "sleep"
+        },
+        "surprised": {
+          "atlas": "fairytale-assets/sprites/animals/birds/owl/surprised/atlas.json",
+          "direction": null,
+          "facing": "camera",
+          "fps": 16,
+          "frames": 65,
+          "grid": [
+            65,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/266f5c8433e933777b5debd6de8dcb7d.webp",
+            "320": "fairytale-assets/mobile/sprites/d2aa8e1cc992c222dd7e04be07eb62e5.webp",
+            "384": "fairytale-assets/mobile/sprites/81e56d3c1dba53d4175c9c2db238a7e3.webp",
+            "512": "fairytale-assets/mobile/sprites/93069ff1058a4e7818862fc259699d7b.webp"
+          },
+          "slug": "surprised",
+          "spritesheet": "fairytale-assets/sprites/animals/birds/owl/surprised/spritesheet.png",
+          "variant": null,
+          "verb": "surprised"
+        },
+        "worried": {
+          "atlas": "fairytale-assets/sprites/animals/birds/owl/worried/atlas.json",
+          "direction": null,
+          "facing": "camera",
+          "fps": 16,
+          "frames": 81,
+          "grid": [
+            81,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/94351d370d326fa5ed818bc1618f7c49.webp",
+            "320": "fairytale-assets/mobile/sprites/37df326edd7ac0c389fc5431b09d2922.webp",
+            "384": "fairytale-assets/mobile/sprites/90d222644c2f1e25413ad3d50111361e.webp",
+            "512": "fairytale-assets/mobile/sprites/0aecd98550e59a889f1e67018c7c51aa.webp"
+          },
+          "slug": "worried",
+          "spritesheet": "fairytale-assets/sprites/animals/birds/owl/worried/spritesheet.png",
+          "variant": null,
+          "verb": "worried"
+        }
+      },
+      "display_name": "Owl",
+      "height_cm": 35
+    },
+    "rabbit": {
+      "capability": {
+        "angry": {
+          "camera": "angry"
+        },
+        "happy": {
+          "left": "happy_left_jumping",
+          "right": "happy_right_jumping"
+        },
+        "idle": {
+          "left": "idle_left",
+          "right": "idle_right"
+        },
+        "move": {
+          "left": "move_left",
+          "right": "move_right"
+        },
+        "pet_reaction": {
+          "left": "pet_reaction_left",
+          "right": "pet_reaction_right"
+        },
+        "sad": {
+          "left": "sad_left",
+          "right": "sad_right"
+        },
+        "scared": {
+          "left": "scared_left",
+          "right": "scared_right"
+        },
+        "sleep": {
+          "left": "sleep_left",
+          "right": "sleep_right"
+        },
+        "surprised": {
+          "left": "surprised_left",
+          "right": "surprised_right"
+        },
+        "worried": {
+          "left": "worried_left",
+          "right": "worried_right"
+        }
+      },
+      "clips": {
+        "angry": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/rabbit/angry/atlas.json",
+          "direction": null,
+          "facing": "camera",
+          "fps": 16,
+          "frames": 65,
+          "grid": [
+            65,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/6e4b704763683b29670123f9740071be.webp",
+            "320": "fairytale-assets/mobile/sprites/0dd040cb540706b51259b505944e06f3.webp",
+            "384": "fairytale-assets/mobile/sprites/7f69f7b037a1a4fa57c82e5053e92855.webp",
+            "512": "fairytale-assets/mobile/sprites/daf02e56415c8917c4d28c202e3b3ce6.webp"
+          },
+          "slug": "angry",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/rabbit/angry/spritesheet.png",
+          "variant": null,
+          "verb": "angry"
+        },
+        "happy_left_jumping": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/rabbit/happy_left_jumping/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/b7c434011c2f3a93c179edff8f417f15.webp",
+            "320": "fairytale-assets/mobile/sprites/9e46a6503aad83389168e75b33805686.webp",
+            "384": "fairytale-assets/mobile/sprites/e4f6f48c8b96970c48dd34100ef80a0d.webp",
+            "512": "fairytale-assets/mobile/sprites/0ebc374fbd98ba5f4c86730398366da6.webp"
+          },
+          "slug": "happy_left_jumping",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/rabbit/happy_left_jumping/spritesheet.png",
+          "variant": "jumping",
+          "verb": "happy"
+        },
+        "happy_right_jumping": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/rabbit/happy_right_jumping/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/e929f7f1902f4fbaf4091ff62a1d1f32.webp",
+            "320": "fairytale-assets/mobile/sprites/5877f05c0a64117a8ed1f523b061d79e.webp",
+            "384": "fairytale-assets/mobile/sprites/4ccb154bc1b332b11a216b84c9f50713.webp",
+            "512": "fairytale-assets/mobile/sprites/59e021f6f657c14cd078429e7e874921.webp"
+          },
+          "slug": "happy_right_jumping",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/rabbit/happy_right_jumping/spritesheet.png",
+          "variant": "jumping",
+          "verb": "happy"
+        },
+        "idle_left": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/rabbit/idle_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/28daaf94790503288d7b756bb71c030b.webp",
+            "320": "fairytale-assets/mobile/sprites/1c8d84f49866193dde9abe423ac85209.webp",
+            "384": "fairytale-assets/mobile/sprites/80fa34ce1ba0bfc92d25c6cbda29f71e.webp",
+            "512": "fairytale-assets/mobile/sprites/bc97cb16b73d8618cb67ffec6eb305e2.webp"
+          },
+          "slug": "idle_left",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/rabbit/idle_left/spritesheet.png",
+          "variant": null,
+          "verb": "idle"
+        },
+        "idle_right": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/rabbit/idle_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/a6ed1af4a58c57fb3ae5d5acc4122472.webp",
+            "320": "fairytale-assets/mobile/sprites/77b00ee0e2ab361c05e54b2fa8028836.webp",
+            "384": "fairytale-assets/mobile/sprites/6ced331284d832f2f1106792e9bd2151.webp",
+            "512": "fairytale-assets/mobile/sprites/e8f3d0574d20db3b13a3e2b9cd308f2e.webp"
+          },
+          "slug": "idle_right",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/rabbit/idle_right/spritesheet.png",
+          "variant": null,
+          "verb": "idle"
+        },
+        "move_left": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/rabbit/move_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/d4b029e6e07158c2ed8a44b7b6b37dda.webp",
+            "320": "fairytale-assets/mobile/sprites/bfff13e2a385137bea67a91d062c1a38.webp",
+            "384": "fairytale-assets/mobile/sprites/5dcc86513099c14cc31a88e326805961.webp",
+            "512": "fairytale-assets/mobile/sprites/034ea29bbe5f94d533f12ba534208cee.webp"
+          },
+          "slug": "move_left",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/rabbit/move_left/spritesheet.png",
+          "variant": null,
+          "verb": "move"
+        },
+        "move_right": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/rabbit/move_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/73f5993a904ed15e73641512d10c1187.webp",
+            "320": "fairytale-assets/mobile/sprites/d75cf9a80e0ee424c2ee1e495eb2483f.webp",
+            "384": "fairytale-assets/mobile/sprites/7e3376282cd1a78c4cd4941250023da5.webp",
+            "512": "fairytale-assets/mobile/sprites/e85fc9fe521935a1f0c1a21c3aae9233.webp"
+          },
+          "slug": "move_right",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/rabbit/move_right/spritesheet.png",
+          "variant": null,
+          "verb": "move"
+        },
+        "pet_reaction_left": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/rabbit/pet_reaction_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/b3fb5a8922857ca4bf43becd3df1aaa2.webp",
+            "320": "fairytale-assets/mobile/sprites/149cf6c005ce4a0e8f67158a4503dad9.webp",
+            "384": "fairytale-assets/mobile/sprites/f0ee73b85bc8c20bf43495189a25c438.webp",
+            "512": "fairytale-assets/mobile/sprites/c52cc16639edc5e0c328e352c01daa34.webp"
+          },
+          "slug": "pet_reaction_left",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/rabbit/pet_reaction_left/spritesheet.png",
+          "variant": null,
+          "verb": "pet_reaction"
+        },
+        "pet_reaction_right": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/rabbit/pet_reaction_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/f35e1bf943f5e4d8358c6136d77154d5.webp",
+            "320": "fairytale-assets/mobile/sprites/5f0103c3b7cca6a416cb0e63aca00cd8.webp",
+            "384": "fairytale-assets/mobile/sprites/b6072eceb2a8366557c663d9c179d7b1.webp",
+            "512": "fairytale-assets/mobile/sprites/3666880c95ee1b7619373d7440e1dad3.webp"
+          },
+          "slug": "pet_reaction_right",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/rabbit/pet_reaction_right/spritesheet.png",
+          "variant": null,
+          "verb": "pet_reaction"
+        },
+        "sad_left": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/rabbit/sad_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/facc8bad472059d998755092be91edd4.webp",
+            "320": "fairytale-assets/mobile/sprites/0f149753fe81cb581bee84a52f741bad.webp",
+            "384": "fairytale-assets/mobile/sprites/7f1ad102e26283225349f907a8517e9c.webp",
+            "512": "fairytale-assets/mobile/sprites/eeb474f6bea027f9877a24c3a66b22c5.webp"
+          },
+          "slug": "sad_left",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/rabbit/sad_left/spritesheet.png",
+          "variant": null,
+          "verb": "sad"
+        },
+        "sad_right": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/rabbit/sad_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/4e5882b6233d7351a629d7de64b42817.webp",
+            "320": "fairytale-assets/mobile/sprites/300ec72780cc53e1127355ce3112df6e.webp",
+            "384": "fairytale-assets/mobile/sprites/54f5d087b2239c96522dd7c654f55b93.webp",
+            "512": "fairytale-assets/mobile/sprites/d57361b4ca5865e710595a4b601131fc.webp"
+          },
+          "slug": "sad_right",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/rabbit/sad_right/spritesheet.png",
+          "variant": null,
+          "verb": "sad"
+        },
+        "scared_left": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/rabbit/scared_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 12,
+          "frames": 65,
+          "grid": [
+            65,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/5ad60b8c70b9bd59b3622aef3af34890.webp",
+            "320": "fairytale-assets/mobile/sprites/5b41a3acc227dfc9b1bfd29a7acd6ef5.webp",
+            "384": "fairytale-assets/mobile/sprites/ace0df639fad50e630db81276fbe28cb.webp",
+            "512": "fairytale-assets/mobile/sprites/684baaef385b5469748fc202cfd41de7.webp"
+          },
+          "slug": "scared_left",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/rabbit/scared_left/spritesheet.png",
+          "variant": null,
+          "verb": "scared"
+        },
+        "scared_right": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/rabbit/scared_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 16,
+          "frames": 65,
+          "grid": [
+            65,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/e3d17e4ce66b8cd7cccabbb224b8f185.webp",
+            "320": "fairytale-assets/mobile/sprites/465238a4d661919fa71081a32d798f09.webp",
+            "384": "fairytale-assets/mobile/sprites/77afc2b30eae5c31613fc589c889aacf.webp",
+            "512": "fairytale-assets/mobile/sprites/c5afbefce738993182a884a5cb9b538e.webp"
+          },
+          "slug": "scared_right",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/rabbit/scared_right/spritesheet.png",
+          "variant": null,
+          "verb": "scared"
+        },
+        "sleep_left": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/rabbit/sleep_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 12,
+          "frames": 41,
+          "grid": [
+            41,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/7883d2b02eb7ba39b9c31f247ea5db2c.webp",
+            "320": "fairytale-assets/mobile/sprites/e22e3b37a723cab8b03e22c4f3a677b9.webp",
+            "384": "fairytale-assets/mobile/sprites/8d616119cdd57a45c6204521e25b75a7.webp",
+            "512": "fairytale-assets/mobile/sprites/fd8b9da9062cc980fe4f14f74efcc411.webp"
+          },
+          "slug": "sleep_left",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/rabbit/sleep_left/spritesheet.png",
+          "variant": null,
+          "verb": "sleep"
+        },
+        "sleep_right": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/rabbit/sleep_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 16,
+          "frames": 41,
+          "grid": [
+            41,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/246797adb86120abef7879777a1232ab.webp",
+            "320": "fairytale-assets/mobile/sprites/8293957a9913854e5fb8c17cd44f658b.webp",
+            "384": "fairytale-assets/mobile/sprites/41c4389b8e9da85c57bbf95b94c927c9.webp",
+            "512": "fairytale-assets/mobile/sprites/2a6383328f4db13f84f0aabe80c904eb.webp"
+          },
+          "slug": "sleep_right",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/rabbit/sleep_right/spritesheet.png",
+          "variant": null,
+          "verb": "sleep"
+        },
+        "surprised_left": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/rabbit/surprised_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 12,
+          "frames": 65,
+          "grid": [
+            65,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/38e8535e851a7922b3a74947f5588f5e.webp",
+            "320": "fairytale-assets/mobile/sprites/5d3c9f4f5e9f36050bd64139140725db.webp",
+            "384": "fairytale-assets/mobile/sprites/adf55616d014362284b81748a7396dcd.webp",
+            "512": "fairytale-assets/mobile/sprites/b05bc7d7ba2cda08cd7366be31c5abea.webp"
+          },
+          "slug": "surprised_left",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/rabbit/surprised_left/spritesheet.png",
+          "variant": null,
+          "verb": "surprised"
+        },
+        "surprised_right": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/rabbit/surprised_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 16,
+          "frames": 65,
+          "grid": [
+            65,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/e16de956f0bdfb4663c6e49885ade362.webp",
+            "320": "fairytale-assets/mobile/sprites/5b621c567138ad7375a697bf0e8b726f.webp",
+            "384": "fairytale-assets/mobile/sprites/cdd3e654dad61c9d8015117e59c7bb06.webp",
+            "512": "fairytale-assets/mobile/sprites/79d14a010defd14a0bdb8c4dbadc8fa7.webp"
+          },
+          "slug": "surprised_right",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/rabbit/surprised_right/spritesheet.png",
+          "variant": null,
+          "verb": "surprised"
+        },
+        "worried_left": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/rabbit/worried_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 12,
+          "frames": 81,
+          "grid": [
+            81,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/2aaa1acb585a931065fc32062a017eaa.webp",
+            "320": "fairytale-assets/mobile/sprites/01a790920b7c6f267b75fcf2cc9e37c2.webp",
+            "384": "fairytale-assets/mobile/sprites/3d6fa3294bd7e99d8fe08a319fa3b568.webp",
+            "512": "fairytale-assets/mobile/sprites/5d6c4e0063979156cb9bb42bf9d40d9f.webp"
+          },
+          "slug": "worried_left",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/rabbit/worried_left/spritesheet.png",
+          "variant": null,
+          "verb": "worried"
+        },
+        "worried_right": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/rabbit/worried_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 16,
+          "frames": 81,
+          "grid": [
+            81,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/6e5dd65c2bd2d643cdaca89823fc9e4e.webp",
+            "320": "fairytale-assets/mobile/sprites/8f3f9a8ef1056c6ba541d9a17a954409.webp",
+            "384": "fairytale-assets/mobile/sprites/402dec058be3365090e893a417df9130.webp",
+            "512": "fairytale-assets/mobile/sprites/0375d51f72075068e36133065fdec291.webp"
+          },
+          "slug": "worried_right",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/rabbit/worried_right/spritesheet.png",
+          "variant": null,
+          "verb": "worried"
+        }
+      },
+      "display_name": "Pip",
+      "height_cm": 25
+    },
+    "squirrel": {
+      "capability": {
+        "angry": {
+          "left": "angry_left",
+          "right": "angry_right"
+        },
+        "happy": {
+          "left": "happy_left_jumping",
+          "right": "happy_right_jumping"
+        },
+        "idle": {
+          "left": "idle_left",
+          "right": "idle_right"
+        },
+        "move": {
+          "left": "move_left",
+          "right": "move_right"
+        },
+        "pet_reaction": {
+          "left": "pet_reaction_left",
+          "right": "pet_reaction_right"
+        },
+        "sad": {
+          "left": "sad_left",
+          "right": "sad_right"
+        },
+        "scared": {
+          "left": "scared_left",
+          "right": "scared_right"
+        },
+        "sleep": {
+          "left": "sleep_left",
+          "right": "sleep_right"
+        },
+        "surprised": {
+          "left": "surprised_left",
+          "right": "surprised_right"
+        },
+        "worried": {
+          "left": "worried_left",
+          "right": "worried_right"
+        }
+      },
+      "clips": {
+        "angry_left": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/squirrel/angry_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 12,
+          "frames": 65,
+          "grid": [
+            65,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/ed2a3ca65bdf87044bdfcb520c505bc9.webp",
+            "320": "fairytale-assets/mobile/sprites/39964e3ed9a4e2ab5367d62b3d1fd1c4.webp",
+            "384": "fairytale-assets/mobile/sprites/64ad9fe7d76b13ca90bdc5af7c6fdd9f.webp",
+            "512": "fairytale-assets/mobile/sprites/f7b36e1d5e1c769a770e27108d1c3f41.webp"
+          },
+          "slug": "angry_left",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/squirrel/angry_left/spritesheet.png",
+          "variant": null,
+          "verb": "angry"
+        },
+        "angry_right": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/squirrel/angry_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 16,
+          "frames": 65,
+          "grid": [
+            65,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/4b2f7b7c484e211f5983f7f7bce5c764.webp",
+            "320": "fairytale-assets/mobile/sprites/581adaa4c2f382f2d70893c3465832f9.webp",
+            "384": "fairytale-assets/mobile/sprites/60896f8e67afea5008e46a76073a782b.webp",
+            "512": "fairytale-assets/mobile/sprites/01b6a0badebf1c2331feaa7faa8fcdd9.webp"
+          },
+          "slug": "angry_right",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/squirrel/angry_right/spritesheet.png",
+          "variant": null,
+          "verb": "angry"
+        },
+        "happy_left_jumping": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/squirrel/happy_left_jumping/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/4c34c8aab8b7d16eb48f2da58aabc837.webp",
+            "320": "fairytale-assets/mobile/sprites/e1d5fe5b79c849e6218ae7374ce3e23c.webp",
+            "384": "fairytale-assets/mobile/sprites/6f37452caf3af0f8c712f0e3a12567a3.webp",
+            "512": "fairytale-assets/mobile/sprites/05968c8482c2786b94a46ff8b63c7603.webp"
+          },
+          "slug": "happy_left_jumping",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/squirrel/happy_left_jumping/spritesheet.png",
+          "variant": "jumping",
+          "verb": "happy"
+        },
+        "happy_right_jumping": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/squirrel/happy_right_jumping/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/76a5051d4a43b672528276cc160d175d.webp",
+            "320": "fairytale-assets/mobile/sprites/7712fb07e3e64d16a4fbae5d23002320.webp",
+            "384": "fairytale-assets/mobile/sprites/ed8ed6b5e2999dc0bf3b74e566fc6226.webp",
+            "512": "fairytale-assets/mobile/sprites/502697c85c76387865c903251eafbad0.webp"
+          },
+          "slug": "happy_right_jumping",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/squirrel/happy_right_jumping/spritesheet.png",
+          "variant": "jumping",
+          "verb": "happy"
+        },
+        "idle_left": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/squirrel/idle_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/042b52ce208ebfb900fd845b0145ada4.webp",
+            "320": "fairytale-assets/mobile/sprites/27dab9da9e6733c11602f441a26fe879.webp",
+            "384": "fairytale-assets/mobile/sprites/d23cfea910a7c84cb8f9e3aafccc2078.webp",
+            "512": "fairytale-assets/mobile/sprites/dbf1d0bda3e5a2964350e3e395587371.webp"
+          },
+          "slug": "idle_left",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/squirrel/idle_left/spritesheet.png",
+          "variant": null,
+          "verb": "idle"
+        },
+        "idle_right": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/squirrel/idle_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/a01d5944f49a09143ec3c88e69f639be.webp",
+            "320": "fairytale-assets/mobile/sprites/719a0ead78d3cd90c31b21f763670c49.webp",
+            "384": "fairytale-assets/mobile/sprites/549396ede22236d06facc0db6b8348dc.webp",
+            "512": "fairytale-assets/mobile/sprites/98a30736b1b1d48d6f354720f9c957fe.webp"
+          },
+          "slug": "idle_right",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/squirrel/idle_right/spritesheet.png",
+          "variant": null,
+          "verb": "idle"
+        },
+        "move_left": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/squirrel/move_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/4f1e1813c28b36c23a9cc9268d4f26d4.webp",
+            "320": "fairytale-assets/mobile/sprites/cc241d0dc4e2b16c16821c31a6fc1a65.webp",
+            "384": "fairytale-assets/mobile/sprites/4ac7ca482789cad6c8f9567afb1bbb36.webp",
+            "512": "fairytale-assets/mobile/sprites/13bdb6bcd13d2fc672ba4afad6724ac0.webp"
+          },
+          "slug": "move_left",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/squirrel/move_left/spritesheet.png",
+          "variant": null,
+          "verb": "move"
+        },
+        "move_right": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/squirrel/move_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/ba6541c33054471fd11347d0838de3ac.webp",
+            "320": "fairytale-assets/mobile/sprites/db13dbd80966b2ab29c521f15b4bb64a.webp",
+            "384": "fairytale-assets/mobile/sprites/968aff62ea141819e586a2405428fb57.webp",
+            "512": "fairytale-assets/mobile/sprites/99e68d65d32c3aa9f550cd95f99ac2b1.webp"
+          },
+          "slug": "move_right",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/squirrel/move_right/spritesheet.png",
+          "variant": null,
+          "verb": "move"
+        },
+        "pet_reaction_left": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/squirrel/pet_reaction_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/dcbb2238f217f675b75b0b2a887d917e.webp",
+            "320": "fairytale-assets/mobile/sprites/a7bd8e6dabebd68931e04290249451be.webp",
+            "384": "fairytale-assets/mobile/sprites/45424c7807337c1e0b8530cc8e1be990.webp",
+            "512": "fairytale-assets/mobile/sprites/eea8038b5635eafd8c31549e80b0be9c.webp"
+          },
+          "slug": "pet_reaction_left",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/squirrel/pet_reaction_left/spritesheet.png",
+          "variant": null,
+          "verb": "pet_reaction"
+        },
+        "pet_reaction_right": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/squirrel/pet_reaction_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/3b9cddd517b65b8a9d559061fe994853.webp",
+            "320": "fairytale-assets/mobile/sprites/066e5e5539e10321e8f8515607bb131c.webp",
+            "384": "fairytale-assets/mobile/sprites/aea15d767fd95aaeeccb0fd07aeeabbf.webp",
+            "512": "fairytale-assets/mobile/sprites/ecdf8986814a0b22202fe46feb86b621.webp"
+          },
+          "slug": "pet_reaction_right",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/squirrel/pet_reaction_right/spritesheet.png",
+          "variant": null,
+          "verb": "pet_reaction"
+        },
+        "sad_left": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/squirrel/sad_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/51468dda63f8d29c20e881d179555b17.webp",
+            "320": "fairytale-assets/mobile/sprites/96a2071bfd4cf181083a7588a2c4c25e.webp",
+            "384": "fairytale-assets/mobile/sprites/7a5567654fd160a911108923cff812f1.webp",
+            "512": "fairytale-assets/mobile/sprites/bb0feeedcc2670cd2098d1e781abdec2.webp"
+          },
+          "slug": "sad_left",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/squirrel/sad_left/spritesheet.png",
+          "variant": null,
+          "verb": "sad"
+        },
+        "sad_right": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/squirrel/sad_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 12,
+          "frames": 25,
+          "grid": [
+            5,
+            5
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/643354669a6cae81d0791dd9c1ec8307.webp",
+            "320": "fairytale-assets/mobile/sprites/43b8f0b38f974a5cd359eb5b74af21a0.webp",
+            "384": "fairytale-assets/mobile/sprites/cee4d955469c5e91479fe67ded69d506.webp",
+            "512": "fairytale-assets/mobile/sprites/9f1db82c832ed5c90cb7e6265502dd22.webp"
+          },
+          "slug": "sad_right",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/squirrel/sad_right/spritesheet.png",
+          "variant": null,
+          "verb": "sad"
+        },
+        "scared_left": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/squirrel/scared_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 12,
+          "frames": 65,
+          "grid": [
+            65,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/2da73b654e8160e2252ef6f2ee9b4596.webp",
+            "320": "fairytale-assets/mobile/sprites/a643fc859c41ca7792375fa7f4084e82.webp",
+            "384": "fairytale-assets/mobile/sprites/3ee85f6238417f0f5acdab278a181c7d.webp",
+            "512": "fairytale-assets/mobile/sprites/aef69e3afe450ef866bc614ba94dc637.webp"
+          },
+          "slug": "scared_left",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/squirrel/scared_left/spritesheet.png",
+          "variant": null,
+          "verb": "scared"
+        },
+        "scared_right": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/squirrel/scared_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 16,
+          "frames": 65,
+          "grid": [
+            65,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/19605359f398a25d6d466d2fa667cd4d.webp",
+            "320": "fairytale-assets/mobile/sprites/9440c298446b928d531aa1108d62f76e.webp",
+            "384": "fairytale-assets/mobile/sprites/836cb389c4b9a232a258889976e9cded.webp",
+            "512": "fairytale-assets/mobile/sprites/0103890f72ab4a7dede9eb5b140b7732.webp"
+          },
+          "slug": "scared_right",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/squirrel/scared_right/spritesheet.png",
+          "variant": null,
+          "verb": "scared"
+        },
+        "sleep_left": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/squirrel/sleep_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 12,
+          "frames": 81,
+          "grid": [
+            81,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/b305a48d73ab22482af321b6eb6da6c2.webp",
+            "320": "fairytale-assets/mobile/sprites/c203dc634759d046c7af9980e60189d4.webp",
+            "384": "fairytale-assets/mobile/sprites/3f4222390c762dc82cbb0791cd793ee0.webp",
+            "512": "fairytale-assets/mobile/sprites/16ba7649f8d840b4f9db17000d4a16c8.webp"
+          },
+          "slug": "sleep_left",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/squirrel/sleep_left/spritesheet.png",
+          "variant": null,
+          "verb": "sleep"
+        },
+        "sleep_right": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/squirrel/sleep_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 16,
+          "frames": 81,
+          "grid": [
+            81,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/a222d6277ea6866cbb51c9b8d69dc572.webp",
+            "320": "fairytale-assets/mobile/sprites/5badb2b8c8c5f5ef4d8527248231b101.webp",
+            "384": "fairytale-assets/mobile/sprites/e25b79e18d20c2e3298692cea351aee6.webp",
+            "512": "fairytale-assets/mobile/sprites/d070a35c12db9f2dd1a3fb45c7a5703b.webp"
+          },
+          "slug": "sleep_right",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/squirrel/sleep_right/spritesheet.png",
+          "variant": null,
+          "verb": "sleep"
+        },
+        "surprised_left": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/squirrel/surprised_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 12,
+          "frames": 65,
+          "grid": [
+            65,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/95fc6f7e777dd856decc9f23c08aa362.webp",
+            "320": "fairytale-assets/mobile/sprites/9512b314e03aea53d761f838a3d2959a.webp",
+            "384": "fairytale-assets/mobile/sprites/78e7ca29550d5c5e29a2faf8fcd0cfce.webp",
+            "512": "fairytale-assets/mobile/sprites/fb8fbd8351f9c9fc71fe4f27d02f6324.webp"
+          },
+          "slug": "surprised_left",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/squirrel/surprised_left/spritesheet.png",
+          "variant": null,
+          "verb": "surprised"
+        },
+        "surprised_right": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/squirrel/surprised_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 16,
+          "frames": 65,
+          "grid": [
+            65,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/2ac44bfd1de2e5caf2f27cde1b5f51df.webp",
+            "320": "fairytale-assets/mobile/sprites/5ee3f60329813fe60f1158e9ab0184e6.webp",
+            "384": "fairytale-assets/mobile/sprites/8cdefac81d0e14341f036a37f1fd3fa9.webp",
+            "512": "fairytale-assets/mobile/sprites/8b8bb210c23086b8ae5e96487a33c250.webp"
+          },
+          "slug": "surprised_right",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/squirrel/surprised_right/spritesheet.png",
+          "variant": null,
+          "verb": "surprised"
+        },
+        "worried_left": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/squirrel/worried_left/atlas.json",
+          "direction": "left",
+          "facing": "left",
+          "fps": 12,
+          "frames": 81,
+          "grid": [
+            81,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/2582b8c23d069f5c239dbee8d2befb39.webp",
+            "320": "fairytale-assets/mobile/sprites/a7662eb01793e8864cea19e0dbdd1c6d.webp",
+            "384": "fairytale-assets/mobile/sprites/e4d7c6aa70d45961d868986c02c6b3ad.webp",
+            "512": "fairytale-assets/mobile/sprites/f5dbde68be95c4394a24bfaeea3e4c07.webp"
+          },
+          "slug": "worried_left",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/squirrel/worried_left/spritesheet.png",
+          "variant": null,
+          "verb": "worried"
+        },
+        "worried_right": {
+          "atlas": "fairytale-assets/sprites/animals/land_animals/squirrel/worried_right/atlas.json",
+          "direction": "right",
+          "facing": "right",
+          "fps": 16,
+          "frames": 81,
+          "grid": [
+            81,
+            1
+          ],
+          "renditions": {
+            "200": "fairytale-assets/mobile/sprites/db019cb5ccac621d7464e371eda339f3.webp",
+            "320": "fairytale-assets/mobile/sprites/6011f1e85eca7e9d4f566ca78612aa2d.webp",
+            "384": "fairytale-assets/mobile/sprites/cff8f57687af27a75b409ff02b217995.webp",
+            "512": "fairytale-assets/mobile/sprites/98f255eba26961a763054e14d5cd168b.webp"
+          },
+          "slug": "worried_right",
+          "spritesheet": "fairytale-assets/sprites/animals/land_animals/squirrel/worried_right/spritesheet.png",
+          "variant": null,
+          "verb": "worried"
+        }
+      },
+      "display_name": "Nutkin",
+      "height_cm": 22
+    }
+  },
+  "objects": {},
+  "scenes": [
+    {
+      "line": 10,
+      "place": "forest_berry_dell",
+      "plate": {
+        "default_zone": "zone",
+        "poster": "fairytale-assets/live_backgrounds_posters/forest_berry_dell_live.jpg",
+        "resolution": [
+          1920,
+          1080
+        ],
+        "video": "fairytale-assets/live_backgrounds/forest/forest_berry_dell_live.mp4",
+        "zones": [
+          {
+            "depth": null,
+            "description": "Sky / upper area.",
+            "name": "sky",
+            "polygon": [
+              [
+                0.0,
+                0.0
+              ],
+              [
+                100.0,
+                0.0
+              ],
+              [
+                100.0,
+                58.0
+              ],
+              [
+                0.0,
+                58.0
+              ]
+            ],
+            "scale": null,
+            "surface": "sky"
+          },
+          {
+            "depth": null,
+            "description": "",
+            "name": "zone",
+            "polygon": [
+              [
+                11.01,
+                84.48
+              ],
+              [
+                12.3,
+                83.52
+              ],
+              [
+                13.6,
+                82.75
+              ],
+              [
+                15.22,
+                82.27
+              ],
+              [
+                16.78,
+                81.69
+              ],
+              [
+                18.4,
+                80.83
+              ],
+              [
+                19.91,
+                80.25
+              ],
+              [
+                21.48,
+                80.06
+              ],
+              [
+                22.94,
+                79.49
+              ],
+              [
+                24.55,
+                79.2
+              ],
+              [
+                26.23,
+                78.62
+              ],
+              [
+                27.74,
+                77.76
+              ],
+              [
+                29.03,
+                76.8
+              ],
+              [
+                30.55,
+                75.94
+              ],
+              [
+                32.0,
+                75.27
+              ],
+              [
+                33.57,
+                74.69
+              ],
+              [
+                34.97,
+                74.02
+              ],
+              [
+                36.59,
+                73.54
+              ],
+              [
+                38.15,
+                73.25
+              ],
+              [
+                39.77,
+                72.87
+              ],
+              [
+                41.28,
+                72.58
+              ],
+              [
+                42.96,
+                72.48
+              ],
+              [
+                44.52,
+                72.1
+              ],
+              [
+                46.09,
+                71.91
+              ],
+              [
+                47.54,
+                71.52
+              ],
+              [
+                49.16,
+                71.52
+              ],
+              [
+                50.78,
+                71.24
+              ],
+              [
+                52.35,
+                71.14
+              ],
+              [
+                53.91,
+                70.95
+              ],
+              [
+                55.42,
+                70.95
+              ],
+              [
+                57.04,
+                70.95
+              ],
+              [
+                58.61,
+                71.33
+              ],
+              [
+                60.17,
+                71.81
+              ],
+              [
+                61.63,
+                72.29
+              ],
+              [
+                62.98,
+                72.96
+              ],
+              [
+                64.49,
+                73.54
+              ],
+              [
+                66.0,
+                73.83
+              ],
+              [
+                67.51,
+                74.31
+              ],
+              [
+                69.08,
+                74.88
+              ],
+              [
+                70.59,
+                75.46
+              ],
+              [
+                72.1,
+                75.94
+              ],
+              [
+                73.56,
+                76.51
+              ],
+              [
+                74.74,
+                77.47
+              ],
+              [
+                75.88,
+                78.53
+              ],
+              [
+                77.23,
+                79.29
+              ],
+              [
+                78.63,
+                79.87
+              ],
+              [
+                80.14,
+                80.16
+              ],
+              [
+                81.65,
+                80.25
+              ],
+              [
+                80.95,
+                81.69
+              ],
+              [
+                79.98,
+                82.84
+              ],
+              [
+                78.79,
+                83.8
+              ],
+              [
+                77.66,
+                85.24
+              ],
+              [
+                76.79,
+                86.68
+              ],
+              [
+                75.93,
+                88.03
+              ],
+              [
+                75.18,
+                89.37
+              ],
+              [
+                74.8,
+                91.0
+              ],
+              [
+                74.69,
+                92.53
+              ],
+              [
+                74.58,
+                94.26
+              ],
+              [
+                74.58,
+                95.89
+              ],
+              [
+                74.53,
+                97.43
+              ],
+              [
+                74.37,
+                98.96
+              ],
+              [
+                73.23,
+                100.0
+              ],
+              [
+                71.72,
+                100.0
+              ],
+              [
+                69.72,
+                100.0
+              ],
+              [
+                68.21,
+                100.0
+              ],
+              [
+                66.38,
+                100.0
+              ],
+              [
+                64.81,
+                100.0
+              ],
+              [
+                63.03,
+                100.0
+              ],
+              [
+                61.09,
+                100.0
+              ],
+              [
+                59.26,
+                100.0
+              ],
+              [
+                57.42,
+                100.0
+              ],
+              [
+                55.69,
+                100.0
+              ],
+              [
+                53.91,
+                100.0
+              ],
+              [
+                52.24,
+                100.0
+              ],
+              [
+                50.67,
+                100.0
+              ],
+              [
+                48.84,
+                100.0
+              ],
+              [
+                47.11,
+                100.0
+              ],
+              [
+                45.28,
+                100.0
+              ],
+              [
+                43.5,
+                100.0
+              ],
+              [
+                41.61,
+                100.0
+              ],
+              [
+                39.56,
+                100.0
+              ],
+              [
+                37.56,
+                100.0
+              ],
+              [
+                35.83,
+                100.0
+              ],
+              [
+                34.32,
+                100.0
+              ],
+              [
+                32.54,
+                100.0
+              ],
+              [
+                31.03,
+                100.0
+              ],
+              [
+                29.47,
+                100.0
+              ],
+              [
+                27.74,
+                100.0
+              ],
+              [
+                26.23,
+                100.0
+              ],
+              [
+                24.72,
+                100.0
+              ],
+              [
+                23.21,
+                100.0
+              ],
+              [
+                22.5,
+                98.67
+              ],
+              [
+                21.8,
+                97.24
+              ],
+              [
+                21.21,
+                95.8
+              ],
+              [
+                20.56,
+                94.26
+              ],
+              [
+                19.81,
+                92.82
+              ],
+              [
+                18.62,
+                91.67
+              ],
+              [
+                17.05,
+                90.81
+              ],
+              [
+                15.81,
+                89.85
+              ],
+              [
+                14.68,
+                88.79
+              ],
+              [
+                13.65,
+                87.55
+              ],
+              [
+                12.79,
+                86.2
+              ],
+              [
+                11.55,
+                85.15
+              ]
+            ],
+            "scale": null,
+            "surface": "floor"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "beside": null,
+          "cmd": "put",
+          "facing": null,
+          "kind": "cmd",
+          "line": 11,
+          "objects": [],
+          "position": "left_third",
+          "subjects": [
+            "rabbit"
+          ],
+          "zone": null
+        },
+        {
+          "beside": null,
+          "cmd": "put",
+          "facing": "rabbit",
+          "kind": "cmd",
+          "line": 12,
+          "objects": [],
+          "position": "right_third",
+          "subjects": [
+            "squirrel"
+          ],
+          "zone": null
+        },
+        {
+          "cmd": "music",
+          "kind": "cmd",
+          "line": 13,
+          "name": "calm",
+          "subjects": []
+        },
+        {
+          "audio": "parity-jobs/parity/audio/6730768f78b427e9f46168300368deb7baa112b3aee8049cc7f00c9e0de4ddc6.wav",
+          "duration_s": 10.067,
+          "kind": "chunk",
+          "line": 15,
+          "text": "Deep in the forest, in a dell where the berries grew fat and sweet, Pip the rabbit and Nutkin the squirrel were filling their basket."
+        },
+        {
+          "cmd": "emote",
+          "emotion": "happy",
+          "facing": null,
+          "kind": "cmd",
+          "line": 17,
+          "subjects": [
+            "rabbit"
+          ]
+        },
+        {
+          "audio": "parity-jobs/parity/audio/275a54f3dd4c36b1ed4db76d06dbde4588b182e07d458b007d94497979a81b93.wav",
+          "duration_s": 3.221,
+          "kind": "chunk",
+          "line": 18,
+          "text": "Pop! went the berries. Plink! went the basket."
+        },
+        {
+          "cmd": "sound",
+          "kind": "cmd",
+          "line": 19,
+          "name": "pop",
+          "subjects": []
+        },
+        {
+          "audio": "parity-jobs/parity/audio/24b8a2a2d8a8ab78c993c6747968ec819eca24f86def9e7ea05a9e184c7090eb.wav",
+          "duration_s": 4.43,
+          "kind": "chunk",
+          "line": 20,
+          "text": "Pip was so happy she did a little jump. And then—"
+        },
+        {
+          "cmd": "sound",
+          "kind": "cmd",
+          "line": 21,
+          "name": "thud",
+          "subjects": []
+        },
+        {
+          "kind": "together",
+          "line": 22,
+          "steps": [
+            {
+              "cmd": "emote",
+              "emotion": "surprised",
+              "facing": null,
+              "kind": "cmd",
+              "line": 23,
+              "subjects": [
+                "rabbit",
+                "squirrel"
+              ]
+            },
+            {
+              "cmd": "music",
+              "kind": "cmd",
+              "line": 24,
+              "name": "off",
+              "subjects": []
+            }
+          ]
+        },
+        {
+          "audio": "parity-jobs/parity/audio/73eab4a2cb5ae781878b8973bb9167ad3cd3e3c24041a2c607cb210def59acb8.wav",
+          "duration_s": 1.0,
+          "kind": "chunk",
+          "line": 25,
+          "text": "THUD."
+        },
+        {
+          "cmd": "pause",
+          "kind": "cmd",
+          "line": 26,
+          "seconds": 1.5,
+          "subjects": []
+        },
+        {
+          "audio": "parity-jobs/parity/audio/c24eb75fdf20626519a7ca9d757d0923ae969cb124c87c3cc68ab81b39630d4c.wav",
+          "duration_s": 3.624,
+          "kind": "chunk",
+          "line": 27,
+          "text": "The basket went still. Pip's ears went straight up."
+        },
+        {
+          "cmd": "push_in",
+          "kind": "cmd",
+          "line": 28,
+          "speed": "slow",
+          "subjects": [],
+          "target": "rabbit"
+        },
+        {
+          "audio": "parity-jobs/parity/audio/879d42c2cf5d708786b2c7967be3df4924085daadf7ebdccbe522d6eb49de817.wav",
+          "duration_s": 3.221,
+          "kind": "chunk",
+          "line": 29,
+          "text": "'What… was that?' whispered Pip. Nutkin didn't know."
+        },
+        {
+          "cmd": "emote",
+          "emotion": "worried",
+          "facing": null,
+          "kind": "cmd",
+          "line": 30,
+          "subjects": [
+            "rabbit",
+            "squirrel"
+          ]
+        },
+        {
+          "audio": "parity-jobs/parity/audio/c94ed6a38cbaa758a875bcf25e5ca288184d707239ee3c2fd9f1027c3d07a9b8.wav",
+          "duration_s": 3.221,
+          "kind": "chunk",
+          "line": 31,
+          "text": "And not knowing, somehow, was the worst part."
+        },
+        {
+          "cmd": "travel",
+          "destination": "forest_path",
+          "exit_anchor_pct": [
+            36.2,
+            99.2
+          ],
+          "kind": "cmd",
+          "line": 33,
+          "subjects": [
+            "rabbit",
+            "squirrel"
+          ]
+        }
+      ],
+      "time": "day"
+    }
+  ],
+  "source": "story_examples/thud_in_the_forest_scene1.story",
+  "storylang_version": 0,
+  "title": "The Thud in the Forest",
+  "world": "forest"
+}

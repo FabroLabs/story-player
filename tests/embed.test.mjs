@@ -55,7 +55,6 @@ test('mounts one self-contained Shadow DOM player from parsed JSON', async (t) =
     assetBase: 'https://storage.example/root',
   });
 
-  dom.lastImage().dispatch('load');
   await player.ready;
   assert.ok(host.shadowRoot, 'the host has no ShadowRoot');
   assert.equal(host.shadowRoot.mode, 'open');
@@ -69,10 +68,8 @@ test('two players own independent roots and lifecycle state', async (t) => {
   const left = document.createElement('div');
   const right = document.createElement('div');
   const first = createStoryPlayer(left, { story: VALID_STORY, assetBase: 'https://one.example/' });
-  dom.lastImage().dispatch('load');
   await first.ready;
   const second = createStoryPlayer(right, { story: VALID_STORY, assetBase: 'https://two.example/' });
-  dom.lastImage().dispatch('load');
 
   await second.ready;
   assert.notEqual(left.shadowRoot, right.shadowRoot);

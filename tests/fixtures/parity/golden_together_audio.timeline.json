@@ -1,0 +1,293 @@
+{
+  "duration_ms": 4027,
+  "events": [
+    {
+      "line": 8,
+      "op": "scene",
+      "place": "forest_berry_dell",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 0
+    },
+    {
+      "cmd": "put",
+      "detail": {
+        "beside": null,
+        "facing": null,
+        "objects": [],
+        "position": "center",
+        "subjects": [
+          "rabbit"
+        ],
+        "zone": null
+      },
+      "kind": "cmd",
+      "line": 9,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 0
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "right",
+        "slug": "rabbit",
+        "verb": "idle"
+      },
+      "kind": "warning",
+      "line": 9,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 0
+    },
+    {
+      "clip": "idle_right",
+      "line": 9,
+      "op": "place",
+      "scene_index": 0,
+      "slug": "rabbit",
+      "source": "stage",
+      "t_ms": 0,
+      "x": 46.33
+    },
+    {
+      "cmd": "put",
+      "detail": {
+        "beside": null,
+        "facing": "rabbit",
+        "objects": [],
+        "position": "left_third",
+        "subjects": [
+          "hedgehog"
+        ],
+        "zone": null
+      },
+      "kind": "cmd",
+      "line": 10,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 0
+    },
+    {
+      "clip": "idle_right",
+      "line": 10,
+      "op": "place",
+      "scene_index": 0,
+      "slug": "hedgehog",
+      "source": "stage",
+      "t_ms": 0,
+      "x": 32.202
+    },
+    {
+      "cmd": "music",
+      "detail": {
+        "name": "calm",
+        "subjects": []
+      },
+      "kind": "cmd",
+      "line": 11,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 0
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/2a760a151371f4312f11f99395843625c97ac7469fa6b15ccf37fe476850d253.wav",
+        "duration_s": 2.819,
+        "text": "Two friends met in the berry dell."
+      },
+      "kind": "chunk",
+      "line": 13,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 0
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 0,
+      "text": "Two friends met in the berry dell."
+    },
+    {
+      "cmd": "sound",
+      "detail": {
+        "name": "pop",
+        "subjects": []
+      },
+      "kind": "cmd",
+      "line": 14,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 2819
+    },
+    {
+      "detail": {
+        "steps": [
+          {
+            "cmd": "emote",
+            "emotion": "happy",
+            "facing": null,
+            "kind": "cmd",
+            "line": 16,
+            "subjects": [
+              "rabbit"
+            ]
+          },
+          {
+            "cmd": "emote",
+            "emotion": "happy",
+            "facing": null,
+            "kind": "cmd",
+            "line": 17,
+            "subjects": [
+              "hedgehog"
+            ]
+          }
+        ]
+      },
+      "kind": "together",
+      "line": 15,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 2819
+    },
+    {
+      "cmd": "emote",
+      "detail": {
+        "emotion": "happy",
+        "facing": null,
+        "subjects": [
+          "rabbit"
+        ],
+        "together_line": 15
+      },
+      "kind": "cmd",
+      "line": 16,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 2819
+    },
+    {
+      "cmd": "emote",
+      "detail": {
+        "emotion": "happy",
+        "facing": null,
+        "subjects": [
+          "hedgehog"
+        ],
+        "together_line": 15
+      },
+      "kind": "cmd",
+      "line": 17,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 2819
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "right",
+        "slug": "hedgehog",
+        "verb": "happy"
+      },
+      "kind": "warning",
+      "line": 17,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 2819
+    },
+    {
+      "clip": "happy_right_jumping",
+      "line": 17,
+      "op": "clip",
+      "scene_index": 0,
+      "slug": "hedgehog",
+      "source": "stage",
+      "t_ms": 2819
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "left",
+        "slug": "rabbit",
+        "verb": "happy"
+      },
+      "kind": "warning",
+      "line": 16,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 2819
+    },
+    {
+      "clip": "happy_left_jumping",
+      "line": 16,
+      "op": "clip",
+      "scene_index": 0,
+      "slug": "rabbit",
+      "source": "stage",
+      "t_ms": 2819
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/b9aa90286dec6c66c5cdb6c6b056db0376e485fe3aa614c869141b50db39f08a.wav",
+        "duration_s": 1.208,
+        "text": "They laughed together."
+      },
+      "kind": "chunk",
+      "line": 18,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 2819
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 2819,
+      "text": "They laughed together."
+    },
+    {
+      "cmd": "music",
+      "detail": {
+        "name": "off",
+        "subjects": []
+      },
+      "kind": "cmd",
+      "line": 19,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 4027
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 4027,
+      "text": ""
+    },
+    {
+      "line": null,
+      "op": "camera_reset",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 4027
+    },
+    {
+      "line": null,
+      "op": "end",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 4027
+    }
+  ],
+  "storylang_version": 0,
+  "timeline_version": 1,
+  "title": "Golden: together and audio"
+}

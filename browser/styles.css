@@ -1,127 +1,93 @@
+/* The whole player is the picture. A host embeds this element and gets a
+   rectangle of video with its own controls inside it — no header of ours, no
+   page background, no margins. The box is the host's: `aspect-ratio` is only
+   the default, so a site that sets a height on the container wins. */
 :host {
   display: block;
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-radius: inherit;
   color-scheme: dark;
-  --ink: #08091a;
-  --ink-soft: #11142c;
-  --moon: #f5dca3;
-  --moon-bright: #fff1c7;
-  --mist: #d8dcf4;
-  --glass: rgba(20, 23, 48, 0.72);
-  --line: rgba(229, 222, 192, 0.14);
+  --shell: #0e1416;
+  --accent: #4ed08a;
+  --accent-soft: #8fe3b6;
+  --track: rgba(255, 255, 255, 0.22);
+  --chip: rgba(255, 255, 255, 0.07);
+  --text: #eaf3f0;
+  --text-dim: #9fb3ae;
+  --caption: rgba(12, 24, 27, 0.78);
+  --ink: #091012;
+  --ink-soft: #142020;
+  --on-accent: #0b2b1e;
+  --line: rgba(255, 255, 255, 0.12);
+  background: var(--shell);
+  color: var(--text);
   font-family: ui-rounded, "SF Pro Rounded", "Segoe UI", system-ui, sans-serif;
 }
 
 * { box-sizing: border-box; }
 
 .player-shell {
-  min-height: 100%;
-  color: #f7f5ef;
-  overflow-x: hidden;
-  background:
-    radial-gradient(circle at 50% -15%, rgba(70, 75, 138, 0.24), transparent 46rem),
-    linear-gradient(155deg, #0d1026 0%, #070817 58%, #090917 100%);
+  position: absolute;
+  inset: 0;
+  background: var(--shell);
+  border-radius: inherit;
+  overflow: hidden;
 }
 
 button { font: inherit; }
 
 button:focus-visible {
-  outline: 2px solid var(--moon-bright);
-  outline-offset: 4px;
-}
-
-.player-shell {
-  width: min(100%, 112rem);
-  margin: 0 auto;
-  padding: 1rem clamp(1rem, 3vw, 3.25rem) clamp(1.5rem, 4vw, 3.5rem);
-  display: grid;
-  grid-template-rows: auto 1fr;
-  gap: 0.9rem;
-}
-
-.player-header {
-  min-height: 2.8rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 0.65rem;
-  color: rgba(241, 239, 231, 0.72);
-  font-size: 0.74rem;
-  font-weight: 650;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-}
-
-.brand-moon {
-  width: 1.5rem;
-  aspect-ratio: 1;
-  display: block;
-  border-radius: 50%;
-  background: var(--moon);
-  box-shadow: 0 0 1.2rem rgba(245, 220, 163, 0.35);
-  position: relative;
-}
-
-.brand-moon::after {
-  content: "";
-  position: absolute;
-  width: 1.25rem;
-  aspect-ratio: 1;
-  border-radius: 50%;
-  top: -0.2rem;
-  left: 0.48rem;
-  background: #0d1026;
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
 }
 
 .quiet-button,
 .icon-button,
+.round-button,
 .debug-actions button {
-  color: rgba(247, 245, 239, 0.76);
+  color: var(--text);
   border: 1px solid var(--line);
-  background: rgba(25, 28, 56, 0.48);
-  backdrop-filter: blur(14px);
+  background: var(--chip);
   cursor: pointer;
 }
 
 .quiet-button {
-  min-width: 3rem;
-  min-height: 2.2rem;
-  padding: 0.45rem 0.8rem;
+  min-width: 2.6rem;
+  min-height: 2.1rem;
+  padding: 0.35rem 0.7rem;
   border-radius: 999px;
-  font-size: 0.68rem;
+  font-size: 0.66rem;
   letter-spacing: 0.14em;
   text-transform: uppercase;
 }
 
-/* The shell withdraws the log button on a bundle that never opened, and it does
-   that with the `hidden` attribute. The UA rule behind `hidden` is weak enough
-   that any `display` declared here would beat it — which is exactly how
+/* The shell withdraws the log button on a build with no debug panel, and it
+   does that with the `hidden` attribute. The UA rule behind `hidden` is weak
+   enough that any `display` declared here would beat it — which is exactly how
    `.end-overlay` needed its own rule below. Stated, so a later `display` on this
-   class cannot silently put a dead button back on a failed story. */
+   class cannot silently put a dead button back. */
 .quiet-button[hidden] { display: none; }
 
 .stage-frame {
-  width: min(100%, 150vh);
-  aspect-ratio: 16 / 9;
-  margin-inline: auto;
-  align-self: center;
-  position: relative;
+  position: absolute;
+  inset: 0;
   overflow: hidden;
   isolation: isolate;
-  border: 1px solid rgba(224, 220, 197, 0.12);
-  border-radius: clamp(1rem, 2vw, 1.8rem);
-  background: #050611;
-  box-shadow: 0 2rem 7rem rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.02) inset;
+  background: var(--ink);
 }
+
+/* The frame is focusable so the keys have somewhere to live when the overlay
+   withdraws, and a ring around the whole picture would be the player shouting
+   about its own plumbing. The controls keep their own `:focus-visible` rings. */
+.stage-frame:focus { outline: none; }
 
 .stage-letterbox {
   position: absolute;
   inset: 0;
-  background: radial-gradient(circle at 50% 45%, #11152d, #050611 72%);
+  background: radial-gradient(circle at 50% 45%, var(--ink-soft), var(--ink) 72%);
 }
 
 .logical-stage {
@@ -133,51 +99,34 @@ button:focus-visible {
   overflow: hidden;
   transform: translate(-50%, -50%) scale(var(--fit-scale, 1));
   transform-origin: center;
-  background: #090b1c;
+  background: var(--ink);
 }
 
-.camera-layer,
-.drift-layer,
 .plate-layer,
 .plate-poster,
 .plate-video,
-.sprite-layer,
+.stage-canvas,
 .stage-vignette {
   position: absolute;
   inset: 0;
 }
 
-/* the camera aims through `transform` alone, so its origin never moves — see
-   the framing model in v0/app/stage/stage-renderer.mjs */
-.camera-layer {
-  transform-origin: 0 0;
-  transform: translate(0%, 0%) scale(1);
-  will-change: transform;
-}
-
-.drift-layer {
-  overflow: hidden;
-  animation: world-drift 26s ease-in-out infinite alternate;
-  will-change: transform;
-}
-
-/* the far plane. Inert unless the renderer says otherwise: only a parallax below
-   1 gives it a move of its own, and only then does it want the camera's origin
-   and a compositor layer to carry that move on — see v0/app/stage/stage-renderer.mjs */
+/* The plate is what the camera moves: the poster and the video ride it
+   together, under the canvas. The transform is written by
+   v0/app/stage/video-plate.mjs on the story's clock — never as a CSS
+   transition, so pausing the story stops the ground with the cast — and the
+   origin is pinned here because a moving origin would snap the picture
+   mid-move. */
 .plate-layer {
   z-index: 0;
-}
-
-.plate-layer.is-parallaxed {
   transform-origin: 0 0;
   transform: translate(0%, 0%) scale(1);
-  will-change: transform;
 }
 
 .plate-poster {
   z-index: 0;
   opacity: 1;
-  background-color: #10142d;
+  background-color: var(--ink-soft);
   background-position: center;
   background-size: cover;
   transition: opacity 900ms ease;
@@ -196,38 +145,135 @@ button:focus-visible {
 
 .plate-video.is-ready { opacity: 1; }
 
-.sprite-layer { z-index: 2; }
-
-.sprite {
-  position: absolute;
-  background-repeat: no-repeat;
-  /* No background-color. The sprite BOX is square; a character or a prop is
-     not, so a tinted box draws a dim rectangle around everything — and
-     `drop-shadow` then traces that rectangle instead of the artwork's
-     silhouette, which is what made it read as a lit panel rather than a
-     shadow. It hid for a long time at 14% under large sprites on busy plates;
-     zones made it plain, because a far character is a small solid tile and a
-     prop on a bright tabletop has nothing to hide behind. A placeholder tint
-     belongs on `.is-missing`, which has one, not on every sprite. */
-  background-position: 0 0;
-  filter: drop-shadow(0 1.2rem 1rem rgba(2, 3, 12, 0.38));
-  transform: translateX(-50%);
-  transform-origin: 50% 100%;
-  will-change: left, top, opacity, background-position;
-}
-
-.sprite.is-missing {
-  border-radius: 48% 48% 40% 40%;
-  background-image: linear-gradient(155deg, rgba(245, 220, 163, 0.28), rgba(27, 31, 67, 0.88)) !important;
-  box-shadow: 0 0 2rem rgba(245, 220, 163, 0.12);
+/* The whole cast, in one element. Sized in CSS to the logical stage and backed
+   in device pixels by v0/app/stage/canvas-stage.mjs; a canvas is a replaced
+   element, so `inset: 0` alone would leave it at its intrinsic 300x150 and the
+   picture would be stretched. No filter and no shadow here — the shadow under
+   each character is drawn into the canvas, which costs one ellipse instead of a
+   full-silhouette blur per sprite per frame. */
+.stage-canvas {
+  z-index: 2;
+  width: 100%;
+  height: 100%;
 }
 
 .stage-vignette {
   z-index: 3;
   pointer-events: none;
-  box-shadow: inset 0 0 9rem 2rem rgba(2, 3, 12, 0.62);
-  background: linear-gradient(to bottom, rgba(4, 5, 16, 0.12), transparent 55%, rgba(4, 5, 16, 0.22));
+  box-shadow: inset 0 0 9rem 2rem rgba(2, 8, 9, 0.55);
+  background: linear-gradient(to bottom, rgba(4, 12, 14, 0.14), transparent 55%, rgba(4, 12, 14, 0.24));
 }
+
+/* The story's name lives on the picture, because an embedded player has no bar
+   to put it in. It sits under the overlays and over the stage. */
+.story-badge {
+  position: absolute;
+  z-index: 5;
+  top: 0;
+  left: 0;
+  padding: clamp(0.7rem, 2vw, 1.15rem) clamp(0.9rem, 2.4vw, 1.5rem);
+  pointer-events: none;
+  text-shadow: 0 0.15rem 1.2rem rgba(2, 8, 9, 0.75);
+}
+
+.story-name {
+  margin: 0;
+  font-size: clamp(0.85rem, 1.6vw, 1.15rem);
+  font-weight: 650;
+}
+
+.story-scene {
+  margin: 0.18rem 0 0;
+  color: var(--text-dim);
+  font-size: clamp(0.62rem, 1.05vw, 0.78rem);
+}
+
+.story-name:empty,
+.story-scene:empty { display: none; }
+
+/* The mark a click leaves in the middle of the picture.
+
+   Out of the pointer's way at all times: what a viewer is clicking is the
+   picture, and a circle that swallowed the second click of a double-tap would
+   make the switch feel broken. It is drawn only while it is fading, which is
+   the whole of what it says — "that click did something". */
+.stage-flash {
+  position: absolute;
+  z-index: 7;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  pointer-events: none;
+  opacity: 0;
+}
+
+.stage-flash.is-on {
+  animation: flash-mark 620ms ease-out forwards;
+}
+
+@keyframes flash-mark {
+  from { opacity: 0.92; transform: scale(0.82); }
+  to { opacity: 0; transform: scale(1.28); }
+}
+
+/* The transport's own two colours, at the size a mark on the picture wants:
+   the circle a click leaves is the same button the bar shows, drawn where the
+   click happened. A neutral grey disc read as a browser's chrome rather than
+   as this player's. */
+.flash-mark {
+  display: grid;
+  place-content: center;
+  width: clamp(3.6rem, 9vw, 5.4rem);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  color: var(--on-accent);
+  background: var(--accent);
+  box-shadow: 0 0.4rem 1.6rem rgba(4, 12, 10, 0.45);
+}
+
+/* The same two glyphs the transport draws, at the size this circle wants. */
+.flash-mark::before {
+  content: '';
+  width: 0;
+  height: 0;
+  margin-left: 0.3rem;
+  border-top: 0.8rem solid transparent;
+  border-bottom: 0.8rem solid transparent;
+  border-left: 1.3rem solid currentColor;
+}
+
+.stage-flash.is-pause .flash-mark::before {
+  width: 1.24rem;
+  height: 1.5rem;
+  margin-left: 0;
+  border: 0;
+  background: linear-gradient(
+    to right,
+    currentColor 0 0.42rem,
+    transparent 0.42rem 0.82rem,
+    currentColor 0.82rem 1.24rem
+  );
+}
+
+/* The player's own two toggles, opposite the name. Everything else a viewer
+   expects up here — close, cast, parental, overflow — belongs to the page that
+   mounted us, which is why this row is short and pinned to the corner rather
+   than spread across the top. */
+.stage-actions {
+  position: absolute;
+  z-index: 8;
+  top: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: clamp(0.7rem, 2vw, 1.15rem) clamp(0.9rem, 2.4vw, 1.5rem);
+}
+
+/* The row is withdrawn until the story begins, and `display: flex` above would
+   beat the UA rule behind `hidden` — the same trap `.quiet-button[hidden]` is
+   spelled out for. */
+.stage-actions[hidden] { display: none; }
 
 .start-ceremony,
 .end-overlay {
@@ -239,8 +285,11 @@ button:focus-visible {
   justify-items: center;
   text-align: center;
   padding: 2rem;
-  background: linear-gradient(180deg, rgba(6, 7, 22, 0.52), rgba(5, 6, 18, 0.82));
-  backdrop-filter: blur(9px);
+  /* A gradient, and nothing behind it. `backdrop-filter` here blurred the
+     whole stage under the overlay — a full-frame filter over a playing video
+     and a canvas, on the two occasions a story is least able to spare it: the
+     first frame and the last. */
+  background: linear-gradient(180deg, rgba(6, 16, 18, 0.72), rgba(5, 12, 14, 0.92));
   transition: opacity 700ms ease, visibility 700ms ease;
 }
 
@@ -255,13 +304,13 @@ button:focus-visible {
   width: min(42vw, 34rem);
   aspect-ratio: 1;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(245, 220, 163, 0.14), transparent 65%);
+  background: radial-gradient(circle, rgba(78, 208, 138, 0.14), transparent 65%);
   pointer-events: none;
 }
 
 .eyebrow {
   margin: 0 0 0.8rem;
-  color: var(--moon);
+  color: var(--accent-soft);
   font-size: clamp(0.58rem, 1vw, 0.74rem);
   font-weight: 700;
   letter-spacing: 0.24em;
@@ -271,7 +320,7 @@ button:focus-visible {
 .start-ceremony h1 {
   max-width: 18ch;
   margin: 0 0 clamp(1.3rem, 3vw, 2.4rem);
-  color: #fffdf6;
+  color: #fbfffd;
   font-family: ui-serif, Georgia, serif;
   font-size: clamp(1.8rem, 5.4vw, 5.4rem);
   font-weight: 500;
@@ -286,11 +335,11 @@ button:focus-visible {
   align-items: center;
   gap: 0.85rem;
   padding: 0.85rem 1.55rem;
-  color: #181626;
-  border: 1px solid rgba(255, 255, 255, 0.38);
+  color: var(--on-accent);
+  border: 1px solid rgba(255, 255, 255, 0.24);
   border-radius: 999px;
-  background: linear-gradient(135deg, #fff0c3, #eacb86);
-  box-shadow: 0 0.9rem 3rem rgba(232, 198, 123, 0.25);
+  background: var(--accent);
+  box-shadow: 0 0.9rem 3rem rgba(78, 208, 138, 0.22);
   font-weight: 760;
   cursor: pointer;
   transition: transform 180ms ease, box-shadow 180ms ease, opacity 180ms ease;
@@ -298,7 +347,7 @@ button:focus-visible {
 
 .start-button:not(:disabled):hover {
   transform: translateY(-2px);
-  box-shadow: 0 1.2rem 3.4rem rgba(232, 198, 123, 0.34);
+  box-shadow: 0 1.2rem 3.4rem rgba(78, 208, 138, 0.3);
 }
 
 .start-button:disabled { opacity: 0.45; cursor: wait; }
@@ -309,13 +358,13 @@ button:focus-visible {
   margin-left: 0.12rem;
   border-top: 0.38rem solid transparent;
   border-bottom: 0.38rem solid transparent;
-  border-left: 0.62rem solid #181626;
+  border-left: 0.62rem solid var(--on-accent);
 }
 
 .load-status {
   min-height: 1.2em;
   margin: 0.9rem 0 0;
-  color: rgba(237, 238, 248, 0.58);
+  color: var(--text-dim);
   font-size: clamp(0.7rem, 1.2vw, 0.86rem);
 }
 
@@ -335,11 +384,14 @@ button:focus-visible {
    which cost the picture a third of the stage with the text empty. Everything
    visible now belongs to the text below, which comes and goes with the words.
 
-   The type size lives here rather than on .subtitle because .subtitle is an
-   inline box: an inline box takes no max-width, so the line length has to be
-   measured by its container — and `ch` only means "a character of the subtitle"
-   if the container is set in the subtitle's own size. 44ch less 1ch of padding
-   each side is the ~42ch the caption houses hold as the readable maximum. */
+   The type size lives here rather than on .subtitle because the line length is
+   measured by the container — and `ch` only means "a character of the subtitle"
+   if the container is set in the subtitle's own size. The mockup's caption is a
+   long single line at about a fifty-character measure, which is why this is
+   wider and smaller than the two-line block it replaced.
+
+   The bottom padding clears the control bar: the words sit above the transport
+   rather than behind it — and follow it down when a tap takes it away. */
 .subtitle-wrap {
   position: absolute;
   z-index: 6;
@@ -347,39 +399,40 @@ button:focus-visible {
   right: 0;
   bottom: 0;
   margin-inline: auto;
-  max-width: 44ch;
-  padding: 0 1ch clamp(1.1rem, 4vw, 3.3rem);
-  font-size: clamp(1rem, 2.35vw, 2.35rem);
-  line-height: 1.65;
+  max-width: 56ch;
+  padding: 0 1ch clamp(4.8rem, 13vw, 8.5rem);
+  font-size: clamp(0.95rem, 1.45vw, 1.5rem);
+  line-height: 1.55;
   text-align: center;
   text-wrap: balance;
   pointer-events: none;
+  transition: padding-bottom 180ms ease;
 }
 
-/* Inline, so the box hugs the words instead of the stage, and `clone` so the
-   second and third lines of a long sentence each get their own padded box
-   rather than one ragged shape spanning them.
+.stage-frame.is-bare .subtitle-wrap { padding-bottom: clamp(1.6rem, 4vw, 3rem); }
 
-   The line-height above is what keeps those boxes apart, and it is measured,
-   not chosen: an inline box is as tall as the font's content area, which is
-   1.33em here — not 1em — so a box is 1.33 + 2 × 0.1 = 1.53em and anything
-   under that leading makes neighbouring lines overlap. They are translucent,
-   so an overlap is not a near miss: it paints a darker seam across the words.
-   1.65 leaves ~0.1em of stage showing between lines at every clamp size. */
+/* One box around the whole line, hugging the words rather than the stage: the
+   mockup draws a single rounded plate under the caption, not a padded box per
+   line. `inline-block` is what gives that — it shrink-wraps like an inline box
+   but takes the container's measure, so a sentence that does wrap stays inside
+   one shape instead of a ragged stack of them.
+
+   Lighter than it was, too. At 650 against a moving picture the caption read as
+   a label; the design's weight is a reading voice, and the plate behind it is
+   what carries the contrast. */
 .subtitle {
-  display: inline;
+  display: inline-block;
   margin: 0;
-  padding: 0.1em 0.5em;
-  color: #fffefa;
-  font-weight: 650;
+  padding: 0.34em 0.9em;
+  color: #ffffff;
+  font-weight: 500;
   letter-spacing: 0.005em;
-  background: rgba(4, 5, 16, 0.8);
-  -webkit-box-decoration-break: clone;
-  box-decoration-break: clone;
+  background: var(--caption);
+  border-radius: 0.55em;
 }
 
 /* An inline box with padding still paints that padding when it holds no text,
-   and `setSubtitle('')` is the resting state between every two lines of
+   and an empty subtitle is the resting state between every two lines of
    narration — so emptiness has to be its own rule. `textContent = ''` leaves no
    node at all, which is exactly what `:empty` asks for; a template that put a
    space or a newline inside these tags would quietly defeat it. */
@@ -387,37 +440,35 @@ button:focus-visible {
 .media-note:empty { display: none; }
 
 /* A block, so it starts its own line under the subtitle, but shrink-wrapped so
-   the background is still the note's own and not a bar across the stage. It is
-   one short line by construction ("narration unavailable · read along"), so it
-   needs no per-line cloning. */
+   the background is still the note's own and not a bar across the stage. */
 .media-note {
   display: block;
   width: fit-content;
   margin: 0.5em auto 0;
   padding: 0.15em 0.6em;
-  color: rgba(245, 220, 163, 0.82);
+  color: var(--accent-soft);
   font-size: clamp(0.58rem, 0.9vw, 0.72rem);
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  background: rgba(4, 5, 16, 0.8);
+  background: var(--caption);
 }
 
 .end-overlay[hidden] { display: none; }
 
 .end-overlay {
-  background: radial-gradient(circle at 50% 42%, rgba(57, 61, 111, 0.5), rgba(5, 6, 18, 0.92) 62%);
+  background: radial-gradient(circle at 50% 42%, rgba(30, 74, 62, 0.5), rgba(5, 12, 14, 0.92) 62%);
 }
 
 .end-overlay p {
   margin: 1rem 0 0.35rem;
-  color: #fff7df;
+  color: #f2fff8;
   font-family: ui-serif, Georgia, serif;
   font-size: clamp(2.6rem, 8vw, 7rem);
   line-height: 1;
 }
 
 .end-overlay > span:last-child {
-  color: rgba(235, 232, 219, 0.62);
+  color: var(--text-dim);
   font-size: clamp(0.66rem, 1vw, 0.82rem);
   letter-spacing: 0.24em;
   text-transform: uppercase;
@@ -427,24 +478,221 @@ button:focus-visible {
   width: clamp(3rem, 7vw, 5.5rem);
   aspect-ratio: 1;
   border-radius: 50%;
-  background: var(--moon-bright);
-  box-shadow: 0 0 3rem rgba(245, 220, 163, 0.4);
+  background: var(--accent-soft);
+  box-shadow: 0 0 3rem rgba(143, 227, 182, 0.35);
 }
 
+/* The control bar sits ABOVE the two overlays: at the end of a story the end
+   overlay covers the stage, and the transport it turns into a replay has to
+   stay reachable through it. */
+.controls {
+  position: absolute;
+  z-index: 8;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: grid;
+  gap: 0.15rem;
+  /* The bar rides low, the way every video transport does: what is under it is
+     two short rows, not a stack. */
+  padding: clamp(1.4rem, 4vw, 2.6rem) clamp(0.8rem, 2.4vw, 1.6rem) clamp(0.45rem, 1.1vw, 0.7rem);
+  background: linear-gradient(to top, rgba(3, 10, 12, 0.72), rgba(3, 10, 12, 0.34) 45%, transparent);
+}
+
+.controls[hidden] { display: none; }
+
+/* The overlay withdraws from a story nobody is pointing at, and comes back the
+   moment they are — the whole overlay, because a name and a subtitle toggle
+   floating over a story with no transport under them read as leftovers rather
+   than as chrome. `visibility` rather than `opacity` alone: a control faded to
+   nothing is still in the tab order and still takes the click that was meant
+   for the picture. */
+.controls,
+.story-badge,
+.stage-actions {
+  transition: opacity 180ms ease, visibility 0s;
+}
+
+.stage-frame.is-bare .controls,
+.stage-frame.is-bare .story-badge,
+.stage-frame.is-bare .stage-actions {
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 180ms ease, visibility 0s linear 180ms;
+}
+
+.scrub {
+  position: relative;
+  height: 1.1rem;
+  cursor: pointer;
+  touch-action: none;
+}
+
+.scrub::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 0.25rem;
+  transform: translateY(-50%);
+  border-radius: 999px;
+  background: var(--track);
+}
+
+.scrub-fill {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 0%;
+  height: 0.25rem;
+  transform: translateY(-50%);
+  border-radius: 999px;
+  background: var(--accent-soft);
+}
+
+.scrub-handle {
+  position: absolute;
+  top: 50%;
+  left: 0%;
+  width: 0.7rem;
+  height: 0.7rem;
+  margin-left: -0.35rem;
+  transform: translateY(-50%);
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.times {
+  display: flex;
+  justify-content: space-between;
+  color: var(--text-dim);
+  font-size: clamp(0.62rem, 1vw, 0.76rem);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Three columns rather than a flex row, so the transport is centred on the
+   stage and not on whatever the chip beside it happens to say. */
+.control-row {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.chip {
+  justify-self: start;
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--text-dim);
+  font-size: clamp(0.62rem, 1vw, 0.74rem);
+  white-space: nowrap;
+}
+
+.chip:empty { display: none; }
+
+.transport {
+  display: flex;
+  align-items: center;
+  gap: clamp(0.6rem, 1.6vw, 1rem);
+}
+
+.side-buttons {
+  justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.round-button {
+  width: clamp(2.1rem, 4.4vw, 2.5rem);
+  aspect-ratio: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+.play-button {
+  width: clamp(2.9rem, 6vw, 3.4rem);
+  aspect-ratio: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--on-accent);
+  border: 0;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+}
+
+.play-button:disabled { opacity: 0.45; cursor: default; }
+
+/* The two transport glyphs are drawn rather than typed: an icon font is one
+   more thing to load into a Shadow DOM and a text arrow is a different shape in
+   every browser. Play is one triangle; pause is the same box with two bars
+   painted across it. */
+.transport-mark {
+  width: 0;
+  height: 0;
+  margin-left: 0.16rem;
+  border-top: 0.5rem solid transparent;
+  border-bottom: 0.5rem solid transparent;
+  border-left: 0.8rem solid currentColor;
+}
+
+.play-button.is-playing .transport-mark {
+  width: 0.78rem;
+  height: 0.96rem;
+  margin-left: 0;
+  border: 0;
+  background: linear-gradient(
+    to right,
+    currentColor 0 0.26rem,
+    transparent 0.26rem 0.52rem,
+    currentColor 0.52rem 0.78rem
+  );
+}
+
+.skip-mark {
+  position: relative;
+  display: block;
+  width: 0.92rem;
+  height: 0.62rem;
+}
+
+.skip-mark::before,
+.skip-mark::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  width: 0;
+  height: 0;
+  border-top: 0.31rem solid transparent;
+  border-bottom: 0.31rem solid transparent;
+}
+
+.skip-back .skip-mark::before { left: 0; border-right: 0.44rem solid currentColor; }
+.skip-back .skip-mark::after { left: 0.46rem; border-right: 0.44rem solid currentColor; }
+.skip-forward .skip-mark::before { right: 0.46rem; border-left: 0.44rem solid currentColor; }
+.skip-forward .skip-mark::after { right: 0; border-left: 0.44rem solid currentColor; }
+
+/* Absolute, not fixed: a panel positioned against the viewport would climb out
+   of the embed and cover the page that mounted it. */
 .debug-panel {
-  position: fixed;
+  position: absolute;
   z-index: 20;
   top: 0;
   right: 0;
-  width: min(24rem, 92vw);
-  height: 100dvh;
+  width: min(24rem, 92%);
+  height: 100%;
   display: grid;
   grid-template-rows: auto auto 1fr;
   padding: 1.15rem;
   border-left: 1px solid var(--line);
-  background: rgba(8, 9, 26, 0.92);
+  background: rgba(8, 18, 20, 0.94);
   box-shadow: -2rem 0 5rem rgba(0, 0, 0, 0.35);
-  backdrop-filter: blur(24px);
   transform: translateX(102%);
   transition: transform 300ms ease;
 }
@@ -484,39 +732,43 @@ button:focus-visible {
   font-size: 0.7rem;
 }
 
-.debug-status { margin-left: auto; color: var(--moon); font-size: 0.66rem; }
+.debug-status { margin-left: auto; color: var(--accent-soft); font-size: 0.66rem; }
+
+/* The perf section: one line, above the entries, only once something measured. */
+.perf-summary {
+  margin: 0;
+  padding: 0.6rem 0.15rem 0;
+  color: var(--accent-soft);
+  font: 0.68rem/1.5 ui-monospace, "SFMono-Regular", Consolas, monospace;
+  overflow-wrap: anywhere;
+}
+
+.perf-summary[hidden] { display: none; }
 
 .event-list {
   margin: 0;
   padding: 0.8rem 0 2rem;
   overflow: auto;
   list-style: none;
-  scrollbar-color: rgba(245, 220, 163, 0.2) transparent;
+  scrollbar-color: rgba(143, 227, 182, 0.2) transparent;
 }
 
 .event-list li {
   padding: 0.7rem 0.15rem;
-  border-bottom: 1px solid rgba(229, 222, 192, 0.08);
-  color: rgba(225, 226, 239, 0.72);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--text-dim);
   font: 0.69rem/1.45 ui-monospace, "SFMono-Regular", Consolas, monospace;
   overflow-wrap: anywhere;
 }
 
-.event-list strong { color: #f4e2b6; font-weight: 600; }
+.event-list strong { color: var(--accent-soft); font-weight: 600; }
 .event-list .warning { color: #ffc9a4; }
 
-@keyframes world-drift {
-  from { transform: scale(1.012) translate3d(-0.18%, -0.12%, 0); }
-  to { transform: scale(1.018) translate3d(0.22%, 0.15%, 0); }
-}
-
 @media (max-width: 700px) {
-  .player-shell { min-height: auto; padding: 0.65rem; gap: 0.5rem; }
-  .player-header { min-height: 2.35rem; }
-  .stage-frame { max-height: none; border-radius: 0.9rem; }
   .start-button { min-height: 2.8rem; padding: 0.62rem 1rem; font-size: 0.8rem; }
   .load-status { margin-top: 0.55rem; }
-  .subtitle-wrap { padding-bottom: 0.8rem; }
+  .subtitle-wrap { padding-bottom: 4.6rem; }
+  .controls { gap: 0.25rem; padding: 1.2rem 0.6rem 0.55rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {

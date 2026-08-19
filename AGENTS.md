@@ -11,10 +11,19 @@
   query-string, standalone HTML, or npm/tarball product.
 - Every media value is `<bucket>/<object-key>`. Preserve strict path validation
   before resolving it under `assetBase`.
-- `browser/v0/core/**` is pure logic. Only
-  `browser/v0/app/stage/stage-renderer.mjs` touches stage DOM. Preserve
+- `browser/v0/core/**` is pure logic, the timeline compiler and `stateAt`
+  included: no fetch, no clock, no DOM, and one bundle always compiles to the
+  same bytes. Only `browser/v0/app/stage/canvas-stage.mjs` (which measures stage
+  DOM and owns the 2D context) and `browser/v0/app/stage/video-plate.mjs` (which
+  owns the plate `<video>`) touch stage DOM or canvas;
+  `browser/v0/app/stage/draw-list.mjs` between them is pure. Preserve
   deterministic behavior; policy changes require contract tests and downstream
   mobile parity regeneration.
+- The timeline op schema is the contract between the compiler and every
+  interpreter — this player's `stateAt`, the engine's tools, the phone client.
+  `tooling.v0` publishes exactly `compileTimeline`, `TIMELINE_OPS`, `stateAt`,
+  the pure render rules, and `V0_POLICY`; the seven parity timelines are its
+  goldens and stay byte-identical unless a rule change is documented.
 - Keep package metadata private at `0.0.0-development`. `dist/` is generated,
   ignored, and never committed.
 - Never commit credentials, `.npmrc`, registry configuration, or a
