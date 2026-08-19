@@ -1,0 +1,140 @@
+{
+  "instants": [
+    {
+      "t_ms": 1,
+      "list": {
+        "width": 1920,
+        "height": 1080,
+        "camera": {
+          "scale": 1,
+          "x": 0,
+          "y": 0
+        },
+        "commands": [
+          {
+            "op": "shadow",
+            "slug": "rabbit",
+            "cx": 889.54,
+            "cy": 927.97,
+            "rx": 75,
+            "ry": 15,
+            "opacity": 0.34
+          },
+          {
+            "op": "sprite",
+            "slug": "rabbit",
+            "url": "fairytale-assets/mobile/sprites/77b00ee0e2ab361c05e54b2fa8028836.webp",
+            "cell": [
+              0,
+              0
+            ],
+            "cells": [
+              5,
+              5
+            ],
+            "dx": 764.54,
+            "dy": 677.97,
+            "dw": 250,
+            "dh": 250,
+            "opacity": 1
+          },
+          {
+            "op": "shadow",
+            "slug": "hedgehog",
+            "cx": 618.28,
+            "cy": 946.06,
+            "rx": 45,
+            "ry": 9,
+            "opacity": 0.34
+          },
+          {
+            "op": "sprite",
+            "slug": "hedgehog",
+            "url": "fairytale-assets/mobile/sprites/dea2795b72e23ffa8046af28a34b67bb.webp",
+            "cell": [
+              0,
+              0
+            ],
+            "cells": [
+              4,
+              4
+            ],
+            "dx": 543.28,
+            "dy": 796.06,
+            "dw": 150,
+            "dh": 150,
+            "opacity": 1
+          }
+        ]
+      }
+    },
+    {
+      "t_ms": 4027,
+      "list": {
+        "width": 1920,
+        "height": 1080,
+        "camera": {
+          "scale": 1,
+          "x": 0,
+          "y": 0
+        },
+        "commands": [
+          {
+            "op": "shadow",
+            "slug": "rabbit",
+            "cx": 889.54,
+            "cy": 927.97,
+            "rx": 75,
+            "ry": 15,
+            "opacity": 0.34
+          },
+          {
+            "op": "sprite",
+            "slug": "rabbit",
+            "url": "fairytale-assets/mobile/sprites/9e46a6503aad83389168e75b33805686.webp",
+            "cell": [
+              4,
+              2
+            ],
+            "cells": [
+              5,
+              5
+            ],
+            "dx": 764.54,
+            "dy": 677.97,
+            "dw": 250,
+            "dh": 250,
+            "opacity": 1
+          },
+          {
+            "op": "shadow",
+            "slug": "hedgehog",
+            "cx": 618.28,
+            "cy": 946.06,
+            "rx": 45,
+            "ry": 9,
+            "opacity": 0.34
+          },
+          {
+            "op": "sprite",
+            "slug": "hedgehog",
+            "url": "fairytale-assets/mobile/sprites/a33561d85a0cbbd2fff32956f55c720e.webp",
+            "cell": [
+              4,
+              2
+            ],
+            "cells": [
+              5,
+              5
+            ],
+            "dx": 543.28,
+            "dy": 796.06,
+            "dw": 150,
+            "dh": 150,
+            "opacity": 1
+          }
+        ]
+      }
+    }
+  ]
+}

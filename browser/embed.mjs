@@ -28,7 +28,7 @@ export function createStoryPlayer(container, options) {
   try {
     performer = factory({
       root, elements, story: options.story, assetBase: options.assetBase,
-      signal: abort.signal, debug: options.debug === true,
+      signal: abort.signal, debug: options.debug === true, perf: options.perf === true,
     });
   } catch (error) {
     showError(elements, error);

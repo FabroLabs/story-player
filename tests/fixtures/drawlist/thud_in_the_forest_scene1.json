@@ -1,0 +1,153 @@
+{
+  "instants": [
+    {
+      "t_ms": 1,
+      "list": {
+        "width": 1920,
+        "height": 1080,
+        "camera": {
+          "scale": 1,
+          "x": 0,
+          "y": 0
+        },
+        "commands": [
+          {
+            "op": "shadow",
+            "slug": "rabbit",
+            "cx": 618.28,
+            "cy": 946.06,
+            "rx": 75,
+            "ry": 15,
+            "opacity": 0.34
+          },
+          {
+            "op": "sprite",
+            "slug": "rabbit",
+            "url": "fairytale-assets/mobile/sprites/e8f3d0574d20db3b13a3e2b9cd308f2e.webp",
+            "cell": [
+              0,
+              0
+            ],
+            "cells": [
+              5,
+              5
+            ],
+            "dx": 493.28,
+            "dy": 696.06,
+            "dw": 250,
+            "dh": 250,
+            "opacity": 1
+          },
+          {
+            "op": "shadow",
+            "slug": "squirrel",
+            "cx": 1160.79,
+            "cy": 928.29,
+            "rx": 66,
+            "ry": 13.2,
+            "opacity": 0.34
+          },
+          {
+            "op": "sprite",
+            "slug": "squirrel",
+            "url": "fairytale-assets/mobile/sprites/d23cfea910a7c84cb8f9e3aafccc2078.webp",
+            "cell": [
+              0,
+              0
+            ],
+            "cells": [
+              5,
+              5
+            ],
+            "dx": 1050.79,
+            "dy": 708.29,
+            "dw": 220,
+            "dh": 220,
+            "opacity": 1
+          }
+        ]
+      }
+    },
+    {
+      "t_ms": 26242,
+      "list": {
+        "width": 1920,
+        "height": 1080,
+        "camera": {
+          "scale": 1.55,
+          "x": -17.7111,
+          "y": -48.1787
+        },
+        "commands": [
+          {
+            "op": "shadow",
+            "slug": "rabbit",
+            "cx": 618.28,
+            "cy": 946.06,
+            "rx": 75,
+            "ry": 15,
+            "opacity": 0.34
+          },
+          {
+            "op": "sprite",
+            "slug": "rabbit",
+            "url": "fairytale-assets/mobile/sprites/79d14a010defd14a0bdb8c4dbadc8fa7.webp",
+            "cell": [
+              6,
+              0
+            ],
+            "cells": [
+              9,
+              8
+            ],
+            "dx": 493.28,
+            "dy": 696.06,
+            "dw": 250,
+            "dh": 250,
+            "opacity": 1
+          },
+          {
+            "op": "shadow",
+            "slug": "squirrel",
+            "cx": 1160.79,
+            "cy": 928.29,
+            "rx": 66,
+            "ry": 13.2,
+            "opacity": 0.34
+          },
+          {
+            "op": "sprite",
+            "slug": "squirrel",
+            "url": "fairytale-assets/mobile/sprites/78e7ca29550d5c5e29a2faf8fcd0cfce.webp",
+            "cell": [
+              1,
+              4
+            ],
+            "cells": [
+              9,
+              8
+            ],
+            "dx": 1050.79,
+            "dy": 708.29,
+            "dw": 220,
+            "dh": 220,
+            "opacity": 1
+          }
+        ]
+      }
+    },
+    {
+      "t_ms": 31387,
+      "list": {
+        "width": 1920,
+        "height": 1080,
+        "camera": {
+          "scale": 1,
+          "x": 0,
+          "y": 0
+        },
+        "commands": []
+      }
+    }
+  ]
+}

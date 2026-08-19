@@ -49,6 +49,9 @@ test.afterAll(async () => {
 
 test.beforeEach(() => { requests.length = 0; });
 
+// What these two cover in a REAL browser and nothing else does: two players on
+// one page, the React adapter under StrictMode, and the media request log of a
+// story driven from its begin button to its end overlay.
 test('plain JavaScript mounts two players, plays qualified media, and destroys/remounts cleanly', async ({ page }) => {
   await page.goto(`${application.url}/plain-js.html`);
   await page.evaluate(() => window.__mounted);

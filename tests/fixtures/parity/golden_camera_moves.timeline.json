@@ -1,0 +1,680 @@
+{
+  "duration_ms": 18120,
+  "events": [
+    {
+      "line": 20,
+      "op": "scene",
+      "place": "forest_clearing",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 0
+    },
+    {
+      "cmd": "put",
+      "detail": {
+        "beside": null,
+        "facing": null,
+        "objects": [],
+        "position": "left_third",
+        "subjects": [
+          "rabbit"
+        ],
+        "zone": null
+      },
+      "kind": "cmd",
+      "line": 21,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 0
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "right",
+        "slug": "rabbit",
+        "verb": "idle"
+      },
+      "kind": "warning",
+      "line": 21,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 0
+    },
+    {
+      "clip": "idle_right",
+      "line": 21,
+      "op": "place",
+      "scene_index": 0,
+      "slug": "rabbit",
+      "source": "stage",
+      "t_ms": 0,
+      "x": 35.762
+    },
+    {
+      "cmd": "put",
+      "detail": {
+        "beside": null,
+        "facing": null,
+        "objects": [],
+        "position": "right_third",
+        "subjects": [
+          "hedgehog"
+        ],
+        "zone": null
+      },
+      "kind": "cmd",
+      "line": 22,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 0
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "left",
+        "slug": "hedgehog",
+        "verb": "idle"
+      },
+      "kind": "warning",
+      "line": 22,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 0
+    },
+    {
+      "clip": "idle_left",
+      "line": 22,
+      "op": "place",
+      "scene_index": 0,
+      "slug": "hedgehog",
+      "source": "stage",
+      "t_ms": 0,
+      "x": 56.378
+    },
+    {
+      "cmd": "shot",
+      "detail": {
+        "size": "wide",
+        "subjects": [],
+        "target": null
+      },
+      "kind": "cmd",
+      "line": 23,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 0
+    },
+    {
+      "line": null,
+      "op": "shot",
+      "scale": 1,
+      "scene_index": 0,
+      "size": "wide",
+      "source": "stage",
+      "t_ms": 0,
+      "x": null,
+      "y": null
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/735f480b422d3c01161a09ff04aff5c802735706bf4ad9397db2df5830da5515.wav",
+        "duration_s": 1.611,
+        "text": "The clearing opened wide."
+      },
+      "kind": "chunk",
+      "line": 25,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 0
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 0,
+      "text": "The clearing opened wide."
+    },
+    {
+      "cmd": "pan_to",
+      "detail": {
+        "speed": null,
+        "subjects": [],
+        "target": "hedgehog"
+      },
+      "kind": "cmd",
+      "line": 26,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 1611
+    },
+    {
+      "duration_ms": null,
+      "line": null,
+      "op": "pan",
+      "scene_index": 0,
+      "source": "stage",
+      "speed": "slow",
+      "t_ms": 1611,
+      "x": 56.378
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/1551a31223588d88ff0f3346b9aefb9a4c5d17725138bacdc3cb5ed547b79576.wav",
+        "duration_s": 2.819,
+        "text": "Ola waited by the ferns, very still."
+      },
+      "kind": "chunk",
+      "line": 27,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 1611
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 1611,
+      "text": "Ola waited by the ferns, very still."
+    },
+    {
+      "detail": {
+        "steps": [
+          {
+            "cmd": "follow",
+            "kind": "cmd",
+            "line": 29,
+            "subjects": [],
+            "target": "rabbit"
+          },
+          {
+            "beside": "left",
+            "cmd": "move",
+            "kind": "cmd",
+            "line": 30,
+            "subjects": [
+              "rabbit"
+            ],
+            "target": "hedgehog",
+            "zone": null
+          }
+        ]
+      },
+      "kind": "together",
+      "line": 28,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 4430
+    },
+    {
+      "cmd": "follow",
+      "detail": {
+        "subjects": [],
+        "target": "rabbit",
+        "together_line": 28
+      },
+      "kind": "cmd",
+      "line": 29,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 4430
+    },
+    {
+      "cmd": "move",
+      "detail": {
+        "beside": "left",
+        "subjects": [
+          "rabbit"
+        ],
+        "target": "hedgehog",
+        "together_line": 28,
+        "zone": null
+      },
+      "kind": "cmd",
+      "line": 30,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 4430
+    },
+    {
+      "clip": "move_right",
+      "duration_ms": 937,
+      "line": 30,
+      "op": "move",
+      "scene_index": 0,
+      "slug": "rabbit",
+      "source": "stage",
+      "t_ms": 4430,
+      "x": 56.368
+    },
+    {
+      "duration_ms": 937,
+      "line": null,
+      "op": "pan",
+      "scene_index": 0,
+      "source": "stage",
+      "speed": null,
+      "t_ms": 4430,
+      "x": 56.368
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/db5ca64ca94776a7ff98ec5b7f318e642e0c89b71636bf6d8646dc520cb5c8db.wav",
+        "duration_s": 2.416,
+        "text": "Pip hopped over to say hello."
+      },
+      "kind": "chunk",
+      "line": 31,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 4430
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 4430,
+      "text": "Pip hopped over to say hello."
+    },
+    {
+      "clip": "idle_right",
+      "line": 30,
+      "op": "settle",
+      "scene_index": 0,
+      "slug": "rabbit",
+      "source": "stage",
+      "t_ms": 5367
+    },
+    {
+      "cmd": "shot",
+      "detail": {
+        "size": "close",
+        "subjects": [],
+        "target": "rabbit"
+      },
+      "kind": "cmd",
+      "line": 32,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 6846
+    },
+    {
+      "line": null,
+      "op": "shot",
+      "scale": 2.048,
+      "scene_index": 0,
+      "size": "close",
+      "source": "stage",
+      "t_ms": 6846,
+      "x": 56.368,
+      "y": 94.05628514276563
+    },
+    {
+      "cmd": "emote",
+      "detail": {
+        "emotion": "happy",
+        "facing": null,
+        "subjects": [
+          "rabbit"
+        ]
+      },
+      "kind": "cmd",
+      "line": 33,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 6846
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "right",
+        "slug": "rabbit",
+        "verb": "happy"
+      },
+      "kind": "warning",
+      "line": 33,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 6846
+    },
+    {
+      "clip": "happy_right_jumping",
+      "line": 33,
+      "op": "clip",
+      "scene_index": 0,
+      "slug": "rabbit",
+      "source": "stage",
+      "t_ms": 6846
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/24041e8f1bd8c03674eb924e07967ee272bea7491e7273230b2b4efa2e861beb.wav",
+        "duration_s": 1.611,
+        "text": "His nose twitched twice."
+      },
+      "kind": "chunk",
+      "line": 34,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 6846
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 6846,
+      "text": "His nose twitched twice."
+    },
+    {
+      "cmd": "follow",
+      "detail": {
+        "subjects": [],
+        "target": "off"
+      },
+      "kind": "cmd",
+      "line": 35,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 8457
+    },
+    {
+      "cmd": "push_in",
+      "detail": {
+        "speed": "medium",
+        "subjects": [],
+        "target": "right_edge"
+      },
+      "kind": "cmd",
+      "line": 36,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 8457
+    },
+    {
+      "line": null,
+      "op": "push_in",
+      "scene_index": 0,
+      "source": "stage",
+      "speed": "medium",
+      "t_ms": 8457,
+      "x": 66.686,
+      "y": 94.10234280639432
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/a1393aea55c56073a264923b46a48d6ab4b7072685e821e650f438b5e364d17b.wav",
+        "duration_s": 2.013,
+        "text": "Beyond them the path waited."
+      },
+      "kind": "chunk",
+      "line": 37,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 8457
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 8457,
+      "text": "Beyond them the path waited."
+    },
+    {
+      "cmd": "pull_out",
+      "detail": {
+        "speed": "slow",
+        "subjects": []
+      },
+      "kind": "cmd",
+      "line": 38,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 10470
+    },
+    {
+      "line": null,
+      "op": "pull_out",
+      "scene_index": 0,
+      "source": "stage",
+      "speed": "slow",
+      "t_ms": 10470
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/d22379f7333e0aaf1c114dfbee25f650868073e4d449376f8b3cd78e587dc5e7.wav",
+        "duration_s": 3.221,
+        "text": "Slowly the whole clearing came back into view."
+      },
+      "kind": "chunk",
+      "line": 39,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 10470
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 10470,
+      "text": "Slowly the whole clearing came back into view."
+    },
+    {
+      "cmd": "follow",
+      "detail": {
+        "subjects": [],
+        "target": "rabbit"
+      },
+      "kind": "cmd",
+      "line": 40,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 13691
+    },
+    {
+      "cmd": "travel",
+      "detail": {
+        "destination": "forest_path",
+        "exit_anchor_pct": [
+          46.8,
+          97.1
+        ],
+        "subjects": [
+          "rabbit"
+        ]
+      },
+      "kind": "cmd",
+      "line": 42,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 13691
+    },
+    {
+      "clip": "move_left",
+      "duration_ms": 435,
+      "line": 42,
+      "op": "depart",
+      "scene_index": 0,
+      "slug": "rabbit",
+      "source": "stage",
+      "t_ms": 13691,
+      "x": 46.8,
+      "y": 97.1
+    },
+    {
+      "duration_ms": 435,
+      "line": null,
+      "op": "pan",
+      "scene_index": 0,
+      "source": "stage",
+      "speed": null,
+      "t_ms": 13691,
+      "x": 46.8
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/10f73ffbc020927f428c62eea4faac502dd8605445e39e58e42c7e3308ef7a50.wav",
+        "duration_s": 2.416,
+        "text": "Pip set off down the path."
+      },
+      "kind": "chunk",
+      "line": 44,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 13691
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 13691,
+      "text": "Pip set off down the path."
+    },
+    {
+      "line": 42,
+      "op": "exit",
+      "scene_index": 0,
+      "slug": "rabbit",
+      "source": "stage",
+      "t_ms": 14126
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 16107,
+      "text": ""
+    },
+    {
+      "line": null,
+      "op": "camera_reset",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 16107
+    },
+    {
+      "line": 46,
+      "op": "scene",
+      "place": "forest_path",
+      "scene_index": 1,
+      "source": "stage",
+      "t_ms": 16107
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "right",
+        "slug": "rabbit",
+        "verb": "idle"
+      },
+      "kind": "warning",
+      "line": 46,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 16107
+    },
+    {
+      "clip": "idle_right",
+      "line": 46,
+      "op": "place",
+      "scene_index": 1,
+      "slug": "rabbit",
+      "source": "stage",
+      "t_ms": 16107,
+      "x": 50
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/ecb645141618ce8863e9548b59bc704c3093e93441e5d83622b76db7fb56258c.wav",
+        "duration_s": 2.013,
+        "text": "The ferns closed behind him."
+      },
+      "kind": "chunk",
+      "line": 48,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 16107
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 1,
+      "source": "stage",
+      "t_ms": 16107,
+      "text": "The ferns closed behind him."
+    },
+    {
+      "cmd": "emote",
+      "detail": {
+        "emotion": "surprised",
+        "facing": null,
+        "subjects": [
+          "rabbit"
+        ]
+      },
+      "kind": "cmd",
+      "line": 49,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 18120
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "right",
+        "slug": "rabbit",
+        "verb": "surprised"
+      },
+      "kind": "warning",
+      "line": 49,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 18120
+    },
+    {
+      "clip": "surprised_right",
+      "line": 49,
+      "op": "clip",
+      "scene_index": 1,
+      "slug": "rabbit",
+      "source": "stage",
+      "t_ms": 18120
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 1,
+      "source": "stage",
+      "t_ms": 18120,
+      "text": ""
+    },
+    {
+      "line": null,
+      "op": "camera_reset",
+      "scene_index": 1,
+      "source": "stage",
+      "t_ms": 18120
+    },
+    {
+      "line": null,
+      "op": "end",
+      "scene_index": 1,
+      "source": "stage",
+      "t_ms": 18120
+    }
+  ],
+  "storylang_version": 0,
+  "timeline_version": 1,
+  "title": "Golden: camera moves"
+}
