@@ -48,6 +48,14 @@ export function createPlayerTemplate(root, { stylesheet = STYLESHEET } = {}) {
   const subtitleArea = element(document, 'div', {
     className: 'subtitle-wrap', 'aria-live': 'polite', 'aria-atomic': 'true',
   }, [subtitle, mediaNote]);
+  // Playback caught up with the writer. `role="status"` rather than a live
+  // region of its own: it is announced once when it appears, and the sentence
+  // is the whole of what a viewer waiting on a story needs to be told.
+  const waiting = element(document, 'div', { className: 'waiting-overlay', role: 'status', hidden: '' }, [
+    element(document, 'span', { className: 'waiting-spinner', 'aria-hidden': 'true' }),
+    element(document, 'p', { text: 'the storyteller is still writing…' }),
+  ]);
+  waiting.hidden = true;
   const end = element(document, 'div', { className: 'end-overlay', hidden: '' }, [
     element(document, 'span', { className: 'end-moon', 'aria-hidden': 'true' }),
     element(document, 'p', { text: 'the end' }),
@@ -78,7 +86,7 @@ export function createPlayerTemplate(root, { stylesheet = STYLESHEET } = {}) {
     className: 'stage-frame', 'aria-label': 'story stage', tabindex: '-1',
   }, [
     element(document, 'div', { className: 'stage-letterbox', 'aria-hidden': 'true' }),
-    stage, flash, badge.root, actions, ceremony, subtitleArea, end, controls.root,
+    stage, flash, badge.root, actions, ceremony, waiting, subtitleArea, end, controls.root,
   ]);
   const shell = element(document, 'main', { className: 'player-shell' }, [frame]);
   const debugClose = element(document, 'button', { className: 'icon-button', type: 'button', 'aria-label': 'close event log', text: '×' });
@@ -112,7 +120,7 @@ export function createPlayerTemplate(root, { stylesheet = STYLESHEET } = {}) {
     // the picture is the play switch, the mark is what a click leaves on it,
     // and the actions row appears with the bar when the story begins.
     controls: { ...controls, frame, stage, actions, flash },
-    stage: { frame, stage, canvas, plate, poster, video, subtitle, mediaNote, end },
+    stage: { frame, stage, canvas, plate, poster, video, subtitle, mediaNote, waiting, end },
     debug: {
       panel: debugPanel, toggle: debugToggle, close: debugClose, copy: debugCopy,
       download: debugDownload, list: debugList, status: debugStatus, perf: debugPerf,

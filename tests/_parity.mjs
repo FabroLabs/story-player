@@ -22,3 +22,18 @@ export function slurp(stem, kind) {
 export function read(stem, kind) {
   return JSON.parse(slurp(stem, kind));
 }
+
+// The engine's manifest block, rebuilt from the same scenes it is derived from
+// (`_plates_by_place`): sorted at both levels, so a place staged at two times
+// resolves in the same order here as it arrives over the wire.
+export function platesOf(bundle) {
+  const staged = bundle.scenes.map((scene) => [scene.place, scene.time, scene.plate]);
+  staged.sort(([placeA, timeA], [placeB, timeB]) => (
+    compare(placeA, placeB) || compare(timeA, timeB)
+  ));
+  const block = {};
+  for (const [place, time, plate] of staged) (block[place] ??= {})[time] = plate;
+  return block;
+}
+
+const compare = (left, right) => (left < right ? -1 : Number(left > right));

@@ -22,7 +22,9 @@ import { soundingAt } from '../browser/v0/core/state/cues.mjs';
 import { stateAt } from '../browser/v0/core/state/state.mjs';
 import { compileTimeline } from '../browser/v0/core/timeline/compile.mjs';
 import { read } from './_parity.mjs';
-import { installDom } from './_dom.mjs';
+import {
+  downloadSession, findByClass, findByLabel, installAudio, installDom, virtualFrames,
+} from './_dom.mjs';
 
 const STEM = 'golden_push_dusk';
 const ASSET_BASE = 'https://storage.example/';
@@ -736,30 +738,6 @@ test('a player nobody asked to measure writes no perf section', async (t) => {
 });
 
 /** The panel's own download, parsed — the same path a bug report takes. */
-async function download(root) {
-  const original = URL.createObjectURL;
-  const originalRevoke = URL.revokeObjectURL;
-  let captured = null;
-  URL.createObjectURL = (blob) => { captured = blob; return 'blob:test'; };
-  URL.revokeObjectURL = () => {};
-  try {
-    findByText(root, 'download')?.dispatch('click');
-  } finally {
-    URL.createObjectURL = original;
-    URL.revokeObjectURL = originalRevoke;
-  }
-  const payload = JSON.parse(await captured.text());
-  return payload.log ?? payload;
-}
-
-function findByText(root, text) {
-  if (root.textContent === text) return root;
-  for (const child of root.children ?? []) {
-    const found = findByText(child, text);
-    if (found) return found;
-  }
-  return null;
-}
 
 /**
  * `windowMs` of frames a hundred milliseconds apart — three times what a frame
@@ -872,7 +850,10 @@ async function mount(t, { doctor = () => {}, options = {}, machine = null, asset
     logToggle: findByLabel(root, 'open event log') ?? findByLabel(root, 'close event log'),
     // The log as the download carries it — the only way in from outside, and
     // the same path a bug report takes.
-    log: () => download(root),
+    log: async () => {
+      const payload = await downloadSession(root);
+      return payload.log ?? payload;
+    },
     start: () => findByClass(root, 'start-button').dispatch('click'),
     hide() {
       document_.visibilityState = 'hidden';
@@ -931,81 +912,4 @@ function spriteXs(context) {
     .slice(from < 0 ? 0 : from)
     .filter((call) => call[0] === 'drawImage' && call.length === 11)
     .map((call) => call[6]);
-}
-
-function virtualFrames() {
-  const queue = new Map();
-  const originalNow = performance.now;
-  const originalRequest = globalThis.requestAnimationFrame;
-  const originalCancel = globalThis.cancelAnimationFrame;
-  let wall = 0;
-  let nextId = 1;
-  performance.now = () => wall;
-  globalThis.requestAnimationFrame = (callback) => {
-    const id = nextId;
-    nextId += 1;
-    queue.set(id, callback);
-    return id;
-  };
-  globalThis.cancelAnimationFrame = (id) => queue.delete(id);
-  return {
-    advanceTo(milliseconds) {
-      wall = milliseconds;
-      const pending = [...queue.values()];
-      queue.clear();
-      for (const callback of pending) callback(wall);
-    },
-    // Wall time WITHOUT a frame, which is what every click really is: a viewer
-    // presses pause between two frames, and the runtime is then asked about an
-    // instant it has never rendered.
-    setWall(milliseconds) {
-      wall = milliseconds;
-    },
-    pending: () => queue.size,
-    wall: () => wall,
-    restore() {
-      performance.now = originalNow;
-      globalThis.requestAnimationFrame = originalRequest;
-      globalThis.cancelAnimationFrame = originalCancel;
-    },
-  };
-}
-
-function installAudio() {
-  const opened = [];
-  const original = globalThis.Audio;
-  globalThis.Audio = class {
-    constructor(url) {
-      this.url = url;
-      this.paused = true;
-      this.removed = false;
-      this.volume = 1;
-      this.currentTime = 0;
-      this.listeners = new Map();
-      opened.push(this);
-    }
-    addEventListener(type, handler) { this.listeners.set(type, handler); }
-    play() { this.paused = false; return Promise.resolve(); }
-    pause() { this.paused = true; }
-    removeAttribute() { this.removed = true; }
-  };
-  return { opened, restore: () => { globalThis.Audio = original; } };
-}
-
-function findByLabel(root, label) {
-  if (root.getAttribute?.('aria-label') === label) return root;
-  for (const child of root.children ?? []) {
-    const found = findByLabel(child, label);
-    if (found) return found;
-  }
-  return null;
-}
-
-function findByClass(root, name) {
-  if (root.className?.split(/\s+/).includes(name)) return root;
-  for (const child of root.children ?? []) {
-    const found = findByClass(child, name);
-    if (found) return found;
-  }
-  return null;
 }
