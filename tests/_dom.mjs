@@ -389,3 +389,119 @@ export function px(value) {
   const number = Number.parseFloat(String(value ?? '').replace('px', ''));
   return Number.isFinite(number) ? number : null;
 }
+
+/**
+ * The browser's own clock and audio, replaced so a run is scripted rather than
+ * timed: the loop fires at the instants a test names and at no others, and a
+ * narration that "plays" is an object a test can read rather than a device.
+ *
+ * Both live here rather than beside one suite because every test that mounts a
+ * whole player needs the same two, and a second copy of a fake is a second
+ * definition of what a frame is.
+ */
+export function virtualFrames() {
+  const queue = new Map();
+  const originalNow = performance.now;
+  const originalRequest = globalThis.requestAnimationFrame;
+  const originalCancel = globalThis.cancelAnimationFrame;
+  let wall = 0;
+  let nextId = 1;
+  performance.now = () => wall;
+  globalThis.requestAnimationFrame = (callback) => {
+    const id = nextId;
+    nextId += 1;
+    queue.set(id, callback);
+    return id;
+  };
+  globalThis.cancelAnimationFrame = (id) => queue.delete(id);
+  return {
+    advanceTo(milliseconds) {
+      wall = milliseconds;
+      const pending = [...queue.values()];
+      queue.clear();
+      for (const callback of pending) callback(wall);
+    },
+    // Wall time WITHOUT a frame, which is what every click really is: a viewer
+    // presses pause between two frames, and the runtime is then asked about an
+    // instant it has never rendered.
+    setWall(milliseconds) {
+      wall = milliseconds;
+    },
+    pending: () => queue.size,
+    wall: () => wall,
+    restore() {
+      performance.now = originalNow;
+      globalThis.requestAnimationFrame = originalRequest;
+      globalThis.cancelAnimationFrame = originalCancel;
+    },
+  };
+}
+
+export function installAudio() {
+  const opened = [];
+  const original = globalThis.Audio;
+  globalThis.Audio = class {
+    constructor(url) {
+      this.url = url;
+      this.paused = true;
+      this.removed = false;
+      this.volume = 1;
+      this.currentTime = 0;
+      this.listeners = new Map();
+      opened.push(this);
+    }
+    addEventListener(type, handler) { this.listeners.set(type, handler); }
+    play() { this.paused = false; return Promise.resolve(); }
+    pause() { this.paused = true; }
+    removeAttribute() { this.removed = true; }
+  };
+  return { opened, restore: () => { globalThis.Audio = original; } };
+}
+
+export function findByLabel(root, label) {
+  if (root.getAttribute?.('aria-label') === label) return root;
+  for (const child of root.children ?? []) {
+    const found = findByLabel(child, label);
+    if (found) return found;
+  }
+  return null;
+}
+
+export function findByClass(root, name) {
+  if (root.className?.split(/\s+/).includes(name)) return root;
+  for (const child of root.children ?? []) {
+    const found = findByClass(child, name);
+    if (found) return found;
+  }
+  return null;
+}
+
+/**
+ * The session as a bug report carries it: the compiled timeline with the log
+ * beside it, taken out through the panel's own download button — the only way
+ * in from outside, and the same path a real report takes.
+ */
+export async function downloadSession(root) {
+  const original = URL.createObjectURL;
+  const originalRevoke = URL.revokeObjectURL;
+  let captured = null;
+  URL.createObjectURL = (blob) => { captured = blob; return 'blob:test'; };
+  URL.revokeObjectURL = () => {};
+  try {
+    findByText(root, 'download')?.dispatch('click');
+  } finally {
+    URL.createObjectURL = original;
+    URL.revokeObjectURL = originalRevoke;
+  }
+  const payload = JSON.parse(await captured.text());
+  return payload;
+}
+
+export function findByText(root, text) {
+  if (root.textContent === text) return root;
+  for (const child of root.children ?? []) {
+    const found = findByText(child, text);
+    if (found) return found;
+  }
+  return null;
+}

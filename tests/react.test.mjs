@@ -98,6 +98,47 @@ test('caller-supplied React mounts, replaces, and unmounts the plain player unde
   assert.equal(host.shadowRoot.childNodes.length, 0, 'React cleanup left the plain player mounted');
 });
 
+test('the component hands the plates block over, and refuses to grow a story', async (t) => {
+  const browser = installBrowser();
+  t.after(browser.restore);
+  const StoryPlayer = createReactStoryPlayer(React);
+  const target = document.querySelector('#root');
+  const root = createRoot(target);
+  t.after(() => root.unmount());
+
+  // A block the player refuses is the cheapest proof it arrived: the plain
+  // player renders its own mount error, and this is the sentence the plates
+  // check writes.
+  await act(async () => {
+    root.render(React.createElement(StoryPlayer, {
+      story: story('Third moon'),
+      assetBase: 'https://storage.example/',
+      plates: { dell: 'day' },
+      className: 'story-slot',
+    }));
+    await settle();
+  });
+
+  const host = target.firstElementChild;
+  assert.equal(host.getAttribute('plates'), null, 'the plates block was spread onto the host element');
+  assert.match(
+    host.shadowRoot.querySelector('.load-status').textContent,
+    /object keyed by time/,
+    'the React adapter did not pass plates to the player',
+  );
+});
+
+test('a growing story is refused by the component rather than mounted as a finished one', () => {
+  const StoryPlayer = createReactStoryPlayer(React);
+  // Called directly: the refusal is the component's own, and React only ever
+  // relays it. This component remounts whenever the story object changes
+  // identity, which for a story being written is every scene.
+  assert.throws(
+    () => StoryPlayer({ story: story('Fourth moon'), assetBase: 'https://storage.example/', stream: { scenes: 3 } }),
+    /must be mounted with createStoryPlayer/,
+  );
+});
+
 function story(title) {
   return {
     storylang_version: 0,

@@ -17,9 +17,9 @@ DOM—no iframe, npm package, standalone page, or player-owned Story JSON fetch.
 </script>
 ```
 
-It is a timeline player. The bundle is compiled once to a schedule, every frame
-is a pure function of that schedule, and the picture is one canvas 2D stage over
-the hardware-decoded video plate:
+It is a timeline player. The bundle is compiled to a schedule, every frame is a
+pure function of that schedule, and the picture is one canvas 2D stage over the
+hardware-decoded video plate:
 
 ```text
 story.json → compileTimeline(bundle) → stateAt(timeline, bundle, t) → canvas
@@ -32,10 +32,14 @@ originals; a weak device is put on a cheaper tier rather than into a slideshow.
 `V0_POLICY` that the engine's tools and the phone client run, so every client
 plays one schedule.
 
+A story does not have to be finished to be watched: a host that has published
+one scene mounts it and hands over the rest as they land, and the timeline only
+ever grows — an appended scene never moves an event already played.
+
 See [Embedding and operations](docs/embedding.md) for the plain JavaScript and
-React APIs, how it plays, controls, renditions and device tiers, stable versus
-immutable URLs, storage/CORS configuration, publishing, rollback, and GitLab
-migration.
+React APIs, how it plays, following a story still being written, controls,
+renditions and device tiers, stable versus immutable URLs, storage/CORS
+configuration, publishing, rollback, and GitLab migration.
 
 ## Development
 

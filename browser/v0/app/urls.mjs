@@ -1,4 +1,9 @@
-/** Storage-root addressing for bucket-qualified v0 media. */
+/**
+ * Storage-root addressing for bucket-qualified v0 media, and the mount-time
+ * shape checks for what a host hands over beside the story — `requirePlatesBlock`
+ * is where the manifest's `plates` is settled, and `appendStoryScene` is where a
+ * scene published after the mount is qualified the same way the rest was.
+ */
 
 const SEGMENT = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 const BUCKET = /^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/;
@@ -126,7 +131,73 @@ export function resolveStoryAssets(story, assetBase) {
     throw new Error('story must carry a non-empty scenes array');
   }
   validateStoryReferences(source);
-  const scenes = (source?.scenes ?? []).map((scene, index) => ({
+  const scenes = source.scenes.map((scene, index) => projectScene(scene, resolve, index));
+
+  return deepFreeze({ ...source, cast, objects, audio, scenes });
+}
+
+/**
+ * The same story with one more scene on the end, resolved and frozen.
+ *
+ * The envelope a story is mounted with — cast, objects, audio — is whole before
+ * scene one exists, because the manifest carries it whole. So an appended scene
+ * is validated AGAINST that envelope rather than allowed to extend it: a step
+ * naming a character the manifest never carried is refused here, and the prefix
+ * the viewer is watching keeps playing.
+ *
+ * Scenes arrive in publishing order, and nothing here can check that — a host
+ * strips a published scene's own index when it joins it. A host that appends
+ * out of order gets a timeline whose earlier events move, which is the one
+ * promise this path exists to keep.
+ */
+export function appendStoryScene(story, scene, assetBase) {
+  const index = story?.scenes?.length ?? 0;
+  const source = cloneValue(scene);
+  const base = normalizeAssetBase(assetBase);
+  validateScene(source, story, index);
+  const resolved = projectScene(source, (key, where) => resolveMediaUrl(key, base, where), index);
+  return Object.freeze({
+    ...story,
+    scenes: Object.freeze([...story.scenes, deepFreeze(resolved)]),
+  });
+}
+
+/**
+ * The manifest's `plates` block, checked at the one door it comes in through.
+ *
+ * The compiler cannot report a bad block itself: a warning is an EVENT, so one
+ * raised on the hint path would appear in a prefix and not in the finished
+ * compile, and the prefix would stop being the finished timeline's opening.
+ * The shape is therefore settled here, where a refusal is the host's to fix and
+ * costs nobody a frame.
+ */
+export function requirePlatesBlock(plates) {
+  if (plates == null) return null;
+  if (!isRecord(plates)) throw new Error('plates must be an object keyed by place');
+  for (const [place, byTime] of Object.entries(plates)) {
+    if (!isRecord(byTime)) {
+      throw new Error(`plates place ${JSON.stringify(place)} must be an object keyed by time`);
+    }
+    for (const [time, plate] of Object.entries(byTime)) {
+      // The traced zones are the only field the compiler reads off a hinted
+      // plate, so a leaf without them is a block that answers nothing —
+      // silently, which is the failure this check exists to make loud.
+      if (!isRecord(plate) || !Array.isArray(plate.zones) || plate.zones.length === 0) {
+        throw new Error(`plates entry ${JSON.stringify(place)} at ${JSON.stringify(time)} is not a plate`);
+      }
+    }
+  }
+  // A block with no places in it answers nothing, which is exactly what no block
+  // at all does — so it IS no block. Said here rather than left to the caller,
+  // because the one caller that cares asks `if (!plates)`: an empty object is
+  // truthy, and a streaming mount would have passed the guard that exists to
+  // refuse a growing story with nothing to stage its unopened places from.
+  if (Object.keys(plates).length === 0) return null;
+  return deepFreeze(cloneValue(plates));
+}
+
+function projectScene(scene, resolve, index) {
+  return {
     ...scene,
     plate: {
       ...scene.plate,
@@ -134,9 +205,7 @@ export function resolveStoryAssets(story, assetBase) {
       poster: resolve(scene?.plate?.poster, `scene ${index} plate poster`),
     },
     steps: projectSteps(scene?.steps, resolve, index),
-  }));
-
-  return deepFreeze({ ...source, cast, objects, audio, scenes });
+  };
 }
 
 function isIpv4Address(value) {
@@ -150,12 +219,14 @@ function validateStoryReferences(story) {
   if (!isRecord(story.cast) || !isRecord(story.objects) || !isRecord(story.audio)) {
     throw new Error('story cast, objects, and audio must be objects');
   }
-  for (const [sceneIndex, scene] of story.scenes.entries()) {
-    if (!isRecord(scene) || !isRecord(scene.plate) || !Array.isArray(scene.steps)) {
-      throw new Error(`scene ${sceneIndex} must carry a plate object and steps array`);
-    }
-    validateSteps(scene.steps, story, `scene ${sceneIndex}`);
+  for (const [sceneIndex, scene] of story.scenes.entries()) validateScene(scene, story, sceneIndex);
+}
+
+function validateScene(scene, story, index) {
+  if (!isRecord(scene) || !isRecord(scene.plate) || !Array.isArray(scene.steps)) {
+    throw new Error(`scene ${index} must carry a plate object and steps array`);
   }
+  validateSteps(scene.steps, story, `scene ${index}`);
 }
 
 function validateSteps(steps, story, where) {

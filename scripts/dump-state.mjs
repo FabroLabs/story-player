@@ -19,6 +19,12 @@ import { stateAt } from '../browser/v0/core/state/state.mjs';
  *
  * Any built `story.json` works the same; the fixtures are what this checkout
  * has without the engine beside it.
+ *
+ * This reproduces a mount with no `plates`. A player given the manifest's block
+ * compiles with it, and for a place none of the published scenes opens the two
+ * legitimately disagree — so a frame from a streaming host that differs here is
+ * the hint doing its job, not a stage defect. Hold those against a player
+ * mounted without the block, or teach this tool to take one.
  */
 
 const [bundlePath, when] = process.argv.slice(2);

@@ -41,12 +41,28 @@ const KNOWN_KINDS = new Set(['chunk', 'cmd', 'together']);
 // for an argument that went missing on the way here.
 const RELEASE_FOLLOW = 'off';
 
-export function compileTimeline(bundle) {
+/**
+ * `plates` is the manifest's `{place: {time: plate}}` block, and it matters
+ * only while a story is still being written.
+ *
+ * A place is staged on whatever plate its own scene opens, and `#plateFor`
+ * finds that by looking through the scenes it was handed. Hand it a PREFIX of
+ * a growing story and the scene holding the answer may not be published yet —
+ * so the same character, staged by the same healed step, would stand in one
+ * place now and somewhere else once the story finished. The manifest knows
+ * every plate from the plan, before a single scene exists; passing it here is
+ * what makes a prefix stage the story the way the whole story will.
+ *
+ * Optional in every sense: a host with no block to offer may say so with
+ * nothing, `{}` or `null`, and gets exactly the compiler it had before.
+ */
+export function compileTimeline(bundle, options) {
   requireCompilableBundle(bundle);
+  const { plates } = options ?? {};
 
   const schedule = new Schedule();
   const recorder = new Recorder(() => schedule.now());
-  const director = new Director(bundle, schedule, recorder);
+  const director = new Director(bundle, schedule, recorder, plates);
 
   runToEnd(schedule, walkStory(director));
 
@@ -60,12 +76,17 @@ export function compileTimeline(bundle) {
 }
 
 /**
- * This must be a v0 bundle, and a whole one.
+ * This must be a v0 bundle, and it must have a scene in it.
  *
  * Both halves matter. A file with no scenes at all would compile to a valid,
  * publishable, zero-millisecond timeline; and timing a foreign bundle with
  * these rules and stamping it with its own version number is how a client gets
  * a confidently wrong schedule.
+ *
+ * Not that it must be FINISHED: a prefix of a story still being written is a
+ * first-class argument here, and compiles into the opening of the timeline the
+ * whole story will have. A completeness check added below would break every
+ * streaming mount.
  */
 function requireCompilableBundle(bundle) {
   if (bundle?.storylang_version !== 0) {
@@ -155,6 +176,7 @@ function* walkSceneEnd(director) {
  */
 class Director {
   #story;
+  #plates;
   #schedule;
   #recorder;
   #stage;
@@ -163,8 +185,9 @@ class Director {
   #sceneIndex = null;
   #currentLine = null;
 
-  constructor(story, schedule, recorder) {
+  constructor(story, schedule, recorder, plates = null) {
     this.#story = story;
+    this.#plates = plates ?? null;
     this.#schedule = schedule;
     this.#recorder = recorder;
     this.#stage = new TimelineStage(schedule, recorder);
@@ -314,7 +337,26 @@ class Director {
   #plateFor(place) {
     const open = this.#scene;
     if (open && place === open.place) return open.plate;
-    return this.#story.scenes?.find((candidate) => candidate.place === place)?.plate;
+    const staged = this.#story.scenes?.find((candidate) => candidate.place === place)?.plate;
+    return staged ?? this.#hintedPlateFor(place);
+  }
+
+  // Only ever reached for a place NO scene in hand stands in — so this can add
+  // an answer where there was none, never change one the scenes already gave.
+  // That ordering is the whole reason a prefix and the finished story agree,
+  // and it is the one line here that must not be rearranged.
+  //
+  // Which plate, when the block holds more than one for a place, is settled by
+  // the engine's time law: a story's clock never runs backward, so every scene
+  // that will stand here is still ahead, and the first of them — the one the
+  // scan above will return once it exists — is the one at the earliest hour.
+  // Sorting finds it, because `day`, `dusk` and `night` sort into their own
+  // chronological order. An hour that did not (`dawn`, `evening`) would break
+  // that quietly, and is the one change upstream that must come back here.
+  #hintedPlateFor(place) {
+    const byTime = this.#plates?.[place];
+    if (!byTime) return undefined;
+    return byTime[Object.keys(byTime).sort()[0]];
   }
 
   // Which band a step lands in, and how wide it is. A story that named no zone
