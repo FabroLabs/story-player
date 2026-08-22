@@ -1,8 +1,9 @@
 /**
  * The runtime: one clock, one loop, and a picture that is a function of t.
  *
- * Nothing here decides what the story does. `compileTimeline` decided that once,
- * before the first frame; `stateAt` answers what the instant looks like; this
+ * Nothing here decides what the story does. `compileTimeline` decided that
+ * before the first frame — and again, whole, for every scene a host appends
+ * after it; `stateAt` answers what the instant looks like; this
  * file only moves t forward and hands the answer to the three planes that show
  * it — the canvas, the plate and the media scheduler — plus the control bar that
  * reports it. That is the whole reason pause, seek and idle are three lines each

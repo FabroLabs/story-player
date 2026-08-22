@@ -1,4 +1,9 @@
-/** Storage-root addressing for bucket-qualified v0 media. */
+/**
+ * Storage-root addressing for bucket-qualified v0 media, and the mount-time
+ * shape checks for what a host hands over beside the story — `requirePlatesBlock`
+ * is where the manifest's `plates` is settled, and `appendStoryScene` is where a
+ * scene published after the mount is qualified the same way the rest was.
+ */
 
 const SEGMENT = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 const BUCKET = /^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/;

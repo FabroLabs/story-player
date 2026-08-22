@@ -76,12 +76,17 @@ export function compileTimeline(bundle, options) {
 }
 
 /**
- * This must be a v0 bundle, and a whole one.
+ * This must be a v0 bundle, and it must have a scene in it.
  *
  * Both halves matter. A file with no scenes at all would compile to a valid,
  * publishable, zero-millisecond timeline; and timing a foreign bundle with
  * these rules and stamping it with its own version number is how a client gets
  * a confidently wrong schedule.
+ *
+ * Not that it must be FINISHED: a prefix of a story still being written is a
+ * first-class argument here, and compiles into the opening of the timeline the
+ * whole story will have. A completeness check added below would break every
+ * streaming mount.
  */
 function requireCompilableBundle(bundle) {
   if (bundle?.storylang_version !== 0) {

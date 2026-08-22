@@ -9,14 +9,26 @@
 - The player accepts parsed Story JSON plus one trusted storage-root
   `assetBase`. Never add player-owned Story JSON fetching, a `storyUrl`, iframe,
   query-string, standalone HTML, or npm/tarball product.
+- A story still being written is the host's to grow: `stream` at mount, then
+  `appendScene` and `finishStory` on the handle, both refused on a player
+  mounted without it. Fetching and liveness stay the host's — the player has no
+  timeout and waits in its spinner until one of those calls or `destroy`
+  arrives. Streaming requires `plates`; the React component forwards `plates`
+  and throws on `stream`, because it keeps no handle and remounts on every new
+  scene. Keep additions to the handle additive and feature-detectable: host and
+  player never update together.
 - Every media value is `<bucket>/<object-key>`. Preserve strict path validation
   before resolving it under `assetBase`.
 - `browser/v0/core/**` is pure logic, the timeline compiler and `stateAt`
   included: no fetch, no clock, no DOM, and the same arguments always compile
-  to the same bytes. `compileTimeline` takes a second, optional one — the
-  manifest's `plates` block, which lets a host compile a story still being
-  written; it may only answer for a place no scene stands in, so a finished
-  story compiles the same with it or without. Only
+  to the same bytes. `compileTimeline(bundle, options)` takes a second, optional
+  argument — an options object, whose `plates` is the manifest block of that
+  name and lets a host compile a story still being written. Passing the block
+  itself where the options go is off rather than wrong: the hint reads as absent
+  and nothing says so. It is reached only for a place no scene in hand stands
+  in, so it can add a staging where the scenes gave none and never move one they
+  gave; where it does answer it answers for a finished story too, which is why
+  hosts pass it on both paths rather than only while streaming. Only
   `browser/v0/app/stage/canvas-stage.mjs` (which measures stage DOM and owns
   the 2D context) and `browser/v0/app/stage/video-plate.mjs` (which owns the
   plate `<video>`) touch stage DOM or canvas;

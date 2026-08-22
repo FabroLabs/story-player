@@ -521,9 +521,11 @@ button:focus-visible {
   box-shadow: 0 0 3rem rgba(143, 227, 182, 0.35);
 }
 
-/* The control bar sits ABOVE the two overlays: at the end of a story the end
+/* The control bar sits ABOVE all three overlays: at the end of a story the end
    overlay covers the stage, and the transport it turns into a replay has to
-   stay reachable through it. */
+   stay reachable through it; while the story waits for its writer the waiting
+   overlay covers it the same way, and the transport underneath still means
+   "carry on when the scene lands". */
 .controls {
   position: absolute;
   z-index: 8;

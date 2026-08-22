@@ -183,9 +183,11 @@ const splitKey = (key) => {
  * The scene loader: plans, fetches, decodes, and reports progress.
  *
  * Every media value it reads is already an absolute URL — `resolveStoryAssets`
- * qualified and validated the whole bundle at mount, renditions included — so
+ * qualified and validated the whole bundle at mount, renditions included, and
+ * `appendStoryScene` does the same for every scene published after it — so
  * nothing here builds a URL, and nothing here can be talked into leaving the
- * asset base.
+ * asset base. Both doors, because a story that grows arrives through the
+ * second one.
  */
 export function createSceneLoader({
   timeline, bundle, cache, signal = null, onWarning = () => {},

@@ -18,9 +18,27 @@ Every media value inside the bundle must already be bucket-qualified, such as
 `jobs/<story-id>/audio/<digest>.wav`. The player resolves both against the same
 base, for example `https://storage.example/`.
 
-Beside `story` and `assetBase`, `options` accepts two booleans, both off by
-default:
+Beside `story` and `assetBase`, `options` accepts the manifest's `plates` block,
+the `stream` object that says the story is still being written, and two
+booleans, both off by default:
 
+- `plates` is the manifest block of the same name, `{place: {time: plate}}`,
+  and each leaf is a whole plate—one carrying at least a non-empty `zones`
+  array, since the traced zones are the only field read off it. A leaf trimmed
+  down to its `poster` and `video` answers nothing, so it is refused by name
+  rather than accepted and quietly ignored. The compiler reaches the block only
+  for a place none of the story's own scenes opens—where the scenes answer, they
+  do—so it adds a staging where there was none and never moves one the story
+  already decided. Pass it whenever the
+  manifest carries it, finished story or not: a host that omits it stages a
+  healed step into an unopened place differently from a host that passes it, and
+  one story staged two ways is the thing the block exists to prevent. It is a
+  manifest block and the join drops it, so the host that has it is the one
+  joining the manifest and its scenes itself; a host handed an already-joined
+  `story.json` has nothing to pass and says so with nothing.
+- `stream` says the writer has not finished yet, and is refused without
+  `plates`. See [a story that is still being
+  written](#a-story-that-is-still-being-written).
 - `debug: true` shows the log button and its drawer, and the log downloaded from
   that drawer carries the compiled timeline.
 - `perf: true` measures the running player—frame times per scene, long frames,
@@ -89,6 +107,111 @@ schedules nothing.
 Multiple elements may own independent players. A single element may own only
 one live instance; destroy it before remounting.
 
+## A story that is still being written
+
+Playback does not have to wait for the writer. A host that has published one
+scene mounts it with `stream`, then hands over the rest as they land:
+
+```html
+<script type="module">
+  const url = '/api/stories/7e07/manifest.json';
+  const manifest = await fetch(url).then((response) => response.json());
+  const player = window.FabroStoryPlayer.createStoryPlayer(
+    document.querySelector('#performance'),
+    {
+      story: join(manifest, [await scene(1)]),
+      assetBase: 'https://storage.example/',
+      plates: manifest.plates,
+      stream: { scenes: manifest.scenes },
+    },
+  );
+  await player.ready;
+
+  for (let index = 2; index <= manifest.scenes; index += 1) {
+    await player.appendScene(await scene(index));
+  }
+  await player.finishStory('done');
+</script>
+```
+
+The host still owns every fetch, as it always has. The handle carries two more
+methods beside `ready` and `destroy`, and `stream` is what makes them mean
+something rather than refuse:
+
+- `appendScene(scene)` takes one parsed scene, in publication order. The grown
+  story is resolved and compiled whole before anything on screen moves, so a
+  scene naming a character the story never carried throws to the host with the
+  published prefix still playing—what to tell the viewer is the host's call. It
+  is refused after `finishStory`.
+- `finishStory(status)` takes `'done'` or `'failed'`, and the timeline treats
+  them alike: what has been published is the whole story, so the next end
+  reached is the real one. A story that stopped after two of six scenes ends
+  after two; the words about the missing ending belong beside the player rather
+  than inside it.
+
+Feature-detect the build. Host and player never update together—stable
+revalidates after 60 seconds and an open page keeps the build it loaded—so a
+host that can stream must keep the path it had before. There is no capability
+flag on the global to read first: the handle is the only place the answer shows,
+so the test is made on a mounted player, and both methods sit on every handle
+this build returns whether or not `stream` was passed. Read it before the viewer
+starts the story, and back out by destroying:
+
+```js
+const player = createStoryPlayer(element, {
+  story: prefix, assetBase, plates, stream,
+});
+if (typeof player.appendScene === 'function') {
+  // grow the mounted story, scene by scene
+} else {
+  // too old to follow a writer: throw this mount away and take the old path
+  player.destroy();
+  // wait for the writer to finish, then mount the whole story
+}
+```
+
+Do not skip the `destroy()`. A build too old to follow a growing story does not
+reject `stream`—it does not read the option at all, and the player left behind
+is one that will play the published prefix and then show the end, because as far
+as it knows the prefix is the story.
+
+What this build does read, it either honours or names. `stream` without
+`plates`, a `stream` carrying any key but `scenes`, and a `plates` block whose
+leaves are not plates are all refused at mount; `appendScene` and `finishStory`
+on a player mounted without `stream` are refused when called. A mount refusal
+does not throw out of `createStoryPlayer`, though: the player paints the reason
+onto its own surface and the handle comes back with a rejected `ready`, so a
+host that only wraps the call in `try` and never awaits `ready` learns nothing.
+Only a container that is not an `Element`, a `story` that is not a parsed
+object, and a Storylang version this build does not know throw synchronously.
+
+While the story grows:
+
+- The badge reads `scene 1 of N` from the first frame when `stream.scenes` says
+  how long the story will be. Pass it: it is the manifest's count, and without
+  it a viewer watches `scene 1 of 1` become `scene 2 of 2`, a story that never
+  seems to get anywhere. It is a floor rather than a promise—publish more scenes
+  than you declared and the badge counts what is really there—and `finishStory`
+  drops it to what actually arrived, so a story that ended early is never left
+  counting up to a total nobody wrote.
+- The remaining time on the bar grows with each append. An append never moves an
+  event the viewer has already crossed, so seeking back over a scene boundary
+  lands on the frame it landed on before.
+- When playback catches up with the writer the picture holds its last frame, the
+  stage dims, and a spinner says *the storyteller is still writing…* through a
+  `role="status"` node. The clock, the plate and the audio stop with it. The
+  transport does not: play and pause still work under the spinner, where they
+  mean "carry on when the scene lands" and "stay here", and the next
+  `appendScene` obeys whichever the viewer chose last. A story that was rolling
+  when it caught up rolls on by itself. Scrubbing back out of the wait also
+  leaves it, and nothing about the wait can be reached by a viewer who paused
+  earlier—a paused story never plays out its prefix to arrive there.
+
+Liveness is the host's, exactly as fetching is. The player has no timeout of its
+own: it waits in that spinner until `appendScene`, `finishStory` or `destroy`
+arrives. A host whose writer stalls is the one that decides how long to be
+patient, and then calls `finishStory('failed')`.
+
 ## React
 
 The artifact does not bundle React. Pass the application’s own React object to
@@ -109,9 +232,18 @@ export function Performance({ story }) {
 }
 ```
 
-Changing `story`, `assetBase`, `debug`, or `perf` destroys the previous instance
-before mounting the replacement. Unmounting destroys the instance. React
-StrictMode is supported.
+Changing `story`, `assetBase`, `plates`, `debug`, or `perf` destroys the
+previous instance before mounting the replacement. Unmounting destroys the
+instance. React StrictMode is supported.
+
+`plates` is a prop here for the same reason it is an option there: a component
+that mounted a finished story without it would stage that story differently from
+a host that passed it. `stream` is not a prop—it throws. The component keeps no
+handle to call `appendScene` on, and it remounts whenever `story` changes
+identity, which for a growing story is every scene; accepting the option would
+put it on the host `div` as an attribute and mount a player that shows the end
+at the end of the prefix. A React host following a writer calls
+`createStoryPlayer` on its own element instead.
 
 ## Controls
 
