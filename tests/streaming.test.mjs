@@ -179,6 +179,10 @@ test('what the mount refuses, it refuses at the door', async (t) => {
   await assert.rejects(refuses({ plates: { forest_glow: 'dusk' } }), /must be an object keyed by time/);
   // Streaming without the block is the divergence the block exists to prevent.
   await assert.rejects(refuses({ plates: null }), /must be mounted with its manifest plates block/);
+  // And a block with nothing in it is a block that answers nothing, which is the
+  // same divergence reached through a door the guard would otherwise hold open:
+  // an empty object is truthy.
+  await assert.rejects(refuses({ plates: {} }), /must be mounted with its manifest plates block/);
   await assert.rejects(refuses({ stream: { sceneCount: 3 } }), /"sceneCount", which it does not take/);
   await assert.rejects(refuses({ stream: { scenes: 0 } }), /whole number of scenes/);
   await assert.rejects(refuses({ stream: 'yes' }), /stream must be an object/);
@@ -205,6 +209,79 @@ test('the plates block reaches the compiler, at the mount and at every append', 
   // is already looking at.
   await player.appendScene(1);
   assert.equal(placedX(await player.timeline(), 'clover'), finished, 'the append compiled without the block');
+});
+
+test('a scene the player refused is named in the log, not only to the host', async (t) => {
+  const player = await mount(t);
+  player.start();
+  player.frames.advanceTo(1_000);
+
+  const stranger = player.scene(1);
+  stranger.steps[1].subjects = ['nobody_here'];
+  await assert.rejects(() => player.appendScene(stranger), /nobody_here/);
+
+  // The host was told by the throw. The log is the other audience: it is what a
+  // session is read back from afterwards, and a story that lost a scene here
+  // must not be indistinguishable from a story that was only ever this short.
+  const { log } = await player.timeline();
+  const refusal = log.find((entry) => entry.detail?.type === 'stream');
+  assert.ok(refusal, 'the download says nothing about the scene that was refused');
+  assert.match(refusal.detail.message, /nobody_here/);
+  assert.equal(refusal.scene_index, 1, 'the refusal does not say which scene it was');
+});
+
+test('a story its writer abandoned says so in the log, though not on the screen', async (t) => {
+  const player = await mount(t);
+  player.start();
+  player.frames.advanceTo(3_000);
+
+  await player.finishStory('failed');
+
+  const { log } = await player.timeline();
+  const stopped = log.filter((entry) => entry.detail?.type === 'stream');
+  assert.equal(stopped.length, 1, 'the download cannot tell this from a story that reached its ending');
+  assert.match(stopped[0].detail.message, /stopped before the story was finished/);
+});
+
+test('the scene that ends the wait is decoded before the spinner comes down', async (t) => {
+  let waiting = null;
+  const askedDuringWait = [];
+  const player = await mount(t, {
+    assets: (url) => {
+      if (waiting?.hidden === false) askedDuringWait.push(url);
+      return {};
+    },
+  });
+  waiting = player.waiting;
+  player.start();
+  player.frames.advanceTo(player.durationOf(1));
+  assert.equal(player.waiting.hidden, false, 'the story never reached the wait');
+  const before = askedDuringWait.length;
+
+  // Every other scene is either gated before the first frame or warmed while the
+  // story plays. This one is reached the instant it is published, so if the
+  // spinner leaves first the viewer gets the cut onto an undecoded scene.
+  await player.appendScene(1);
+  assert.ok(
+    askedDuringWait.length > before,
+    'the spinner came down before one asset of the appended scene had been asked for',
+  );
+});
+
+test('a sound at the last instant of the prefix is not heard again when the story grows', async (t) => {
+  const player = await mount(t, { whole: boundarySoundStory(), stream: { scenes: 2 } });
+  player.start();
+  player.frames.advanceTo(player.durationOf(1));
+
+  const creaks = () => player.audio.filter((media) => media.url.endsWith('creak.wav')).length;
+  assert.equal(creaks(), 1, 'the sound closing the published prefix never played');
+
+  // The wind-back re-crosses the prefix's final millisecond so the appended
+  // scene's own opening cues are not skipped. Both sit at that same instant and
+  // `cuesBetween` keys on time alone — the one already played must stay played.
+  await player.appendScene(1);
+  player.frames.advanceTo(player.durationOf(2) - 100);
+  assert.equal(creaks(), 1, 'the door creaked a second time as the next scene started');
 });
 
 test('a stream that does not say how long the story is counts what it has', async (t) => {
@@ -288,6 +365,44 @@ function forwardStory() {
   };
 }
 
+/**
+ * A story whose published prefix ends on a sound.
+ *
+ * `sound` costs the schedule nothing (`compile.mjs` performs it by recording the
+ * step and moving no clock), so the creak is stamped at exactly the prefix's
+ * `duration_ms` — the same instant the scene appended after it opens on. No
+ * chunk here carries a wav, so every `Audio` the run opens is that creak.
+ */
+function boundarySoundStory() {
+  return {
+    storylang_version: 0,
+    title: 'The door',
+    cast: { ruby: walker },
+    objects: {},
+    audio: { sfx: { creak: 'bucket/creak.wav' }, bgm: {} },
+    scenes: [
+      {
+        line: 1,
+        place: 'dell',
+        time: 'day',
+        plate: plateOf('dell', [[20, 80], [80, 80], [80, 100], [20, 100]]),
+        steps: [
+          { kind: 'cmd', line: 2, cmd: 'put', subjects: ['ruby'], position: null, facing: null },
+          { kind: 'chunk', line: 3, text: 'The door creaked shut.', duration_s: 1 },
+          { kind: 'cmd', line: 4, cmd: 'sound', name: 'creak' },
+        ],
+      },
+      {
+        line: 5,
+        place: 'pond',
+        time: 'dusk',
+        plate: plateOf('pond', [[60, 80], [90, 80], [90, 100], [60, 100]]),
+        steps: [{ kind: 'chunk', line: 6, text: 'The pond.', duration_s: 1 }],
+      },
+    ],
+  };
+}
+
 const placedX = (timeline, slug) => timeline.events
   .find((event) => event.op === 'place' && event.slug === slug)?.x;
 
@@ -327,8 +442,10 @@ async function doorman(t) {
  * A player mounted on a PREFIX, the way a host watching a writer mounts one:
  * the manifest's plates and scene count in hand, the scenes still coming.
  */
-async function mount(t, { published = 1, stream = { scenes: 3 }, whole = read(STEM, 'bundle') } = {}) {
-  const dom = installDom();
+async function mount(t, {
+  published = 1, stream = { scenes: 3 }, whole = read(STEM, 'bundle'), assets = () => ({}),
+} = {}) {
+  const dom = installDom({ assets });
   const frames = virtualFrames();
   const audioFakes = installAudio();
   // Registered before the fakes are taken away, because these run in the order

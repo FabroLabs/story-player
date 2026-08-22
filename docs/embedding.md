@@ -35,7 +35,9 @@ booleans, both off by default:
   one story staged two ways is the thing the block exists to prevent. It is a
   manifest block and the join drops it, so the host that has it is the one
   joining the manifest and its scenes itself; a host handed an already-joined
-  `story.json` has nothing to pass and says so with nothing.
+  `story.json` has nothing to pass and says so with nothing. `{}` is that same
+  nothing — a block with no places in it answers no question — so it does not
+  satisfy a streaming mount's requirement for one.
 - `stream` says the writer has not finished yet, and is refused without
   `plates`. See [a story that is still being
   written](#a-story-that-is-still-being-written).
@@ -206,6 +208,12 @@ While the story grows:
   when it caught up rolls on by itself. Scrubbing back out of the wait also
   leaves it, and nothing about the wait can be reached by a viewer who paused
   earlier—a paused story never plays out its prefix to arrive there.
+- An `appendScene` that ends a wait decodes the scene before the spinner comes
+  down, and only then resolves. It is the one scene nothing could warm ahead of
+  time, and the wait is the one moment the picture is already stopped, so the
+  decode is spent where nobody sees it rather than on the cut. A host feeding
+  scenes faster than they are played is unaffected: outside a wait the append
+  returns as soon as the timeline has been swapped.
 
 Liveness is the host's, exactly as fetching is. The player has no timeout of its
 own: it waits in that spinner until `appendScene`, `finishStory` or `destroy`

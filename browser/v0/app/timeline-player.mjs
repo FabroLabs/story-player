@@ -451,7 +451,7 @@ export function createTimelinePlayer({
    * never moves an event the viewer has already crossed, so the story they are
    * inside is the same story — only longer.
    */
-  function appendScene(next) {
+  async function appendScene(next) {
     if (destroyed) return;
     // The instant a waiting story stopped at is the instant the scene that has
     // just landed opens on, and the runtime crossed that slice already —
@@ -465,6 +465,14 @@ export function createTimelinePlayer({
     loader.setStory(story);
     controls.arm(durationMs);
     showBadge();
+    // The one scene in a story that nothing warms. Scene 0 is gated before the
+    // first frame and every later one is queued while the story plays, but a
+    // scene the viewer is already waiting on is reached the instant it is
+    // published — so resuming straight into it opens on a plate that has not
+    // loaded and stand-in thumbnails for the cast. The story is stopped and the
+    // spinner is already up: the decode is free here and visible one tick later.
+    if (waiting) await warmAppended();
+    if (destroyed) return;
     leaveWaiting(true);
     // The warm queue runs to the end of what was published and returns; the
     // scene that just landed is past that end, so it is asked for again from
@@ -473,6 +481,22 @@ export function createTimelinePlayer({
     // An appended scene that moved nothing puts the wait straight back up, and
     // that wait has already said what the transport reads.
     if (!waiting) controls.update({ tMs: clock.now(), playing: clock.running, ended });
+  }
+
+  /**
+   * The scene the wait is about to resume into, decoded before it is shown.
+   *
+   * A failure does not hold the story in the spinner. An asset that is never
+   * coming would keep a child looking at it forever, and the scene still plays
+   * without its sheets — placeholders and a named warning, which is what every
+   * other cut in this player already does when a decode fails.
+   */
+  async function warmAppended() {
+    try {
+      await loader.loadScene(sceneCount() - 1, viewport(), { keep: true });
+    } catch (error) {
+      warmingFailed(error);
+    }
   }
 
   /**

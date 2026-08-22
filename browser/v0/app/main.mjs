@@ -191,13 +191,30 @@ export function createV0Player({
     // A destroyed player has no story to grow, and the host racing its own
     // teardown is not an error worth reporting to it.
     if (destroyed || signal.aborted) return;
-    const grown = appendStoryScene(runtimeStory, scene, assetBase);
-    const compiled = compile(grown);
+    let grown;
+    let compiled;
+    // Named on the way past, the way the mount names what it could not open.
+    // The host is told by the throw, but the log is what a session is read back
+    // from later, and a story that lost a scene here would otherwise be
+    // indistinguishable in the download from a story that was only ever short.
+    try {
+      grown = appendStoryScene(runtimeStory, scene, assetBase);
+      compiled = compile(grown);
+    } catch (error) {
+      try {
+        log.warning(
+          { type: 'stream', message: `an appended scene was refused: ${error.message}` },
+          null,
+          runtimeStory.scenes?.length ?? null,
+        );
+      } catch { /* preserve the refusal */ }
+      throw error;
+    }
     runtimeStory = grown;
     timeline = compiled;
     panel.attachTimeline(timeline);
     logCompileRefusals(timeline);
-    runtime.appendScene({ bundle: runtimeStory, timeline });
+    await runtime.appendScene({ bundle: runtimeStory, timeline });
   }
 
   /** The writer stopped: what has been published is the whole story now. */
@@ -209,6 +226,15 @@ export function createV0Player({
     finished = true;
     await ready;
     if (destroyed || signal.aborted) return;
+    // The screen treats the two alike, deliberately: the published prefix is the
+    // story, and the words about a missing ending are the host's to write beside
+    // the player. The RECORD must not — a session whose writer died at scene two
+    // and one that reached its ending are otherwise the same download.
+    if (status === 'failed') {
+      try {
+        log.warning({ type: 'stream', message: 'the writer stopped before the story was finished' });
+      } catch { /* the story still ends */ }
+    }
     runtime.finishStory();
   }
 

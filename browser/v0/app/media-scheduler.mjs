@@ -50,6 +50,17 @@ export function createMediaScheduler({ timeline, bundle, onWarning = () => {} })
   // schedule is read from goes through here, so the cue after the append comes
   // off the grown timeline and the one before it off the same events as before.
   let story = { timeline, bundle };
+  // The last instant this handed cues out at, and how many it handed out there.
+  //
+  // A story still being written crosses ONE instant twice: the end of the prefix
+  // is also the opening of the scene that lands next, and the runtime winds the
+  // scheduler back to it so that scene's cues are not skipped. `cuesBetween`
+  // keys on `t_ms` alone and cannot tell the prefix's trailing cue from the new
+  // scene's opening one — but an append never moves an event already in the
+  // timeline, so the ones already started are exactly the first
+  // `deliveredAtCount` of them, in order.
+  let deliveredAtMs = null;
+  let deliveredAtCount = 0;
 
   return { advance, seek, tick, pause, resume, unlock, destroy, setStory };
 
@@ -60,10 +71,24 @@ export function createMediaScheduler({ timeline, bundle, onWarning = () => {} })
   /** Start whatever begins in `[fromMs, toMs)`. The runtime crosses time once. */
   function advance(fromMs, toMs) {
     if (destroyed) return;
-    for (const cue of cuesBetween(story.timeline, story.bundle, fromMs, toMs)) {
+    const cues = cuesBetween(story.timeline, story.bundle, fromMs, toMs);
+    // Only a wind-back can start a slice where the last one already had cues:
+    // going forward, `fromMs` is the previous `toMs`, which is past everything
+    // that slice contained. So this is zero on every ordinary frame.
+    let skip = fromMs === deliveredAtMs ? deliveredAtCount : 0;
+    for (const cue of cues) {
+      if (skip > 0 && cue.tMs === deliveredAtMs) {
+        skip -= 1;
+        continue;
+      }
       if (cue.kind === 'narration') startNarration(cue, toMs - cue.tMs, toMs);
       else if (cue.kind === 'sound') startSound(cue);
       else setMusic(cue, toMs);
+    }
+    if (cues.length > 0) {
+      const last = cues[cues.length - 1].tMs;
+      deliveredAtMs = last;
+      deliveredAtCount = cues.reduce((count, cue) => (cue.tMs === last ? count + 1 : count), 0);
     }
   }
 
@@ -76,6 +101,11 @@ export function createMediaScheduler({ timeline, bundle, onWarning = () => {} })
    */
   function seek(tMs) {
     if (destroyed) return;
+    // Nothing has been crossed in the pass that starts here, so nothing at the
+    // instant landed on is owed a skip. Left standing, a seek backwards onto the
+    // instant after a delivered one would silence real cues.
+    deliveredAtMs = null;
+    deliveredAtCount = 0;
     // A fade is a line drawn between two instants of STORY time, and a seek
     // moves that time out from under it: landing before a fade began leaves it
     // clamped at its starting volume for as long as it takes the story to reach

@@ -187,6 +187,12 @@ export function requirePlatesBlock(plates) {
       }
     }
   }
+  // A block with no places in it answers nothing, which is exactly what no block
+  // at all does — so it IS no block. Said here rather than left to the caller,
+  // because the one caller that cares asks `if (!plates)`: an empty object is
+  // truthy, and a streaming mount would have passed the guard that exists to
+  // refuse a growing story with nothing to stage its unopened places from.
+  if (Object.keys(plates).length === 0) return null;
   return deepFreeze(cloneValue(plates));
 }
 
