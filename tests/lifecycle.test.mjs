@@ -6,7 +6,7 @@ import { createMediaScheduler } from '../browser/v0/app/media-scheduler.mjs';
 import { createCanvasStage } from '../browser/v0/app/stage/canvas-stage.mjs';
 import { resolveStoryAssets } from '../browser/v0/app/urls.mjs';
 import { compileTimeline } from '../browser/v0/core/timeline/compile.mjs';
-import { fakeStageElements, installDom } from './_dom.mjs';
+import { fakeStageElements, findByText, installDom } from './_dom.mjs';
 
 function loadingStory() {
   return {
@@ -394,11 +394,3 @@ function findByClass(root, name) {
   return null;
 }
 
-function findByText(root, text) {
-  if (root.textContent === text) return root;
-  for (const child of root.children ?? []) {
-    const found = findByText(child, text);
-    if (found) return found;
-  }
-  return null;
-}

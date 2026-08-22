@@ -183,25 +183,38 @@ const splitKey = (key) => {
  * The scene loader: plans, fetches, decodes, and reports progress.
  *
  * Every media value it reads is already an absolute URL — `resolveStoryAssets`
- * qualified and validated the whole bundle at mount, renditions included — so
+ * qualified and validated the whole bundle at mount, renditions included, and
+ * `appendStoryScene` does the same for every scene published after it — so
  * nothing here builds a URL, and nothing here can be talked into leaving the
- * asset base.
+ * asset base. Both doors, because a story that grows arrives through the
+ * second one.
  */
 export function createSceneLoader({
   timeline, bundle, cache, signal = null, onWarning = () => {},
 }) {
   const plans = new Map();
   const warned = new Set();
+  // The story as it stands, because a streaming host grows it under us. The
+  // plan cache deliberately survives the swap: an appended scene never moves an
+  // earlier scene's events (`tests/compile-prefix.test.mjs` is that promise),
+  // so every plan already answered is still the answer.
+  let story = { timeline, bundle };
+  let warming = null;
 
-  return { plan, loadScene, queueRemainingScenes, sceneCount };
+  return { plan, loadScene, queueRemainingScenes, sceneCount, setStory };
+
+  /** The host published another scene: everything below plans from it now. */
+  function setStory(next) {
+    story = { timeline: next.timeline, bundle: next.bundle };
+  }
 
   function sceneCount() {
-    return bundle?.scenes?.length ?? 0;
+    return story.bundle?.scenes?.length ?? 0;
   }
 
   function plan(sceneIndex, viewport = {}) {
     const key = `${sceneIndex}:${viewport.fitScale ?? 1}:${viewport.dpr ?? 1}:${viewport.dprCap ?? ''}`;
-    if (!plans.has(key)) plans.set(key, sceneAssetPlan(timeline, bundle, sceneIndex, viewport));
+    if (!plans.has(key)) plans.set(key, sceneAssetPlan(story.timeline, story.bundle, sceneIndex, viewport));
     return plans.get(key);
   }
 
@@ -281,14 +294,34 @@ export function createSceneLoader({
    * only makes it fast.
    */
   async function queueRemainingScenes(fromIndex, viewport = {}, { onScene = () => {} } = {}) {
-    for (let index = fromIndex; index < sceneCount(); index += 1) {
-      // Asked again for every scene when the caller passes a function: the
-      // queue outlives a tier demotion and a resize, and the sheets a scene is
-      // warmed with have to be the ones it will be opened with.
-      const view = typeof viewport === 'function' ? viewport() : viewport;
-      const result = await loadScene(index, view, { concurrency: 1 });
-      throwIfAborted(signal);
-      onScene(index, result.total);
+    // One queue at a time, however many times a growing story asks: a run
+    // already under way reaches the scene that just landed on its own, because
+    // the count below is asked again every turn. It answers for its own failure
+    // too — handing the same rejection to a second caller would write one
+    // broken plan into the log twice, which breaks the same law as never
+    // writing it.
+    if (warming) return warming.then(() => {}, () => {});
+    warming = warmFrom(fromIndex, viewport, onScene);
+    return warming;
+  }
+
+  async function warmFrom(fromIndex, viewport, onScene) {
+    try {
+      for (let index = fromIndex; index < sceneCount(); index += 1) {
+        // Asked again for every scene when the caller passes a function: the
+        // queue outlives a tier demotion and a resize, and the sheets a scene
+        // is warmed with have to be the ones it will be opened with.
+        const view = typeof viewport === 'function' ? viewport() : viewport;
+        const result = await loadScene(index, view, { concurrency: 1 });
+        throwIfAborted(signal);
+        onScene(index, result.total);
+      }
+    } finally {
+      // Released in the turn the loop ends in rather than a microtask later: a
+      // call landing in that gap would be answered by a run that had already
+      // walked past the scene it is asking about, and that scene would never be
+      // warmed at all.
+      warming = null;
     }
   }
 

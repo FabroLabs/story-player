@@ -114,7 +114,11 @@ export function createControls(elements, {
 
   return { arm, show, update, destroy };
 
-  /** The story's length is known: the buttons mean something now. */
+  /**
+   * The length of what is published is known: the buttons mean something now.
+   * Said again, longer, on every appended scene — not a one-shot initialiser,
+   * and a guard that made it one would freeze the bar at the prefix's end.
+   */
   function arm(totalMs) {
     if (destroyed) return;
     durationMs = Number.isFinite(totalMs) && totalMs > 0 ? Math.round(totalMs) : 0;
