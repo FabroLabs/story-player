@@ -46,13 +46,21 @@ export function createMediaScheduler({ timeline, bundle, onWarning = () => {} })
   let held = new Set();
   let context = null;
   let destroyed = false;
+  // Swapped when a streaming host publishes another scene. Everything the
+  // schedule is read from goes through here, so the cue after the append comes
+  // off the grown timeline and the one before it off the same events as before.
+  let story = { timeline, bundle };
 
-  return { advance, seek, tick, pause, resume, unlock, destroy };
+  return { advance, seek, tick, pause, resume, unlock, destroy, setStory };
+
+  function setStory(next) {
+    story = { timeline: next.timeline, bundle: next.bundle };
+  }
 
   /** Start whatever begins in `[fromMs, toMs)`. The runtime crosses time once. */
   function advance(fromMs, toMs) {
     if (destroyed) return;
-    for (const cue of cuesBetween(timeline, bundle, fromMs, toMs)) {
+    for (const cue of cuesBetween(story.timeline, story.bundle, fromMs, toMs)) {
       if (cue.kind === 'narration') startNarration(cue, toMs - cue.tMs, toMs);
       else if (cue.kind === 'sound') startSound(cue);
       else setMusic(cue, toMs);
@@ -76,7 +84,7 @@ export function createMediaScheduler({ timeline, bundle, onWarning = () => {} })
     settleFades();
     stopNarration();
     for (const sound of [...sounds]) release(sound);
-    const sounding = soundingAt(timeline, bundle, tMs);
+    const sounding = soundingAt(story.timeline, story.bundle, tMs);
     if (sounding.narration) startNarration(sounding.narration, sounding.narration.offsetMs, tMs);
     if (!sounding.music) stopMusic(tMs);
     else if (sounding.music.name !== music?.name) setMusic(sounding.music, tMs);

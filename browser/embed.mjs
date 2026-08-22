@@ -28,6 +28,7 @@ export function createStoryPlayer(container, options) {
   try {
     performer = factory({
       root, elements, story: options.story, assetBase: options.assetBase,
+      plates: options.plates ?? null, stream: options.stream ?? null,
       signal: abort.signal, debug: options.debug === true, perf: options.perf === true,
     });
   } catch (error) {
@@ -40,6 +41,8 @@ export function createStoryPlayer(container, options) {
   });
   return Object.freeze({
     ready,
+    appendScene,
+    finishStory,
     destroy() {
       if (destroyed) return;
       destroyed = true;
@@ -49,6 +52,38 @@ export function createStoryPlayer(container, options) {
       if (root[OWNER] === token) delete root[OWNER];
     },
   });
+
+  /**
+   * The two calls a host watching a writer makes, and the two a host with a
+   * finished story never does.
+   *
+   * Always here, because that is what a feature test is for: a build too old to
+   * follow a growing story does not have them at all, and one that has them
+   * always means them. A player mounted without `stream` says so — it refuses
+   * rather than quietly accepting scenes it will never show.
+   */
+  async function appendScene(scene) {
+    if (destroyed) return;
+    if (typeof performer?.appendScene === 'function') await performer.appendScene(scene);
+    else await refuse();
+  }
+
+  async function finishStory(status) {
+    if (destroyed) return;
+    if (typeof performer?.finishStory === 'function') await performer.finishStory(status);
+    else await refuse();
+  }
+
+  /**
+   * Either the mount threw — `ready` is carrying the reason, and re-throwing it
+   * is the honest answer — or this build's performer does not follow a growing
+   * story, in which case saying nothing would be the one thing the feature test
+   * above promises never happens.
+   */
+  async function refuse() {
+    await ready;
+    throw new Error('this player cannot follow a story that is still being written');
+  }
 }
 
 function showError(elements, error) {

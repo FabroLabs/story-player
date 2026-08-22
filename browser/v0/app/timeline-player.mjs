@@ -27,8 +27,21 @@ const SKIP_MS = 10_000;
 export function createTimelinePlayer({
   elements, bundle, timeline, clock, loader, cache, log = null,
   capability = tierSettings('high'), perf = false, onWarning = () => {}, signal = null,
+  publishedComplete = true, expectedScenes = null,
 }) {
-  const durationMs = Math.max(0, Math.round(timeline?.duration_ms ?? 0));
+  // The story as it stands. A host watching a writer grows it under the runtime
+  // — `appendScene` swaps both halves at once — so nothing below reads the two
+  // arguments again after this line.
+  let story = { bundle, timeline };
+  let durationMs = Math.max(0, Math.round(timeline?.duration_ms ?? 0));
+  // Whether the end of what is published is the end of the STORY. Only the host
+  // knows: a prefix compiles its own `end` op because a compiler handed three
+  // scenes cannot know a fourth is coming.
+  let complete = publishedComplete !== false;
+  // What the badge counts up to while the story is still being written. Without
+  // it a viewer watches "scene 1 of 1" become "scene 2 of 2" — a story that
+  // never seems to get anywhere.
+  let expected = Number.isInteger(expectedScenes) && expectedScenes > 0 ? expectedScenes : null;
   // 24 fps is the ceiling the phone client holds and the cadence the sprite
   // sheets were authored at; a weak machine is given half of it rather than a
   // number of its own, so the loop skips every other tick exactly.
@@ -69,6 +82,12 @@ export function createTimelinePlayer({
   let frame = null;
   let ended = false;
   let started = false;
+  // Playback caught up with the writer: the stage dims, and the story is held
+  // here — not ended — until the next scene lands or the host says there is
+  // none. `resumeAfterAppend` is the transport's promise about what happens
+  // then, and a viewer may change it while they wait.
+  let waiting = false;
+  let resumeAfterAppend = false;
   let resumeWhenVisible = false;
   // A pointer is down on the scrub bar: the picture follows it, the sound is
   // held until it lands. See `seekTo`.
@@ -89,6 +108,8 @@ export function createTimelinePlayer({
     play,
     pause,
     seekTo,
+    appendScene,
+    finishStory,
     isPlaying: () => clock.running,
     // Sections are written at scene boundaries, so the scene ON SCREEN has not
     // been written yet — and that is exactly the scene somebody downloading a
@@ -150,6 +171,15 @@ export function createTimelinePlayer({
 
   function play() {
     if (destroyed) return;
+    // Waiting for a scene nobody has written yet: there is no time to move, so
+    // what the button means is the resume, and the story takes it the moment
+    // the scene lands. A transport that did nothing here would be a dead
+    // control at the one point a viewer is most likely to press it.
+    if (waiting) {
+      resumeAfterAppend = true;
+      controls.update({ tMs: clock.now(), playing: true, ended: false });
+      return;
+    }
     // Pressing play on an ended story is a replay, and a replay is a seek: the
     // transport has one button and the runtime has one way back to the start.
     if (ended) seekTo(0);
@@ -175,7 +205,13 @@ export function createTimelinePlayer({
   }
 
   function pause() {
-    if (destroyed || !clock.running) return;
+    if (destroyed) return;
+    if (waiting) {
+      resumeAfterAppend = false;
+      controls.update({ tMs: clock.now(), playing: false, ended: false });
+      return;
+    }
+    if (!clock.running) return;
     clock.pause();
     stopLoop();
     plate.pause();
@@ -194,6 +230,11 @@ export function createTimelinePlayer({
 
   function toggle() {
     if (destroyed) return;
+    if (waiting) {
+      if (resumeAfterAppend) pause();
+      else play();
+      return;
+    }
     if (ended || !clock.running) play();
     else pause();
   }
@@ -229,6 +270,10 @@ export function createTimelinePlayer({
       ended = false;
       elements.stage.end.hidden = true;
     }
+    // Scrubbing back out of the wait takes the spinner with it and leaves the
+    // story where the pointer put it, paused — the same thing scrubbing out of
+    // the end does. The append that arrives later finds nothing to resume.
+    if (waiting && t < durationMs) leaveWaiting(false);
     render(t, { force: true });
   }
 
@@ -335,7 +380,7 @@ export function createTimelinePlayer({
   function render(tMs, { force = false } = {}) {
     if (destroyed) return;
     const t = clamp(tMs);
-    const state = stateAt(timeline, bundle, t);
+    const state = stateAt(story.timeline, story.bundle, t);
     openScene(state);
     report(state.warnings);
     // Only a RUNNING story crosses time. A paused one is redrawn at the instant
@@ -354,8 +399,102 @@ export function createTimelinePlayer({
     plate.aim(state.camera);
     paint(state, force);
     say(state.subtitle);
-    controls.update({ tMs: t, playing: clock.running, ended });
-    if (!ended && (state.ended || (durationMs > 0 && t >= durationMs))) finish();
+    // The wait owns the transport while it is up: the button says what happens
+    // when the scene lands, and the stopped clock underneath would say the
+    // opposite — including to `toggle`, which reads the button back.
+    if (!waiting) controls.update({ tMs: t, playing: clock.running, ended });
+    if (ended || waiting) return;
+    if (!(state.ended || (durationMs > 0 && t >= durationMs))) return;
+    // The end of what is PUBLISHED is not the end of the story. Which of the
+    // two this is, only the host knows — so an incomplete story waits here
+    // instead of ending, and keeps waiting until a scene lands or the host
+    // says the writer stopped.
+    if (complete) finish();
+    else waitForScene();
+  }
+
+  /**
+   * The stage caught up with the writer.
+   *
+   * Everything stops exactly the way the end stops it, minus the end: the
+   * picture stays on its last frame, the spinner says why, and the transport
+   * keeps meaning something — `resumeAfterAppend` remembers whether the story
+   * was playing when it got here, so a viewer who paused before the last frame
+   * is not started again by a scene landing.
+   */
+  function waitForScene() {
+    waiting = true;
+    resumeAfterAppend = clock.running;
+    clock.pause();
+    stopLoop();
+    plate.pause();
+    media.pause();
+    elements.stage.waiting.hidden = false;
+    controls.update({ tMs: clock.now(), playing: resumeAfterAppend, ended: false });
+  }
+
+  function leaveWaiting(resume) {
+    if (!waiting) return;
+    waiting = false;
+    elements.stage.waiting.hidden = true;
+    const wanted = resumeAfterAppend;
+    resumeAfterAppend = false;
+    if (resume && wanted) play();
+  }
+
+  /**
+   * One more scene, published while the story is being watched.
+   *
+   * The schedule is recompiled by the caller and handed over whole rather than
+   * patched here, because that is what makes the swap safe: an appended scene
+   * never moves an event the viewer has already crossed, so the story they are
+   * inside is the same story — only longer.
+   */
+  function appendScene(next) {
+    if (destroyed) return;
+    // The instant a waiting story stopped at is the instant the scene that has
+    // just landed opens on, and the runtime crossed that slice already —
+    // against a schedule which had nothing in it there. So the scheduler is
+    // wound back to the end that is about to move, and no further: a line the
+    // story really did read would otherwise start over.
+    mediaNextMs = Math.min(mediaNextMs, durationMs);
+    story = { bundle: next.bundle, timeline: next.timeline };
+    durationMs = Math.max(0, Math.round(next.timeline?.duration_ms ?? 0));
+    media.setStory(story);
+    loader.setStory(story);
+    controls.arm(durationMs);
+    showBadge();
+    leaveWaiting(true);
+    // The warm queue runs to the end of what was published and returns; the
+    // scene that just landed is past that end, so it is asked for again from
+    // there. A queue still running answers for itself and this call is free.
+    if (started) void loader.queueRemainingScenes(sceneCount() - 1, viewport, {}).catch(warmingFailed);
+    // An appended scene that moved nothing puts the wait straight back up, and
+    // that wait has already said what the transport reads.
+    if (!waiting) controls.update({ tMs: clock.now(), playing: clock.running, ended });
+  }
+
+  /**
+   * The host says the writer stopped — for any reason, well or badly.
+   *
+   * There is one behaviour for both: the published prefix is the story, so the
+   * next end reached is the real one. A story that failed halfway is a story
+   * that ends early, and the words about the missing ending are the host's to
+   * write, next to the player rather than inside it.
+   */
+  function finishStory() {
+    if (destroyed || complete) return;
+    complete = true;
+    // The manifest's promise is over: a story that stopped after two of six
+    // scenes has two, and a badge still counting to six under an end screen
+    // would be the player insisting on an ending nobody wrote.
+    expected = null;
+    showBadge();
+    // Already sitting at the end of the prefix with the spinner up: that end
+    // was the story's, and nothing is coming to move it.
+    if (!waiting) return;
+    leaveWaiting(false);
+    finish();
   }
 
   function paint(state, force) {
@@ -410,9 +549,7 @@ export function createTimelinePlayer({
     // One perf section per scene, so a log from a slow phone says WHERE it was
     // slow rather than that it was.
     recorder?.scene(sceneIndex);
-    elements.badge.scene.textContent = sceneIndex === null
-      ? ''
-      : `scene ${sceneIndex + 1} of ${bundle?.scenes?.length ?? sceneIndex + 1}`;
+    showBadge();
     if (sceneIndex === null) {
       sheets = null;
       plate.showScene(null);
@@ -421,7 +558,7 @@ export function createTimelinePlayer({
     const view = viewport();
     const opened = sceneIndex;
     sheets = sceneSheets(loader.plan(sceneIndex, view), cache);
-    plate.showScene(bundle?.scenes?.[sceneIndex]?.plate ?? null);
+    plate.showScene(story.bundle?.scenes?.[sceneIndex]?.plate ?? null);
     void loader.loadScene(sceneIndex, view, { keep: true })
       // A running story draws the sheets as they land, on its next frame. A
       // PAUSED one has no next frame: a scrub into a scene that is not decoded
@@ -433,6 +570,24 @@ export function createTimelinePlayer({
         render(clock.now(), { force: true });
       })
       .catch(warmingFailed);
+  }
+
+  function showBadge() {
+    elements.badge.scene.textContent = sceneIndex === null
+      ? ''
+      : `scene ${sceneIndex + 1} of ${sceneTotal()}`;
+  }
+
+  // The manifest's count while the story is still being written, so the badge
+  // does not count up from one as scenes land. A host that named fewer scenes
+  // than it went on to publish is answered with what is actually there.
+  function sceneTotal() {
+    const published = sceneCount() || sceneIndex + 1;
+    return expected === null ? published : Math.max(expected, published);
+  }
+
+  function sceneCount() {
+    return story.bundle?.scenes?.length ?? 0;
   }
 
   /**

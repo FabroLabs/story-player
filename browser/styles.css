@@ -275,6 +275,45 @@ button:focus-visible {
    spelled out for. */
 .stage-actions[hidden] { display: none; }
 
+/* The stage caught up with the writer.
+
+   Dimmed rather than covered: what is under this is the last frame of the last
+   published scene, and the story carries on from exactly there. It sits below
+   the subtitle so the line a viewer was reading stays readable, and below the
+   transport so the play button they press while they wait is still theirs. */
+.waiting-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 0.85rem;
+  text-align: center;
+  padding: 2rem;
+  background: rgba(9, 16, 18, 0.58);
+  color: var(--text);
+  font-size: 0.95rem;
+}
+
+/* `display: grid` above outranks the attribute, the same way it does for the
+   quiet buttons and the end overlay — stated so a hidden overlay cannot come
+   back as a permanent dim over a playing story. */
+.waiting-overlay[hidden] { display: none; }
+
+.waiting-spinner {
+  width: 2.1rem;
+  height: 2.1rem;
+  border-radius: 50%;
+  border: 2px solid var(--track);
+  border-top-color: var(--accent-soft);
+  animation: waiting-turn 900ms linear infinite;
+}
+
+@keyframes waiting-turn {
+  to { transform: rotate(360deg); }
+}
+
 .start-ceremony,
 .end-overlay {
   position: absolute;

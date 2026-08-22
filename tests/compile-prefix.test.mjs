@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { compileTimeline } from '../browser/v0/core/timeline/compile.mjs';
-import { STEMS, read } from './_parity.mjs';
+import { STEMS, platesOf, read } from './_parity.mjs';
 
 /**
  * The promise a streaming host is sold: a story can be played while it is still
@@ -25,21 +25,6 @@ import { STEMS, read } from './_parity.mjs';
  * says why, and `storylang/v0/bundle.py` in the engine repository is what puts
  * the block in the manifest.
  */
-
-// The engine's manifest block, rebuilt from the same scenes it is derived from
-// (`_plates_by_place`): sorted at both levels, so a place staged at two times
-// resolves in the same order here as it arrives over the wire.
-function platesOf(bundle) {
-  const staged = bundle.scenes.map((scene) => [scene.place, scene.time, scene.plate]);
-  staged.sort(([placeA, timeA], [placeB, timeB]) => (
-    compare(placeA, placeB) || compare(timeA, timeB)
-  ));
-  const block = {};
-  for (const [place, time, plate] of staged) (block[place] ??= {})[time] = plate;
-  return block;
-}
-
-const compare = (left, right) => (left < right ? -1 : Number(left > right));
 
 /**
  * `prefix` is the whole story's opening, minus its own provisional ending.
