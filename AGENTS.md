@@ -12,10 +12,14 @@
 - Every media value is `<bucket>/<object-key>`. Preserve strict path validation
   before resolving it under `assetBase`.
 - `browser/v0/core/**` is pure logic, the timeline compiler and `stateAt`
-  included: no fetch, no clock, no DOM, and one bundle always compiles to the
-  same bytes. Only `browser/v0/app/stage/canvas-stage.mjs` (which measures stage
-  DOM and owns the 2D context) and `browser/v0/app/stage/video-plate.mjs` (which
-  owns the plate `<video>`) touch stage DOM or canvas;
+  included: no fetch, no clock, no DOM, and the same arguments always compile
+  to the same bytes. `compileTimeline` takes a second, optional one — the
+  manifest's `plates` block, which lets a host compile a story still being
+  written; it may only answer for a place no scene stands in, so a finished
+  story compiles the same with it or without. Only
+  `browser/v0/app/stage/canvas-stage.mjs` (which measures stage DOM and owns
+  the 2D context) and `browser/v0/app/stage/video-plate.mjs` (which owns the
+  plate `<video>`) touch stage DOM or canvas;
   `browser/v0/app/stage/draw-list.mjs` between them is pure. Preserve
   deterministic behavior; policy changes require contract tests and downstream
   mobile parity regeneration.
