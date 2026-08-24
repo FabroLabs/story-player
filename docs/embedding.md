@@ -284,6 +284,20 @@ seek landed in the middle of stays silent until the story crosses its next cue.
 While the bar is being dragged the picture follows the pointer and the sound is
 held; it is placed once, where the pointer is let go.
 
+Narration keeps the end of itself. A line's schedule is decided before anything
+has been heard, and its file costs a fetch to open, so a line that arrived late
+used to be cut short of its last words when the clock reached the end the
+schedule had guessed. The player now opens the next line's file while the
+current one is still playing, and a line that is sounding runs on until it has
+played what is left of it—while the story's clock is running, by at most
+`V0_POLICY.audio.narrationGraceMs`, which also bounds how far a line may overlap
+the opening of the one after it. Subtitles and the clock are untouched: only the
+audio runs on. The two instants the story stops at on its own—the end, and
+catching up with a writer who has not published the next scene yet—let the
+sentence being read finish rather than freezing it mid-word. The clock has
+stopped at both, so nothing is counting there: what ends the line is the file
+itself, or the next pause, seek or `destroy`.
+
 ## Sheets, renditions and device tiers
 
 Every clip in a current bundle carries `renditions`—the content-addressed webp
@@ -295,17 +309,39 @@ never requested. Renditions are re-gridded during the encode—a one-row strip
 becomes near-square—and the player derives that grid rather than reading the
 bundle's, which describes the original.
 
+Beside that ladder a current bundle also carries `rendition_chunks`: the same
+four steps cut into short runs of frames, each step a `{frames_per_chunk, keys}`
+block whose `keys` are in frame order. Where they exist the player draws from
+one chunk at a time and holds only the chunk under a character's playhead plus
+the next, so a scene costs a few megabytes of decoded bitmap per character
+instead of a whole clip—one 81-frame clip at 512 px is 4608×4608, which is 81 MB
+of RAM on its own and more than a small device's entire budget. The chunk
+holding frame `f` is `floor(f / frames_per_chunk)`, its cell inside that chunk is
+`f % frames_per_chunk` counted row-major, and every
+chunk of a clip—including a short last one, which the encode pads—is laid out on
+`nearSquare(min(frames_per_chunk, clip.frames))`. The scene's opening chunks are
+part of the gate; the rest are fetched as the story reaches them.
+
 A bundle built before renditions existed still plays. It falls back to the
-original sheets and says so once per sheet in the log.
+original sheets and says so once per sheet in the log. A bundle with renditions
+but no chunks plays from the whole sheets, exactly as before they existed; a
+chunk block whose key list does not match the clip's frame count is refused the
+same way, with one line in the log, because reading it would draw the wrong
+frames rather than fail.
 
 The device tier is probed once, before the first frame, from `deviceMemory`,
 `hardwareConcurrency` and 2D-canvas support:
 
 | tier | what changes |
 |---|---|
-| `high` | full budget: 96 MB of decoded sheets, DPR capped at 2, 24 Hz, ground shadows |
+| `high` | full budget: 96 MB of decoded sheets, DPR capped at 2, 24 Hz |
 | `mid` | the decoded-sheet budget halves to 48 MB; the picture is identical |
-| `low` | DPR capped at 1.5, 12 Hz draw cadence, 48 MB, no ground shadows |
+| `low` | DPR capped at 1.5, 12 Hz draw cadence, 48 MB |
+
+The ground shadow under each character is currently off on every tier: it is
+drawn at the stand line, and a sprite's cell carries transparent rows under the
+feet, so it sat visibly below the character. It comes back when the contact line
+is measured from the artwork.
 
 With `perf: true`, frames that stay slow for five seconds demote the tier while
 the story runs; the tier never climbs back inside one session. A browser that
@@ -346,9 +382,10 @@ no longer CSS backgrounds: they are fetched with `mode: 'cors'` and
 `credentials: 'omit'`, then decoded with `createImageBitmap` (falling back to
 `Image.decode`) before they can be drawn into the canvas. A media bucket without
 a CORS rule fails every sheet request from a host on another origin, and the
-story plays with placeholder silhouettes and one warning per sheet. Poster and
-plate video are plain elements and would still load, which is why the symptom
-looks like missing characters rather than a missing background.
+story plays with placeholder silhouettes and one warning per object—which on a
+chunked bundle is one per chunk, so a single 81-frame clip at 512 px is twenty-one
+lines. Poster and plate video are plain elements and would still load, which is
+why the symptom looks like missing characters rather than a missing background.
 
 Publisher configuration:
 

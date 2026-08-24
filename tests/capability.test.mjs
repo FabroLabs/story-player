@@ -82,7 +82,8 @@ test('a roomy machine is high, and says nothing argued otherwise', () => {
   assert.equal(probe.tier, 'high');
   assert.deepEqual(probe.reasons, []);
   assert.equal(probe.bitmapBudget, DEFAULT_BUDGET_BYTES);
-  assert.equal(probe.shadows, true);
+  // Off everywhere while the contact line is unsettled — see `tierSettings`.
+  assert.equal(probe.shadows, false);
 });
 
 test('4 GB or 4 cores is mid; 3 GB or 2 cores is low, and each names its signal', () => {
@@ -198,13 +199,13 @@ test('the tier numbers are the ones already shipped, not a second copy', () => {
     dprCap: DPR_CAP,
     drawHz: DEFAULT_DRAW_HZ,
     bitmapBudget: DEFAULT_BUDGET_BYTES,
-    shadows: true,
+    shadows: false,
   });
   assert.deepEqual(tierSettings('mid'), {
     dprCap: DPR_CAP,
     drawHz: DEFAULT_DRAW_HZ,
     bitmapBudget: SMALL_DEVICE_BUDGET_BYTES,
-    shadows: true,
+    shadows: false,
   });
   assert.deepEqual(tierSettings('low'), {
     dprCap: LOW_TIER_DPR_CAP,

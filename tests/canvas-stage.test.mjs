@@ -44,7 +44,10 @@ test('a lowered tier repaints at once, cheaper, without waiting for a frame', (t
   const state = stageState({ actors: [{ slug: 'ruby', clip: 'idle', x: 50, feetY: 900, heightPx: 300 }] });
   stage.draw(state, book({ drawables }));
   const backing = elements.canvas.width;
-  assert.ok(context.of('createRadialGradient').length > 0, 'the default tier drew no shadow to begin with');
+  // A stage built without a tier keeps shadows on, and this is the only place
+  // left that paints one: no tier asks for shadows any more (`capability.mjs`),
+  // so this assertion is what still pins `paintShadow` working at all.
+  assert.ok(context.of('createRadialGradient').length > 0, 'a stage with shadows on drew none');
 
   const from = context.calls.length;
   stage.setTier({ dprCap: 1.5, shadows: false });
@@ -329,6 +332,29 @@ test('a resize repaints the instant already on screen', (t) => {
   assert.equal(context.of('drawImage').length, drawnOnce + 1, 'the resized canvas was left blank');
 });
 
+test('a resize repaints through the stand-in, not over it', (t) => {
+  // Now the renditions are cut up, a cell that is not decoded at this instant is
+  // ordinary — every chunk boundary is one. A repaint that goes around the
+  // stand-in puts the missing lozenge where a character was for as long as the
+  // next chunk takes to arrive, and a phone turned mid-swap is exactly that.
+  const { stage, context, resize, elements } = mounted(t, { frame: [1920, 1080] });
+  const actors = [{ slug: 'ruby', x: 50, feetY: 90, heightPx: 200, clip: 'idle' }];
+  stage.draw(stageState({ actors }), book({ drawables: { 'ruby.webp': bitmap(512, 512) } }));
+  stage.draw(stageState({ actors }), book({ drawables: {} }));
+
+  const from = context.calls.length;
+  elements.frame.getBoundingClientRect = () => ({ width: 960, height: 540 });
+  resize();
+  const since = context.calls.slice(from);
+
+  assert.equal(since.filter(([name]) => name === 'drawImage').length, 1, 'the character was not stood in for');
+  assert.deepEqual(
+    since.filter(([name]) => name === 'createLinearGradient'),
+    [],
+    'the resize painted the placeholder over a character we still had a picture of',
+  );
+});
+
 test('a browser with no 2D context says so once and then draws nothing', (t) => {
   const dom = installDom();
   t.after(dom.restore);
@@ -451,9 +477,13 @@ test('the sheet book answers per clip, per prop, and per decoded url', () => {
   const decoded = { 'ruby-walk.webp': bitmap(2880, 2880) };
   const sheets = sceneSheets(plan, { get: (url) => decoded[url] ?? null });
 
-  assert.deepEqual(sheets.sheet('ruby', 'walk_left'), { url: 'ruby-walk.webp', grid: [9, 9] });
-  assert.equal(sheets.sheet('ruby', 'sleep'), null);
-  assert.equal(sheets.sheet('bramble', 'idle_right'), null);
+  assert.deepEqual(
+    sheets.sheet('ruby', 'walk_left', 17),
+    { url: 'ruby-walk.webp', grid: [9, 9], chunkStart: 0 },
+    'a clip with no chunk ladder is one sheet at every frame, as it always was',
+  );
+  assert.equal(sheets.sheet('ruby', 'sleep', 0), null);
+  assert.equal(sheets.sheet('bramble', 'idle_right', 0), null);
   assert.deepEqual(sheets.prop('lantern'), { url: 'lantern.svg' });
   assert.equal(sheets.prop('stump'), null);
   assert.equal(sheets.drawable('ruby-walk.webp'), decoded['ruby-walk.webp']);

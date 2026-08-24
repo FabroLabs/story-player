@@ -16,7 +16,7 @@
  * "how big is the stage really" from drifting away from the picture.
  */
 
-import { DPR_CAP } from '../assets/rendition-picker.mjs';
+import { DPR_CAP, chunkAt } from '../assets/rendition-picker.mjs';
 import { DEFAULT_STAGE_RESOLUTION } from '../../policy.mjs';
 import { buildDrawList } from './draw-list.mjs';
 
@@ -271,7 +271,11 @@ export function createCanvasStage(elements, {
       return;
     }
     sizeStage(last.list.width, last.list.height);
-    paintDrawList(context, last.list, { lookup: last.lookup, scale: renderScale, shadows: shadowed });
+    // Through `paint`, not around it: a cell that is not decoded at this
+    // instant is ordinary now the renditions are cut up — every chunk boundary
+    // is one — and repainting without the stand-in puts the missing lozenge
+    // where a character was for as long as the next chunk takes to arrive.
+    paint(last.list, last.lookup);
   }
 
   function fitStage() {
@@ -305,12 +309,16 @@ export function createCanvasStage(elements, {
  */
 export function sceneSheets(plan, cache) {
   const sheets = new Map();
-  for (const sheet of plan?.sheets ?? []) {
-    sheets.set(`${sheet.slug} ${sheet.clip}`, { url: sheet.url, grid: sheet.grid });
-  }
+  for (const sheet of plan?.sheets ?? []) sheets.set(`${sheet.slug} ${sheet.clip}`, sheet);
   const props = new Map((plan?.props ?? []).map((prop) => [prop.slug, { url: prop.url }]));
   return {
-    sheet: (slug, clip) => sheets.get(`${slug} ${clip}`) ?? null,
+    // Per FRAME, not per clip: where the bundle carries a chunk ladder, which
+    // object a clip is drawn from changes as it loops, and `chunkAt` answers
+    // both halves at once — the chunk, and the frame that chunk starts at.
+    sheet: (slug, clip, frame) => {
+      const held = sheets.get(`${slug} ${clip}`);
+      return held ? chunkAt(held, frame) : null;
+    },
     prop: (slug) => props.get(slug) ?? null,
     drawable: (url) => cache?.get(url) ?? null,
   };

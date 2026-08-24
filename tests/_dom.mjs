@@ -444,6 +444,9 @@ export function installAudio() {
     constructor(url) {
       this.url = url;
       this.paused = true;
+      // A narration file is opened one line before its cue, so "opened" and
+      // "asked to play" are no longer the same set of media.
+      this.played = false;
       this.removed = false;
       this.volume = 1;
       this.currentTime = 0;
@@ -451,7 +454,7 @@ export function installAudio() {
       opened.push(this);
     }
     addEventListener(type, handler) { this.listeners.set(type, handler); }
-    play() { this.paused = false; return Promise.resolve(); }
+    play() { this.played = true; this.paused = false; return Promise.resolve(); }
     pause() { this.paused = true; }
     removeAttribute() { this.removed = true; }
   };

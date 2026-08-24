@@ -18,6 +18,15 @@
  * The story is `tests/fixtures/parity/golden_push_dusk.bundle.json` — the same
  * corpus the compiler and the state core are held to, already carrying
  * bucket-qualified renditions, and its sheets are real objects in that bucket.
+ *
+ * That fixture carries no `rendition_chunks`, so every page here exercises the
+ * WHOLE-SHEET path and its assertions mean what they say. Point any of them at a
+ * chunked story and they stop meaning it: `loadScene` would then fetch one or
+ * two chunks per clip, `cacheBytes <= budgetBytes` would be trivially true, and
+ * the canvas harness — which drives `show()` by hand and never calls
+ * `holdScene` — would scrub across frames whose chunks nobody asked for and
+ * measure the stage's stand-in thumbnails. A chunked harness has to hold the
+ * window on a cadence the way `timeline-player.mjs` does.
  */
 
 import { expect, test } from '@playwright/test';
@@ -218,7 +227,10 @@ const CANVAS_PAGE = `<!doctype html>
     elements.ceremony.classList.add('is-gone');
     const cache = createBitmapCache();
     const loader = createSceneLoader({ timeline, bundle, cache });
-    const stage = createCanvasStage(elements.stage);
+    // \`shadows: false\` is what every tier answers (\`capability.mjs\`), and this
+    // harness is the one place that builds a stage without asking a tier — a
+    // default of its own would measure a picture the shipped player never draws.
+    const stage = createCanvasStage(elements.stage, { shadows: false });
     const plate = createVideoPlate(elements.stage);
     const books = new Map();
     let scene = null;
