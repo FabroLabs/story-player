@@ -303,9 +303,14 @@ The device tier is probed once, before the first frame, from `deviceMemory`,
 
 | tier | what changes |
 |---|---|
-| `high` | full budget: 96 MB of decoded sheets, DPR capped at 2, 24 Hz, ground shadows |
+| `high` | full budget: 96 MB of decoded sheets, DPR capped at 2, 24 Hz |
 | `mid` | the decoded-sheet budget halves to 48 MB; the picture is identical |
-| `low` | DPR capped at 1.5, 12 Hz draw cadence, 48 MB, no ground shadows |
+| `low` | DPR capped at 1.5, 12 Hz draw cadence, 48 MB |
+
+The ground shadow under each character is currently off on every tier: it is
+drawn at the stand line, and a sprite's cell carries transparent rows under the
+feet, so it sat visibly below the character. It comes back when the contact line
+is measured from the artwork.
 
 With `perf: true`, frames that stay slow for five seconds demote the tier while
 the story runs; the tier never climbs back inside one session. A browser that

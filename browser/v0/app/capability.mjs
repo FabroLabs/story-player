@@ -55,6 +55,35 @@ export const MID_CORE_COUNT = 4;
 export const MID_DEVICE_MEMORY_GB = 4;
 
 /**
+ * The shadow is off on every tier, and this is the line that decides it.
+ *
+ * The ellipse under the feet is drawn at the stand line, and a sprite hangs off
+ * that line by its CELL's bottom edge — but the artwork stops above it, by
+ * anything from 3% to 21% of the cell on the clips measured. So the shadow sat
+ * visibly below the character (qa Q2.4). The DOM stage this replaced had no such
+ * gap because `filter: drop-shadow` traced the artwork's own alpha every frame,
+ * which is exactly the per-sprite, per-frame blur the canvas move deleted.
+ *
+ * Measuring the artwork instead was tried and is recorded in the task plan
+ * (amendment, 2026-08-24): the contact line has to be the clip's LOWEST frame,
+ * not its first, and reading it costs a decoded-pixel readback per sheet. Until
+ * that trade is settled, no shadow is better than one under the feet: a picture
+ * without a shadow reads as a style, one with a detached shadow reads as broken.
+ *
+ * Nothing else changed — the draw list still emits its `shadow` command and the
+ * stage still knows how to paint one, so the shadow comes back by making this
+ * `true`. The `low` tier's own `false` below is a different decision (a radial
+ * gradient per character per frame is the most expensive thing on the list) and
+ * stays whatever this one becomes.
+ *
+ * `createCanvasStage` keeps its own `shadows = true` default, because a stage
+ * asked for nothing should still be a complete stage — every product path
+ * passes this value. The one caller that does not is the dev e2e harness, and
+ * it now says `false` explicitly so that what it measures is what ships.
+ */
+const SHADOWS = false;
+
+/**
  * The numbers a tier stands for.
  *
  * `mid` costs the picture nothing: it halves the decoded-sheet budget and
@@ -75,7 +104,7 @@ export function tierSettings(tier) {
     dprCap: DPR_CAP,
     drawHz: DEFAULT_DRAW_HZ,
     bitmapBudget: tier === 'mid' ? SMALL_DEVICE_BUDGET_BYTES : DEFAULT_BUDGET_BYTES,
-    shadows: true,
+    shadows: SHADOWS,
   };
 }
 

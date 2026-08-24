@@ -34,19 +34,29 @@ import { beginMotion, motionAt, redirectMotion } from './motion.mjs';
  */
 export function stateAt(timeline, bundle, tMs) {
   requireMatchingPair(timeline, bundle);
-  if (!Number.isFinite(tMs)) {
-    // Answering 0 would look exactly like a legitimate `stateAt(…, 0)` — the
-    // story back at its opening frame — which reads to a viewer as a restart.
-    throw new Error(`t must be a finite number of milliseconds, got ${JSON.stringify(tMs)}`);
-  }
-
-  const t = Math.max(0, tMs);
+  const t = storyTimeMs(tMs);
   const world = new World(bundle);
   for (const event of timeline.events ?? []) {
     if (event.t_ms > t) break;
     world.apply(event);
   }
   return world.pictureAt(t);
+}
+
+/**
+ * The instant a caller asked for, as story time.
+ *
+ * Shared with `cursor.mjs` so the warm read and the cold one refuse and clamp
+ * the same t: a runtime that swapped one for the other and quietly started
+ * answering 0 for `undefined` would be the worst kind of change.
+ */
+export function storyTimeMs(tMs) {
+  if (!Number.isFinite(tMs)) {
+    // Answering 0 would look exactly like a legitimate `stateAt(…, 0)` — the
+    // story back at its opening frame — which reads to a viewer as a restart.
+    throw new Error(`t must be a finite number of milliseconds, got ${JSON.stringify(tMs)}`);
+  }
+  return Math.max(0, tMs);
 }
 
 /**
@@ -60,7 +70,7 @@ export function stateAt(timeline, bundle, tMs) {
  * scale 1 on the no-floor line with no depth and no crowding — a completely
  * plausible-looking picture that is wrong from top to bottom.
  */
-function requireMatchingPair(timeline, bundle) {
+export function requireMatchingPair(timeline, bundle) {
   if (timeline?.timeline_version !== 1) {
     throw new Error(
       `timeline_version is ${JSON.stringify(timeline?.timeline_version)}, not 1 — this player `
@@ -85,7 +95,15 @@ function requireMatchingPair(timeline, bundle) {
   }
 }
 
-class World {
+/**
+ * The fold itself: every event applied in order, and the picture read off it.
+ *
+ * Exported for `cursor.mjs` and for nothing else — it is the same object
+ * `stateAt` builds and throws away on every call, and a caller that keeps one
+ * is taking responsibility for winding it forward in event order. The public
+ * surface (`tooling/v0.mjs`, the window global) publishes `stateAt` only.
+ */
+export class World {
   #bundle;
   #bands = new BandBook();
   #actors = new Map();

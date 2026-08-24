@@ -218,7 +218,10 @@ const CANVAS_PAGE = `<!doctype html>
     elements.ceremony.classList.add('is-gone');
     const cache = createBitmapCache();
     const loader = createSceneLoader({ timeline, bundle, cache });
-    const stage = createCanvasStage(elements.stage);
+    // \`shadows: false\` is what every tier answers (\`capability.mjs\`), and this
+    // harness is the one place that builds a stage without asking a tier — a
+    // default of its own would measure a picture the shipped player never draws.
+    const stage = createCanvasStage(elements.stage, { shadows: false });
     const plate = createVideoPlate(elements.stage);
     const books = new Map();
     let scene = null;

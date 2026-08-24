@@ -543,9 +543,16 @@ test('a machine that says it is weak is drawn for cheaply', async (t) => {
     cheap.painted <= full.painted * 0.6,
     `the low tier drew ${cheap.painted} frames against the default tier's ${full.painted}`,
   );
-  // The shadow under each character is the most expensive thing on the list.
-  assert.equal(cheap.shadows, 0, 'the low tier still painted shadows');
-  assert.ok(full.shadows > 0, 'the default tier stopped painting shadows');
+  // The shadow under each character was the third lever between these two, and
+  // it is off on every tier now (see `tierSettings`) — so the assertion is that
+  // NOBODY paints one, and the tiers differ by the two levers left.
+  //
+  // Said out loud: while that is true, nothing in the suite carries a `true`
+  // through `capability.shadows` into a painted gradient, so the runtime's
+  // plumbing to the stage — `createTimelinePlayer`'s construction call and
+  // `applyTier`'s `setTier` — is unpinned. Turning shadows back on fails this
+  // line first; restore the `full.shadows > 0` half here when it does.
+  assert.equal(cheap.shadows + full.shadows, 0, 'a shadow was painted while shadows are off');
   // And the canvas is backed at 1.5x rather than the ladder's 2x ceiling.
   assert.ok(cheap.backing < full.backing, `low backed the canvas at ${cheap.backing}, default at ${full.backing}`);
   strong.destroy();
@@ -611,7 +618,7 @@ test('a demotion makes the picture cheaper while the story is still running', as
     after.painted <= before.painted * 0.6,
     `after two demotions the loop still drew ${after.painted} against ${before.painted}`,
   );
-  assert.ok(before.shadows > 0 && after.shadows === 0, 'the low tier is still painting shadows');
+  assert.equal(before.shadows + after.shadows, 0, 'a shadow was painted while shadows are off');
   assert.ok(after.backing < before.backing, `the canvas is still backed at ${after.backing} device pixels`);
   player.destroy();
 });
