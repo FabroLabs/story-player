@@ -429,7 +429,11 @@ export function createTimelinePlayer({
     clock.pause();
     stopLoop();
     plate.pause();
-    media.pause();
+    // The instant the stage caught up with the writer is the end of the line
+    // the prefix stopped on, so `settle` rather than `pause`: the sentence is
+    // finished under the spinner instead of being frozen mid-word and picked up
+    // again when the scene lands.
+    media.settle();
     elements.stage.waiting.hidden = false;
     controls.update({ tMs: clock.now(), playing: resumeAfterAppend, ended: false });
   }
@@ -642,7 +646,11 @@ export function createTimelinePlayer({
     clock.pause();
     stopLoop();
     plate.pause();
-    media.pause();
+    // The clock runs out ON the last line, never past it, so the end card goes
+    // up while the last sentence is still being read — and it is left to finish
+    // rather than cut, which is the whole of the reported bug at the one
+    // instant the schedule's own grace cannot reach.
+    media.settle();
     recorder?.flush('end');
     recorder?.pause();
     elements.stage.end.hidden = false;

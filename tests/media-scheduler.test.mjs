@@ -11,10 +11,11 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { createMediaScheduler } from '../browser/v0/app/media-scheduler.mjs';
-import { DUCKED_MUSIC_VOLUME, MUSIC_VOLUME } from '../browser/v0/policy.mjs';
+import { DUCKED_MUSIC_VOLUME, MUSIC_VOLUME, NARRATION_GRACE_MS } from '../browser/v0/policy.mjs';
 
 const NARRATION_ONE = 'https://storage.example/jobs/s/audio/one.wav';
 const NARRATION_TWO = 'https://storage.example/jobs/s/audio/two.wav';
+const NARRATION_THREE = 'https://storage.example/jobs/s/audio/three.wav';
 const CALM = 'https://storage.example/assets/audio/calm.mp3';
 const THUD = 'https://storage.example/assets/audio/thud.wav';
 const NIGHT = 'https://storage.example/assets/audio/night.mp3';
@@ -29,11 +30,15 @@ test('each cue starts once, as the clock crosses it', (t) => {
   const scheduler = createMediaScheduler(story());
 
   scheduler.advance(0, 1);
-  assert.deepEqual(urls(media), [CALM, NARRATION_ONE], 'the opening music and line did not both start at t=0');
+  // The second line's file is opened here rather than at its own cue — it is
+  // fetched under the first line's seconds so that it can start on time.
+  assert.deepEqual(urls(media), [CALM, NARRATION_ONE, NARRATION_TWO], 'the opening music and line did not both start at t=0');
+  assert.equal(media[2].paused, true, 'the line opened ahead of its cue started playing early');
 
   scheduler.advance(1, 2_600);
   scheduler.advance(2_600, 3_001);
-  assert.deepEqual(urls(media), [CALM, NARRATION_ONE, THUD, NARRATION_TWO]);
+  assert.deepEqual(urls(media), [CALM, NARRATION_ONE, NARRATION_TWO, THUD]);
+  assert.equal(media[2].paused, false, 'the second line opened a second file instead of the one held ready');
 
   // Crossing the same time again must not replay it: the runtime never rewinds
   // its slice, but a resumed player asking for a slice it already handed over
@@ -51,14 +56,20 @@ test('a pause stops every medium, and resume starts the same ones again', (t) =>
   assert.equal(music.paused, false);
   assert.equal(narration.paused, false);
 
+  const ahead = media.at(-1);
   scheduler.pause();
   assert.equal(music.paused, true);
   assert.equal(narration.paused, true);
+  assert.equal(ahead.paused, true, 'the file opened ahead was never playing to be paused');
 
+  const opened = media.length;
   scheduler.resume();
   assert.equal(music.paused, false);
   assert.equal(narration.paused, false);
-  assert.equal(media.length, 2, 'resume opened new media instead of continuing the ones it paused');
+  assert.equal(media.length, opened, 'resume opened new media instead of continuing the ones it paused');
+  // A file opened ahead of its cue is not something a resume may start: the
+  // story has not reached the line it belongs to.
+  assert.equal(ahead.paused, true, 'the resume started a line the story has not reached');
 });
 
 test('a seek plays what is sounding there, from the right offset, and no sound effects', (t) => {
@@ -136,14 +147,17 @@ test('destroy releases every medium it opened', (t) => {
   const scheduler = createMediaScheduler(story());
 
   scheduler.advance(0, 1);
+  const opened = media.length;
   scheduler.destroy();
   for (const item of media) {
     assert.equal(item.paused, true);
+    // The file opened ahead of its cue is torn down with the rest: nothing else
+    // would ever reach it, and it would keep its download running.
     assert.equal(item.removed, true);
   }
   // Nothing after teardown reaches a medium again.
   scheduler.advance(1, 9_000);
-  assert.equal(media.length, 2);
+  assert.equal(media.length, opened);
 });
 
 test('a refusal the device made is named — once per medium, whatever it was', async (t) => {
@@ -160,7 +174,10 @@ test('a refusal the device made is named — once per medium, whatever it was', 
     ['bgm: music would not start', 'narration: narration would not start', 'sfx: sound would not start'],
     'a device that refused the music or the sound effect did so silently',
   );
-  assert.equal(media.every((item) => item.paused && item.removed), true);
+  assert.equal(media.filter((item) => item.played).every((item) => item.paused && item.removed), true);
+  // The file opened ahead of its cue was never asked to play, so nothing
+  // refused it and nothing let it go: it is still waiting for its own line.
+  assert.deepEqual(media.filter((item) => !item.played).map((item) => item.removed), [false]);
 });
 
 test('the pause this file performs itself is not a failure', async (t) => {
@@ -365,6 +382,200 @@ test('a resume the device refuses is named', async (t) => {
   assert.equal(media.every((item) => item.paused), true);
 });
 
+test('a line that arrived late is not cut at the end the schedule guessed', (t) => {
+  const media = installAudio(t);
+  const scheduler = createMediaScheduler(story());
+
+  scheduler.advance(0, 1);
+  const line = media[1];
+  // The file took 300 ms to arrive, so at its scheduled end 300 ms of it has
+  // not been heard. That is the bug: those 300 ms were the last words.
+  line.fire('playing');
+  scheduler.tick(300);
+  line.currentTime = 1.701;
+  scheduler.tick(2_001);
+  assert.equal(line.paused, false, 'the line was cut at the schedule’s end, losing its tail');
+
+  line.currentTime = 2.001;
+  scheduler.tick(2_301);
+  assert.equal(line.paused, true, 'the line ran on past the end it had actually earned');
+});
+
+test('a line the story never catches up with is cut at the grace', (t) => {
+  const media = installAudio(t);
+  const scheduler = createMediaScheduler(story());
+
+  scheduler.advance(0, 1);
+  const line = media[1];
+  // A file that stalls never plays another millisecond, so what it is "owed"
+  // keeps sliding forward. Without the bound it would hold the line open — and
+  // the music ducked under it — for the rest of the story.
+  line.fire('playing');
+  scheduler.tick(1_500);
+  scheduler.tick(2_000 + NARRATION_GRACE_MS - 1);
+  assert.equal(line.paused, false);
+  scheduler.tick(2_000 + NARRATION_GRACE_MS);
+  assert.equal(line.paused, true, 'a stalled file held its line open past the grace');
+});
+
+test('a line handed over keeps its tail, and only its tail', (t) => {
+  const media = installAudio(t);
+  const scheduler = createMediaScheduler(backToBack());
+
+  scheduler.advance(0, 1);
+  const [music, one, two] = media;
+  one.fire('playing');
+  scheduler.tick(300);
+  one.currentTime = 1.7;
+  scheduler.tick(2_000);
+
+  // The next line's cue falls on the previous line's scheduled end — which is
+  // 300 ms before the previous line has finished speaking.
+  scheduler.advance(1, 2_001);
+  assert.equal(two.paused, false, 'the next line waited for the one before it');
+  assert.equal(one.paused, false, 'the tail was cut at the hand-over — the reported bug');
+  assert.equal(round(music.volume), DUCKED_MUSIC_VOLUME, 'the music swelled between two lines');
+
+  scheduler.tick(2_300);
+  assert.equal(one.paused, true, 'the tail outstayed the end it had earned');
+  assert.equal(two.paused, false, 'the line the story is on was stopped along with the tail');
+
+  // The duck belongs to the pair. A tail ending while the next line is still
+  // being read must not bring the music up under it — and only a tick past the
+  // whole fade can tell a held duck from one that was let go.
+  scheduler.tick(2_300 + 250);
+  assert.equal(round(music.volume), DUCKED_MUSIC_VOLUME, 'the music came up under the line that was still being read');
+});
+
+test('a line still being read is left to finish when the story stops around it', (t) => {
+  const media = installAudio(t);
+  const scheduler = createMediaScheduler(backToBack());
+
+  scheduler.advance(0, 1);
+  const [music, one, two] = media;
+  one.fire('playing');
+  // The clock runs out on the last line, or the writer has not published the
+  // next scene: everything stops except the sentence being spoken.
+  scheduler.settle();
+  assert.equal(one.paused, false, 'the last sentence was cut off by the story stopping around it');
+  assert.equal(music.paused, true, 'the music played on under a stopped story');
+  assert.equal(two.paused, true, 'a file opened ahead was started by the story stopping');
+
+  scheduler.resume();
+  assert.equal(music.paused, false, 'the music never came back');
+  assert.equal(one.paused, false, 'the sentence that was finishing was restarted');
+  assert.equal(two.paused, true, 'the resume started a line the story has not reached');
+});
+
+test('a line that never arrived is not left speaking, by a settle or by a hand-over', (t) => {
+  const media = installAudio(t);
+  const scheduler = createMediaScheduler(backToBack());
+
+  // No `playing`: the file never arrived. There is nothing to protect, and
+  // carrying it would hold the duck for a line nobody can hear.
+  scheduler.advance(0, 1);
+  const one = media[1];
+  scheduler.settle();
+  assert.equal(one.paused, true, 'a line that was never heard was left "speaking"');
+
+  scheduler.resume();
+  scheduler.advance(1, 2_001);
+  assert.equal(one.removed, true, 'a line that never played became a tail');
+});
+
+test('a hand-over inside the line before it does not keep a line nobody heard', (t) => {
+  const media = installAudio(t);
+  // The compiler schedules chunks back to back, but the player is handed a
+  // timeline, not a promise: one whose next cue falls INSIDE the line before it
+  // is data it has to survive. Only there can a line be handed over while its
+  // own scheduled end is still ahead.
+  const overlapping = backToBack();
+  overlapping.timeline.events[2].t_ms = 1_500;
+  const scheduler = createMediaScheduler(overlapping);
+
+  scheduler.advance(0, 1);
+  const one = media[1];
+  scheduler.advance(1, 1_501);
+
+  assert.equal(one.removed, true, 'a line that was never heard was carried as a tail');
+  assert.equal(media[2].paused, false, 'the line the story moved on to never started');
+});
+
+test('a line whose file runs past the schedule keeps the end of the file', (t) => {
+  const media = installAudio(t);
+  const scheduler = createMediaScheduler(story());
+
+  scheduler.advance(0, 1);
+  const line = media[1];
+  // The schedule is measured from the wav; the m4a played here is 50 ms longer,
+  // and that difference is the end of the last word.
+  line.duration = 2.05;
+  line.fire('playing');
+  scheduler.tick(0);
+
+  line.currentTime = 2;
+  scheduler.tick(2_000);
+  assert.equal(line.paused, false, 'the line was cut at the schedule rather than at the end of its file');
+
+  line.currentTime = 2.05;
+  scheduler.tick(2_050);
+  assert.equal(line.paused, true, 'the line ran past the end of its own file');
+});
+
+test('a seek away from every line cuts the tail it leaves behind', (t) => {
+  const media = installAudio(t);
+  const scheduler = createMediaScheduler(backToBack());
+
+  scheduler.advance(0, 1);
+  const one = media[1];
+  one.fire('playing');
+  scheduler.tick(300);
+  one.currentTime = 1.7;
+  scheduler.advance(1, 2_001);
+  assert.equal(one.paused, false, 'this proves nothing: there is no tail to leave behind');
+
+  // Nothing is sounding out here, so nothing starts and nothing hands over —
+  // the tail has to be cut by the seek itself.
+  scheduler.seek(4_500);
+  assert.equal(one.paused, true, 'a voice from another moment talked over the instant the seek landed on');
+  assert.equal(one.removed, true);
+});
+
+test('a line at the edge of a story still being written gets its next file when the scene lands', (t) => {
+  const media = installAudio(t);
+  const growing = backToBack();
+  const prefix = { ...growing, timeline: { ...growing.timeline, events: growing.timeline.events.slice(0, 2) } };
+  const scheduler = createMediaScheduler(prefix);
+
+  scheduler.advance(0, 1);
+  assert.deepEqual(urls(media), [CALM, NARRATION_ONE], 'a prefix with nothing after it opened a file anyway');
+
+  // The scene the story was waiting for lands, and with it the line that comes
+  // after the one being read out. Without this the last line of every published
+  // prefix paid its own fetch — exactly the cut, at every append boundary.
+  scheduler.setStory(growing);
+  assert.deepEqual(urls(media), [CALM, NARRATION_ONE, NARRATION_TWO], 'the appended line was not opened ahead');
+  assert.equal(media.at(-1).played, false, 'the appended line started before the story reached it');
+});
+
+test('a seek cuts the tail as well as the line', (t) => {
+  const media = installAudio(t);
+  const scheduler = createMediaScheduler(backToBack());
+
+  scheduler.advance(0, 1);
+  const one = media[1];
+  one.fire('playing');
+  scheduler.tick(300);
+  one.currentTime = 1.7;
+  scheduler.advance(1, 2_001);
+  assert.equal(one.paused, false, 'this proves nothing: there is no tail to cut');
+
+  // A seek lands somewhere the tail was never sounding.
+  scheduler.seek(3_500);
+  assert.equal(one.paused, true, 'a tail from another moment kept playing over the seek');
+  assert.equal(one.removed, true);
+});
+
 /**
  * Music from the first instant, two narration lines, one sound effect between
  * them — the smallest story that can tell every question here apart.
@@ -403,6 +614,128 @@ function story() {
   };
 }
 
+test('only one tail at a time, and a tail that ends says so', (t) => {
+  const media = installAudio(t);
+  const scheduler = createMediaScheduler(threeLines());
+
+  scheduler.advance(0, 1);
+  const [music, one, two] = media;
+  one.fire('playing');
+  scheduler.tick(300);
+  one.currentTime = 1.7;
+
+  // Line two starts while line one is still owed 300 ms, and is itself late.
+  scheduler.advance(1, 2_001);
+  two.fire('playing');
+  scheduler.tick(2_100);
+
+  // Line three's turn comes while BOTH of the others could still be sounding.
+  // Three voices at once is never right: the older tail goes.
+  scheduler.advance(2_001, 2_301);
+  assert.equal(one.paused, true, 'a second tail was allowed, so two lines spoke over a third');
+  assert.equal(one.removed, true, 'the older tail was left holding its file');
+  assert.equal(two.paused, false, 'the tail the hand-over just made was cut');
+
+  // A tail that reaches its own end lets go there, rather than waiting for a
+  // tick to notice — and the music stays down under the line still being read.
+  two.fire('ended');
+  assert.equal(two.removed, true, 'a tail that ended was left holding its file');
+  scheduler.tick(2_301 + 250);
+  assert.equal(round(music.volume), DUCKED_MUSIC_VOLUME, 'the music came up while a line was still being read');
+});
+
+test('one file ahead, and never one the story has turned away from', (t) => {
+  const media = installAudio(t);
+  const scheduler = createMediaScheduler(threeLines());
+
+  scheduler.advance(0, 1);
+  const held = media[2];
+  assert.equal(held.url, NARRATION_TWO, 'the file held ready was not the next line');
+
+  // The seek lands on line three, so the file held for line two is one the
+  // story will never reach — and there is no line after three to replace it.
+  scheduler.seek(2_400);
+  assert.equal(held.removed, true, 'a file the story turned away from was left downloading');
+
+  scheduler.advance(2_400, 4_301);
+  assert.deepEqual(
+    urls(media).filter((url) => url !== CALM),
+    [NARRATION_ONE, NARRATION_TWO, NARRATION_THREE],
+    'a line was opened twice, or more than one line was held ahead',
+  );
+});
+
+/**
+ * Three lines back to back, the middle one short enough that its own tail is
+ * still owed when the third begins — the only shape that can ask what happens
+ * to a tail while another tail is already waiting.
+ */
+function threeLines() {
+  const chunk = (tMs, seconds, audio, line) => ({
+    source: 'step',
+    kind: 'chunk',
+    t_ms: tMs,
+    detail: { text: 'One.', duration_s: seconds, audio },
+    line,
+    scene_index: 0,
+  });
+  return {
+    timeline: {
+      timeline_version: 1,
+      storylang_version: 0,
+      duration_ms: 4_300,
+      events: [
+        { source: 'step', kind: 'cmd', cmd: 'music', t_ms: 0, detail: { name: 'calm' }, line: 1, scene_index: 0 },
+        chunk(0, 2, NARRATION_ONE, 2),
+        chunk(2_000, 0.3, NARRATION_TWO, 3),
+        chunk(2_300, 2, NARRATION_THREE, 4),
+      ],
+    },
+    bundle: {
+      storylang_version: 0,
+      audio: { sfx: {}, bgm: { calm: CALM } },
+    },
+  };
+}
+
+/**
+ * Two lines with nothing between them, the way a real story schedules them:
+ * the second cue falls on the first line's own end, which is what makes the
+ * hand-over — and the tail it has to protect — possible at all.
+ */
+function backToBack() {
+  return {
+    timeline: {
+      timeline_version: 1,
+      storylang_version: 0,
+      duration_ms: 4_000,
+      events: [
+        { source: 'step', kind: 'cmd', cmd: 'music', t_ms: 0, detail: { name: 'calm' }, line: 1, scene_index: 0 },
+        {
+          source: 'step',
+          kind: 'chunk',
+          t_ms: 0,
+          detail: { text: 'One.', duration_s: 2, audio: NARRATION_ONE },
+          line: 2,
+          scene_index: 0,
+        },
+        {
+          source: 'step',
+          kind: 'chunk',
+          t_ms: 2_000,
+          detail: { text: 'Two.', duration_s: 2, audio: NARRATION_TWO },
+          line: 3,
+          scene_index: 0,
+        },
+      ],
+    },
+    bundle: {
+      storylang_version: 0,
+      audio: { sfx: {}, bgm: { calm: CALM } },
+    },
+  };
+}
+
 /** Collect every `Audio` the scheduler opens, and undo the global afterwards. */
 function installAudio(t, { onPlay = () => Promise.resolve() } = {}) {
   const opened = [];
@@ -411,6 +744,7 @@ function installAudio(t, { onPlay = () => Promise.resolve() } = {}) {
     constructor(url) {
       this.url = url;
       this.paused = true;
+      this.played = false;
       this.removed = false;
       this.volume = 1;
       this.currentTime = 0;
@@ -420,7 +754,7 @@ function installAudio(t, { onPlay = () => Promise.resolve() } = {}) {
     }
     addEventListener(type, handler) { this.listeners.set(type, handler); }
     fire(type) { this.listeners.get(type)?.({ type }); }
-    play() { this.paused = false; return onPlay(this) ?? Promise.resolve(); }
+    play() { this.played = true; this.paused = false; return onPlay(this) ?? Promise.resolve(); }
     pause() { this.paused = true; }
     removeAttribute() { this.removed = true; }
   };

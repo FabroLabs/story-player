@@ -31,6 +31,8 @@ test('a story that catches up with its writer waits, and the next scene starts i
   assert.equal(player.end.hidden, true, 'a story still being written showed its end screen');
   assert.equal(player.frames.pending(), 0, 'a waiting story is still asking for frames');
   assert.equal(player.video.paused, true, 'the plate kept rolling under the spinner');
+  // Nothing here ever reported itself playing, so nothing was mid-sentence when
+  // the wait came: the line a viewer WOULD have been hearing is the test below.
   assert.equal(player.audio.every((media) => media.paused), true, 'a line kept reading itself out under the spinner');
   // The manifest's count, from the first frame: a viewer must not watch
   // "scene 1 of 1" become "scene 2 of 2" and wonder how long this goes on.
@@ -54,6 +56,33 @@ test('a story that catches up with its writer waits, and the next scene starts i
     `an appended line was opened at ${player.audio.at(-1).url}, outside the asset base`,
   );
   assert.equal(player.audio.at(-1).paused, false, 'the line of the appended scene never started');
+});
+
+test('the sentence the prefix ends on is finished under the spinner, not frozen mid-word', async (t) => {
+  const player = await mount(t);
+  player.start();
+  // The prefix ends ON its last line, the same way a whole story does, so the
+  // wait lands in the middle of a sentence somebody is listening to. Frozen
+  // there, the viewer heard half a word, then the spinner, then the other half
+  // when the scene arrived.
+  const cue = [...player.timelineOf(1).events].reverse().find(
+    (event) => event.kind === 'chunk' && typeof event.detail?.audio === 'string',
+  );
+  player.frames.advanceTo(cue.t_ms + 100);
+  const line = player.audio.find((media) => media.url.endsWith(cue.detail.audio));
+  assert.ok(line?.played, 'the line the prefix ends on was never started');
+  // The scene's own trailing time is shorter than the lag a narration file
+  // costs, so a line that arrived late is still speaking when the prefix runs
+  // out — and the fake never advances the file, which is that worst case.
+  line.listeners.get('playing')({ type: 'playing' });
+
+  player.frames.advanceTo(player.durationOf(1));
+  assert.equal(player.waiting.hidden, false, 'the story did not stop to wait');
+  assert.equal(line.paused, false, 'the wait cut the sentence it landed in the middle of');
+  assert.equal(player.video.paused, true, 'the plate kept rolling under the spinner');
+
+  line.listeners.get('ended')?.({ type: 'ended' });
+  assert.equal(line.removed, true, 'the finished sentence was left holding its file');
 });
 
 test('a writer who finishes early ends the story at the end, not at a spinner', async (t) => {
@@ -475,7 +504,11 @@ async function mount(t, {
     handle,
     frames,
     scene: sceneAt,
-    // The same length the runtime is playing, compiled the way it compiled it.
+    // The same schedule the runtime is playing, compiled the way it compiled it.
+    timelineOf: (count) => compileTimeline(
+      { ...whole, scenes: whole.scenes.slice(0, count) },
+      { plates },
+    ),
     durationOf: (count) => compileTimeline(
       { ...whole, scenes: whole.scenes.slice(0, count) },
       { plates },

@@ -99,7 +99,7 @@ test('v0 tooling keeps the exact semantics every client consumes', () => {
       duckedMusicVolume: 0.14,
       musicFadeMs: 850,
       duckFadeMs: 220,
-      narrationGraceMs: 4000,
+      narrationGraceMs: 1000,
     },
   });
 });

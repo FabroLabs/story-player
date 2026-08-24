@@ -119,8 +119,37 @@ test('the end idles: the plate stops, the loop stops, and the transport offers a
   // Replay is the same button, and it takes the story back to its opening.
   player.bar.toggle.dispatch('click');
   assert.equal(player.end.hidden, true);
+
   assert.equal(player.bar.at.textContent, '0:00');
   assert.ok(player.frames.pending() > 0, 'replay did not restart the loop');
+  player.destroy();
+});
+
+test('the last sentence is finished, not cut off by the end that lands on it', async (t) => {
+  const player = await mount(t);
+  player.start();
+  // A compiled story's duration IS the end of its final chunk, and story time
+  // is clamped to it — so the line reading at the end can never be given the
+  // grace `tick` grants every other line. It has to survive the end itself.
+  const cue = lastNarrationCue(player.timeline);
+  player.frames.advanceTo(cue.t_ms + 1);
+  const line = player.audio.filter((media) => media.played).at(-1);
+  assert.equal(line.url, cue.detail.audio, 'the last line was not the one playing here');
+  line.listeners.get('playing')?.({ type: 'playing' });
+
+  player.frames.advanceTo(player.timeline.duration_ms);
+  assert.equal(player.end.hidden, false, 'the story ended without saying so');
+  assert.equal(line.paused, false, 'the end card cut the last sentence off mid-word');
+  assert.equal(
+    player.audio.filter((media) => media !== line).every((media) => media.paused),
+    true,
+    'the rest of the sound outlived the story',
+  );
+
+  // And it lets go of itself when it is done, without a tick to notice.
+  line.listeners.get('ended')?.({ type: 'ended' });
+  assert.equal(line.paused, true);
+  assert.equal(line.removed, true, 'the finished line was left holding its file');
   player.destroy();
 });
 
@@ -194,16 +223,17 @@ test('the line a pause stood on is heard when the story resumes', async (t) => {
   // Skipping that sliver on pause lost the line for good: its subtitle on
   // screen, nothing to hear, until the next cue came round.
   player.frames.advanceTo(cue - 30);
-  const opened = player.audio.length;
+  const heard = () => player.audio.filter((media) => media.played);
+  const opened = heard().length;
   player.frames.setWall(cue + 10);
   player.bar.toggle.dispatch('click');
-  assert.equal(player.audio.length, opened, 'the pause itself started the next line');
+  assert.equal(heard().length, opened, 'the pause itself started the next line');
 
   // Minutes may pass on the wall; none pass in the story.
   player.frames.setWall(cue + 90_000);
   player.bar.toggle.dispatch('click');
-  assert.equal(player.audio.length, opened + 1, 'the line the pause stood on was never heard');
-  const line = player.audio.at(-1);
+  assert.equal(heard().length, opened + 1, 'the line the pause stood on was never heard');
+  const line = heard().at(-1);
   assert.equal(line.paused, false, 'the resumed line is not playing');
   assert.equal(line.currentTime, 0, 'a line a frame late should start from the top, not inside the file');
   player.destroy();
@@ -270,7 +300,9 @@ test('seeking a paused story places the sound without playing it', async (t) => 
   // on the line the seek had just opened while a track the first pause held was
   // never restarted at all. (The corpus story carries no music, so the set that
   // regression really cost is pinned in `media-scheduler.test.mjs`.)
-  const live = player.audio.filter((media) => !media.removed);
+  // A file opened ahead of its own cue was never playing and must not be
+  // started by a resume, so the set here is what the story had actually SOUNDED.
+  const live = player.audio.filter((media) => media.played && !media.removed);
   assert.ok(live.length > 0, 'the seek left the story with nothing to resume');
   assert.equal(live.every((media) => !media.paused), true, 'the sound the seek placed never resumed');
   player.destroy();
@@ -782,6 +814,15 @@ function firstNarrationAfter(timeline, fromMs) {
   );
   assert.ok(cue, 'the corpus story has no narration to pause on');
   return cue.t_ms;
+}
+
+/** The cue the story's clock runs out on, whole — its media as well as its time. */
+function lastNarrationCue(timeline) {
+  const cue = [...timeline.events].reverse().find(
+    (event) => event.source === 'step' && event.kind === 'chunk' && typeof event.detail?.audio === 'string',
+  );
+  assert.ok(cue, 'the corpus story has no narration to end on');
+  return cue;
 }
 
 /**

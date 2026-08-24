@@ -284,6 +284,18 @@ seek landed in the middle of stays silent until the story crosses its next cue.
 While the bar is being dragged the picture follows the pointer and the sound is
 held; it is placed once, where the pointer is let go.
 
+Narration keeps the end of itself. A line's schedule is decided before anything
+has been heard, and its file costs a fetch to open, so a line that arrived late
+used to be cut short of its last words when the clock reached the end the
+schedule had guessed. The player now opens the next line's file while the
+current one is still playing, and a line that is sounding runs on until it has
+played what is left of it—by at most `V0_POLICY.audio.narrationGraceMs`, which
+also bounds how far a line may overlap the opening of the one after it.
+Subtitles and the clock are untouched: only the audio runs on. The two instants
+the story stops at on its own—the end, and catching up with a writer who has not
+published the next scene yet—let the sentence being read finish rather than
+freezing it mid-word.
+
 ## Sheets, renditions and device tiers
 
 Every clip in a current bundle carries `renditions`—the content-addressed webp
