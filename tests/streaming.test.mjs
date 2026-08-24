@@ -85,6 +85,26 @@ test('the sentence the prefix ends on is finished under the spinner, not frozen 
   assert.equal(line.removed, true, 'the finished sentence was left holding its file');
 });
 
+test('a viewer who pauses under the spinner stops the sentence with it', async (t) => {
+  const player = await mount(t);
+  player.start();
+  const cue = [...player.timelineOf(1).events].reverse().find(
+    (event) => event.kind === 'chunk' && typeof event.detail?.audio === 'string',
+  );
+  player.frames.advanceTo(cue.t_ms + 100);
+  const line = player.audio.find((media) => media.url.endsWith(cue.detail.audio));
+  line.listeners.get('playing')({ type: 'playing' });
+  player.frames.advanceTo(player.durationOf(1));
+  assert.equal(line.paused, false, 'the wait cut the sentence it landed in the middle of');
+
+  // The wait leaves the line reading on purpose. A pause is the viewer asking
+  // for that to stop as well: a transport reading `play` over a voice still
+  // speaking is a control lying about what it just did.
+  player.toggle.dispatch('click');
+  assert.equal(player.toggle.getAttribute('aria-label'), 'play', 'the transport lied about what it would do');
+  assert.equal(line.paused, true, 'the pause under the spinner left the line reading itself out');
+});
+
 test('a writer who finishes early ends the story at the end, not at a spinner', async (t) => {
   const player = await mount(t);
   player.start();

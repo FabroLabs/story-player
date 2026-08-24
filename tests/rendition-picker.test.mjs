@@ -194,6 +194,14 @@ test('a chunk ladder that cannot be read is refused, and the whole rendition is 
   empty.rendition_chunks[320].keys[1] = '';
   assert.equal(sheetFor(empty, 300).chunks, null);
 
+  const long = chunkedClip();
+  long.rendition_chunks[320].keys.push(long.rendition_chunks[320].keys.at(-1));
+  assert.equal(
+    sheetFor(long, 300).chunks,
+    null,
+    'a list one too long wraps the window onto a key the bucket does not carry',
+  );
+
   const otherTier = chunkedClip();
   assert.equal(sheetFor(otherTier, 500).chunks, null, 'the tier drawn is the tier the chunks must be on');
   assert.equal(sheetFor(otherTier, 500).url, LADDER[512], 'and that tier is still drawn, whole');

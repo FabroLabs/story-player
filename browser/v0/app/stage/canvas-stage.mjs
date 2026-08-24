@@ -271,7 +271,11 @@ export function createCanvasStage(elements, {
       return;
     }
     sizeStage(last.list.width, last.list.height);
-    paintDrawList(context, last.list, { lookup: last.lookup, scale: renderScale, shadows: shadowed });
+    // Through `paint`, not around it: a cell that is not decoded at this
+    // instant is ordinary now the renditions are cut up — every chunk boundary
+    // is one — and repainting without the stand-in puts the missing lozenge
+    // where a character was for as long as the next chunk takes to arrive.
+    paint(last.list, last.lookup);
   }
 
   function fitStage() {

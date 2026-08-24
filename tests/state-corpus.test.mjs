@@ -277,6 +277,26 @@ for (const { stem, bundle, timeline } of STORIES) {
   });
 }
 
+for (const { stem, bundle, timeline } of STORIES) {
+  test(`${stem}: a cursor asked one millisecond back answers what stateAt answers`, () => {
+    const cursor = createStateCursor(timeline, bundle);
+    // The forward pass above only ever asks for a larger t, so it never rewinds
+    // at all, and the backwards tests step whole seconds — far from wherever
+    // the cursor is standing. The smallest step back there is, onto the last
+    // instant an event has NOT happened at from the instant it has, is the one
+    // a scrub, a replay or a repaint actually lands on.
+    for (const tMs of instants(timeline)) {
+      if (tMs <= 0) continue;
+      cursor.at(tMs);
+      assert.deepEqual(
+        picture(cursor.at(tMs - 1)),
+        picture(stateAt(timeline, bundle, tMs - 1)),
+        `${tMs - 1} ms, one back from ${tMs} ms`,
+      );
+    }
+  });
+}
+
 test('the cursor folds each event once for the whole story, not once per frame', () => {
   // The reason it exists, and the one thing equality with `stateAt` cannot
   // show: a cursor written as `at: (t) => stateAt(timeline, bundle, t)` passes

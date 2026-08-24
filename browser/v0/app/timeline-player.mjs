@@ -227,6 +227,11 @@ export function createTimelinePlayer({
     if (destroyed) return;
     if (waiting) {
       resumeAfterAppend = false;
+      // `settle` left the line being read out sounding — that is the whole
+      // point of the wait. A viewer who presses pause under the spinner is
+      // asking for that to stop too, and a transport reading `paused` over a
+      // voice still speaking is the control lying about what it did.
+      media.pause();
       controls.update({ tMs: clock.now(), playing: false, ended: false });
       return;
     }
@@ -332,8 +337,9 @@ export function createTimelinePlayer({
   /**
    * A tier the recorder lowered, applied to everything it means.
    *
-   * The picture gets cheaper in three places at once — fewer device pixels,
-   * fewer draws, no shadows — and the cache stops holding as much, because the
+   * The picture gets cheaper in two places at once — fewer device pixels and
+   * fewer draws, the shadow being off on every tier for now — and the cache
+   * stops holding as much, because the
    * machine that produced five seconds of slow frames is the one whose tab gets
    * reloaded out from under the child.
    */
@@ -638,7 +644,8 @@ export function createTimelinePlayer({
    * itself.
    *
    * Whole-sheet bundles reach this too, and it costs them one Map lookup and a
-   * keep set identical to the one the gate already set.
+   * keep set identical to the one the gate already set — every sheet pinned and
+   * the props unfiltered, because there is no window there to make room for.
    */
   function holdChunks(tMs, state, force) {
     if (sceneIndex === null || sceneView === null) return;

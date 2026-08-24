@@ -665,6 +665,86 @@ test('one file ahead, and never one the story has turned away from', (t) => {
   );
 });
 
+test('a file that gave up before its cue is opened again at it', async (t) => {
+  const media = installAudio(t);
+  const warnings = [];
+  const scheduler = createMediaScheduler({ ...story(), onWarning: (detail) => warnings.push(detail) });
+
+  scheduler.advance(0, 1);
+  const held = media[2];
+  assert.equal(held.url, NARRATION_TWO, 'the file held ready was not the next line');
+
+  // A 404 that lands while the line before this one is still being read. Kept
+  // for its cue, this element takes listeners for an `error` that has already
+  // fired: nothing drops the line, `play()` rejects into a warning already
+  // spent on it, and the line reads out as silence.
+  held.fire('error');
+  assert.equal(held.removed, true, 'a file that failed while held was kept for its cue');
+  assert.equal(warnings.filter((warning) => warning.asset === 'narration').length, 1);
+
+  scheduler.advance(1, 3_001);
+  const opened = media.at(-1);
+  assert.equal(opened.url, NARRATION_TWO, 'the dead file was adopted at the cue and the line played silent');
+  assert.notEqual(opened, held);
+  assert.equal(opened.played, true, 'the line was never asked to play');
+});
+
+test('a seek into a gap holds the line ahead, and past the last one holds nothing', (t) => {
+  const media = installAudio(t);
+  const scheduler = createMediaScheduler(story());
+
+  scheduler.advance(0, 1);
+  const held = media[2];
+  assert.equal(held.url, NARRATION_TWO, 'the file held ready was not the next line');
+
+  // Between the two lines. Nothing is being read, and the file held is for the
+  // line the story is still heading towards: throwing it away here would cost
+  // that line the head start the whole prefetch exists for.
+  scheduler.seek(2_600);
+  assert.equal(held.removed, false, 'the file for the line just ahead was thrown away');
+
+  // Past the last line. Nothing is being read and there is nothing to read
+  // next, so a file left open here downloads for nobody — and, failing, puts
+  // `narration unavailable` over a scene whose narration is fine.
+  scheduler.seek(5_500);
+  assert.equal(held.removed, true, 'a file the story turned away from was left downloading');
+  assert.equal(media.length, 3, 'a seek into silence opened a file of its own');
+});
+
+test('music that comes up under a tail comes up ducked', (t) => {
+  const media = installAudio(t);
+  const late = backToBack();
+  late.bundle.audio.bgm.night = NIGHT;
+  late.timeline.events.push({
+    source: 'step', kind: 'cmd', cmd: 'music', t_ms: 2_100, detail: { name: 'night' }, line: 5, scene_index: 0,
+  });
+  const scheduler = createMediaScheduler(late);
+
+  scheduler.advance(0, 1);
+  const [, one, two] = media;
+  one.fire('playing');
+  scheduler.tick(300);
+  // Barely started, so what it is still owed runs past the line after it.
+  one.currentTime = 0.2;
+  scheduler.tick(2_000);
+
+  scheduler.advance(1, 2_001);
+  // The second line's file turns out to be shorter than the schedule thought:
+  // the story is left with no line of its own and one tail still owed, which is
+  // the only window a track can start in without a `narration` to duck under.
+  two.fire('ended');
+
+  scheduler.advance(2_001, 2_101);
+  const night = media.at(-1);
+  assert.equal(night.url, NIGHT, 'the track did not start where the story asked for it');
+  scheduler.tick(2_951);
+  assert.equal(
+    round(night.volume),
+    DUCKED_MUSIC_VOLUME,
+    'the music came up to full under the last words of a line',
+  );
+});
+
 /**
  * Three lines back to back, the middle one short enough that its own tail is
  * still owed when the third begins — the only shape that can ask what happens

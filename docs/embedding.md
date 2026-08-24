@@ -289,12 +289,14 @@ has been heard, and its file costs a fetch to open, so a line that arrived late
 used to be cut short of its last words when the clock reached the end the
 schedule had guessed. The player now opens the next line's file while the
 current one is still playing, and a line that is sounding runs on until it has
-played what is left of it—by at most `V0_POLICY.audio.narrationGraceMs`, which
-also bounds how far a line may overlap the opening of the one after it.
-Subtitles and the clock are untouched: only the audio runs on. The two instants
-the story stops at on its own—the end, and catching up with a writer who has not
-published the next scene yet—let the sentence being read finish rather than
-freezing it mid-word.
+played what is left of it—while the story's clock is running, by at most
+`V0_POLICY.audio.narrationGraceMs`, which also bounds how far a line may overlap
+the opening of the one after it. Subtitles and the clock are untouched: only the
+audio runs on. The two instants the story stops at on its own—the end, and
+catching up with a writer who has not published the next scene yet—let the
+sentence being read finish rather than freezing it mid-word. The clock has
+stopped at both, so nothing is counting there: what ends the line is the file
+itself, or the next pause, seek or `destroy`.
 
 ## Sheets, renditions and device tiers
 

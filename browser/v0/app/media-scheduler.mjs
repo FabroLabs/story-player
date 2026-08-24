@@ -75,7 +75,7 @@ export function createMediaScheduler({ timeline, bundle, onWarning = () => {} })
     story = { timeline: next.timeline, bundle: next.bundle };
     // The line playing when a scene lands may have had nothing after it to open
     // — it was the last one the prefix carried. Now there is.
-    if (!ahead && narration) openAhead(narration.cue);
+    if (!ahead && narration) openAhead(narration.cue.tMs);
   }
 
   /** Start whatever begins in `[fromMs, toMs)`. The runtime crosses time once. */
@@ -127,7 +127,13 @@ export function createMediaScheduler({ timeline, bundle, onWarning = () => {} })
     silenceNarration();
     for (const sound of [...sounds]) release(sound);
     const sounding = soundingAt(story.timeline, story.bundle, tMs);
+    // Landing ON a line re-opens the one after it: `startNarration` ends in
+    // `openAhead`. Landing in a gap has to ask for itself — otherwise the file
+    // held for the line just left goes on downloading for a line the story has
+    // turned away from and, when it fails, writes `narration unavailable` over
+    // a scene whose narration is perfectly fine.
     if (sounding.narration) startNarration(sounding.narration, sounding.narration.offsetMs, tMs);
+    else openAhead(tMs);
     if (!sounding.music) stopMusic(tMs);
     else if (sounding.music.name !== music?.name) setMusic(sounding.music, tMs);
   }
@@ -305,7 +311,7 @@ export function createMediaScheduler({ timeline, bundle, onWarning = () => {} })
     media.addEventListener('stalled', () => warn(media, 'narration stalled mid-line'), { once: true });
     duck(true, tMs);
     play(media, 'narration would not start');
-    openAhead(cue);
+    openAhead(cue.tMs);
   }
 
   /**
@@ -368,25 +374,50 @@ export function createMediaScheduler({ timeline, bundle, onWarning = () => {} })
    * — so every line began as late as its file took to arrive. Opened a line
    * early, the fetch runs under the previous line's own seconds and the next
    * one starts on time. One file at a time: the story only ever needs the next.
+   *
+   * `afterMs` is the instant already answered for — a line's own cue, or the
+   * one a seek landed in a gap at — and the file opened is for the first
+   * narration cue after it.
    */
-  function openAhead(cue) {
-    const next = cuesBetween(story.timeline, story.bundle, cue.tMs + 1, Number.POSITIVE_INFINITY)
+  function openAhead(afterMs) {
+    const next = cuesBetween(story.timeline, story.bundle, afterMs + 1, Number.POSITIVE_INFINITY)
       .find((candidate) => candidate.kind === 'narration' && candidate.media);
     if (ahead?.url === next?.media) return;
     // Whatever was held for a line the story is no longer heading towards — a
     // seek moved it, or there is no next line at all — is a file still
     // downloading for nobody.
-    if (ahead) release(ahead.media);
-    ahead = null;
+    releaseAhead();
     if (!next) return;
     const media = open(next, 'narration');
     if (!media) return;
     // The fetch starts HERE, a line before the cue, so the failures that belong
     // to this file happen here too. `startNarration` binds its own listeners a
     // whole line later — too late to hear a file that gave up on the way.
-    media.addEventListener('error', () => warn(media, 'narration playback failed'), { once: true });
+    media.addEventListener('error', () => {
+      warn(media, 'narration playback failed');
+      // And let go of it. Adopted at its cue, this element would take listeners
+      // for an `error` that has already fired, so nothing would drop the line;
+      // `play()` would reject into a `warn` this element has already spent, and
+      // the line would read out as silence with its only warning raised a whole
+      // line early, under a subtitle whose audio is fine. Opened again at the
+      // cue, the failure is named where the viewer meets it.
+      releaseAhead(media);
+    }, { once: true });
     media.addEventListener('stalled', () => warn(media, 'narration stalled mid-line'), { once: true });
     ahead = { media, url: next.media };
+  }
+
+  /**
+   * Let go of the file opened ahead, if it is still the one being held.
+   *
+   * `media` names an element that may only be dropped while it is still the one
+   * ahead: an `error` arriving after the cue adopted it belongs to the line now
+   * sounding, and `startNarration`'s own listeners answer for that one.
+   */
+  function releaseAhead(media = null) {
+    if (!ahead || (media !== null && ahead.media !== media)) return;
+    release(ahead.media);
+    ahead = null;
   }
 
   /** The file opened ahead, if it is the one this cue asks for. */

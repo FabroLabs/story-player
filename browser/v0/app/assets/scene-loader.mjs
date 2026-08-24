@@ -194,7 +194,16 @@ function keepAssets(plan, actors = null) {
   // put down in the first line and taken away in the second must not still be
   // pinned in the last. Before there is a first frame, the plan's list is all
   // there is, and it was what the gate decoded anyway.
-  const onStage = actors === null ? null : new Set(actors.map((actor) => actor.slug));
+  //
+  // Only where a chunk ladder made the budget tight. A whole-sheet scene pins
+  // its sheets entire — that IS its cost — and on the stories that already
+  // exceed the budget with them, the un-pinned props are the only thing
+  // eviction can reach: dropped on the first frame, and back as a placeholder
+  // in the line that puts them down.
+  const cutUp = (plan?.sheets ?? []).some((sheet) => sheet.chunks);
+  const onStage = actors === null || !cutUp
+    ? null
+    : new Set(actors.map((actor) => actor.slug));
   for (const prop of plan?.props ?? []) {
     if (onStage === null || onStage.has(prop.slug)) add({ url: prop.url, asset: 'prop', slug: prop.slug });
   }

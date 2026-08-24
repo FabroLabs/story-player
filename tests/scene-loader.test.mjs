@@ -504,19 +504,52 @@ test('the kept window fits the budget at the count it was measured for, and not 
 });
 
 test('a prop is kept while it is on stage, and not once it has gone', () => {
-  const plan = { poster: 'dell.jpg', props: [{ slug: 'lantern', url: 'lantern.svg' }], sheets: [] };
+  const plan = {
+    poster: 'dell.jpg',
+    props: [{ slug: 'lantern', url: 'lantern.svg' }],
+    sheets: [{
+      slug: 'pip',
+      clip: 'idle',
+      url: 'pip-idle-512.webp',
+      openingFrame: 0,
+      chunks: { urls: ['pip-idle-512-c0.webp', 'pip-idle-512-c1.webp'], framesPerChunk: 4 },
+    }],
+  };
 
   assert.deepEqual(
     sceneKeepUrls(plan),
-    ['dell.jpg', 'lantern.svg'],
+    ['dell.jpg', 'lantern.svg', 'pip-idle-512-c0.webp', 'pip-idle-512-c1.webp'],
     'before there is a first frame the plan is all there is, and the gate decoded it anyway',
   );
-  assert.deepEqual(sceneKeepUrls(plan, [{ slug: 'lantern', kind: 'object' }]), ['dell.jpg', 'lantern.svg']);
+  assert.deepEqual(
+    sceneKeepUrls(plan, [{ slug: 'lantern', kind: 'object' }]),
+    ['dell.jpg', 'lantern.svg'],
+  );
   assert.deepEqual(
     sceneKeepUrls(plan, [{ slug: 'pip', clip: 'idle', frame: 0 }]),
-    ['dell.jpg'],
+    ['dell.jpg', 'pip-idle-512-c0.webp', 'pip-idle-512-c1.webp'],
     'the budget has 92 KB of slack at five characters: a lantern nobody is holding cannot be in it',
   );
+});
+
+test('a scene with no chunk ladder keeps its props, on stage or not', () => {
+  // The prop filter is room the chunk window needed. A scene with no ladder has
+  // no window to move: its sheets are pinned entire and they ARE the cost, so
+  // on the stories that already exceed the budget with them the un-pinned props
+  // are the only thing eviction can reach — dropped on the first frame, and
+  // back as a placeholder in the line that puts them down.
+  const plan = {
+    poster: 'dell.jpg',
+    props: [{ slug: 'lantern', url: 'lantern.svg' }],
+    sheets: [{ slug: 'pip', clip: 'idle', url: 'pip-idle-512.webp' }],
+  };
+
+  assert.deepEqual(
+    sceneKeepUrls(plan, [{ slug: 'pip', clip: 'idle', frame: 0 }]),
+    sceneKeepUrls(plan),
+    'the gate and the runtime disagree about a scene neither of them has a window for',
+  );
+  assert.deepEqual(sceneKeepUrls(plan), ['dell.jpg', 'lantern.svg', 'pip-idle-512.webp']);
 });
 
 test('a chunk ladder that does not match the clip is refused once, and the scene still draws', async () => {

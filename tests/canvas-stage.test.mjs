@@ -332,6 +332,29 @@ test('a resize repaints the instant already on screen', (t) => {
   assert.equal(context.of('drawImage').length, drawnOnce + 1, 'the resized canvas was left blank');
 });
 
+test('a resize repaints through the stand-in, not over it', (t) => {
+  // Now the renditions are cut up, a cell that is not decoded at this instant is
+  // ordinary — every chunk boundary is one. A repaint that goes around the
+  // stand-in puts the missing lozenge where a character was for as long as the
+  // next chunk takes to arrive, and a phone turned mid-swap is exactly that.
+  const { stage, context, resize, elements } = mounted(t, { frame: [1920, 1080] });
+  const actors = [{ slug: 'ruby', x: 50, feetY: 90, heightPx: 200, clip: 'idle' }];
+  stage.draw(stageState({ actors }), book({ drawables: { 'ruby.webp': bitmap(512, 512) } }));
+  stage.draw(stageState({ actors }), book({ drawables: {} }));
+
+  const from = context.calls.length;
+  elements.frame.getBoundingClientRect = () => ({ width: 960, height: 540 });
+  resize();
+  const since = context.calls.slice(from);
+
+  assert.equal(since.filter(([name]) => name === 'drawImage').length, 1, 'the character was not stood in for');
+  assert.deepEqual(
+    since.filter(([name]) => name === 'createLinearGradient'),
+    [],
+    'the resize painted the placeholder over a character we still had a picture of',
+  );
+});
+
 test('a browser with no 2D context says so once and then draws nothing', (t) => {
   const dom = installDom();
   t.after(dom.restore);
