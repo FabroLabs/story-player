@@ -44,7 +44,10 @@ test('a lowered tier repaints at once, cheaper, without waiting for a frame', (t
   const state = stageState({ actors: [{ slug: 'ruby', clip: 'idle', x: 50, feetY: 900, heightPx: 300 }] });
   stage.draw(state, book({ drawables }));
   const backing = elements.canvas.width;
-  assert.ok(context.of('createRadialGradient').length > 0, 'the default tier drew no shadow to begin with');
+  // A stage built without a tier keeps shadows on, and this is the only place
+  // left that paints one: no tier asks for shadows any more (`capability.mjs`),
+  // so this assertion is what still pins `paintShadow` working at all.
+  assert.ok(context.of('createRadialGradient').length > 0, 'a stage with shadows on drew none');
 
   const from = context.calls.length;
   stage.setTier({ dprCap: 1.5, shadows: false });
