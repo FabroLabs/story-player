@@ -28,6 +28,7 @@ import {
   DUCK_FADE_MS,
   MUSIC_FADE_MS,
   MUSIC_VOLUME,
+  NARRATION_GRACE_MS,
 } from '../policy.mjs';
 
 // A narration crossed within this much of its own cue starts from the top.
@@ -42,6 +43,12 @@ export function createMediaScheduler({ timeline, bundle, onWarning = () => {} })
   const sounds = new Set();
   const named = new Set();
   let narration = null;
+  // The line the story has already moved on from, sounding out the tail it is
+  // still owed. Only ever one: the schedule hands over at most once per line.
+  let finishing = null;
+  // The next line's file, opened while this one plays. Until it existed every
+  // line paid its own fetch out of its own last words.
+  let ahead = null;
   let music = null;
   let held = new Set();
   let context = null;
@@ -62,10 +69,13 @@ export function createMediaScheduler({ timeline, bundle, onWarning = () => {} })
   let deliveredAtMs = null;
   let deliveredAtCount = 0;
 
-  return { advance, seek, tick, pause, resume, unlock, destroy, setStory };
+  return { advance, seek, settle, tick, pause, resume, unlock, destroy, setStory };
 
   function setStory(next) {
     story = { timeline: next.timeline, bundle: next.bundle };
+    // The line playing when a scene lands may have had nothing after it to open
+    // — it was the last one the prefix carried. Now there is.
+    if (!ahead && narration) openAhead(narration.cue.tMs);
   }
 
   /** Start whatever begins in `[fromMs, toMs)`. The runtime crosses time once. */
@@ -112,10 +122,18 @@ export function createMediaScheduler({ timeline, bundle, onWarning = () => {} })
     // its start again — a track stuck loud, or one that never releases. A cut
     // finishes every fade instead.
     settleFades();
-    stopNarration();
+    // A seek is a cut, not a hand-over: the tail of the line being left behind
+    // belongs to a moment the story is no longer standing in.
+    silenceNarration();
     for (const sound of [...sounds]) release(sound);
     const sounding = soundingAt(story.timeline, story.bundle, tMs);
+    // Landing ON a line re-opens the one after it: `startNarration` ends in
+    // `openAhead`. Landing in a gap has to ask for itself — otherwise the file
+    // held for the line just left goes on downloading for a line the story has
+    // turned away from and, when it fails, writes `narration unavailable` over
+    // a scene whose narration is perfectly fine.
     if (sounding.narration) startNarration(sounding.narration, sounding.narration.offsetMs, tMs);
+    else openAhead(tMs);
     if (!sounding.music) stopMusic(tMs);
     else if (sounding.music.name !== music?.name) setMusic(sounding.music, tMs);
   }
@@ -139,7 +157,33 @@ export function createMediaScheduler({ timeline, bundle, onWarning = () => {} })
     // `ended` is the ordinary way a line finishes and it is handled where it
     // fires; this is the other way — a file shorter than the schedule thought,
     // or one that never reports at all. Either way the music must come back up.
-    if (narration && tMs >= narration.endsAtMs) stopNarration(tMs);
+    if (finishing && tMs >= finishing.endsAtMs) endLine(finishing, tMs);
+    if (!narration) return;
+    anchorToStart(narration, tMs);
+    if (tMs >= narration.endsAtMs) stopNarration(tMs);
+  }
+
+  /**
+   * A line ends where it actually got to, not where the schedule guessed.
+   *
+   * The schedule says a line is over `durationMs` after its cue, and it decides
+   * that before anything has been heard. A file that took a quarter of a second
+   * to arrive is a quarter of a second short of the end when the story says
+   * stop, and the force-stop above took that out of the last word — the whole
+   * reported bug. So while a line is sounding, its end is whatever of it is
+   * still unplayed, bounded by the grace: a file that stalls forever must not
+   * hold the picture's line open forever with it.
+   */
+  function anchorToStart(line, tMs) {
+    if (!line.started) return;
+    const playedMs = (Number(line.media.currentTime) || 0) * 1000;
+    // What is left of the FILE, when the file is willing to say: the schedule's
+    // duration was measured from the wav and the m4a played here runs a few
+    // tens of milliseconds past it, which is the last of the tail.
+    const fileMs = (Number(line.media.duration) || 0) * 1000;
+    const owedMs = Math.max(0, (fileMs > 0 ? fileMs : line.cue.durationMs) - playedMs);
+    const latest = line.cue.tMs + line.cue.durationMs + NARRATION_GRACE_MS;
+    line.endsAtMs = Math.min(tMs + owedMs, latest);
   }
 
   /**
@@ -160,6 +204,37 @@ export function createMediaScheduler({ timeline, bundle, onWarning = () => {} })
       held.add(media);
       media.pause();
     }
+  }
+
+  /**
+   * A pause that lets a sentence finish — for the two instants the story stops
+   * at without anybody asking it to.
+   *
+   * A compiled story's `duration_ms` IS the end of its last chunk, to the
+   * millisecond, and story time is clamped to it; a scene the writer has not
+   * published yet stops the clock the same way. `tick` cannot reach past either
+   * instant, so the grace it grants can never apply there — and pausing every
+   * medium cut the last words off the last sentence of every story, and off
+   * every line an append landed on. What is still being read out is left to
+   * finish and lets go of itself on `ended`; everything else stops as a pause
+   * stops it, and comes back with `resume`.
+   *
+   * A line that has not started is not speaking, and is paused like the rest —
+   * so nothing is left holding a medium that was never going to be heard.
+   */
+  function settle() {
+    if (destroyed) return;
+    for (const media of owned.keys()) {
+      if (media.paused || speaking(media)) continue;
+      held.add(media);
+      media.pause();
+    }
+  }
+
+  function speaking(media) {
+    if (narration?.media === media) return narration.started;
+    if (finishing?.media === media) return finishing.started;
+    return false;
   }
 
   function resume() {
@@ -202,6 +277,8 @@ export function createMediaScheduler({ timeline, bundle, onWarning = () => {} })
     fades.clear();
     for (const media of [...owned.keys()]) release(media);
     narration = null;
+    finishing = null;
+    ahead = null;
     music = null;
     held = new Set();
     named.clear();
@@ -212,33 +289,143 @@ export function createMediaScheduler({ timeline, bundle, onWarning = () => {} })
   }
 
   function startNarration(cue, offsetMs, tMs) {
-    stopNarration(tMs);
-    const media = open(cue, 'narration');
+    handOver(tMs);
+    const media = adopt(cue) ?? open(cue, 'narration');
     if (!media) return;
     const offset = Math.max(0, Math.round(offsetMs));
     if (offset > LATE_START_MS) media.currentTime = offset / 1000;
-    narration = { media, cue, endsAtMs: cue.tMs + cue.durationMs };
-    media.addEventListener('ended', () => {
-      if (narration?.media === media) stopNarration();
-    }, { once: true });
+    const line = { media, cue, endsAtMs: cue.tMs + cue.durationMs, started: false };
+    narration = line;
+    // Until this fires the line is only scheduled, not heard: `anchorToStart`
+    // leaves the schedule's own end standing, which is what a line that never
+    // arrives at all should be held to.
+    media.addEventListener('playing', () => { line.started = true; }, { once: true });
+    media.addEventListener('ended', () => dropMedia(media), { once: true });
     media.addEventListener('error', () => {
       warn(media, 'narration playback failed');
-      if (narration?.media === media) stopNarration();
+      dropMedia(media);
     }, { once: true });
     // A line whose file gives up mid-download is truncated rather than waited
-    // for — the schedule is fixed — but it is still a failure somebody should
-    // be able to read about afterwards.
+    // for — the grace is bounded — but it is still a failure somebody should be
+    // able to read about afterwards.
     media.addEventListener('stalled', () => warn(media, 'narration stalled mid-line'), { once: true });
     duck(true, tMs);
     play(media, 'narration would not start');
+    openAhead(cue.tMs);
   }
 
-  function stopNarration(tMs = null) {
+  /**
+   * Make room for the line that starts here.
+   *
+   * The one before it is not necessarily finished. Lines are scheduled back to
+   * back — the next cue falls on the previous line's own end — so a line that
+   * started late is still speaking when its successor's turn comes, and cutting
+   * it here is exactly what swallowed the last words. It is moved aside instead
+   * and left to run out what `anchorToStart` says it is still owed.
+   */
+  function handOver(tMs) {
+    if (finishing) endLine(finishing, tMs);
     if (!narration) return;
-    const { media } = narration;
+    const line = narration;
     narration = null;
-    release(media);
-    duck(false, tMs);
+    if (line.started && Number.isFinite(tMs) && tMs < line.endsAtMs) finishing = line;
+    else endLine(line, tMs);
+  }
+
+  /** The line the schedule is on stops; a tail still sounding is left alone. */
+  function stopNarration(tMs = null) {
+    if (narration) endLine(narration, tMs);
+  }
+
+  /** Nothing narrated is left sounding — what a seek and a teardown mean. */
+  function silenceNarration(tMs = null) {
+    if (finishing) endLine(finishing, tMs);
+    stopNarration(tMs);
+  }
+
+  /**
+   * Let go of one line, and let the music back up once neither slot sounds.
+   *
+   * The duck belongs to the pair, not to either line: un-ducking as a line
+   * hands over would swell the music under the first word of the next one.
+   */
+  function endLine(line, tMs = null) {
+    if (finishing === line) finishing = null;
+    if (narration === line) narration = null;
+    release(line.media);
+    if (!narrating()) duck(false, tMs);
+  }
+
+  /** Is anything being read out — the line the story is on, or a tail of one. */
+  function narrating() {
+    return narration !== null || finishing !== null;
+  }
+
+  /** `ended`/`error` name a medium, and it may sit in either slot by then. */
+  function dropMedia(media) {
+    if (narration?.media === media) endLine(narration);
+    else if (finishing?.media === media) endLine(finishing);
+  }
+
+  /**
+   * Open the next line's file while this one is still being heard.
+   *
+   * `new Audio(url)` is what starts the fetch, and it used to happen at the cue
+   * — so every line began as late as its file took to arrive. Opened a line
+   * early, the fetch runs under the previous line's own seconds and the next
+   * one starts on time. One file at a time: the story only ever needs the next.
+   *
+   * `afterMs` is the instant already answered for — a line's own cue, or the
+   * one a seek landed in a gap at — and the file opened is for the first
+   * narration cue after it.
+   */
+  function openAhead(afterMs) {
+    const next = cuesBetween(story.timeline, story.bundle, afterMs + 1, Number.POSITIVE_INFINITY)
+      .find((candidate) => candidate.kind === 'narration' && candidate.media);
+    if (ahead?.url === next?.media) return;
+    // Whatever was held for a line the story is no longer heading towards — a
+    // seek moved it, or there is no next line at all — is a file still
+    // downloading for nobody.
+    releaseAhead();
+    if (!next) return;
+    const media = open(next, 'narration');
+    if (!media) return;
+    // The fetch starts HERE, a line before the cue, so the failures that belong
+    // to this file happen here too. `startNarration` binds its own listeners a
+    // whole line later — too late to hear a file that gave up on the way.
+    media.addEventListener('error', () => {
+      warn(media, 'narration playback failed');
+      // And let go of it. Adopted at its cue, this element would take listeners
+      // for an `error` that has already fired, so nothing would drop the line;
+      // `play()` would reject into a `warn` this element has already spent, and
+      // the line would read out as silence with its only warning raised a whole
+      // line early, under a subtitle whose audio is fine. Opened again at the
+      // cue, the failure is named where the viewer meets it.
+      releaseAhead(media);
+    }, { once: true });
+    media.addEventListener('stalled', () => warn(media, 'narration stalled mid-line'), { once: true });
+    ahead = { media, url: next.media };
+  }
+
+  /**
+   * Let go of the file opened ahead, if it is still the one being held.
+   *
+   * `media` names an element that may only be dropped while it is still the one
+   * ahead: an `error` arriving after the cue adopted it belongs to the line now
+   * sounding, and `startNarration`'s own listeners answer for that one.
+   */
+  function releaseAhead(media = null) {
+    if (!ahead || (media !== null && ahead.media !== media)) return;
+    release(ahead.media);
+    ahead = null;
+  }
+
+  /** The file opened ahead, if it is the one this cue asks for. */
+  function adopt(cue) {
+    if (!ahead || ahead.url !== cue.media) return null;
+    const { media } = ahead;
+    ahead = null;
+    return media;
   }
 
   function startSound(cue) {
@@ -293,7 +480,9 @@ export function createMediaScheduler({ timeline, bundle, onWarning = () => {} })
       }
     }, { once: true });
     media.addEventListener('stalled', () => warn(media, 'music stalled before it was heard'), { once: true });
-    fadeTo(media, narration ? DUCKED_MUSIC_VOLUME : MUSIC_VOLUME, MUSIC_FADE_MS, tMs);
+    // A tail still sounding is narration too: a track that came up to full
+    // under the last words of a line is the swell `endLine` refuses to make.
+    fadeTo(media, narrating() ? DUCKED_MUSIC_VOLUME : MUSIC_VOLUME, MUSIC_FADE_MS, tMs);
     play(media, 'music would not start', () => {
       if (music?.media === media) music = null;
     });

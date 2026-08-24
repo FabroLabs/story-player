@@ -14,13 +14,14 @@ import test from 'node:test';
 
 import { createStoryPlayer } from '../browser/embed.mjs';
 import { createBitmapCache } from '../browser/v0/app/assets/bitmap-cache.mjs';
-import { createSceneLoader } from '../browser/v0/app/assets/scene-loader.mjs';
+import { KEEP_CADENCE_MS, createSceneLoader } from '../browser/v0/app/assets/scene-loader.mjs';
 import { sceneSheets } from '../browser/v0/app/stage/canvas-stage.mjs';
 import { buildDrawList } from '../browser/v0/app/stage/draw-list.mjs';
 import { resolveStoryAssets } from '../browser/v0/app/urls.mjs';
 import { soundingAt } from '../browser/v0/core/state/cues.mjs';
 import { stateAt } from '../browser/v0/core/state/state.mjs';
 import { compileTimeline } from '../browser/v0/core/timeline/compile.mjs';
+import { chunkedStory } from './_chunked.mjs';
 import { read } from './_parity.mjs';
 import {
   downloadSession, findByClass, findByLabel, installAudio, installDom, virtualFrames,
@@ -105,6 +106,103 @@ test('a hidden tab stops the clock, and coming back continues from the same inst
   player.destroy();
 });
 
+test('the runtime moves the chunk window with the playhead, on a cadence', async (t) => {
+  const player = await mount(t, { story: chunkedStory() });
+  const chunks = () => sheetsFetched(player);
+
+  // The gate: the window the scene opens on, and the first chunk of the clip
+  // pip has not waved with yet. Nothing whole — a whole 81-frame sheet at 512
+  // is 85 MB, which is the bug the chunks exist for.
+  assert.deepEqual(chunks(), [
+    'pip-idle-512-c0.webp', 'pip-idle-512-c1.webp',
+    'bo-idle-512-c0.webp', 'bo-idle-512-c1.webp',
+    'moss-idle-512-c0.webp',
+    'pip-wave-512-c0.webp',
+  ]);
+
+  player.start();
+  player.frames.advanceTo(3_000);
+
+  // Twelve frames of a 12 fps idle in: chunk three, and the fourth ahead of it.
+  assert.ok(chunks().includes('pip-idle-512-c3.webp'), 'the window did not follow the playhead');
+  assert.ok(chunks().includes('pip-idle-512-c4.webp'), 'nothing was fetched ahead of the playhead');
+
+  player.destroy();
+});
+
+test('a character changing clip moves the window on the next frame, not the next tick', async (t) => {
+  const player = await mount(t, { story: chunkedStory() });
+  player.start();
+
+  // Pip waves at six seconds. Land the last frame before it just inside the
+  // cadence, so a runtime that only re-asks on the clock would still be holding
+  // the idle when the wave is already on screen.
+  player.frames.advanceTo(6_000 - 10);
+  const before = sheetsFetched(player);
+  assert.equal(before.includes('pip-wave-512-c1.webp'), false, 'the wave window was already held before the wave');
+
+  player.frames.advanceTo(6_000 + 45);
+  assert.ok(
+    (6_000 + 45) - (6_000 - 10) < KEEP_CADENCE_MS,
+    'the two frames are a whole cadence apart: this proves nothing',
+  );
+  assert.ok(
+    sheetsFetched(player).includes('pip-wave-512-c1.webp'),
+    'a tenth of a second of the pose they were in before is what waiting for the tick costs',
+  );
+
+  player.destroy();
+});
+
+test('a paused seek inside one scene repaints when the chunks it asked for land', async (t) => {
+  const player = await mount(t, { story: chunkedStory() });
+  player.start();
+  player.frames.advanceTo(200);
+  player.bar.toggle.dispatch('click');
+  assert.equal(player.frames.pending(), 0, 'the story is still running: this test is about the frame that never comes');
+
+  // Halfway in, in the same scene: the wave, whose chunks nothing has asked for.
+  const box = player.bar.scrub.getBoundingClientRect();
+  const at = { clientX: box.left + (box.width * 0.5), pointerId: 1 };
+  player.bar.scrub.dispatch('pointerdown', at);
+  player.bar.scrub.dispatch('pointerup', at);
+  const painted = paints(player);
+  assert.ok(sheetsFetched(player).includes('pip-wave-512-c1.webp'), 'the landing did not move the window');
+
+  await settle();
+
+  assert.ok(
+    paints(player) > painted,
+    'the chunks landed after the only paint anybody asked for, and the stage stayed on its stand-in',
+  );
+  player.destroy();
+});
+
+test('dragging the bar does not fetch the chunks of every instant it passes', async (t) => {
+  const player = await mount(t, { story: chunkedStory() });
+  player.start();
+  player.frames.advanceTo(1_000);
+  await settle();
+  const before = sheetsFetched(player).length;
+
+  const box = player.bar.scrub.getBoundingClientRect();
+  const at = (fraction) => ({ clientX: box.left + (box.width * fraction), pointerId: 1 });
+  player.bar.scrub.dispatch('pointerdown', at(0.2));
+  for (let step = 1; step <= 10; step += 1) player.bar.scrub.dispatch('pointermove', at(0.2 + (step * 0.05)));
+  await settle();
+
+  // Every move is a seek, and a seek redraws by force. Holding the window on
+  // each would ask for the chunks of an instant the pointer has already left —
+  // and un-pin the ones it asked for a move ago, over the link the plate video
+  // is streaming on.
+  assert.equal(sheetsFetched(player).length, before, 'the drag fetched instants nobody stopped on');
+
+  player.bar.scrub.dispatch('pointerup', at(0.7));
+  await settle();
+  assert.ok(sheetsFetched(player).length > before, 'the landing is the one instant the window must move to');
+  player.destroy();
+});
+
 test('the end idles: the plate stops, the loop stops, and the transport offers a replay', async (t) => {
   const player = await mount(t);
   player.start();
@@ -119,8 +217,37 @@ test('the end idles: the plate stops, the loop stops, and the transport offers a
   // Replay is the same button, and it takes the story back to its opening.
   player.bar.toggle.dispatch('click');
   assert.equal(player.end.hidden, true);
+
   assert.equal(player.bar.at.textContent, '0:00');
   assert.ok(player.frames.pending() > 0, 'replay did not restart the loop');
+  player.destroy();
+});
+
+test('the last sentence is finished, not cut off by the end that lands on it', async (t) => {
+  const player = await mount(t);
+  player.start();
+  // A compiled story's duration IS the end of its final chunk, and story time
+  // is clamped to it — so the line reading at the end can never be given the
+  // grace `tick` grants every other line. It has to survive the end itself.
+  const cue = lastNarrationCue(player.timeline);
+  player.frames.advanceTo(cue.t_ms + 1);
+  const line = player.audio.filter((media) => media.played).at(-1);
+  assert.equal(line.url, cue.detail.audio, 'the last line was not the one playing here');
+  line.listeners.get('playing')?.({ type: 'playing' });
+
+  player.frames.advanceTo(player.timeline.duration_ms);
+  assert.equal(player.end.hidden, false, 'the story ended without saying so');
+  assert.equal(line.paused, false, 'the end card cut the last sentence off mid-word');
+  assert.equal(
+    player.audio.filter((media) => media !== line).every((media) => media.paused),
+    true,
+    'the rest of the sound outlived the story',
+  );
+
+  // And it lets go of itself when it is done, without a tick to notice.
+  line.listeners.get('ended')?.({ type: 'ended' });
+  assert.equal(line.paused, true);
+  assert.equal(line.removed, true, 'the finished line was left holding its file');
   player.destroy();
 });
 
@@ -194,16 +321,17 @@ test('the line a pause stood on is heard when the story resumes', async (t) => {
   // Skipping that sliver on pause lost the line for good: its subtitle on
   // screen, nothing to hear, until the next cue came round.
   player.frames.advanceTo(cue - 30);
-  const opened = player.audio.length;
+  const heard = () => player.audio.filter((media) => media.played);
+  const opened = heard().length;
   player.frames.setWall(cue + 10);
   player.bar.toggle.dispatch('click');
-  assert.equal(player.audio.length, opened, 'the pause itself started the next line');
+  assert.equal(heard().length, opened, 'the pause itself started the next line');
 
   // Minutes may pass on the wall; none pass in the story.
   player.frames.setWall(cue + 90_000);
   player.bar.toggle.dispatch('click');
-  assert.equal(player.audio.length, opened + 1, 'the line the pause stood on was never heard');
-  const line = player.audio.at(-1);
+  assert.equal(heard().length, opened + 1, 'the line the pause stood on was never heard');
+  const line = heard().at(-1);
   assert.equal(line.paused, false, 'the resumed line is not playing');
   assert.equal(line.currentTime, 0, 'a line a frame late should start from the top, not inside the file');
   player.destroy();
@@ -270,7 +398,9 @@ test('seeking a paused story places the sound without playing it', async (t) => 
   // on the line the seek had just opened while a track the first pause held was
   // never restarted at all. (The corpus story carries no music, so the set that
   // regression really cost is pinned in `media-scheduler.test.mjs`.)
-  const live = player.audio.filter((media) => !media.removed);
+  // A file opened ahead of its own cue was never playing and must not be
+  // started by a resume, so the set here is what the story had actually SOUNDED.
+  const live = player.audio.filter((media) => media.played && !media.removed);
   assert.ok(live.length > 0, 'the seek left the story with nothing to resume');
   assert.equal(live.every((media) => !media.paused), true, 'the sound the seek placed never resumed');
   player.destroy();
@@ -543,9 +673,16 @@ test('a machine that says it is weak is drawn for cheaply', async (t) => {
     cheap.painted <= full.painted * 0.6,
     `the low tier drew ${cheap.painted} frames against the default tier's ${full.painted}`,
   );
-  // The shadow under each character is the most expensive thing on the list.
-  assert.equal(cheap.shadows, 0, 'the low tier still painted shadows');
-  assert.ok(full.shadows > 0, 'the default tier stopped painting shadows');
+  // The shadow under each character was the third lever between these two, and
+  // it is off on every tier now (see `tierSettings`) — so the assertion is that
+  // NOBODY paints one, and the tiers differ by the two levers left.
+  //
+  // Said out loud: while that is true, nothing in the suite carries a `true`
+  // through `capability.shadows` into a painted gradient, so the runtime's
+  // plumbing to the stage — `createTimelinePlayer`'s construction call and
+  // `applyTier`'s `setTier` — is unpinned. Turning shadows back on fails this
+  // line first; restore the `full.shadows > 0` half here when it does.
+  assert.equal(cheap.shadows + full.shadows, 0, 'a shadow was painted while shadows are off');
   // And the canvas is backed at 1.5x rather than the ladder's 2x ceiling.
   assert.ok(cheap.backing < full.backing, `low backed the canvas at ${cheap.backing}, default at ${full.backing}`);
   strong.destroy();
@@ -611,7 +748,7 @@ test('a demotion makes the picture cheaper while the story is still running', as
     after.painted <= before.painted * 0.6,
     `after two demotions the loop still drew ${after.painted} against ${before.painted}`,
   );
-  assert.ok(before.shadows > 0 && after.shadows === 0, 'the low tier is still painting shadows');
+  assert.equal(before.shadows + after.shadows, 0, 'a shadow was painted while shadows are off');
   assert.ok(after.backing < before.backing, `the canvas is still backed at ${after.backing} device pixels`);
   player.destroy();
 });
@@ -784,12 +921,23 @@ function firstNarrationAfter(timeline, fromMs) {
   return cue.t_ms;
 }
 
+/** The cue the story's clock runs out on, whole — its media as well as its time. */
+function lastNarrationCue(timeline) {
+  const cue = [...timeline.events].reverse().find(
+    (event) => event.source === 'step' && event.kind === 'chunk' && typeof event.detail?.audio === 'string',
+  );
+  assert.ok(cue, 'the corpus story has no narration to end on');
+  return cue;
+}
+
 /**
  * A mounted player with the wall clock, the frame loop and `Audio` in the
  * test's hands. `story` is the parity corpus, so what plays is a real compile
  * of a real bundle rather than a fixture written to suit the runtime.
  */
-async function mount(t, { doctor = () => {}, options = {}, machine = null, assets } = {}) {
+async function mount(t, {
+  doctor = () => {}, options = {}, machine = null, assets, story = null,
+} = {}) {
   const dom = installDom(assets ? { assets } : {});
   if (machine) {
     // The probe reads the navigator and the device pixel ratio, so a test that
@@ -806,7 +954,7 @@ async function mount(t, { doctor = () => {}, options = {}, machine = null, asset
     dom.restore();
   });
 
-  const raw = read(STEM, 'bundle');
+  const raw = story ?? read(STEM, 'bundle');
   doctor(raw);
   const bundle = resolveStoryAssets(structuredClone(raw), ASSET_BASE);
   const timeline = compileTimeline(bundle);
@@ -854,6 +1002,7 @@ async function mount(t, { doctor = () => {}, options = {}, machine = null, asset
       const payload = await downloadSession(root);
       return payload.log ?? payload;
     },
+    fetched: () => dom.fetched(),
     start: () => findByClass(root, 'start-button').dispatch('click'),
     hide() {
       document_.visibilityState = 'hidden';
@@ -865,6 +1014,18 @@ async function mount(t, { doctor = () => {}, options = {}, machine = null, asset
     },
     destroy: () => player.destroy(),
   };
+}
+
+/** How many times the canvas has been cleared and drawn again. */
+function paints(player) {
+  return player.canvas.context.names().filter((name) => name === 'clearRect').length;
+}
+
+/** The sprite objects this run really asked the network for, in order. */
+function sheetsFetched(player) {
+  return player.fetched()
+    .filter((url) => url.includes('/mobile/sprites/'))
+    .map((url) => url.split('/').pop());
 }
 
 /** The same sheets the runtime planned, decoded into a cache of our own. */

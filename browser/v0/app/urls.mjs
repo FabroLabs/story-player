@@ -115,6 +115,23 @@ export function resolveStoryAssets(story, assetBase) {
               (path, size) => resolve(path, `${where} rendition ${JSON.stringify(size)}`),
             ),
           }),
+        // The same ladder cut into chunks, qualified key by key. A block whose
+        // `keys` is not a list is left as an empty one rather than refused: the
+        // picker checks the list against the clip's frame count anyway and falls
+        // back to the whole rendition, which is a story that plays. A key that
+        // IS there goes through the same door as every other media path — an
+        // absolute URL or a traversal inside one is refused before it is
+        // fetched, not after.
+        ...(clip?.rendition_chunks == null
+          ? {}
+          : {
+            rendition_chunks: projectMap(clip.rendition_chunks, (block, size) => ({
+              ...block,
+              keys: (Array.isArray(block?.keys) ? block.keys : []).map(
+                (path, index) => resolve(path, `${where} rendition chunk ${JSON.stringify(size)}/${index}`),
+              ),
+            })),
+          }),
       };
     }),
   }));

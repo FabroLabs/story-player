@@ -21,7 +21,11 @@
   before resolving it under `assetBase`.
 - `browser/v0/core/**` is pure logic, the timeline compiler and `stateAt`
   included: no fetch, no clock, no DOM, and the same arguments always compile
-  to the same bytes. `compileTimeline(bundle, options)` takes a second, optional
+  to the same bytes. `createStateCursor` is the one thing there that holds
+  state between calls — a fold kept so a frame does not re-read the whole story
+  — and it stays bound by the same law: what it holds is a cache, never an
+  input, so it answers exactly what `stateAt` answers for any `t`, asked in any
+  order. `compileTimeline(bundle, options)` takes a second, optional
   argument — an options object, whose `plates` is the manifest block of that
   name and lets a host compile a story still being written. Passing the block
   itself where the options go is off rather than wrong: the hint reads as absent

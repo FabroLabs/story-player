@@ -22,7 +22,8 @@
  *
  * The sheet comes from the caller, not from the bundle, and that is deliberate:
  * which sheet a clip draws from is the rendition picker's answer (a tier chosen
- * for this viewport), and its grid is NOT the bundle's grid — a one-row strip is
+ * for this viewport, and — where the bundle carries chunks — which chunk of it
+ * holds this frame), and its grid is NOT the bundle's grid: a one-row strip is
  * re-gridded near-square by the encode. Reading a rendition with the bundle's
  * grid animates the wrong cells and errors nowhere.
  */
@@ -46,8 +47,8 @@ const NO_SHEETS = Object.freeze({ sheet: () => null, prop: () => null });
 /**
  * `state` is `stateAt`'s answer; `sheets` answers two questions about assets:
  *
- *   sheet(slug, clip) -> { url, grid } | null
- *   prop(slug)        -> { url } | null
+ *   sheet(slug, clip, frame) -> { url, grid, chunkStart? } | null
+ *   prop(slug)               -> { url } | null
  *
  * Both may answer `null` at any time — a scene whose sheets are still being
  * planned, a clip the bundle never carried — and the answer is a placeholder,
@@ -107,12 +108,16 @@ function figure(actor, box, sheets) {
   // bundle does not carry, and this is the pose left showing". The pose is
   // still drawn; only a clip with nothing behind it falls through to the
   // placeholder.
-  const sheet = actor.clip && !actor.clipMissing ? sheets.sheet(slug, actor.clip) : null;
+  const frame = Number.isInteger(actor.frame) && actor.frame >= 0 ? actor.frame : 0;
+  const sheet = actor.clip && !actor.clipMissing ? sheets.sheet(slug, actor.clip, frame) : null;
   const cells = gridOf(sheet?.grid);
   if (!sheet?.url || !cells) return { op: 'missing', slug, ...box };
 
-  const frame = Number.isInteger(actor.frame) && actor.frame >= 0 ? actor.frame : 0;
-  return { op: 'sprite', slug, url: sheet.url, cell: frameCell(frame, cells), cells, ...box };
+  // The frame is the CLIP's, and the sheet may be one chunk of it: the cell is
+  // counted from where that chunk begins. An adapter with no chunks answers 0
+  // and this is the identity it has always been.
+  const cell = frameCell(frame - (sheet.chunkStart ?? 0), cells);
+  return { op: 'sprite', slug, url: sheet.url, cell, cells, ...box };
 }
 
 /**

@@ -3,7 +3,9 @@ import test from 'node:test';
 
 import { floorSpan, zoneNamed } from '../browser/v0/core/geometry.mjs';
 import { stageWidthOf } from '../browser/v0/core/state/layout.mjs';
+import { createStateCursor } from '../browser/v0/core/state/cursor.mjs';
 import { stateAt } from '../browser/v0/core/state/state.mjs';
+import { compileTimeline } from '../browser/v0/core/timeline/compile.mjs';
 import { STEMS, read } from './_parity.mjs';
 
 /**
@@ -244,6 +246,221 @@ for (const { stem, bundle, timeline } of STORIES) {
   });
 }
 
+/**
+ * The runtime does not read the story cold — it reads it forward, through
+ * `createStateCursor`, which holds the fold open instead of replaying it. That
+ * is a second implementation of the same question, so it is held to the first
+ * one here: same corpus, same instants, same answer, or the optimisation is a
+ * different player.
+ *
+ * Every event boundary and both sides of it: a millisecond either way of an
+ * event is where a fold that applied one event too many or too few shows up,
+ * and it is exactly where a walk starts, a cut lands and a clip changes.
+ */
+for (const { stem, bundle, timeline } of STORIES) {
+  test(`${stem}: reading forward through the cursor answers what stateAt answers`, () => {
+    const cursor = createStateCursor(timeline, bundle);
+    let asked = 0;
+    for (const tMs of boundaries(timeline)) {
+      assert.deepEqual(picture(cursor.at(tMs)), picture(stateAt(timeline, bundle, tMs)), `${tMs} ms`);
+      asked += 1;
+    }
+    // Every instant the stream names is in there, and both sides of it.
+    // `golden_heal_travel` publishes all 23 of its events on two instants, so a
+    // flat count would be a different demand for each story.
+    const named = new Set(timeline.events.map((event) => event.t_ms)).size;
+    assert.ok(asked >= named * 2, `${stem} names ${named} instants and the cursor was asked at ${asked}`);
+    // The plate is the bundle's own object on both paths; `picture` drops it
+    // from the comparison above because comparing every traced polygon at every
+    // instant is minutes of nothing.
+    assert.equal(cursor.at(timeline.duration_ms).plate, stateAt(timeline, bundle, timeline.duration_ms).plate);
+  });
+}
+
+for (const { stem, bundle, timeline } of STORIES) {
+  test(`${stem}: a cursor asked one millisecond back answers what stateAt answers`, () => {
+    const cursor = createStateCursor(timeline, bundle);
+    // The forward pass above only ever asks for a larger t, so it never rewinds
+    // at all, and the backwards tests step whole seconds — far from wherever
+    // the cursor is standing. The smallest step back there is, onto the last
+    // instant an event has NOT happened at from the instant it has, is the one
+    // a scrub, a replay or a repaint actually lands on.
+    for (const tMs of instants(timeline)) {
+      if (tMs <= 0) continue;
+      cursor.at(tMs);
+      assert.deepEqual(
+        picture(cursor.at(tMs - 1)),
+        picture(stateAt(timeline, bundle, tMs - 1)),
+        `${tMs - 1} ms, one back from ${tMs} ms`,
+      );
+    }
+  });
+}
+
+test('the cursor folds each event once for the whole story, not once per frame', () => {
+  // The reason it exists, and the one thing equality with `stateAt` cannot
+  // show: a cursor written as `at: (t) => stateAt(timeline, bundle, t)` passes
+  // every other test in this file. So the events are counted as they are read.
+  const { bundle, timeline } = STORIES.find((story) => story.stem === 'ruby_and_the_gentle_dark');
+  let reads = 0;
+  const counted = {
+    ...timeline,
+    events: new Proxy(timeline.events, {
+      get(target, key) {
+        if (typeof key === 'string' && /^\d+$/.test(key)) reads += 1;
+        return target[key];
+      },
+    }),
+  };
+
+  const cursor = createStateCursor(counted, bundle);
+  const frames = 240;
+  for (let frame = 0; frame <= frames; frame += 1) {
+    cursor.at(Math.round((frame * timeline.duration_ms) / frames));
+  }
+
+  // The pair check walks the stream once, each event is read once when it is
+  // applied, and each frame reads the one event it does NOT apply — the loop's
+  // own stop condition. Everything else would be a re-fold.
+  const ceiling = (2 * timeline.events.length) + frames + 2;
+  assert.ok(
+    reads <= ceiling,
+    `${frames} frames read ${reads} events; folding from zero every frame would be `
+    + `about ${frames * timeline.events.length}, and reading each once is at most ${ceiling}`,
+  );
+  // Asking twice for one instant folds nothing at all the second time.
+  const settled = reads;
+  cursor.at(timeline.duration_ms);
+  cursor.at(timeline.duration_ms);
+  assert.ok(reads - settled <= 2, `an instant already answered cost ${reads - settled} more event reads`);
+});
+
+test('the corpus this is read forward through is in time order, which is what makes that legal', () => {
+  // The cursor's answer depends on the stream being non-decreasing in `t_ms`;
+  // `stateAt` is stateless and cannot notice. Nothing in the compiler asserts
+  // it — `Schedule` only ever moves forward, so it is emergent — and this is
+  // the line that would fail if that ever stopped being true.
+  for (const { stem, timeline } of STORIES) {
+    let last = -Infinity;
+    for (const [index, event] of timeline.events.entries()) {
+      assert.ok(
+        Number.isFinite(event.t_ms) && event.t_ms >= last,
+        `${stem} event ${index} is stamped ${event.t_ms} after ${last}`,
+      );
+      last = event.t_ms;
+    }
+  }
+});
+
+test('an event that throws throws again, rather than being folded past in silence', () => {
+  // `stateAt` builds a world per call, so an op it cannot apply throws on every
+  // call. A cursor that counted the event as applied would throw once and then
+  // draw the rest of the story on a world half way through it.
+  const { bundle, timeline } = STORIES.find((story) => story.stem === 'golden_push_dusk');
+  const exploding = {
+    source: 'stage',
+    op: 'subtitle',
+    t_ms: 0,
+    get text() { throw new Error('this event cannot be read'); },
+  };
+  const cursor = createStateCursor({ ...timeline, events: [exploding] }, bundle);
+  for (const attempt of [1, 2, 3]) {
+    assert.throws(() => cursor.at(0), /this event cannot be read/, `attempt ${attempt} was quiet`);
+  }
+});
+
+test('a cursor asked backwards, and one asked out of order, both still answer stateAt', () => {
+  // A seek is a t smaller than the last one. The world has already crossed
+  // events that have not happened at the new instant, so it cannot be wound
+  // back — it is rebuilt, and the proof is that the answer is unchanged.
+  const { bundle, timeline } = STORIES.find((story) => story.stem === 'ruby_and_the_gentle_dark');
+  const cursor = createStateCursor(timeline, bundle);
+  for (let tMs = timeline.duration_ms; tMs >= 0; tMs -= 449) {
+    assert.deepEqual(picture(cursor.at(tMs)), picture(stateAt(timeline, bundle, tMs)), `${tMs} ms backwards`);
+  }
+  for (const tMs of [7598, 11, 4027, 0, 91_562, 1611, 0, 91_562]) {
+    assert.deepEqual(picture(cursor.at(tMs)), picture(stateAt(timeline, bundle, tMs)), `${tMs} ms out of order`);
+  }
+
+  // A t that is smaller but crosses nothing — a pause redrawn a frame later, a
+  // scrub inside one gap between events — is the case the fold is deliberately
+  // NOT thrown away for. Taken inside the widest gap in the story, where a walk
+  // and a camera move are most likely to be in flight.
+  const [from, to] = widestGap(timeline);
+  for (let tMs = to - 1; tMs > from; tMs -= Math.max(1, Math.round((to - from) / 8))) {
+    assert.deepEqual(picture(cursor.at(tMs)), picture(stateAt(timeline, bundle, tMs)), `${tMs} ms inside a gap`);
+  }
+});
+
+test('a story swapped under the cursor is re-checked against its bundle', () => {
+  // The pair check runs once per story instead of once per call now, so the
+  // swap is what re-arms it. `appendScene` is the only swap in the runtime, and
+  // a timeline compiled from another story reaching `apply` unchecked is the
+  // silent disaster `requireMatchingPair` was written for.
+  const { bundle, timeline } = STORIES.find((story) => story.stem === 'golden_push_dusk');
+  const cursor = createStateCursor(timeline, bundle);
+  cursor.at(0);
+  cursor.setStory({ ...timeline, storylang_version: 99 }, bundle);
+  assert.throws(() => cursor.at(0), /were not built from each other/);
+
+  const moved = createStateCursor(timeline, bundle);
+  moved.at(0);
+  moved.setStory(timeline, {
+    ...bundle,
+    scenes: [{ ...bundle.scenes[0], place: 'somewhere_else' }, ...bundle.scenes.slice(1)],
+  });
+  assert.throws(() => moved.at(0), /compiled from a different story/);
+});
+
+test('a warning the cursor has already handed out does not grow afterwards', () => {
+  // The world keeps one warning list for its whole life and `stateAt` hands out
+  // a fresh one per call because it builds a fresh world. An answer that went on
+  // collecting warnings from events it never saw would be a lie a runtime
+  // logging them later has no way to notice.
+  const { bundle, timeline } = STORIES.find((story) => story.stem === 'the_owls_quiet_friend');
+  const cursor = createStateCursor(timeline, bundle);
+  const early = cursor.at(0);
+  const held = [...early.warnings];
+  cursor.at(timeline.duration_ms);
+  assert.deepEqual(early.warnings, held, 'an answer picked up warnings after it was given');
+  assert.ok(cursor.at(timeline.duration_ms).warnings.length > held.length, 'the corpus story stopped warning');
+});
+
+test('a story appended under the cursor is the story it answers from', () => {
+  // What a host watching a writer really does: publish scene 0, compile it,
+  // play it, then hand over a LONGER story — a different bundle object and a
+  // timeline compiled from it. The prefix is built the same way the streaming
+  // path builds it, because the half of this that matters is the bundle swap:
+  // the world reads the bundle for every height, plate and clip it hands out.
+  const { bundle, timeline } = STORIES.find((story) => story.bundle.scenes.length > 1);
+  const opening = { ...bundle, scenes: bundle.scenes.slice(0, 1) };
+  const prefix = compileTimeline(opening);
+  const cursor = createStateCursor(prefix, opening);
+  cursor.at(prefix.duration_ms);
+
+  cursor.setStory(timeline, bundle);
+  const inside = Math.round((prefix.duration_ms + timeline.duration_ms) / 2);
+  for (const tMs of [prefix.duration_ms, inside, timeline.duration_ms]) {
+    assert.deepEqual(picture(cursor.at(tMs)), picture(stateAt(timeline, bundle, tMs)), `${tMs} ms after the append`);
+  }
+  // The instant in the middle is inside the appended part, and it draws
+  // somebody — otherwise this compares two empty stages and proves nothing.
+  const appended = cursor.at(inside);
+  assert.ok(appended.sceneIndex > 0, `${inside} ms is still inside the opening scene`);
+  assert.ok(appended.plate && appended.actors.length > 0, 'the appended scene drew nobody, on no plate');
+});
+
+test('the cursor refuses what stateAt refuses, and in the same order', () => {
+  const { bundle, timeline } = STORIES.find((story) => story.stem === 'golden_push_dusk');
+  assert.throws(() => createStateCursor(timeline, bundle).at(undefined), /finite number of milliseconds/);
+  // The pair is checked once per story rather than once per call, and it is
+  // still checked FIRST: a timeline compiled from another story is the reason
+  // the picture would be wrong, and a bad t asked of it is not.
+  const mismatched = { ...timeline, storylang_version: 99 };
+  assert.throws(() => createStateCursor(mismatched, bundle).at(0), /were not built from each other/);
+  assert.throws(() => createStateCursor(mismatched, bundle).at(Number.NaN), /were not built from each other/);
+});
+
 // A player seeks, so it arrives at an instant from anywhere — and a later one
 // may memoise its way there. Neither may change the answer.
 test('the same instant answers the same however you arrive at it', () => {
@@ -275,6 +492,32 @@ test('a t before the first event, and one past the last, are both answerable', (
 
 function stageEvents(timeline) {
   return timeline.events.filter((event) => event.source === 'stage');
+}
+
+// Every instant the stream names and both sides of it, in the order a story is
+// watched in. A millisecond before an event is the last instant it has NOT
+// happened at, which is the half a fold reading forward can get wrong.
+function boundaries(timeline) {
+  const stamps = new Set();
+  for (const tMs of instants(timeline)) {
+    if (tMs > 0) stamps.add(tMs - 1);
+    stamps.add(tMs);
+    stamps.add(tMs + 1);
+  }
+  return [...stamps].sort((left, right) => left - right);
+}
+
+// The longest stretch of story between two events — the roomiest place to ask
+// for a t that is smaller than the last one without crossing anything.
+function widestGap(timeline) {
+  const stamps = instants(timeline);
+  let widest = [0, 0];
+  for (let index = 1; index < stamps.length; index += 1) {
+    if (stamps[index] - stamps[index - 1] > widest[1] - widest[0]) {
+      widest = [stamps[index - 1], stamps[index]];
+    }
+  }
+  return widest;
 }
 
 // Every instant the stream names, plus the instant every walk lands on.

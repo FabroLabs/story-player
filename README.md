@@ -26,8 +26,9 @@ story.json → compileTimeline(bundle) → stateAt(timeline, bundle, t) → canv
 ```
 
 The story clock is pausable and seekable behind play/pause, skip and progress
-controls; sprite sheets load as display-sized webp renditions instead of the
-originals; a weak device is put on a cheaper tier rather than into a slideshow.
+controls; sprite sheets load as display-sized webp renditions, a few frames at a
+time, instead of the originals; a weak device is put on a cheaper tier rather
+than into a slideshow.
 `tooling.v0` exports the same `compileTimeline`, `stateAt`, render rules and
 `V0_POLICY` that the engine's tools and the phone client run, so every client
 plays one schedule.

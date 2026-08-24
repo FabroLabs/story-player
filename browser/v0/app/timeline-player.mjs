@@ -3,7 +3,8 @@
  *
  * Nothing here decides what the story does. `compileTimeline` decided that
  * before the first frame — and again, whole, for every scene a host appends
- * after it; `stateAt` answers what the instant looks like; this
+ * after it; the state cursor answers what the instant looks like (the same
+ * answer `stateAt` gives, read forward instead of cold); this
  * file only moves t forward and hands the answer to the three planes that show
  * it — the canvas, the plate and the media scheduler — plus the control bar that
  * reports it. That is the whole reason pause, seek and idle are three lines each
@@ -15,7 +16,8 @@
  * background tab costs nothing.
  */
 
-import { stateAt } from '../core/state/state.mjs';
+import { createStateCursor } from '../core/state/cursor.mjs';
+import { KEEP_CADENCE_MS } from './assets/scene-loader.mjs';
 import { DEFAULT_DRAW_HZ, tierSettings } from './capability.mjs';
 import { createControls } from './controls.mjs';
 import { createMediaScheduler } from './media-scheduler.mjs';
@@ -34,6 +36,11 @@ export function createTimelinePlayer({
   // — `appendScene` swaps both halves at once — so nothing below reads the two
   // arguments again after this line.
   let story = { bundle, timeline };
+  // The picture, read forward. Every frame asks for a t a little past the last
+  // one, so the fold is held open across them instead of replayed from zero on
+  // each — see `cursor.mjs`. `appendScene` hands it the story that replaced this
+  // one; nothing else here knows the difference.
+  const cursor = createStateCursor(timeline, bundle);
   let durationMs = Math.max(0, Math.round(timeline?.duration_ms ?? 0));
   // Whether the end of what is published is the end of the STORY. Only the host
   // knows: a prefix compiles its own `end` op because a compiler handed three
@@ -46,10 +53,14 @@ export function createTimelinePlayer({
   // 24 fps is the ceiling the phone client holds and the cadence the sprite
   // sheets were authored at; a weak machine is given half of it rather than a
   // number of its own, so the loop skips every other tick exactly.
+  // Only the two numbers this file reads back. The shadow flag rode here too
+  // and was read by nobody — the stage is told it directly, at construction and
+  // again on every demotion — so a field that looked like the runtime's opinion
+  // about shadows, and defaulted the opposite way to the value actually passed
+  // one line below, is gone rather than kept in step.
   let tier = {
     dprCap: capability.dprCap,
     drawHz: capability.drawHz || DEFAULT_DRAW_HZ,
-    shadows: capability.shadows !== false,
   };
   let frameIntervalMs = 1000 / tier.drawHz;
   const stage = createCanvasStage(elements.stage, {
@@ -71,6 +82,13 @@ export function createTimelinePlayer({
   const listeners = [];
   let sheets = null;
   let sceneIndex = null;
+  // The viewport the scene on screen was planned with, and the story instant its
+  // chunk window was last held at. The viewport is remembered rather than
+  // re-measured: asking the stage for its letterbox ten times a second is a
+  // forced layout on the devices this window exists to protect.
+  let sceneView = null;
+  let heldAtMs = null;
+  let heldCast = null;
   let signature = null;
   let subtitle = null;
   let note = '';
@@ -209,6 +227,11 @@ export function createTimelinePlayer({
     if (destroyed) return;
     if (waiting) {
       resumeAfterAppend = false;
+      // `settle` left the line being read out sounding — that is the whole
+      // point of the wait. A viewer who presses pause under the spinner is
+      // asking for that to stop too, and a transport reading `paused` over a
+      // voice still speaking is the control lying about what it did.
+      media.pause();
       controls.update({ tMs: clock.now(), playing: false, ended: false });
       return;
     }
@@ -314,15 +337,16 @@ export function createTimelinePlayer({
   /**
    * A tier the recorder lowered, applied to everything it means.
    *
-   * The picture gets cheaper in three places at once — fewer device pixels,
-   * fewer draws, no shadows — and the cache stops holding as much, because the
+   * The picture gets cheaper in two places at once — fewer device pixels and
+   * fewer draws, the shadow being off on every tier for now — and the cache
+   * stops holding as much, because the
    * machine that produced five seconds of slow frames is the one whose tab gets
    * reloaded out from under the child.
    */
   function applyTier(name) {
     if (destroyed) return;
     const next = tierSettings(name);
-    tier = { dprCap: next.dprCap, drawHz: next.drawHz, shadows: next.shadows };
+    tier = { dprCap: next.dprCap, drawHz: next.drawHz };
     frameIntervalMs = 1000 / next.drawHz;
     stage.setTier({ dprCap: next.dprCap, shadows: next.shadows });
     cache?.setBudget?.(next.bitmapBudget);
@@ -381,8 +405,9 @@ export function createTimelinePlayer({
   function render(tMs, { force = false } = {}) {
     if (destroyed) return;
     const t = clamp(tMs);
-    const state = stateAt(story.timeline, story.bundle, t);
+    const state = cursor.at(t);
     openScene(state);
+    holdChunks(t, state, force);
     report(state.warnings);
     // Only a RUNNING story crosses time. A paused one is redrawn at the instant
     // it stands at — by the pause itself, by a scrub, by a resize — and handing
@@ -429,7 +454,11 @@ export function createTimelinePlayer({
     clock.pause();
     stopLoop();
     plate.pause();
-    media.pause();
+    // The instant the stage caught up with the writer is the end of the line
+    // the prefix stopped on, so `settle` rather than `pause`: the sentence is
+    // finished under the spinner instead of being frozen mid-word and picked up
+    // again when the scene lands.
+    media.settle();
     elements.stage.waiting.hidden = false;
     controls.update({ tMs: clock.now(), playing: resumeAfterAppend, ended: false });
   }
@@ -461,6 +490,7 @@ export function createTimelinePlayer({
     mediaNextMs = Math.min(mediaNextMs, durationMs);
     story = { bundle: next.bundle, timeline: next.timeline };
     durationMs = Math.max(0, Math.round(next.timeline?.duration_ms ?? 0));
+    cursor.setStory(story.timeline, story.bundle);
     media.setStory(story);
     loader.setStory(story);
     controls.arm(durationMs);
@@ -575,12 +605,18 @@ export function createTimelinePlayer({
     // slow rather than that it was.
     recorder?.scene(sceneIndex);
     showBadge();
+    // The window belongs to the scene it was measured in: a cut invalidates it,
+    // and the render that opened this scene holds a new one on the same frame.
+    heldAtMs = null;
+    heldCast = null;
     if (sceneIndex === null) {
       sheets = null;
+      sceneView = null;
       plate.showScene(null);
       return;
     }
     const view = viewport();
+    sceneView = view;
     const opened = sceneIndex;
     sheets = sceneSheets(loader.plan(sceneIndex, view), cache);
     plate.showScene(story.bundle?.scenes?.[sceneIndex]?.plate ?? null);
@@ -595,6 +631,68 @@ export function createTimelinePlayer({
         render(clock.now(), { force: true });
       })
       .catch(warmingFailed);
+  }
+
+  /**
+   * The chunks under the playhead, held against eviction.
+   *
+   * On the STORY's clock, and `force` is what every instant nobody looped
+   * through arrives with — the first frame, a seek, a pause. Those move the
+   * window at once; the cadence is only for playing forwards. The difference is
+   * still measured both ways, because a t that went backwards without a force
+   * behind it would otherwise hold nothing until the story caught up with
+   * itself.
+   *
+   * Whole-sheet bundles reach this too, and it costs them one Map lookup and a
+   * keep set identical to the one the gate already set — every sheet pinned and
+   * the props unfiltered, because there is no window there to make room for.
+   */
+  function holdChunks(tMs, state, force) {
+    if (sceneIndex === null || sceneView === null) return;
+    // A drag is not an instant the story is AT, it is a preview of one. Every
+    // pointer move seeks with `force`, and holding on each would re-pin the
+    // cache at a place the pointer has already left and ask for the chunks of
+    // an instant nobody stopped on — sixty fetches for a one-second drag,
+    // each evicted by the next move, over the link the plate video is
+    // streaming on. The landing (`placeSound` clears this first) holds once.
+    if (scrubbing) return;
+    const settled = !force && heldAtMs !== null && Math.abs(tMs - heldAtMs) < KEEP_CADENCE_MS;
+    if (settled && !castMoved(state.actors)) return;
+    heldAtMs = tMs;
+    heldCast = state.actors;
+    const opened = sceneIndex;
+    const landing = loader.holdScene(sceneIndex, sceneView, state.actors);
+    // A running story draws what lands on its next frame. A PAUSED one has no
+    // next frame — and since the window fetches most of a scene now, a scrub
+    // INSIDE one scene is the case `openScene` never sees: the chunks the
+    // scrubbed-to instant needs arrive after the only paint anyone asked for,
+    // and the stage stands in with the pose it was holding. Only for the scene
+    // still on screen, and only when the hold really asked for something, so
+    // the repaint cannot hold from itself for ever.
+    if (!landing) return;
+    void landing.then(() => {
+      if (destroyed || clock.running || opened !== sceneIndex) return;
+      render(clock.now(), { force: true });
+    }).catch(warmingFailed);
+  }
+
+  /**
+   * Somebody changed clip, or came on, or left.
+   *
+   * The one moment the window is wrong and the cadence has not noticed yet: a
+   * character who starts waving is drawing from an object nothing has asked for,
+   * and waiting out the rest of the tick to ask is a tenth of a second of the
+   * pose they were in before. Compared field by field against the array the last
+   * hold was made from — this runs on every drawn frame, and a key built per
+   * frame to answer "nothing changed" would be the cheapest thing here to get
+   * wrong.
+   */
+  function castMoved(actors) {
+    if (heldCast === null || heldCast.length !== actors.length) return true;
+    for (const [index, actor] of actors.entries()) {
+      if (actor.slug !== heldCast[index].slug || actor.clip !== heldCast[index].clip) return true;
+    }
+    return false;
   }
 
   function showBadge() {
@@ -642,16 +740,21 @@ export function createTimelinePlayer({
     clock.pause();
     stopLoop();
     plate.pause();
-    media.pause();
+    // The clock runs out ON the last line, never past it, so the end card goes
+    // up while the last sentence is still being read — and it is left to finish
+    // rather than cut, which is the whole of the reported bug at the one
+    // instant the schedule's own grace cannot reach.
+    media.settle();
     recorder?.flush('end');
     recorder?.pause();
     elements.stage.end.hidden = false;
     controls.update({ tMs: durationMs, playing: false, ended: true });
   }
 
-  // `stateAt` hands back every warning raised by every event up to t, so the
-  // same sentence arrives on every frame of the rest of the story. Each one is
-  // logged the first time it is seen and never again.
+  // The cursor hands back every warning raised by every event up to t — the
+  // same list `stateAt` would — so the same sentence arrives on every frame of
+  // the rest of the story. Each one is logged the first time it is seen and
+  // never again.
   function report(warnings) {
     for (const warning of warnings ?? []) {
       const key = JSON.stringify(warning);
