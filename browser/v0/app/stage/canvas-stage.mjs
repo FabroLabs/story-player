@@ -16,7 +16,7 @@
  * "how big is the stage really" from drifting away from the picture.
  */
 
-import { DPR_CAP } from '../assets/rendition-picker.mjs';
+import { DPR_CAP, chunkAt } from '../assets/rendition-picker.mjs';
 import { DEFAULT_STAGE_RESOLUTION } from '../../policy.mjs';
 import { buildDrawList } from './draw-list.mjs';
 
@@ -305,12 +305,16 @@ export function createCanvasStage(elements, {
  */
 export function sceneSheets(plan, cache) {
   const sheets = new Map();
-  for (const sheet of plan?.sheets ?? []) {
-    sheets.set(`${sheet.slug} ${sheet.clip}`, { url: sheet.url, grid: sheet.grid });
-  }
+  for (const sheet of plan?.sheets ?? []) sheets.set(`${sheet.slug} ${sheet.clip}`, sheet);
   const props = new Map((plan?.props ?? []).map((prop) => [prop.slug, { url: prop.url }]));
   return {
-    sheet: (slug, clip) => sheets.get(`${slug} ${clip}`) ?? null,
+    // Per FRAME, not per clip: where the bundle carries a chunk ladder, which
+    // object a clip is drawn from changes as it loops, and `chunkAt` answers
+    // both halves at once — the chunk, and the frame that chunk starts at.
+    sheet: (slug, clip, frame) => {
+      const held = sheets.get(`${slug} ${clip}`);
+      return held ? chunkAt(held, frame) : null;
+    },
     prop: (slug) => props.get(slug) ?? null,
     drawable: (url) => cache?.get(url) ?? null,
   };

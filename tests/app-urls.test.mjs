@@ -219,3 +219,64 @@ test('renditions are projected and validated exactly like the sheet they stand i
     );
   }
 });
+
+test('chunk keys go through the same door as the rendition they were cut from', () => {
+  const clip = (extra) => ({
+    cast: {
+      rabbit: {
+        clips: {
+          idle: {
+            spritesheet: 'fairytale-assets/sprites/rabbit/idle/spritesheet.png',
+            atlas: null,
+            renditions: { 200: 'fairytale-assets/mobile/sprites/aaa.webp' },
+            ...extra,
+          },
+        },
+      },
+    },
+    objects: {},
+    audio: { sfx: {}, bgm: {} },
+    scenes: [{ plate: { video: 'plates/open.mp4', poster: 'plates/open.jpg' }, steps: [] }],
+  });
+
+  const projected = resolveStoryAssets(clip({
+    rendition_chunks: {
+      200: {
+        frames_per_chunk: 25,
+        keys: ['fairytale-assets/mobile/sprites/c0.webp', 'fairytale-assets/mobile/sprites/c1.webp'],
+      },
+    },
+  }), BASE);
+  assert.deepEqual(projected.cast.rabbit.clips.idle.rendition_chunks, {
+    200: {
+      frames_per_chunk: 25,
+      keys: [
+        `${BASE}/fairytale-assets/mobile/sprites/c0.webp`,
+        `${BASE}/fairytale-assets/mobile/sprites/c1.webp`,
+      ],
+    },
+  });
+
+  // A bundle from before chunks existed carries no key rather than an empty one,
+  // and the picker then draws the whole rendition — today's path, untouched.
+  assert.equal(Object.hasOwn(resolveStoryAssets(clip({}), BASE).cast.rabbit.clips.idle, 'rendition_chunks'), false);
+
+  // A block whose keys are not a list is left empty rather than thrown away with
+  // the story: the picker checks the list against the clip's frame count anyway
+  // and falls back, which is a story that plays.
+  assert.deepEqual(
+    resolveStoryAssets(clip({ rendition_chunks: { 200: { frames_per_chunk: 25, keys: null } } }), BASE)
+      .cast.rabbit.clips.idle.rendition_chunks[200].keys,
+    [],
+  );
+
+  for (const bad of ['https://evil.example/x.webp', '../secret.webp', 'fairytale-assets/x.webp?v=1']) {
+    assert.throws(
+      () => resolveStoryAssets(clip({
+        rendition_chunks: { 200: { frames_per_chunk: 25, keys: ['fairytale-assets/mobile/sprites/c0.webp', bad] } },
+      }), BASE),
+      /rendition chunk "200"\/1 has invalid media path/,
+      `a chunk key of ${bad} reached the network`,
+    );
+  }
+});

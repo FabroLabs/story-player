@@ -454,9 +454,13 @@ test('the sheet book answers per clip, per prop, and per decoded url', () => {
   const decoded = { 'ruby-walk.webp': bitmap(2880, 2880) };
   const sheets = sceneSheets(plan, { get: (url) => decoded[url] ?? null });
 
-  assert.deepEqual(sheets.sheet('ruby', 'walk_left'), { url: 'ruby-walk.webp', grid: [9, 9] });
-  assert.equal(sheets.sheet('ruby', 'sleep'), null);
-  assert.equal(sheets.sheet('bramble', 'idle_right'), null);
+  assert.deepEqual(
+    sheets.sheet('ruby', 'walk_left', 17),
+    { url: 'ruby-walk.webp', grid: [9, 9], chunkStart: 0 },
+    'a clip with no chunk ladder is one sheet at every frame, as it always was',
+  );
+  assert.equal(sheets.sheet('ruby', 'sleep', 0), null);
+  assert.equal(sheets.sheet('bramble', 'idle_right', 0), null);
   assert.deepEqual(sheets.prop('lantern'), { url: 'lantern.svg' });
   assert.equal(sheets.prop('stump'), null);
   assert.equal(sheets.drawable('ruby-walk.webp'), decoded['ruby-walk.webp']);

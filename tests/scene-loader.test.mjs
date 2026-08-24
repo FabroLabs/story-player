@@ -10,15 +10,32 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  KEEP_CADENCE_MS,
   createSceneLoader,
   maxCameraScale,
   planAssets,
   sceneAssetPlan,
+  sceneKeepUrls,
 } from '../browser/v0/app/assets/scene-loader.mjs';
+import { SMALL_DEVICE_BUDGET_BYTES, createBitmapCache } from '../browser/v0/app/assets/bitmap-cache.mjs';
+import { sceneSheets } from '../browser/v0/app/stage/canvas-stage.mjs';
+import { buildDrawList } from '../browser/v0/app/stage/draw-list.mjs';
 import { PAN_SCALE_FLOOR, PUSH_SCALE } from '../browser/v0/policy.mjs';
+import { stateAt } from '../browser/v0/core/state/state.mjs';
 import { createStoryPlayer } from '../browser/embed.mjs';
 import { STEMS, read } from './_parity.mjs';
+import {
+  FRAMES_PER_CHUNK,
+  POSTER,
+  chunkedFixture,
+  decodeFrom,
+  decodedSizes,
+  lateEntryFixture,
+  withoutChunks,
+} from './_chunked.mjs';
 import { installDom } from './_dom.mjs';
+
+const name = (url) => String(url).split('/').pop();
 
 /** Every `slug clip` pair an op names, and the ones replaced in the same ms. */
 function clipsNamedBy(timeline, sceneIndex) {
@@ -35,6 +52,7 @@ function clipsNamedBy(timeline, sceneIndex) {
 
 function fakeCache({ fails = () => false } = {}) {
   const loaded = [];
+  const held = new Set();
   let kept = [];
   let inFlight = 0;
   let peak = 0;
@@ -43,6 +61,7 @@ function fakeCache({ fails = () => false } = {}) {
     kept: () => kept,
     peakInFlight: () => peak,
     keep(urls) { kept = [...urls]; },
+    has(url) { return held.has(url); },
     async load(url) {
       loaded.push(url);
       inFlight += 1;
@@ -52,6 +71,10 @@ function fakeCache({ fails = () => false } = {}) {
       await Promise.resolve();
       inFlight -= 1;
       if (fails(url)) throw new Error(`asset ${url} answered 404`);
+      // Residency is the real cache's answer to `has`, and it remembers no
+      // failure: a broken asset is not held, so nothing stops it being asked
+      // for again except the caller.
+      held.add(url);
       return { width: 8, height: 8 };
     },
   };
@@ -281,6 +304,320 @@ test('the gate fetches its scene all at once — somebody is watching the progre
   await loader.loadScene(0, {}, { keep: true });
 
   assert.equal(cache.peakInFlight(), 3, 'nothing else is competing for the link while the gate is shut');
+});
+
+test('the gate takes the chunks its opening draws, and the first chunk of everything else', async () => {
+  const { bundle, timeline } = chunkedFixture();
+  const cache = fakeCache();
+  const loader = createSceneLoader({ timeline, bundle, cache });
+
+  await loader.loadScene(0, {}, { keep: true });
+
+  assert.deepEqual(cache.loaded.map(name), [
+    'dell.jpg',
+    // Pip and bo are idling when the scene opens: the chunk under the playhead
+    // and the one after it, which is the window the budget was measured for.
+    'pip-idle-512-c0.webp',
+    'pip-idle-512-c1.webp',
+    'bo-idle-512-c0.webp',
+    'bo-idle-512-c1.webp',
+    // Moss's whole clip is shorter than one chunk, so the window is one object.
+    'moss-idle-512-c0.webp',
+    // Pip waves later in the scene. Its opening chunk is FETCHED, so the pose
+    // is in the browser's cache before the story reaches it...
+    'pip-wave-512-c0.webp',
+  ]);
+  assert.deepEqual(
+    cache.kept().map(name),
+    [
+      'dell.jpg',
+      'pip-idle-512-c0.webp', 'pip-idle-512-c1.webp',
+      'bo-idle-512-c0.webp', 'bo-idle-512-c1.webp',
+      'moss-idle-512-c0.webp',
+    ],
+    '...and is NOT kept: five characters times two chunks is the whole budget beside the poster',
+  );
+  assert.equal(
+    cache.loaded.some((url) => /512\.webp$/.test(url)),
+    false,
+    'bo\'s whole 81-frame sheet at 512 is 85 MB — more than the budget on its own, which is the bug',
+  );
+});
+
+test('a scene warmed ahead takes one chunk per clip and nothing else', async () => {
+  const { bundle, timeline } = chunkedFixture();
+  const cache = fakeCache();
+  const loader = createSceneLoader({ timeline, bundle, cache });
+
+  await loader.loadScene(0, {}, { concurrency: 1 });
+
+  assert.deepEqual(cache.loaded.map(name), [
+    'dell.jpg',
+    'pip-idle-512-c0.webp', 'bo-idle-512-c0.webp', 'moss-idle-512-c0.webp', 'pip-wave-512-c0.webp',
+  ], 'a scene the story has not reached needs the chunk it opens on, not the loop it settles into');
+  assert.deepEqual(cache.kept(), [], 'a scene being warmed ahead is not the scene on screen');
+});
+
+test('the window follows the playhead, and holding it is what fetches the next chunk', async () => {
+  const { bundle, timeline } = chunkedFixture();
+  const cache = fakeCache();
+  const loader = createSceneLoader({ timeline, bundle, cache });
+  const plan = loader.plan(0, {});
+
+  await loader.loadScene(0, {}, { keep: true });
+  const gated = cache.loaded.length;
+
+  // Three seconds in: pip is twelve frames into a 12 fps idle — chunk three of
+  // six — and bo is thirty-six frames into theirs. None of those four objects
+  // were in the gate's window.
+  loader.holdScene(0, {}, stateAt(timeline, bundle, 3000).actors);
+
+  assert.deepEqual(cache.kept().map(name), [
+    'dell.jpg',
+    'pip-idle-512-c3.webp', 'pip-idle-512-c4.webp',
+    'bo-idle-512-c9.webp', 'bo-idle-512-c10.webp',
+    'moss-idle-512-c0.webp',
+  ]);
+  assert.deepEqual(
+    cache.loaded.slice(gated).map(name),
+    ['pip-idle-512-c3.webp', 'pip-idle-512-c4.webp', 'bo-idle-512-c9.webp', 'bo-idle-512-c10.webp'],
+    'what is already decoded is not asked for again',
+  );
+
+  // The wave starts at six seconds and pip is three frames into it at seven:
+  // its first chunk, and the next, and the idle chunks are free to go.
+  loader.holdScene(0, {}, stateAt(timeline, bundle, 7000).actors);
+  assert.deepEqual(cache.kept().map(name), [
+    'dell.jpg',
+    'pip-wave-512-c0.webp', 'pip-wave-512-c1.webp',
+    'bo-idle-512-c0.webp', 'bo-idle-512-c1.webp',
+    'moss-idle-512-c0.webp',
+  ]);
+
+  // A clip loops, and so does its ladder: the chunk after the last is the first.
+  loader.holdScene(0, {}, [{ slug: 'pip', clip: 'wave', frame: 8 }]);
+  assert.deepEqual(
+    cache.kept().map(name),
+    ['dell.jpg', 'pip-wave-512-c2.webp', 'pip-wave-512-c0.webp'],
+  );
+});
+
+test('a chunk that will not load is asked for once, not on every cadence tick', async () => {
+  const { bundle, timeline } = chunkedFixture();
+  const broken = 'fairytale-assets/mobile/sprites/pip-idle-512-c3.webp';
+  const cache = fakeCache({ fails: (url) => url === broken });
+  const warnings = [];
+  const loader = createSceneLoader({
+    timeline, bundle, cache, onWarning: (detail) => warnings.push(detail),
+  });
+  const actors = stateAt(timeline, bundle, 3000).actors;
+
+  for (let tick = 0; tick < 5; tick += 1) {
+    loader.holdScene(0, {}, actors);
+    await Promise.resolve();
+    await Promise.resolve();
+  }
+
+  assert.equal(cache.loaded.filter((url) => url === broken).length, 1, 'the cache remembers no failure; this must');
+  assert.equal(warnings.length, 1);
+  assert.equal(warnings[0].message, `asset ${broken} answered 404`);
+  assert.deepEqual(
+    { asset: warnings[0].asset, slug: warnings[0].slug, clip: warnings[0].clip },
+    { asset: 'sheet', slug: 'pip', clip: 'idle' },
+    'a chunk key is content-addressed: without the character and clip the line names nothing anyone can act on',
+  );
+
+  // A dropped connection is not a missing object, and the cache says so itself:
+  // it remembers no failure so a later scene "is free to try again on a link
+  // that may have come back". Opening a scene is that later moment.
+  await loader.loadScene(0, {}, { keep: true });
+  loader.holdScene(0, {}, actors);
+  await Promise.resolve();
+  await Promise.resolve();
+  assert.equal(cache.loaded.filter((url) => url === broken).length, 2, 'the scene opened and nothing tried again');
+  assert.equal(warnings.length, 1, 'the second attempt failed too, and said the same thing twice');
+});
+
+test('a scene that opens on a line of narration still keeps the cast that arrives after it', async () => {
+  const { bundle, timeline } = lateEntryFixture();
+  const cache = fakeCache();
+  const loader = createSceneLoader({ timeline, bundle, cache });
+
+  await loader.loadScene(0, {}, { keep: true });
+
+  // Every scene begins with a `scene` op and a subtitle at t=0. Counted from the
+  // first sample rather than the first sample with anybody in it, this scene
+  // opens on an empty stage: the sprites the gate just decoded would be
+  // evictable the moment they land, and `bitmap-cache`'s own promise — that the
+  // current scene's sheets are kept — would be false for it.
+  assert.deepEqual(cache.kept().map(name), [
+    'dell.jpg',
+    'pip-idle-512-c0.webp', 'pip-idle-512-c1.webp',
+    'bo-idle-512-c0.webp', 'bo-idle-512-c1.webp',
+  ]);
+});
+
+test('the cadence re-reads the window at least twice inside the shortest chunk there can be', () => {
+  // Not a number copied from the constant: the shortest a chunk can hold the
+  // stage is the smallest `frames_per_chunk` the encoder emits, played at the
+  // fastest clip the corpus actually carries. A 30 fps clip landing in the
+  // corpus one day fails here rather than stalling in somebody's browser.
+  const fastestFps = Math.max(...STEMS.flatMap((stem) => Object
+    .values(read(stem, 'bundle').cast)
+    .flatMap((character) => Object.values(character.clips).map((clip) => clip.fps))));
+  const shortestChunkMs = (1000 * Math.min(...Object.values(FRAMES_PER_CHUNK))) / fastestFps;
+
+  assert.equal(fastestFps, 24, 'the corpus changed the fastest clip it carries');
+  assert.ok(
+    KEEP_CADENCE_MS * 2 <= shortestChunkMs,
+    `${KEEP_CADENCE_MS} ms twice does not fit inside a ${Math.round(shortestChunkMs)} ms chunk:`
+    + ' the next chunk would be asked for after it was already being drawn',
+  );
+});
+
+test('the kept window fits the budget at the count it was measured for, and not past it', () => {
+  const { bundle, timeline } = chunkedFixture();
+  const sizes = decodedSizes(bundle);
+  const plan = sceneAssetPlan(timeline, bundle, 0, {});
+  const bytes = (urls) => urls.reduce((total, url) => {
+    const { width, height } = sizes.get(url) ?? { width: 0, height: 0 };
+    return total + (width * height * 4);
+  }, 0);
+
+  const poster = bytes([POSTER]);
+  const held = bytes(sceneKeepUrls(plan, [{ slug: 'bo', clip: 'idle', frame: 0 }])) - poster;
+
+  assert.equal(poster, 8_294_400, 'the poster decodes into the same cache, before a single sheet');
+  assert.equal(held, 8_388_608, 'one character\'s window: two chunks of 2x2 cells at 512 px');
+  // The engine sized every chunk against five characters on stage
+  // (`MAX_ON_STAGE`, `tools/playerkit/renditions.py`) and this is that sum.
+  assert.ok(poster + (5 * held) <= SMALL_DEVICE_BUDGET_BYTES, 'the count the chunk lengths were measured for does not fit');
+  assert.equal(
+    SMALL_DEVICE_BUDGET_BYTES - (poster + (5 * held)),
+    94_208,
+    'the slack at that count is 92 KB, and one 256 px prop on stage is three times it',
+  );
+  assert.ok(
+    poster + (6 * held) > SMALL_DEVICE_BUDGET_BYTES,
+    'six characters is over the budget and nothing here clamps it — `backlog-chunk-stall-is-silent.md`',
+  );
+});
+
+test('a prop is kept while it is on stage, and not once it has gone', () => {
+  const plan = { poster: 'dell.jpg', props: [{ slug: 'lantern', url: 'lantern.svg' }], sheets: [] };
+
+  assert.deepEqual(
+    sceneKeepUrls(plan),
+    ['dell.jpg', 'lantern.svg'],
+    'before there is a first frame the plan is all there is, and the gate decoded it anyway',
+  );
+  assert.deepEqual(sceneKeepUrls(plan, [{ slug: 'lantern', kind: 'object' }]), ['dell.jpg', 'lantern.svg']);
+  assert.deepEqual(
+    sceneKeepUrls(plan, [{ slug: 'pip', clip: 'idle', frame: 0 }]),
+    ['dell.jpg'],
+    'the budget has 92 KB of slack at five characters: a lantern nobody is holding cannot be in it',
+  );
+});
+
+test('a chunk ladder that does not match the clip is refused once, and the scene still draws', async () => {
+  const { bundle, timeline } = chunkedFixture();
+  bundle.cast.pip.clips.idle.rendition_chunks[512].keys.pop();
+  const cache = fakeCache();
+  const warnings = [];
+  const loader = createSceneLoader({
+    timeline, bundle, cache, onWarning: (detail) => warnings.push(detail),
+  });
+
+  await loader.loadScene(0, {}, { keep: true });
+  await loader.loadScene(0, {}, { keep: true });
+
+  assert.equal(warnings.length, 1, 'said once per clip, not once per scene it appears in');
+  assert.equal(warnings[0].message, 'chunk ladder unusable at 512 px; drawing from the whole rendition');
+  assert.deepEqual(
+    [...new Set(cache.loaded.filter((url) => url.includes('pip-idle')).map(name))],
+    ['pip-idle-512.webp'],
+    'the whole rendition is drawn instead — correct, and the memory it was cut up to save is what is lost',
+  );
+});
+
+test('a ladder that skips the tier this viewport draws is the same refusal', async () => {
+  const { bundle, timeline } = chunkedFixture();
+  delete bundle.cast.moss.clips.idle.rendition_chunks[512];
+  const cache = fakeCache();
+  const warnings = [];
+  const loader = createSceneLoader({
+    timeline, bundle, cache, onWarning: (detail) => warnings.push(detail),
+  });
+
+  await loader.loadScene(0, {}, { keep: true });
+
+  // The engine emits all four tiers or none, so a clip carrying chunks at 200
+  // and 320 but not at the tier this stage picked is a build fault too — and it
+  // reaches the reader the same way: `sheetFor` refuses the ladder it cannot
+  // read, and the whole rendition is drawn.
+  assert.deepEqual(
+    warnings.map((detail) => [detail.slug, detail.clip, detail.message]),
+    [['moss', 'idle', 'chunk ladder unusable at 512 px; drawing from the whole rendition']],
+  );
+  assert.ok(cache.loaded.includes('fairytale-assets/mobile/sprites/moss-idle-512.webp'));
+});
+
+test('the chunk window holds a small device inside its budget, and the whole sheets do not', async () => {
+  const { bundle, timeline } = chunkedFixture();
+  const sizes = decodedSizes(bundle);
+  const budget = SMALL_DEVICE_BUDGET_BYTES;
+
+  async function play(storyBundle) {
+    const overBudget = [];
+    const cache = createBitmapCache({
+      budgetBytes: budget,
+      decode: decodeFrom(sizes),
+      onOverBudget: (detail) => overBudget.push(detail),
+    });
+    const loader = createSceneLoader({ timeline, bundle: storyBundle, cache });
+    await loader.loadScene(0, {}, { keep: true });
+
+    let peak = 0;
+    let missing = 0;
+    let sprites = 0;
+    // The picture the canvas would paint, built the way the runtime builds it —
+    // NOT by asking the keep set which chunk it chose, which would be the same
+    // answer twice and could not catch a consistently wrong one.
+    const book = sceneSheets(loader.plan(0, {}), cache);
+    // Twenty-four frames a second across the whole story. WHEN the runtime asks
+    // is the runtime's own rule (`KEEP_CADENCE_MS`, and immediately when
+    // somebody changes clip — `tests/timeline-player.test.mjs`); what is being
+    // measured here is that the answer is right every time it does.
+    for (let tMs = 0; tMs <= timeline.duration_ms; tMs += Math.round(1000 / 24)) {
+      const state = stateAt(timeline, storyBundle, tMs);
+      loader.holdScene(0, {}, state.actors);
+      // The link is instant here: what is being measured is whether the RIGHT
+      // objects are asked for, not how long they take to arrive.
+      for (let turn = 0; turn < 8; turn += 1) await Promise.resolve();
+      peak = Math.max(peak, cache.bytes);
+      for (const command of buildDrawList(state, book).commands) {
+        if (command.op === 'missing') missing += 1;
+        if (command.op !== 'sprite') continue;
+        sprites += 1;
+        if (!cache.get(command.url)) missing += 1;
+      }
+    }
+    return { peak, missing, sprites, overBudget: overBudget.length };
+  }
+
+  const chunked = await play(bundle);
+  assert.equal(chunked.overBudget, 0, 'not one instant where the kept set alone did not fit');
+  assert.ok(
+    chunked.peak <= budget,
+    `held ${Math.round(chunked.peak / 1024 / 1024)} MB against a ${budget / 1024 / 1024} MB budget`,
+  );
+  assert.equal(chunked.sprites, 858, 'the run drew a different number of sprites than it used to');
+  assert.equal(chunked.missing, 0, 'every sprite the canvas drew had its chunk decoded: no stand-in at a boundary');
+
+  // The same story, the same loop, the whole-sheet ladder: this is the bug.
+  const whole = await play(withoutChunks(bundle));
+  assert.ok(whole.overBudget > 0, 'the budget is not tight enough for this fixture to prove anything');
+  assert.ok(whole.peak > budget, 'a 26 MB sheet each for two characters does not fit 48 MB beside the poster');
 });
 
 /** One character, one clip, the whole ladder — so the tier fetched is visible. */

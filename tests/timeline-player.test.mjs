@@ -14,13 +14,14 @@ import test from 'node:test';
 
 import { createStoryPlayer } from '../browser/embed.mjs';
 import { createBitmapCache } from '../browser/v0/app/assets/bitmap-cache.mjs';
-import { createSceneLoader } from '../browser/v0/app/assets/scene-loader.mjs';
+import { KEEP_CADENCE_MS, createSceneLoader } from '../browser/v0/app/assets/scene-loader.mjs';
 import { sceneSheets } from '../browser/v0/app/stage/canvas-stage.mjs';
 import { buildDrawList } from '../browser/v0/app/stage/draw-list.mjs';
 import { resolveStoryAssets } from '../browser/v0/app/urls.mjs';
 import { soundingAt } from '../browser/v0/core/state/cues.mjs';
 import { stateAt } from '../browser/v0/core/state/state.mjs';
 import { compileTimeline } from '../browser/v0/core/timeline/compile.mjs';
+import { chunkedStory } from './_chunked.mjs';
 import { read } from './_parity.mjs';
 import {
   downloadSession, findByClass, findByLabel, installAudio, installDom, virtualFrames,
@@ -102,6 +103,103 @@ test('a hidden tab stops the clock, and coming back continues from the same inst
   assert.equal(player.video.paused, false, 'coming back did not continue the story');
   assert.equal(player.bar.at.textContent, at);
   assert.ok(player.frames.pending() > 0, 'coming back did not restart the loop');
+  player.destroy();
+});
+
+test('the runtime moves the chunk window with the playhead, on a cadence', async (t) => {
+  const player = await mount(t, { story: chunkedStory() });
+  const chunks = () => sheetsFetched(player);
+
+  // The gate: the window the scene opens on, and the first chunk of the clip
+  // pip has not waved with yet. Nothing whole — a whole 81-frame sheet at 512
+  // is 85 MB, which is the bug the chunks exist for.
+  assert.deepEqual(chunks(), [
+    'pip-idle-512-c0.webp', 'pip-idle-512-c1.webp',
+    'bo-idle-512-c0.webp', 'bo-idle-512-c1.webp',
+    'moss-idle-512-c0.webp',
+    'pip-wave-512-c0.webp',
+  ]);
+
+  player.start();
+  player.frames.advanceTo(3_000);
+
+  // Twelve frames of a 12 fps idle in: chunk three, and the fourth ahead of it.
+  assert.ok(chunks().includes('pip-idle-512-c3.webp'), 'the window did not follow the playhead');
+  assert.ok(chunks().includes('pip-idle-512-c4.webp'), 'nothing was fetched ahead of the playhead');
+
+  player.destroy();
+});
+
+test('a character changing clip moves the window on the next frame, not the next tick', async (t) => {
+  const player = await mount(t, { story: chunkedStory() });
+  player.start();
+
+  // Pip waves at six seconds. Land the last frame before it just inside the
+  // cadence, so a runtime that only re-asks on the clock would still be holding
+  // the idle when the wave is already on screen.
+  player.frames.advanceTo(6_000 - 10);
+  const before = sheetsFetched(player);
+  assert.equal(before.includes('pip-wave-512-c1.webp'), false, 'the wave window was already held before the wave');
+
+  player.frames.advanceTo(6_000 + 45);
+  assert.ok(
+    (6_000 + 45) - (6_000 - 10) < KEEP_CADENCE_MS,
+    'the two frames are a whole cadence apart: this proves nothing',
+  );
+  assert.ok(
+    sheetsFetched(player).includes('pip-wave-512-c1.webp'),
+    'a tenth of a second of the pose they were in before is what waiting for the tick costs',
+  );
+
+  player.destroy();
+});
+
+test('a paused seek inside one scene repaints when the chunks it asked for land', async (t) => {
+  const player = await mount(t, { story: chunkedStory() });
+  player.start();
+  player.frames.advanceTo(200);
+  player.bar.toggle.dispatch('click');
+  assert.equal(player.frames.pending(), 0, 'the story is still running: this test is about the frame that never comes');
+
+  // Halfway in, in the same scene: the wave, whose chunks nothing has asked for.
+  const box = player.bar.scrub.getBoundingClientRect();
+  const at = { clientX: box.left + (box.width * 0.5), pointerId: 1 };
+  player.bar.scrub.dispatch('pointerdown', at);
+  player.bar.scrub.dispatch('pointerup', at);
+  const painted = paints(player);
+  assert.ok(sheetsFetched(player).includes('pip-wave-512-c1.webp'), 'the landing did not move the window');
+
+  await settle();
+
+  assert.ok(
+    paints(player) > painted,
+    'the chunks landed after the only paint anybody asked for, and the stage stayed on its stand-in',
+  );
+  player.destroy();
+});
+
+test('dragging the bar does not fetch the chunks of every instant it passes', async (t) => {
+  const player = await mount(t, { story: chunkedStory() });
+  player.start();
+  player.frames.advanceTo(1_000);
+  await settle();
+  const before = sheetsFetched(player).length;
+
+  const box = player.bar.scrub.getBoundingClientRect();
+  const at = (fraction) => ({ clientX: box.left + (box.width * fraction), pointerId: 1 });
+  player.bar.scrub.dispatch('pointerdown', at(0.2));
+  for (let step = 1; step <= 10; step += 1) player.bar.scrub.dispatch('pointermove', at(0.2 + (step * 0.05)));
+  await settle();
+
+  // Every move is a seek, and a seek redraws by force. Holding the window on
+  // each would ask for the chunks of an instant the pointer has already left —
+  // and un-pin the ones it asked for a move ago, over the link the plate video
+  // is streaming on.
+  assert.equal(sheetsFetched(player).length, before, 'the drag fetched instants nobody stopped on');
+
+  player.bar.scrub.dispatch('pointerup', at(0.7));
+  await settle();
+  assert.ok(sheetsFetched(player).length > before, 'the landing is the one instant the window must move to');
   player.destroy();
 });
 
@@ -837,7 +935,9 @@ function lastNarrationCue(timeline) {
  * test's hands. `story` is the parity corpus, so what plays is a real compile
  * of a real bundle rather than a fixture written to suit the runtime.
  */
-async function mount(t, { doctor = () => {}, options = {}, machine = null, assets } = {}) {
+async function mount(t, {
+  doctor = () => {}, options = {}, machine = null, assets, story = null,
+} = {}) {
   const dom = installDom(assets ? { assets } : {});
   if (machine) {
     // The probe reads the navigator and the device pixel ratio, so a test that
@@ -854,7 +954,7 @@ async function mount(t, { doctor = () => {}, options = {}, machine = null, asset
     dom.restore();
   });
 
-  const raw = read(STEM, 'bundle');
+  const raw = story ?? read(STEM, 'bundle');
   doctor(raw);
   const bundle = resolveStoryAssets(structuredClone(raw), ASSET_BASE);
   const timeline = compileTimeline(bundle);
@@ -902,6 +1002,7 @@ async function mount(t, { doctor = () => {}, options = {}, machine = null, asset
       const payload = await downloadSession(root);
       return payload.log ?? payload;
     },
+    fetched: () => dom.fetched(),
     start: () => findByClass(root, 'start-button').dispatch('click'),
     hide() {
       document_.visibilityState = 'hidden';
@@ -913,6 +1014,18 @@ async function mount(t, { doctor = () => {}, options = {}, machine = null, asset
     },
     destroy: () => player.destroy(),
   };
+}
+
+/** How many times the canvas has been cleared and drawn again. */
+function paints(player) {
+  return player.canvas.context.names().filter((name) => name === 'clearRect').length;
+}
+
+/** The sprite objects this run really asked the network for, in order. */
+function sheetsFetched(player) {
+  return player.fetched()
+    .filter((url) => url.includes('/mobile/sprites/'))
+    .map((url) => url.split('/').pop());
 }
 
 /** The same sheets the runtime planned, decoded into a cache of our own. */

@@ -17,6 +17,7 @@
  */
 
 import { createStateCursor } from '../core/state/cursor.mjs';
+import { KEEP_CADENCE_MS } from './assets/scene-loader.mjs';
 import { DEFAULT_DRAW_HZ, tierSettings } from './capability.mjs';
 import { createControls } from './controls.mjs';
 import { createMediaScheduler } from './media-scheduler.mjs';
@@ -81,6 +82,13 @@ export function createTimelinePlayer({
   const listeners = [];
   let sheets = null;
   let sceneIndex = null;
+  // The viewport the scene on screen was planned with, and the story instant its
+  // chunk window was last held at. The viewport is remembered rather than
+  // re-measured: asking the stage for its letterbox ten times a second is a
+  // forced layout on the devices this window exists to protect.
+  let sceneView = null;
+  let heldAtMs = null;
+  let heldCast = null;
   let signature = null;
   let subtitle = null;
   let note = '';
@@ -393,6 +401,7 @@ export function createTimelinePlayer({
     const t = clamp(tMs);
     const state = cursor.at(t);
     openScene(state);
+    holdChunks(t, state, force);
     report(state.warnings);
     // Only a RUNNING story crosses time. A paused one is redrawn at the instant
     // it stands at — by the pause itself, by a scrub, by a resize — and handing
@@ -590,12 +599,18 @@ export function createTimelinePlayer({
     // slow rather than that it was.
     recorder?.scene(sceneIndex);
     showBadge();
+    // The window belongs to the scene it was measured in: a cut invalidates it,
+    // and the render that opened this scene holds a new one on the same frame.
+    heldAtMs = null;
+    heldCast = null;
     if (sceneIndex === null) {
       sheets = null;
+      sceneView = null;
       plate.showScene(null);
       return;
     }
     const view = viewport();
+    sceneView = view;
     const opened = sceneIndex;
     sheets = sceneSheets(loader.plan(sceneIndex, view), cache);
     plate.showScene(story.bundle?.scenes?.[sceneIndex]?.plate ?? null);
@@ -610,6 +625,67 @@ export function createTimelinePlayer({
         render(clock.now(), { force: true });
       })
       .catch(warmingFailed);
+  }
+
+  /**
+   * The chunks under the playhead, held against eviction.
+   *
+   * On the STORY's clock, and `force` is what every instant nobody looped
+   * through arrives with — the first frame, a seek, a pause. Those move the
+   * window at once; the cadence is only for playing forwards. The difference is
+   * still measured both ways, because a t that went backwards without a force
+   * behind it would otherwise hold nothing until the story caught up with
+   * itself.
+   *
+   * Whole-sheet bundles reach this too, and it costs them one Map lookup and a
+   * keep set identical to the one the gate already set.
+   */
+  function holdChunks(tMs, state, force) {
+    if (sceneIndex === null || sceneView === null) return;
+    // A drag is not an instant the story is AT, it is a preview of one. Every
+    // pointer move seeks with `force`, and holding on each would re-pin the
+    // cache at a place the pointer has already left and ask for the chunks of
+    // an instant nobody stopped on — sixty fetches for a one-second drag,
+    // each evicted by the next move, over the link the plate video is
+    // streaming on. The landing (`placeSound` clears this first) holds once.
+    if (scrubbing) return;
+    const settled = !force && heldAtMs !== null && Math.abs(tMs - heldAtMs) < KEEP_CADENCE_MS;
+    if (settled && !castMoved(state.actors)) return;
+    heldAtMs = tMs;
+    heldCast = state.actors;
+    const opened = sceneIndex;
+    const landing = loader.holdScene(sceneIndex, sceneView, state.actors);
+    // A running story draws what lands on its next frame. A PAUSED one has no
+    // next frame — and since the window fetches most of a scene now, a scrub
+    // INSIDE one scene is the case `openScene` never sees: the chunks the
+    // scrubbed-to instant needs arrive after the only paint anyone asked for,
+    // and the stage stands in with the pose it was holding. Only for the scene
+    // still on screen, and only when the hold really asked for something, so
+    // the repaint cannot hold from itself for ever.
+    if (!landing) return;
+    void landing.then(() => {
+      if (destroyed || clock.running || opened !== sceneIndex) return;
+      render(clock.now(), { force: true });
+    }).catch(warmingFailed);
+  }
+
+  /**
+   * Somebody changed clip, or came on, or left.
+   *
+   * The one moment the window is wrong and the cadence has not noticed yet: a
+   * character who starts waving is drawing from an object nothing has asked for,
+   * and waiting out the rest of the tick to ask is a tenth of a second of the
+   * pose they were in before. Compared field by field against the array the last
+   * hold was made from — this runs on every drawn frame, and a key built per
+   * frame to answer "nothing changed" would be the cheapest thing here to get
+   * wrong.
+   */
+  function castMoved(actors) {
+    if (heldCast === null || heldCast.length !== actors.length) return true;
+    for (const [index, actor] of actors.entries()) {
+      if (actor.slug !== heldCast[index].slug || actor.clip !== heldCast[index].clip) return true;
+    }
+    return false;
   }
 
   function showBadge() {

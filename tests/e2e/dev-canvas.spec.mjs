@@ -18,6 +18,15 @@
  * The story is `tests/fixtures/parity/golden_push_dusk.bundle.json` — the same
  * corpus the compiler and the state core are held to, already carrying
  * bucket-qualified renditions, and its sheets are real objects in that bucket.
+ *
+ * That fixture carries no `rendition_chunks`, so every page here exercises the
+ * WHOLE-SHEET path and its assertions mean what they say. Point any of them at a
+ * chunked story and they stop meaning it: `loadScene` would then fetch one or
+ * two chunks per clip, `cacheBytes <= budgetBytes` would be trivially true, and
+ * the canvas harness — which drives `show()` by hand and never calls
+ * `holdScene` — would scrub across frames whose chunks nobody asked for and
+ * measure the stage's stand-in thumbnails. A chunked harness has to hold the
+ * window on a cadence the way `timeline-player.mjs` does.
  */
 
 import { expect, test } from '@playwright/test';

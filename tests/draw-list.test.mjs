@@ -107,6 +107,47 @@ test('the cell comes from the sheet actually being drawn, not from the bundle’
   assert.deepEqual(sprite.cells, [9, 9]);
 });
 
+test('a frame drawn from a chunk is counted from where that chunk begins', () => {
+  // Frame 7 of a clip cut into fives, on the 3x2 canvas five frames round up to:
+  // the second chunk starts at frame 5, so this is its cell 2 — [2, 0]. Read
+  // with the frame the CLIP is at instead, `frameCell` wraps 7 into six cells
+  // and lands on [1, 0]: a real cell of the right object, the wrong picture,
+  // every loop, with nothing in the log.
+  //
+  // Five and not four on purpose. Every length the encoder actually picks fills
+  // its canvas exactly, and where the cells and the chunk length are equal the
+  // subtraction cancels under the wrap — it would be untested at 4, 6, 9 or 25.
+  // The rule the drawer is held to is the contract, not today's table.
+  const state = actorState({
+    actors: [{ slug: 'owl', x: 50, feetY: 90, heightPx: 200, clip: 'fly_left', frame: 7 }],
+  });
+  const chunked = {
+    sheet: () => ({ url: 'owl-chunk-1.webp', grid: [3, 2], chunkStart: 5 }),
+    prop: () => null,
+  };
+  const sprite = buildDrawList(state, chunked).commands.find((command) => command.op === 'sprite');
+
+  assert.equal(sprite.url, 'owl-chunk-1.webp');
+  assert.deepEqual(sprite.cell, [2, 0]);
+  assert.deepEqual(sprite.cells, [3, 2]);
+});
+
+test('the frame the drawer asks about is the frame the actor stands at', () => {
+  const asked = [];
+  const state = actorState({
+    actors: [{ slug: 'owl', x: 50, feetY: 90, heightPx: 200, clip: 'fly_left', frame: 37 }],
+  });
+  buildDrawList(state, {
+    sheet: (slug, clip, frame) => {
+      asked.push([slug, clip, frame]);
+      return { url: 'owl.webp', grid: [9, 9] };
+    },
+    prop: () => null,
+  });
+
+  assert.deepEqual(asked, [['owl', 'fly_left', 37]], 'without the frame the adapter cannot pick a chunk');
+});
+
 test('a clip the bundle never carried, and a sheet not planned yet, both draw the placeholder', () => {
   const missingClip = buildDrawList(
     actorState({ actors: [{ slug: 'ruby', x: 50, feetY: 90, heightPx: 200, clip: 'skip', clipMissing: true }] }),
