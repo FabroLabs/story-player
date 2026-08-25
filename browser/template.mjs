@@ -62,6 +62,7 @@ export function createPlayerTemplate(root, { stylesheet = STYLESHEET } = {}) {
     element(document, 'span', { text: 'sleep well' }),
   ]);
   end.hidden = true;
+  const card = createCardLayer(document);
   const badge = createBadge(document);
   const controls = createControlBar(document);
   // The two toggles the player owns, over the picture and out of the
@@ -86,7 +87,8 @@ export function createPlayerTemplate(root, { stylesheet = STYLESHEET } = {}) {
     className: 'stage-frame', 'aria-label': 'story stage', tabindex: '-1',
   }, [
     element(document, 'div', { className: 'stage-letterbox', 'aria-hidden': 'true' }),
-    stage, flash, badge.root, actions, ceremony, waiting, subtitleArea, end, controls.root,
+    stage, flash, badge.root, actions, ceremony, waiting, subtitleArea, end,
+    controls.root, card.layer,
   ]);
   const shell = element(document, 'main', { className: 'player-shell' }, [frame]);
   const debugClose = element(document, 'button', { className: 'icon-button', type: 'button', 'aria-label': 'close event log', text: '×' });
@@ -115,7 +117,7 @@ export function createPlayerTemplate(root, { stylesheet = STYLESHEET } = {}) {
   debugPanel.setAttribute('inert', '');
   root.replaceChildren(link, shell, debugPanel);
   return {
-    title, status, start, ceremony, subtitles, subtitleArea, debugToggle, badge,
+    title, status, start, ceremony, subtitles, subtitleArea, debugToggle, badge, card,
     // `stage`, `actions` and `flash` are the transport's, not the renderer's:
     // the picture is the play switch, the mark is what a click leaves on it,
     // and the actions row appears with the bar when the story begins.
@@ -126,6 +128,33 @@ export function createPlayerTemplate(root, { stylesheet = STYLESHEET } = {}) {
       download: debugDownload, list: debugList, status: debugStatus, perf: debugPerf,
     },
   };
+}
+
+/**
+ * The layer the intro and end cards are performed on: a second `<video>`, the
+ * story's name, and the one control either card has.
+ *
+ * A second element rather than the plate's: the plate is the ground the camera
+ * transforms every frame and `video-plate.mjs` is the only file that touches it,
+ * so a card borrowing it would be a second owner of the picture. This one sits
+ * over everything, transport included, and is withdrawn between the cards.
+ *
+ * The skip is its own control for the same reason: the transport belongs to the
+ * story's clock, is hidden until the story begins, and is dead while it is
+ * hidden — a button that has to work before the story starts cannot live in it.
+ */
+function createCardLayer(document) {
+  const video = element(document, 'video', {
+    className: 'card-video', muted: '', playsinline: '', preload: 'auto',
+  });
+  video.muted = true;
+  const line = element(document, 'p', { className: 'card-line' });
+  const skip = element(document, 'button', {
+    className: 'card-skip', type: 'button', 'aria-label': 'skip the opening',
+  }, [element(document, 'span', { text: 'skip' })]);
+  const layer = element(document, 'div', { className: 'card-layer', hidden: '' }, [video, line, skip]);
+  layer.hidden = true;
+  return { layer, video, line, skip };
 }
 
 /**

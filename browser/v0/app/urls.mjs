@@ -1,8 +1,9 @@
 /**
  * Storage-root addressing for bucket-qualified v0 media, and the mount-time
  * shape checks for what a host hands over beside the story — `requirePlatesBlock`
- * is where the manifest's `plates` is settled, and `appendStoryScene` is where a
- * scene published after the mount is qualified the same way the rest was.
+ * is where the manifest's `plates` is settled, `requireCardsBlock` where the
+ * intro and end cards are, and `appendStoryScene` is where a scene published
+ * after the mount is qualified the same way the rest was.
  */
 
 const SEGMENT = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
@@ -211,6 +212,69 @@ export function requirePlatesBlock(plates) {
   // refuse a growing story with nothing to stage its unopened places from.
   if (Object.keys(plates).length === 0) return null;
   return deepFreeze(cloneValue(plates));
+}
+
+/**
+ * The manifest's `intro` and `end_card` blocks, checked and resolved at the door.
+ *
+ * Resolved HERE rather than when the card is played, for the reason every other
+ * mount-time check exists: a card is reached after the viewer has pressed begin,
+ * and a bad path found there is a black rectangle where the story's opening was,
+ * with the ceremony already gone. Found here it is a refusal the host can read
+ * before a single frame.
+ *
+ * The slots are named exactly, because a misspelled one is indistinguishable
+ * from a deliberate omission — both leave the story opening on nothing. What is
+ * INSIDE a slot is the manifest's own shape and is only read for the fields this
+ * player performs, so a block that grows a field is played by a build that
+ * predates it rather than refused by one.
+ */
+export function requireCardsBlock(cards, assetBase) {
+  if (cards == null) return null;
+  if (!isRecord(cards)) throw new Error('cards must be an object carrying intro, end_card, or both');
+  const unknown = Object.keys(cards).filter((slot) => slot !== 'intro' && slot !== 'end_card');
+  if (unknown.length > 0) {
+    throw new Error(`cards carries ${unknown.map((slot) => JSON.stringify(slot)).join(', ')}, which it does not take`);
+  }
+  const base = normalizeAssetBase(assetBase);
+  const resolved = {};
+  for (const slot of ['intro', 'end_card']) {
+    const card = cards[slot];
+    if (card == null) continue;
+    if (!isRecord(card)) throw new Error(`cards ${slot} must be an object carrying its video`);
+    resolved[slot] = {
+      video: resolveMediaUrl(card.video, base, `cards ${slot} video`),
+      // A card with no track of its own plays silent rather than not at all: a
+      // story whose music the writer left out is still a story that opens.
+      music: card.music == null ? null : resolveMediaUrl(card.music, base, `cards ${slot} music`),
+      narration: requireCardLine(card.narration, slot, base),
+    };
+  }
+  // Both slots empty is the same nothing as no block at all — said here so the
+  // one caller that asks `if (cards)` cannot be answered by a truthy `{}`.
+  if (Object.keys(resolved).length === 0) return null;
+  return deepFreeze(resolved);
+}
+
+/**
+ * The line spoken over a card: its words, and the voice reading them.
+ *
+ * The audio is optional and the text is not. Narration is synthesised at the
+ * writer's edge and a story may be built without a voice at all, but the words
+ * are what the card shows — a line with nothing to display is a block that says
+ * nothing in either medium.
+ */
+function requireCardLine(narration, slot, base) {
+  if (narration == null) return null;
+  if (!isRecord(narration) || typeof narration.text !== 'string' || !narration.text) {
+    throw new Error(`cards ${slot} narration must carry the line to speak`);
+  }
+  return {
+    text: narration.text,
+    audio: narration.audio == null
+      ? null
+      : resolveMediaUrl(narration.audio, base, `cards ${slot} narration audio`),
+  };
 }
 
 function projectScene(scene, resolve, index) {

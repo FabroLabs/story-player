@@ -521,6 +521,90 @@ button:focus-visible {
   box-shadow: 0 0 3rem rgba(143, 227, 182, 0.35);
 }
 
+/* The intro and end cards, over everything — the transport included, since
+   neither card is on the story's clock and a scrub bar across a title sequence
+   would be a control for time the schedule does not have. The card's own skip
+   is the one thing on this layer a pointer can reach.
+
+   No `filter` and no `backdrop-filter`: this is a full-frame video, on the two
+   occasions a story is least able to spare one. */
+.card-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 9;
+  display: grid;
+  place-items: center;
+  background: var(--ink);
+  /* The curtain. `transform` and `opacity` only — both composited, neither
+     costing a layout — and `visibility` so a faded layer stops taking the
+     clicks meant for the story behind it. */
+  transition: opacity 700ms ease, visibility 700ms ease;
+}
+
+/* `display: grid` above beats the UA rule behind `hidden`, the same trap the
+   quiet buttons, the end overlay and the subtitle area are each spelled out
+   for: without this the card would never leave the screen. */
+.card-layer[hidden] { display: none; }
+
+.card-layer.is-gone {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* Letterboxed rather than cropped: one film is shared by every story told in
+   its world, and a card cropped to the stage would cut whatever the frame was
+   composed around. */
+.card-video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: var(--ink);
+}
+
+/* The story's name, read out and written down. It sits over the card's lower
+   third, which is where these films leave room. Empty between the delay and the
+   line, and empty again once the card is gone — an empty paragraph draws
+   nothing, so no rule has to hide it. */
+.card-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: clamp(3.2rem, 12vh, 7rem);
+  margin: 0;
+  padding: 0 1.5rem;
+  color: #fbfffd;
+  font-family: ui-serif, Georgia, serif;
+  font-size: clamp(1.3rem, 3.6vw, 3.4rem);
+  line-height: 1.1;
+  text-align: center;
+  text-shadow: 0 0.35rem 2.6rem rgba(0, 0, 0, 0.62);
+  text-wrap: balance;
+}
+
+/* Always visible while a card is up. A viewer who has heard this opening
+   fifteen nights running must not have to hunt for the way past it, and a
+   control that appears on a pointer move is a control a child on a tablet
+   cannot find. */
+.card-skip {
+  position: absolute;
+  top: clamp(0.7rem, 2vw, 1.15rem);
+  right: clamp(0.9rem, 2.4vw, 1.5rem);
+  min-height: 2.4rem;
+  padding: 0.5rem 1.1rem;
+  color: var(--text);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 999px;
+  background: rgba(6, 16, 18, 0.55);
+  font: inherit;
+  font-size: clamp(0.72rem, 1.1vw, 0.86rem);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.card-skip:hover { border-color: rgba(255, 255, 255, 0.5); }
+
 /* The control bar sits ABOVE all three overlays: at the end of a story the end
    overlay covers the stage, and the transport it turns into a replay has to
    stay reachable through it; while the story waits for its writer the waiting

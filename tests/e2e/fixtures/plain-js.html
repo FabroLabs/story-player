@@ -8,6 +8,7 @@
 <body>
   <div id="first"></div>
   <div id="second"></div>
+  <div id="third"></div>
   <script src="__PLAYER_URL__"></script>
   <script>
     window.__mounted = (async () => {
@@ -22,6 +23,24 @@
         FabroStoryPlayer.createStoryPlayer(document.querySelector('#second'), {
           story,
           assetBase: window.__assetBase,
+        }),
+        // The same story, opened and closed by cards. Both films are the
+        // server's deterministic invalid video body, which is the point: a real
+        // browser refuses them, and the story has to open anyway.
+        FabroStoryPlayer.createStoryPlayer(document.querySelector('#third'), {
+          story,
+          assetBase: window.__assetBase,
+          cards: {
+            intro: {
+              video: 'fairytale-assets/media/card.webm',
+              music: 'jobs/e2e/audio/card-music.wav',
+              narration: { text: story.title, audio: 'jobs/e2e/audio/narration.wav' },
+            },
+            end_card: {
+              video: 'fairytale-assets/media/card.webm',
+              music: 'jobs/e2e/audio/card-music.wav',
+            },
+          },
         }),
       ];
       await Promise.all(window.__players.map((player) => player.ready));
