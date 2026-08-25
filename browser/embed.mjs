@@ -29,6 +29,7 @@ export function createStoryPlayer(container, options) {
     performer = factory({
       root, elements, story: options.story, assetBase: options.assetBase,
       plates: options.plates ?? null, stream: options.stream ?? null,
+      cards: options.cards ?? null,
       signal: abort.signal, debug: options.debug === true, perf: options.perf === true,
     });
   } catch (error) {

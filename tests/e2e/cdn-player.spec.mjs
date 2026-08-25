@@ -90,6 +90,62 @@ test('plain JavaScript mounts two players, plays qualified media, and destroys/r
   await expect(page.locator('#first .end-overlay')).toBeVisible();
 });
 
+/**
+ * The one thing no fake can answer about a card: whether the layer a real
+ * browser lays out really leaves the screen.
+ *
+ * `.card-layer` is displayed by a rule of its own, and any `display:` beats the
+ * UA rule behind `hidden` — the trap every other overlay in this player is
+ * spelled out for. Miss it and the unit suite stays green while a child watches
+ * the whole story behind an opaque rectangle.
+ *
+ * The films here are the server's deterministic invalid video body, which is the
+ * other half of what this proves: a card a real browser refuses to decode has to
+ * cost the story nothing.
+ */
+test('a card comes up over the story, and a card a browser refuses does not keep it', async ({ page }) => {
+  await page.goto(`${application.url}/plain-js.html`);
+  await page.evaluate(() => window.__mounted);
+  await expect(page.locator('#third .start-button')).toBeEnabled();
+  await expect(page.locator('#third .card-layer')).toBeHidden();
+
+  // Read inside the click's own tick: the ceremony withdraws and the card comes
+  // up synchronously, and the browser's refusal of the film is an event that
+  // has not been dispatched yet.
+  const onTheClick = await page.evaluate(() => {
+    const root = document.querySelector('#third').shadowRoot;
+    root.querySelector('.start-button').click();
+    const layer = root.querySelector('.card-layer');
+    return {
+      hidden: layer.hidden,
+      display: getComputedStyle(layer).display,
+      video: root.querySelector('.card-video').getAttribute('src'),
+      muted: root.querySelector('.card-video').muted,
+      skip: getComputedStyle(root.querySelector('.card-skip')).visibility,
+      controls: root.querySelector('.controls').hidden,
+    };
+  });
+  expect(onTheClick.hidden).toBe(false);
+  expect(onTheClick.display).not.toBe('none');
+  expect(onTheClick.video).toBe(`${storage.url}/fairytale-assets/media/card.webm`);
+  expect(onTheClick.muted).toBe(true);
+  expect(onTheClick.skip).toBe('visible');
+  expect(onTheClick.controls).toBe(true);
+
+  // Both of the card's own objects were asked for, under the storage base and
+  // nowhere else.
+  await expect
+    .poll(() => requests.filter(({ path: requestPath }) => requestPath.includes('card')).length)
+    .toBeGreaterThan(0);
+  expect(requests.some(({ path: requestPath }) => requestPath === '/fairytale-assets/media/card.webm')).toBe(true);
+
+  // The film cannot be decoded, so the phase ends on it — and the story it was
+  // holding back plays through to its end.
+  await expect(page.locator('#third .end-overlay')).toBeVisible();
+  await expect(page.locator('#third .card-layer')).toBeHidden();
+  await expect(page.locator('#third .controls')).toBeVisible();
+});
+
 test('unsafe media is refused in the Shadow DOM without making an escaped request', async ({ page }) => {
   await page.goto(`${application.url}/plain-js.html`);
   await page.evaluate(() => window.__mounted);
@@ -139,7 +195,15 @@ async function storageHandler(request, response) {
     ['/jobs/e2e/story.json', file(path.join(FIXTURES, 'story.json'), 'application/json; charset=utf-8')],
     ['/fairytale-assets/media/poster.svg', file(path.join(FIXTURES, 'media', 'poster.svg'), 'image/svg+xml')],
     ['/fairytale-assets/media/plate.webm', file(path.join(FIXTURES, 'media', 'plate.webm.txt'), 'video/webm')],
+    // The cards' own two objects: a separate path for the same deterministic
+    // bodies, so "the card asked for its film" is a different request from "the
+    // scene asked for its plate".
+    ['/fairytale-assets/media/card.webm', file(path.join(FIXTURES, 'media', 'plate.webm.txt'), 'video/webm')],
     ['/jobs/e2e/audio/narration.wav', {
+      body: Buffer.from(fs.readFileSync(path.join(FIXTURES, 'media', 'narration.wav.b64'), 'utf8').trim(), 'base64'),
+      type: 'audio/wav',
+    }],
+    ['/jobs/e2e/audio/card-music.wav', {
       body: Buffer.from(fs.readFileSync(path.join(FIXTURES, 'media', 'narration.wav.b64'), 'utf8').trim(), 'base64'),
       type: 'audio/wav',
     }],

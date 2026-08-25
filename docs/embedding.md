@@ -19,8 +19,8 @@ Every media value inside the bundle must already be bucket-qualified, such as
 base, for example `https://storage.example/`.
 
 Beside `story` and `assetBase`, `options` accepts the manifest's `plates` block,
-the `stream` object that says the story is still being written, and two
-booleans, both off by default:
+the `stream` object that says the story is still being written, the `cards`
+either side of the story, and two booleans, both off by default:
 
 - `plates` is the manifest block of the same name, `{place: {time: plate}}`,
   and each leaf is a whole plate—one carrying at least a non-empty `zones`
@@ -41,6 +41,9 @@ booleans, both off by default:
 - `stream` says the writer has not finished yet, and is refused without
   `plates`. See [a story that is still being
   written](#a-story-that-is-still-being-written).
+- `cards` are the manifest's `intro` and `end_card` blocks, passed under those
+  two names. See [the cards either side of the
+  story](#the-cards-either-side-of-the-story).
 - `debug: true` shows the log button and its drawer, and the log downloaded from
   that drawer carries the compiled timeline.
 - `perf: true` measures the running player—frame times per scene, long frames,
@@ -220,6 +223,90 @@ own: it waits in that spinner until `appendScene`, `finishStory` or `destroy`
 arrives. A host whose writer stalls is the one that decides how long to be
 patient, and then calls `finishStory('failed')`.
 
+## The cards either side of the story
+
+A story may open on its world's intro film and close on its end card, each with
+the music its writer chose. Both come off the manifest and are passed under one
+option:
+
+```js
+const player = createStoryPlayer(element, {
+  story,
+  assetBase: 'https://storage.example/',
+  plates: manifest.plates,
+  cards: { intro: manifest.intro, end_card: manifest.end_card },
+});
+```
+
+Every value inside is bucket-qualified media, resolved under the same
+`assetBase` as the rest, and every one of them is checked at the mount: a card
+is reached after the viewer has pressed begin, and a bad path found there would
+be a black rectangle where the opening was. Only the two slot names are fixed —
+a block that grows a field this build does not read is played rather than
+refused, so a newer manifest never costs an older player the story.
+
+Either slot may be left out, and a mount with neither is the player as it was
+before cards existed. Within a slot, `video` is required; `music` is optional
+and a card without it plays silent; `intro.narration` is `{text, audio}`, the
+story's own title, and its `audio` is optional too — the words are shown on the
+card either way, because a name only a listener gets is a name half the audience
+never hears.
+
+Neither card is in the compiled timeline, and that is the point: `duration_ms`,
+the scrub bar and every `t_ms` cover the story alone, so seeking cannot land
+inside a title sequence and the timeline a phone client is handed is the same
+one this player compiles. What the cards are instead is a phase either side of
+it:
+
+- The intro plays between the begin click and the story. The film is warmed
+  while the opening scene is decoded, its own `<video>` is the clock, the music
+  starts inside the click, and the title is spoken a second in with the music
+  ducked under it. A curtain fades the card out over the story, which has
+  already started behind it.
+- The end card plays after the story has stopped — the clock paused, the plate
+  stopped, the last line left to finish — and before the end screen, which waits
+  behind it. Its film is warmed as the last scene opens.
+- A dedicated skip sits on the card, visible the whole time either one is up,
+  and it is the only control there: the transport is withdrawn for as long as a
+  card is playing and comes back when it is over. Covered is not enough — its
+  keys are live wherever the focus is, and a space bar under an opaque film
+  would steer a story nobody can see.
+- A replay is the whole performance again — intro, story, end card — with the
+  story standing at zero behind the opening film.
+- A card is not on the story's clock, so a tab that goes away stops it here: the
+  film and its music pause together and resume together.
+- Nothing here can hold the story up. A card whose file fails, is refused by the
+  device, never puts a frame on screen, or stops moving part-way through ends
+  its phase and writes one named line into the log. So does a spoken title: if
+  it cannot be heard the music stops making room for it.
+
+`cards.intro` is also what allows a mount with **no scenes at all**, alongside
+`stream` and `plates`:
+
+```js
+const player = createStoryPlayer(element, {
+  story: { ...manifest, scenes: [] },
+  assetBase, plates: manifest.plates, stream: { scenes: manifest.scenes },
+  cards: { intro: manifest.intro, end_card: manifest.end_card },
+});
+await player.ready;
+await player.appendScene(await scene(1));
+```
+
+The player mounts on the manifest, before the writer has published anything, and
+the intro is what the first scene is published during. Nothing is resolved or
+compiled until that scene arrives — an empty story is not the opening of
+anything — so the begin button is armed by the card alone, and the story is
+entered when the curtain falls. If the scene is not there yet the waiting
+spinner says so, exactly as it does mid-story, and the story starts the moment it
+lands and decodes. A writer who publishes nothing at all and then calls
+`finishStory` ends the performance rather than leaving a viewer in the spinner.
+
+A build too old to know the option ignores it and plays the story alone, which
+is what makes it safe to pass unconditionally — but an old build also ignores
+`scenes: []` only as far as refusing the mount, so a host that mounts with no
+scenes must be the one that already feature-detected `appendScene`.
+
 ## React
 
 The artifact does not bundle React. Pass the application’s own React object to
@@ -240,13 +327,15 @@ export function Performance({ story }) {
 }
 ```
 
-Changing `story`, `assetBase`, `plates`, `debug`, or `perf` destroys the
+Changing `story`, `assetBase`, `plates`, `cards`, `debug`, or `perf` destroys the
 previous instance before mounting the replacement. Unmounting destroys the
 instance. React StrictMode is supported.
 
-`plates` is a prop here for the same reason it is an option there: a component
-that mounted a finished story without it would stage that story differently from
-a host that passed it. `stream` is not a prop—it throws. The component keeps no
+`plates` and `cards` are props here for the same reason they are options there:
+a component that mounted a finished story without them would stage that story
+differently, and open it without its title card. Hold the `cards` object still
+between renders — a fresh object literal on every render is a new identity, and
+a new identity remounts the player. `stream` is not a prop—it throws. The component keeps no
 handle to call `appendScene` on, and it remounts whenever `story` changes
 identity, which for a growing story is every scene; accepting the option would
 put it on the host `div` as an attribute and mount a player that shows the end
@@ -256,7 +345,8 @@ at the end of the prefix. A React host following a writer calls
 ## Controls
 
 The player owns its transport, inside the Shadow DOM. It appears when the story
-begins, not while the opening ceremony is still up: play/pause, skip back and
+begins, not while the opening ceremony is still up, and it withdraws again for
+as long as a card is playing — each card has a skip of its own: play/pause, skip back and
 forward ten seconds, and a draggable progress bar with the elapsed time and the
 minutes left, below the stage; the subtitle toggle sits over the picture at the
 top right, with the story's name opposite it. A host that draws its own chrome

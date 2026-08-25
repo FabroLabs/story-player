@@ -34,6 +34,9 @@ export function createControls(elements, {
   let idleTimer = null;
   let flashOn = null;
   let flashOff = null;
+  // The bar was taken away for a performance that is not the story's, and is
+  // owed back when that one is over.
+  let concealed = false;
   let destroyed = false;
 
   listen(elements.toggle, 'click', () => live() && onToggle());
@@ -112,7 +115,7 @@ export function createControls(elements, {
   listen(elements.frame, 'focusin', wake);
   listen(elements.frame, 'focusout', wake);
 
-  return { arm, show, update, destroy };
+  return { arm, show, conceal, reveal, update, destroy };
 
   /**
    * The length of what is published is known: the buttons mean something now.
@@ -137,6 +140,33 @@ export function createControls(elements, {
     elements.root.hidden = false;
     if (elements.actions) elements.actions.hidden = false;
     wake();
+  }
+
+  /**
+   * Out of the way of a performance that is not the story's.
+   *
+   * Not merely covered: `live()` is what makes every key and every click on this
+   * bar mean something, and a card played over a visible transport is a card a
+   * viewer can start the story behind with the space bar — audible, under an
+   * opaque film, with the seconds it ran for lost. The card layer is drawn over
+   * the bar, so nothing but the keyboard could reach it — which is exactly the
+   * kind of half-dead control this takes away instead.
+   *
+   * Remembered rather than assumed: the first intro card plays before the bar
+   * has ever been shown, and bringing it back afterwards would put a transport
+   * over a story that has not begun.
+   */
+  function conceal() {
+    if (destroyed || concealed || elements.root.hidden === true) return;
+    concealed = true;
+    elements.root.hidden = true;
+    if (elements.actions) elements.actions.hidden = true;
+  }
+
+  function reveal() {
+    if (destroyed || !concealed) return;
+    concealed = false;
+    show();
   }
 
   /**

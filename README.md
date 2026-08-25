@@ -35,12 +35,20 @@ plays one schedule.
 
 A story does not have to be finished to be watched: a host that has published
 one scene mounts it and hands over the rest as they land, and the timeline only
-ever grows — an appended scene never moves an event already played.
+ever grows — an appended scene never moves an event already played. With an
+intro card to open on, it does not have to be started either: the player mounts
+on the manifest alone and the first scene is published while the card plays.
+
+A story may open on its world's intro film and close on its end card, each with
+its own music and a skip that is always there. Neither is in the compiled
+timeline — they are phases either side of it — so the clock, the scrub bar and
+every `t_ms` still cover the story alone.
 
 See [Embedding and operations](docs/embedding.md) for the plain JavaScript and
-React APIs, how it plays, following a story still being written, controls,
-renditions and device tiers, stable versus immutable URLs, storage/CORS
-configuration, publishing, rollback, and GitLab migration.
+React APIs, how it plays, following a story still being written, the cards
+either side of it, controls, renditions and device tiers, stable versus
+immutable URLs, storage/CORS configuration, publishing, rollback, and GitLab
+migration.
 
 ## Development
 

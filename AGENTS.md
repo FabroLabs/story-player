@@ -17,6 +17,16 @@
   and throws on `stream`, because it keeps no handle and remounts on every new
   scene. Keep additions to the handle additive and feature-detectable: host and
   player never update together.
+- The intro and end cards are presentation PHASES, never timeline events. `cards`
+  at mount carries the manifest's `intro` and `end_card` blocks; the intro plays
+  between the begin click and `begin()`, the end card between the story stopping
+  and its end screen, each on its own `<video>` with its own music. Nothing about
+  them reaches `compileTimeline`, `duration_ms`, `t_ms` or the scrub bar — the
+  clock stays the story's — and their numbers stay out of `V0_POLICY`, which is
+  the contract between the compiler and every other client. A card that fails
+  ends its phase at once: no card may hold the story up. `cards.intro` is also
+  what permits a streaming mount with no scenes yet — nothing is resolved or
+  compiled until the first `appendScene`.
 - Every media value is `<bucket>/<object-key>`. Preserve strict path validation
   before resolving it under `assetBase`.
 - `browser/v0/core/**` is pure logic, the timeline compiler and `stateAt`
