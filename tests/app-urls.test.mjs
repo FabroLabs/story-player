@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import {
   normalizeAssetBase,
+  requireCardsBlock,
   resolveMediaUrl,
   resolveStoryAssets,
 } from '../browser/v0/app/urls.mjs';
@@ -279,4 +280,67 @@ test('chunk keys go through the same door as the rendition they were cut from', 
       `a chunk key of ${bad} reached the network`,
     );
   }
+});
+
+test('the cards block is resolved at the door, slot by slot', () => {
+  const cards = requireCardsBlock({
+    intro: {
+      video: 'fairytale-assets/intros/forest/lantern.mp4',
+      music: 'fairytale-assets/intro_music/gentle_lullaby.mp3',
+      narration: { text: 'The owl’s quiet friend', audio: 'jobs/story-7/audio/title.wav' },
+      // A field a later manifest grew. This build performs the three above and
+      // plays the card rather than refusing a story over a key it does not read.
+      duration_ms: 14_000,
+    },
+    end_card: { video: 'fairytale-assets/intros/forest/goodnight.mp4', music: 'fairytale-assets/intro_music/dusk.mp3' },
+  }, BASE);
+
+  assert.deepEqual(cards, {
+    intro: {
+      video: `${BASE}/fairytale-assets/intros/forest/lantern.mp4`,
+      music: `${BASE}/fairytale-assets/intro_music/gentle_lullaby.mp3`,
+      narration: { text: 'The owl’s quiet friend', audio: `${BASE}/jobs/story-7/audio/title.wav` },
+    },
+    end_card: {
+      video: `${BASE}/fairytale-assets/intros/forest/goodnight.mp4`,
+      music: `${BASE}/fairytale-assets/intro_music/dusk.mp3`,
+      narration: null,
+    },
+  });
+  assert.ok(Object.isFrozen(cards.intro), 'a resolved card can be written to by whoever plays it');
+});
+
+test('a card with nothing to play, and one with only half of it, are told apart', () => {
+  // No block, and a block with neither slot in it, are the same nothing: the
+  // one caller that reads this asks `if (cards)`, and `{}` is truthy.
+  assert.equal(requireCardsBlock(null, BASE), null);
+  assert.equal(requireCardsBlock({}, BASE), null);
+
+  // One slot alone is a real answer — a world with an opening film and no
+  // closing one still opens.
+  const opening = requireCardsBlock({ intro: { video: 'bucket/intro.mp4' } }, BASE);
+  assert.deepEqual(opening, {
+    intro: { video: `${BASE}/bucket/intro.mp4`, music: null, narration: null },
+  });
+});
+
+test('what the cards block refuses, it refuses before a frame is drawn', () => {
+  const refuses = (cards, pattern) => assert.throws(() => requireCardsBlock(cards, BASE), pattern);
+
+  refuses('intro.mp4', /cards must be an object/);
+  // A misspelled slot is indistinguishable from a deliberate omission, and both
+  // leave the story opening on nothing at all.
+  refuses({ into: { video: 'bucket/intro.mp4' } }, /"into", which it does not take/);
+  refuses({ intro: 'bucket/intro.mp4' }, /cards intro must be an object/);
+  refuses({ intro: {} }, /cards intro video has invalid media path/);
+  refuses({ intro: { video: 'https://elsewhere.example/intro.mp4' } }, /cards intro video has invalid media path/);
+  refuses({ intro: { video: 'bucket/intro.mp4', music: '../escape.mp3' } }, /cards intro music has invalid media path/);
+  refuses(
+    { intro: { video: 'bucket/intro.mp4', narration: { audio: 'jobs/7/title.wav' } } },
+    /cards intro narration must carry the line to speak/,
+  );
+  refuses(
+    { intro: { video: 'bucket/intro.mp4', narration: { text: 'A story', audio: '/etc/passwd' } } },
+    /cards intro narration audio has invalid media path/,
+  );
 });

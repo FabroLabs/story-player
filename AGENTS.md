@@ -17,6 +17,16 @@
   and throws on `stream`, because it keeps no handle and remounts on every new
   scene. Keep additions to the handle additive and feature-detectable: host and
   player never update together.
+- The intro and end cards are presentation PHASES, never timeline events. `cards`
+  at mount carries the manifest's `intro` and `end_card` blocks; the intro plays
+  between the begin click and `begin()`, the end card between the story stopping
+  and its end screen, each on its own `<video>` with its own music. Nothing about
+  them reaches `compileTimeline`, `duration_ms`, `t_ms` or the scrub bar — the
+  clock stays the story's — and their numbers stay out of `V0_POLICY`, which is
+  the contract between the compiler and every other client. A card that fails
+  ends its phase at once: no card may hold the story up. `cards.intro` is also
+  what permits a streaming mount with no scenes yet — nothing is resolved or
+  compiled until the first `appendScene`.
 - Every media value is `<bucket>/<object-key>`. Preserve strict path validation
   before resolving it under `assetBase`.
 - `browser/v0/core/**` is pure logic, the timeline compiler and `stateAt`
@@ -47,8 +57,19 @@
 - Keep package metadata private at `0.0.0-development`. `dist/` is generated,
   ignored, and never committed.
 - Never commit credentials, `.npmrc`, registry configuration, or a
-  credential-bearing URL. The publisher uses `RUSTFS_URL`, the exact public
-  `story-player` bucket, shared credentials, and an optional region.
+  credential-bearing URL. Deployment publishes to GitHub releases with the job's
+  own token; there is no store credential in this repository any more.
+- `main` is where work lands; **`production` is what is deployed**. A merge into
+  `production` runs `deploy-player.yml`, which gates the release on the full
+  suite and then moves the rolling `latest` tag.
+- CD is **pull, not push**: the cluster's MinIO is ClusterIP-only, so a runner
+  cannot write to it. A CronJob in the cluster fetches `latest`, verifies
+  `build.json` and promotes `stable/`. The RustFS push workflow that used to
+  write an S3 bucket directly is gone; its scripts remain, uncalled, for any
+  deployment whose store IS reachable.
+- `build.json` is the whole contract — commit, byte count, SHA-256. Never
+  publish one of the two files without the other, and never edit an immutable
+  release.
 - Immutable commit objects are create-only and must be anonymously verified
   before stable promotion. Promote stable metadata last. Rollback only from a
   verified immutable full-commit object. Never upload from a developer shell

@@ -325,20 +325,46 @@ test('repository commands, protected workflows, and public examples describe onl
   assert.match(ci, /playwright install --with-deps chromium/);
   assert.match(ci, /npm run test:e2e/);
   assert.doesNotMatch(ci, /npm pack|verify-package|verify-install/);
-  const publish = read('.github/workflows/publish-cdn.yml');
-  assert.match(publish, /workflow_run:[\s\S]*workflows: \[CI\][\s\S]*branches: \[main\]/);
-  assert.match(publish, /conclusion == 'success'/);
-  assert.match(publish, /workflow_run\.event == 'push'/);
-  assert.match(publish, /workflow_run\.head_repository\.full_name == github\.repository/);
-  assert.match(publish, /Checkout the successful main commit[\s\S]*ref: \$\{\{ github\.event\.workflow_run\.head_sha \}\}/);
-  assert.match(publish, /Checkout trusted main for rollback[\s\S]*ref: refs\/heads\/main/);
-  assert.doesNotMatch(publish, /ref: \$\{\{ github\.sha \}\}/);
-  assert.equal((publish.match(/STORY_PLAYER_COMMIT: \$\{\{ github\.event\.workflow_run\.head_sha \}\}/g) ?? []).length, 3);
-  assert.match(publish, /git fetch origin main --depth=1/);
-  assert.match(publish, /git rev-parse origin\/main/);
-  assert.match(publish, /cancel-in-progress: false/);
-  assert.match(publish, /environment: cdn-production/);
-  assert.match(publish, /workflow_dispatch:[\s\S]*rollback_commit/);
+  // The RustFS push workflow is gone: the store this player is consumed from is
+  // ClusterIP-only, so CI publishes a release and the cluster pulls. Asserted
+  // ABSENT rather than merely unmentioned, so it cannot quietly come back and
+  // give the repository two answers to "which bytes are live".
+  assert.equal(
+    fs.existsSync(path.join(ROOT, '.github', 'workflows', 'publish-cdn.yml')),
+    false,
+  );
+
+  const deploy = read('.github/workflows/deploy-player.yml');
+  // `production` is the deploy branch, and the trigger must stay `push`: a
+  // `workflow_run` trigger only fires for the copy of a workflow on the DEFAULT
+  // branch, so this file — which exists to live on `production` and react to
+  // `production` — would silently never run.
+  assert.match(deploy, /on:[\s\S]*?push:[\s\S]*?branches: \[production\]/);
+  assert.doesNotMatch(deploy, /workflow_run:/);
+  // The release must not be reachable without the full suite passing first.
+  assert.match(deploy, /jobs:[\s\S]*verify:[\s\S]*release:/);
+  assert.match(deploy, /needs: verify/);
+  for (const gate of ['npm test', 'npm run test:e2e', 'npm run verify:repository']) {
+    assert.ok(deploy.includes(gate), `deploy must gate on ${gate}`);
+  }
+  // A queued run from three merges ago must not overwrite `latest` with an
+  // older player than the one already published.
+  assert.match(deploy, /git fetch origin production --depth=1/);
+  assert.match(deploy, /git rev-parse origin\/production/);
+  // Two publishes racing would leave `latest` on a build nobody chose.
+  assert.match(deploy, /cancel-in-progress: false/);
+  assert.match(deploy, /permissions:[\s\S]*contents: write/);
+  // Immutable first: `latest` must never name a build with no permanent copy.
+  const immutableAt = deploy.indexOf('gh release create "build-$SHA"');
+  const latestAt = deploy.indexOf('gh release upload latest');
+  assert.ok(immutableAt > 0 && latestAt > 0 && immutableAt < latestAt,
+    'the immutable release must be published before `latest` moves');
+  // Both files, always together — `build.json` is what the consumer verifies the
+  // script against, so a release carrying only one of them is unusable.
+  assert.match(deploy, /gh release upload latest dist\/story-player\.js dist\/build\.json --clobber/);
+  assert.match(deploy, /gh release create "build-\$SHA" dist\/story-player\.js dist\/build\.json/);
+  // No store credential reaches this workflow.
+  assert.doesNotMatch(deploy, /RUSTFS_|ACCESS_KEY|SECRET_KEY/);
 
   for (const document of [read('README.md'), read('docs/embedding.md')]) {
     assert.match(document, /createStoryPlayer/);

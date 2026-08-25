@@ -1,0 +1,185 @@
+name: Deploy player
+
+# Merge into `production` → the player reaches the cluster's MinIO.
+#
+# THE SHAPE, AND WHY IT IS THIS ONE
+# ─────────────────────────────────
+# `main` is where work lands. `production` is what is deployed: merging into it
+# is the deliberate act that publishes a player to real children's bedtimes, and
+# nothing else in this repository moves what the cluster serves.
+#
+# Delivery is PULL, not push, and that is forced by the infrastructure rather
+# than chosen. The store this player is consumed from — MinIO in the moonykids
+# cluster — is a ClusterIP service with no Ingress, so a GitHub runner cannot
+# write to it at all, and opening an object store's write API to the internet to
+# ship a 141 KB file would be a far larger change than the thing it delivers.
+#
+# So this job publishes a GitHub release, and `infra/manifests/47-player-updater.yaml`
+# — a CronJob INSIDE the cluster, every 10 minutes — fetches it, verifies the
+# commit, byte count and SHA-256 in `build.json` before it trusts a byte, mirrors
+# it to `story-player/builds/<commit>/` in MinIO and promotes `stable/`. Nothing
+# inbound is opened and the store credential never leaves the cluster. Expect the
+# site to be serving the new player within ~10 minutes of a green run here.
+#
+# WHY `push` AND NOT `workflow_run`
+# ─────────────────────────────────
+# A `workflow_run` trigger only fires for the copy of the workflow file on the
+# repository's DEFAULT branch. This file's whole point is to live on `production`
+# and react to `production`, so `workflow_run` would silently never run — the
+# worst kind of broken, because the branch would look wired up.
+#
+# `push` uses the file from the pushed branch, which is what we want. The cost is
+# that it does not inherit CI's green tick, so the gate is rebuilt here: `verify`
+# runs the same unit, build, browser and repository checks, and `release` will not
+# start unless it passes. Publishing an untested player is the one failure this
+# workflow exists to prevent — a broken renderer is a black rectangle where a
+# child's story should be.
+
+on:
+  push:
+    branches: [production]
+  # Re-publish the current tip by hand: recovering after a release was deleted,
+  # or re-pointing `latest` once the mirror has been unpinned.
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# Never two publishes at once — they would race to move `latest`, and the loser
+# would leave the tag pointing at a build nobody chose. Queue instead of cancel:
+# a superseded run still produces a valid immutable `build-<sha>` release.
+concurrency:
+  group: story-player-production
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npx playwright install --with-deps chromium
+      - run: npm test
+      - run: npm run build:cdn
+        env:
+          STORY_PLAYER_COMMIT: ${{ github.sha }}
+      - run: npm run test:e2e
+      - run: npm run verify:repository
+
+  release:
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci --ignore-scripts
+
+      - name: Refuse a stale run
+        # A queued run from three merges ago must not overwrite `latest` with an
+        # older player than the one already published.
+        run: |
+          set -euo pipefail
+          git fetch origin production --depth=1
+          test "$(git rev-parse origin/production)" = "$GITHUB_SHA"
+        env:
+          GITHUB_SHA: ${{ github.sha }}
+
+      - name: Build
+        # The script direct, not through `npm run`: its stdout IS the build
+        # report, and npm prefixes two lines of its own to it.
+        run: node scripts/build-cdn.mjs > build-report.json
+        env:
+          STORY_PLAYER_COMMIT: ${{ github.sha }}
+
+      - name: Describe the build
+        # `build.json` is the consumer's whole contract: which commit this is,
+        # how many bytes to expect, and what they must hash to. The cluster's
+        # mirror refuses anything that does not match all three, so a truncated
+        # download or a swapped asset is a failed mirror rather than a broken
+        # player on the site.
+        run: |
+          node -e '
+            const fs = require("fs");
+            const crypto = require("crypto");
+            const bytes = fs.readFileSync("dist/story-player.js");
+            const report = JSON.parse(fs.readFileSync("build-report.json", "utf8"));
+            const sha256 = crypto.createHash("sha256").update(bytes).digest("hex");
+            if (sha256 !== report.sha256) throw new Error("build report disagrees with the artifact");
+            fs.writeFileSync("dist/build.json", JSON.stringify({
+              schema_version: 1,
+              commit: report.commit,
+              bytes: bytes.length,
+              sha256,
+              object_key: `builds/${report.commit}/story-player.js`,
+            }, null, 2) + "\n");
+            console.log(`${report.commit} ${bytes.length}B ${sha256}`);
+          '
+
+      - name: Publish the immutable per-commit release
+        # First, and create-only. This one can never move, so it is what an
+        # operator pins to and what a rollback restores. Publishing it before the
+        # pointer means `latest` never names a build that has no permanent copy.
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          if gh release view "build-$SHA" >/dev/null 2>&1; then
+            echo "build-$SHA already published, leaving it untouched"
+          else
+            gh release create "build-$SHA" dist/story-player.js dist/build.json \
+              --title "story-player $SHA" \
+              --notes "Immutable build of $SHA" \
+              --target "$SHA"
+          fi
+
+      - name: Move `latest` — this is the deploy
+        # The single moving tag, and the only thing the cluster follows.
+        # `--clobber` replaces the assets in place so the consumer keeps one URL
+        # forever and the tag never accumulates a second copy of a file.
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          if gh release view latest >/dev/null 2>&1; then
+            gh release upload latest dist/story-player.js dist/build.json --clobber
+            gh release edit latest --notes "Player build $SHA" --target "$SHA"
+          else
+            gh release create latest dist/story-player.js dist/build.json \
+              --title "story-player (latest)" \
+              --notes "Player build $SHA" \
+              --target "$SHA"
+          fi
+
+      - name: Prove the published bytes are the built bytes
+        # Closes the loop on the half of the chain this job can see. The upload
+        # is the last place bytes can go wrong before the cluster fetches them,
+        # and a silently truncated asset would otherwise surface as the mirror
+        # refusing to promote, ten minutes later and in a different system's logs.
+        run: |
+          set -euo pipefail
+          curl -fsSL --retry 3 --retry-delay 2 -o published.js \
+            "https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/story-player.js"
+          curl -fsSL --retry 3 --retry-delay 2 -o published.json \
+            "https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/build.json"
+          cmp dist/story-player.js published.js
+          cmp dist/build.json published.json
+          echo "latest serves exactly what this run built"
+
+      - name: Say where it goes next
+        run: |
+          echo "Published. The in-cluster player-updater CronJob mirrors this into"
+          echo "MinIO and promotes stable/ within ~10 minutes; story-service then"
+          echo "serves it at GET /api/stories/player/story-player.js."

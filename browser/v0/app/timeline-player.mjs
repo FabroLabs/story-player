@@ -31,6 +31,12 @@ export function createTimelinePlayer({
   elements, bundle, timeline, clock, loader, cache, log = null,
   capability = tierSettings('high'), perf = false, onWarning = () => {}, signal = null,
   publishedComplete = true, expectedScenes = null,
+  // The four seams the presentation phases either side of the story hang on.
+  // All four default to nothing, so a mount without cards runs the file it ran
+  // before them: `onEnd` may hand back a promise to hold the end screen behind,
+  // `onEndLeft` takes back whatever `onEnd` started, `onReplay` may claim the
+  // way back to the start, and `onSceneOpen` says which scene is on screen.
+  onEnd = () => null, onEndLeft = () => {}, onReplay = () => false, onSceneOpen = () => {},
 }) {
   // The story as it stands. A host watching a writer grows it under the runtime
   // — `appendScene` swaps both halves at once — so nothing below reads the two
@@ -112,6 +118,10 @@ export function createTimelinePlayer({
   // held until it lands. See `seekTo`.
   let scrubbing = false;
   let destroyed = false;
+  // Which arrival at the end the screen is still owed. An end card is played
+  // between reaching the end and showing it, and a viewer who scrubs back out
+  // in the middle of one has left an end that must not arrive behind them.
+  let endArrival = 0;
 
   listen(document, 'visibilitychange', () => {
     if (document?.visibilityState === 'hidden') hide();
@@ -123,6 +133,16 @@ export function createTimelinePlayer({
     viewport,
     prepare,
     begin,
+    // The gesture, spent without starting the story. With a card between the
+    // begin click and `begin()`, the two are half a minute apart — and the
+    // audio session is unlocked by the click or not at all.
+    unlockMedia: () => { void media.unlock(); },
+    // The transport, out of the way of a card and back afterwards. The bar is
+    // drawn under the card layer, so this is about the KEYS: `live()` is what
+    // makes them mean something, and a story started behind an opaque film is
+    // the failure it prevents.
+    holdTransport: () => controls.conceal(),
+    releaseTransport: () => controls.reveal(),
     destroy,
     play,
     pause,
@@ -201,7 +221,15 @@ export function createTimelinePlayer({
     }
     // Pressing play on an ended story is a replay, and a replay is a seek: the
     // transport has one button and the runtime has one way back to the start.
-    if (ended) seekTo(0);
+    //
+    // What a replay IS, though, is not the runtime's to decide: a mount that
+    // opened with an intro card opens with it again, and the story is asked for
+    // once the curtain falls. The seek has already happened either way, so the
+    // story is standing at zero behind whatever the app puts in front of it.
+    if (ended) {
+      seekTo(0);
+      if (onReplay()) return;
+    }
     resumeWhenVisible = false;
     clock.start();
     plate.play();
@@ -292,6 +320,11 @@ export function createTimelinePlayer({
     // not start the story: a paused player stays paused wherever it is put.
     if (ended && t < durationMs) {
       ended = false;
+      // And it takes the end card with it, along with the arrival the card was
+      // still going to announce — a story dragged back into is not one that
+      // ends the moment its closing film runs out.
+      endArrival += 1;
+      onEndLeft();
       elements.stage.end.hidden = true;
     }
     // Scrubbing back out of the wait takes the spinner with it and leaves the
@@ -545,6 +578,10 @@ export function createTimelinePlayer({
     // would be the player insisting on an ending nobody wrote.
     expected = null;
     showBadge();
+    // The scene on screen has not changed, but what comes after it has: a
+    // viewer already inside the last scene when the writer stopped would
+    // otherwise reach an end card nothing had warmed.
+    onSceneOpen(sceneIndex, sceneCount(), complete);
     // Already sitting at the end of the prefix with the spinner up: that end
     // was the story's, and nothing is coming to move it.
     if (!waiting) return;
@@ -605,6 +642,11 @@ export function createTimelinePlayer({
     // slow rather than that it was.
     recorder?.scene(sceneIndex);
     showBadge();
+    // Which scene is on screen, and whether there is anything after it. What
+    // reads this is the end card, warming its film as the last scene opens:
+    // early enough to be there when the story stops, late enough not to take
+    // bandwidth from the scenes the viewer is watching now.
+    onSceneOpen(sceneIndex, sceneCount(), complete);
     // The window belongs to the scene it was measured in: a cut invalidates it,
     // and the render that opened this scene holds a new one on the same frame.
     heldAtMs = null;
@@ -740,15 +782,42 @@ export function createTimelinePlayer({
     clock.pause();
     stopLoop();
     plate.pause();
-    // The clock runs out ON the last line, never past it, so the end card goes
-    // up while the last sentence is still being read — and it is left to finish
+    // The clock runs out ON the last line, never past it, so the end is reached
+    // while the last sentence is still being read — and it is left to finish
     // rather than cut, which is the whole of the reported bug at the one
     // instant the schedule's own grace cannot reach.
     media.settle();
     recorder?.flush('end');
     recorder?.pause();
-    elements.stage.end.hidden = false;
+    revealEnd();
     controls.update({ tMs: durationMs, playing: false, ended: true });
+  }
+
+  /**
+   * The end screen, once whatever the app puts before it is over.
+   *
+   * A mount with an end card plays it here — after the teardown above, so the
+   * card opens on a story that has really stopped rather than over its last
+   * frames — and the screen waits behind it. A mount without one is answered
+   * with nothing and shows the end on this line, exactly as it always did.
+   *
+   * The arrival is counted because a card takes seconds: a viewer who scrubs
+   * back into the story in the middle of one has left an end that must not turn
+   * up behind them, and a failure to play the card is still an end reached.
+   */
+  function revealEnd() {
+    endArrival += 1;
+    const mine = endArrival;
+    const card = onEnd();
+    if (!card?.then) {
+      elements.stage.end.hidden = false;
+      return;
+    }
+    const show = () => {
+      if (destroyed || mine !== endArrival || !ended) return;
+      elements.stage.end.hidden = false;
+    };
+    void card.then(show, show);
   }
 
   // The cursor hands back every warning raised by every event up to t — the
