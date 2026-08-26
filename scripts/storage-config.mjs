@@ -15,24 +15,24 @@
 export const BUCKETS = Object.freeze(['story-player', 'story-player-dev']);
 
 export function loadStorageConfig(env = process.env, { requireCredentials = true } = {}) {
-  const endpoint = parseEndpoint(env.RUSTFS_URL);
+  const endpoint = parseEndpoint(env.S3_URL);
   const bucket = required(env.STORY_PLAYER_BUCKET, 'STORY_PLAYER_BUCKET');
   if (!BUCKETS.includes(bucket)) {
     throw new Error(`STORY_PLAYER_BUCKET must be one of ${BUCKETS.join(', ')}`);
   }
 
-  const accessKeyId = optional(env.RUSTFS_ACCESS_KEY);
-  const secretAccessKey = optional(env.RUSTFS_SECRET_KEY);
+  const accessKeyId = optional(env.S3_ACCESS_KEY);
+  const secretAccessKey = optional(env.S3_SECRET_KEY);
   if ((accessKeyId === null) !== (secretAccessKey === null)) {
-    throw new Error('RUSTFS_ACCESS_KEY and RUSTFS_SECRET_KEY must be provided together');
+    throw new Error('S3_ACCESS_KEY and S3_SECRET_KEY must be provided together');
   }
   if (requireCredentials && accessKeyId === null) {
-    throw new Error('RUSTFS_ACCESS_KEY and RUSTFS_SECRET_KEY are required');
+    throw new Error('S3_ACCESS_KEY and S3_SECRET_KEY are required');
   }
 
-  const rawRegion = env.RUSTFS_REGION;
+  const rawRegion = env.S3_REGION;
   if (rawRegion !== undefined && String(rawRegion).trim() === '') {
-    throw new Error('RUSTFS_REGION must not be blank');
+    throw new Error('S3_REGION must not be blank');
   }
   const region = optional(rawRegion) ?? 'us-east-1';
   return Object.freeze({
@@ -59,19 +59,19 @@ export function storageSummary(config) {
 }
 
 function parseEndpoint(value) {
-  const raw = required(value, 'RUSTFS_URL');
+  const raw = required(value, 'S3_URL');
   let url;
   try {
     url = new URL(raw);
   } catch {
-    throw new Error('RUSTFS_URL must be an HTTP(S) origin');
+    throw new Error('S3_URL must be an HTTP(S) origin');
   }
   if (!['http:', 'https:'].includes(url.protocol) || !url.hostname) {
-    throw new Error('RUSTFS_URL must be an HTTP(S) origin');
+    throw new Error('S3_URL must be an HTTP(S) origin');
   }
-  if (url.username || url.password) throw new Error('RUSTFS_URL must not contain credentials');
-  if (url.search || url.hash) throw new Error('RUSTFS_URL must not contain a query or fragment');
-  if (url.pathname !== '/') throw new Error('RUSTFS_URL must not contain a path');
+  if (url.username || url.password) throw new Error('S3_URL must not contain credentials');
+  if (url.search || url.hash) throw new Error('S3_URL must not contain a query or fragment');
+  if (url.pathname !== '/') throw new Error('S3_URL must not contain a path');
   return url.origin;
 }
 

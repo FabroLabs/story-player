@@ -19,10 +19,10 @@ import { verifyCdnObject, verifyPublicBytes } from '../scripts/verify-cdn.mjs';
 const COMMIT = '0123456789abcdef0123456789abcdef01234567';
 const SCRIPT = new TextEncoder().encode(`window.FabroStoryPlayer = "${COMMIT}";\n`);
 const CONFIG = loadStorageConfig({
-  RUSTFS_URL: 'https://storage.example',
+  S3_URL: 'https://storage.example',
   STORY_PLAYER_BUCKET: 'story-player',
-  RUSTFS_ACCESS_KEY: 'access-do-not-log',
-  RUSTFS_SECRET_KEY: 'secret-do-not-log',
+  S3_ACCESS_KEY: 'access-do-not-log',
+  S3_SECRET_KEY: 'secret-do-not-log',
 });
 const ROOT = fileURLToPath(new URL('../', import.meta.url));
 
@@ -325,7 +325,7 @@ test('repository commands, protected workflows, and public examples describe onl
   assert.match(ci, /playwright install --with-deps chromium/);
   assert.match(ci, /npm run test:e2e/);
   assert.doesNotMatch(ci, /npm pack|verify-package|verify-install/);
-  // The old RustFS push workflow stays gone: it wrote the PRODUCTION bucket
+  // The old S3 push workflow stays gone: it wrote the PRODUCTION bucket
   // from `main`, which is what gave the repository two answers to "which bytes
   // are live". Asserted ABSENT rather than merely unmentioned, so it cannot
   // quietly come back.
@@ -348,6 +348,14 @@ test('repository commands, protected workflows, and public examples describe onl
   // as this workflow's target.
   assert.doesNotMatch(dev, /STORY_PLAYER_BUCKET:\s*story-player(?!-dev)/);
   assert.doesNotMatch(dev, /cdn-production/);
+  // Every credential this workflow reads is named for the DEV rail. Asserted so
+  // a later edit cannot hand it a store key under a generic name — a repository
+  // setting called `S3_ACCESS_KEY` gives no clue which store it opens, and the
+  // one it opened before this rail existed was production's.
+  for (const name of ['S3_DEV_URL', 'S3_DEV_ACCESS_KEY', 'S3_DEV_SECRET_KEY']) {
+    assert.match(dev, new RegExp(String.raw`\$\{\{\s*(?:vars|secrets)\.${name}\s*\}\}`));
+  }
+  assert.doesNotMatch(dev, /(?:vars|secrets)\.S3_(?!DEV_)/);
   // No release is created and no tag moves, so it needs no write access.
   assert.match(dev, /permissions:\s*\n\s*contents: read/);
   assert.doesNotMatch(dev, /gh release/);
@@ -385,7 +393,7 @@ test('repository commands, protected workflows, and public examples describe onl
   assert.match(deploy, /gh release upload latest dist\/story-player\.js dist\/build\.json --clobber/);
   assert.match(deploy, /gh release create "build-\$SHA" dist\/story-player\.js dist\/build\.json/);
   // No store credential reaches this workflow.
-  assert.doesNotMatch(deploy, /RUSTFS_|ACCESS_KEY|SECRET_KEY/);
+  assert.doesNotMatch(deploy, /S3_|ACCESS_KEY|SECRET_KEY/);
   // And the isolation runs both ways: the production rail never names the dev
   // bucket or the dev environment either.
   assert.doesNotMatch(deploy, /story-player-dev|cdn-dev/);

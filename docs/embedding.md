@@ -500,11 +500,11 @@ The `release` job cannot start unless `verify` passes.
 ## The dev rail
 
 A push to `dev` runs **Deploy dev** (`.github/workflows/deploy-dev.yml`), which
-builds the player and writes it straight into the RustFS **`story-player-dev`**
+builds the player and writes it straight into the **`story-player-dev`** S3
 bucket — same layout as production, so an integration can point at
 
 ```text
-${RUSTFS_URL}/story-player-dev/stable/story-player.js
+${S3_URL}/story-player-dev/stable/story-player.js
 ```
 
 or pin `story-player-dev/builds/<commit>/story-player.js` for an exact build.
@@ -524,6 +524,29 @@ directly, so the build is written where it is read and `latest` keeps meaning
 exactly one thing — the newest production player. The dev gate is also lighter:
 unit tests and the repository contract, not the Chromium end-to-end suite.
 
+### Naming, and why the two halves differ
+
+The `cdn-dev` environment holds these, named for the **rail**:
+
+| Name | Kind | Example |
+| --- | --- | --- |
+| `S3_DEV_URL` | variable | `http://<host>:9002` |
+| `S3_DEV_REGION` | variable | `us-east-1` (default if unset) |
+| `S3_DEV_ACCESS_KEY` | secret | — |
+| `S3_DEV_SECRET_KEY` | secret | — |
+
+The workflow maps them onto `S3_URL`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` and
+`S3_REGION`, which is what `scripts/storage-config.mjs` reads. The script side is
+named for the **protocol**, because it is not the script's business which rail
+called it — it is given an endpoint, a bucket and a key pair, and it validates
+them the same way either time. The GitHub side is named for the rail because a
+repository setting called `S3_ACCESS_KEY` gives a reader no clue which store it
+opens, and the one it used to open was production's. The workflow contract test
+asserts the dev workflow reads only `S3_DEV_*`.
+
+Neither side is named for a vendor. The store is RustFS today and MinIO in the
+cluster; the publisher only needs it to speak S3.
+
 ## How the bytes reach the store
 
 Delivery is **pull, not push.** The store this player is consumed from — MinIO
@@ -539,7 +562,7 @@ verifies all three fields in `build.json` before it trusts a byte, mirrors into
 opened and the store credential never leaves the cluster. Expect the site to be
 serving a new player within about ten minutes of a green deploy.
 
-There was previously a second workflow that wrote straight into the RustFS
+There was previously a second workflow that wrote straight into the
 **production** bucket over S3, on every green `main`. It has been removed: two
 writers of one `stable/` key meant two answers to "which bytes are live", and
 the answer that mattered was the cluster's.

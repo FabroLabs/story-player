@@ -13,10 +13,10 @@ const SCRIPT = new TextEncoder().encode(`window.FabroStoryPlayer = "${COMMIT}";\
 const SHA256 = crypto.createHash('sha256').update(SCRIPT).digest('hex');
 const METADATA = metadataBytes();
 const CONFIG = loadStorageConfig({
-  RUSTFS_URL: 'https://storage.example',
+  S3_URL: 'https://storage.example',
   STORY_PLAYER_BUCKET: 'story-player',
-  RUSTFS_ACCESS_KEY: 'rollback-access',
-  RUSTFS_SECRET_KEY: 'rollback-secret',
+  S3_ACCESS_KEY: 'rollback-access',
+  S3_SECRET_KEY: 'rollback-secret',
 });
 
 test('rolls stable back from verified immutable bytes and writes metadata last', async () => {

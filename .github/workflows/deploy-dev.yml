@@ -1,6 +1,6 @@
 name: Deploy dev
 
-# Push to `dev` → the player reaches the RustFS dev bucket.
+# Push to `dev` → the player reaches the dev S3 bucket.
 #
 # WHAT THIS IS FOR
 # ────────────────
@@ -94,14 +94,19 @@ jobs:
         env:
           STORY_PLAYER_COMMIT: ${{ github.sha }}
           STORY_PLAYER_BUCKET: story-player-dev
-          RUSTFS_URL: ${{ vars.RUSTFS_URL }}
-          RUSTFS_ACCESS_KEY: ${{ secrets.RUSTFS_ACCESS_KEY }}
-          RUSTFS_SECRET_KEY: ${{ secrets.RUSTFS_SECRET_KEY }}
-          RUSTFS_REGION: ${{ vars.RUSTFS_REGION || 'us-east-1' }}
+          # GitHub side is named for the RAIL (`S3_DEV_*`), the script side for
+          # the PROTOCOL (`S3_*`). This mapping is the one place a rail is
+          # chosen, next to the bucket it selects, so a reviewer sees both
+          # halves of the decision in the same four lines — and the repository
+          # settings page can never be ambiguous about which store a key opens.
+          S3_URL: ${{ vars.S3_DEV_URL }}
+          S3_ACCESS_KEY: ${{ secrets.S3_DEV_ACCESS_KEY }}
+          S3_SECRET_KEY: ${{ secrets.S3_DEV_SECRET_KEY }}
+          S3_REGION: ${{ vars.S3_DEV_REGION || 'us-east-1' }}
 
       - name: Say where it went
         run: |
           echo "Published to the dev bucket. Point an integration at:"
-          echo "  \${RUSTFS_URL}/story-player-dev/stable/story-player.js"
+          echo "  \${S3_URL}/story-player-dev/stable/story-player.js"
           echo "or pin this exact build:"
-          echo "  \${RUSTFS_URL}/story-player-dev/builds/${GITHUB_SHA}/story-player.js"
+          echo "  \${S3_URL}/story-player-dev/builds/${GITHUB_SHA}/story-player.js"

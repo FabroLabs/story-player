@@ -13,7 +13,7 @@
  * Dev-only on purpose. It needs a storage origin with the forest catalog in it,
  * so it never runs in CI:
  *
- *   STORY_PLAYER_DEV_HARNESS=1 RUSTFS_URL=http://<host>:<port> npm run test:e2e
+ *   STORY_PLAYER_DEV_HARNESS=1 S3_URL=http://<host>:<port> npm run test:e2e
  *
  * The story is `tests/fixtures/parity/golden_push_dusk.bundle.json` — the same
  * corpus the compiler and the state core are held to, already carrying
@@ -40,7 +40,7 @@ import { buildCdn } from '../../scripts/build-cdn.mjs';
 
 const ROOT = fileURLToPath(new URL('../../', import.meta.url));
 const COMMIT = 'dddddddddddddddddddddddddddddddddddddddd';
-const BUCKET = (process.env.RUSTFS_URL ?? '').replace(/\/+$/, '');
+const BUCKET = (process.env.S3_URL ?? '').replace(/\/+$/, '');
 const STORY = 'tests/fixtures/parity/golden_push_dusk.bundle.json';
 // Served straight off disk so the page can import the ESM modules as they are
 // written, without a build step in the middle.
@@ -51,7 +51,7 @@ let application;
 
 test.skip(
   process.env.STORY_PLAYER_DEV_HARNESS !== '1' || !BUCKET,
-  'dev harness: set STORY_PLAYER_DEV_HARNESS=1 and RUSTFS_URL to run against the real bucket',
+  'dev harness: set STORY_PLAYER_DEV_HARNESS=1 and S3_URL to run against the real bucket',
 );
 
 test.beforeAll(async () => {
