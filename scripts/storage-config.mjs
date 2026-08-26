@@ -1,9 +1,25 @@
-const BUCKET = 'story-player';
+// The only two buckets this publisher may ever write.
+//
+// `story-player` is the production rail. `story-player-dev` is the `dev`
+// branch's rail, and it is a SEPARATE BUCKET rather than a prefix on purpose:
+// story-engine-v2 loads `story-player/stable/story-player.js` at runtime and
+// pins `story-player/builds/<commit>/` in `story-player.lock.json`, so a dev
+// build promoted into that bucket would be served to whoever is using it. A
+// second bucket makes that separation a credential boundary — the dev key need
+// not carry production write access — instead of a naming convention that one
+// wrong environment variable defeats.
+//
+// An allow-list and not a free-form name, for the same reason the single
+// constant was here before it: a typo or an injected variable must not be able
+// to aim a signed, public-read publish at an arbitrary bucket on a shared store.
+export const BUCKETS = Object.freeze(['story-player', 'story-player-dev']);
 
 export function loadStorageConfig(env = process.env, { requireCredentials = true } = {}) {
   const endpoint = parseEndpoint(env.RUSTFS_URL);
   const bucket = required(env.STORY_PLAYER_BUCKET, 'STORY_PLAYER_BUCKET');
-  if (bucket !== BUCKET) throw new Error(`STORY_PLAYER_BUCKET must be exactly ${BUCKET}`);
+  if (!BUCKETS.includes(bucket)) {
+    throw new Error(`STORY_PLAYER_BUCKET must be one of ${BUCKETS.join(', ')}`);
+  }
 
   const accessKeyId = optional(env.RUSTFS_ACCESS_KEY);
   const secretAccessKey = optional(env.RUSTFS_SECRET_KEY);

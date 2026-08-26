@@ -479,9 +479,11 @@ why the symptom looks like missing characters rather than a missing background.
 
 ## Branches and deployment
 
-`main` is where work lands. **`production` is what is deployed** — merging into
-it is the deliberate act that publishes a player, and nothing else in this
-repository moves what the cluster serves.
+Three branches, and only one of them reaches a child's bedtime. `dev` is where
+work is tried, `main` is where work lands and means "ready for production", and
+**`production` is what is deployed** — merging into it is the deliberate act
+that publishes a player, and nothing else in this repository moves what the
+cluster serves.
 
 A merge into `production` runs **Deploy player**
 (`.github/workflows/deploy-player.yml`):
@@ -494,6 +496,33 @@ A merge into `production` runs **Deploy player**
    and byte-compares them against what it just built.
 
 The `release` job cannot start unless `verify` passes.
+
+## The dev rail
+
+A push to `dev` runs **Deploy dev** (`.github/workflows/deploy-dev.yml`), which
+builds the player and writes it straight into the RustFS **`story-player-dev`**
+bucket — same layout as production, so an integration can point at
+
+```text
+${RUSTFS_URL}/story-player-dev/stable/story-player.js
+```
+
+or pin `story-player-dev/builds/<commit>/story-player.js` for an exact build.
+
+It is a separate bucket and not a prefix, because the production bucket is read
+at runtime: story-engine-v2 loads `story-player/stable/story-player.js` and pins
+`story-player/builds/<commit>/` in its `story-player.lock.json`. A dev build
+promoted into that bucket would be served to whoever is using that engine. A
+second bucket lets the credential itself be scoped, so a wrong key here cannot
+reach production even in principle — `scripts/storage-config.mjs` enforces the
+two names as an allow-list, and the workflow contract test asserts each rail
+never names the other's bucket or environment.
+
+Dev publishes no GitHub release. `production` does that because the cluster
+mirrors releases over a pull-shaped path it cannot invert; the dev store answers
+directly, so the build is written where it is read and `latest` keeps meaning
+exactly one thing — the newest production player. The dev gate is also lighter:
+unit tests and the repository contract, not the Chromium end-to-end suite.
 
 ## How the bytes reach the store
 
@@ -510,12 +539,16 @@ verifies all three fields in `build.json` before it trusts a byte, mirrors into
 opened and the store credential never leaves the cluster. Expect the site to be
 serving a new player within about ten minutes of a green deploy.
 
-There was previously a second workflow that wrote straight into a RustFS bucket
-over S3 from the runner. It has been removed: it delivered to a store nothing
-now reads from, and two publish paths meant two answers to "which bytes are
-live". The S3 publisher scripts (`scripts/publish-cdn.mjs`,
-`scripts/rollback-cdn.mjs`, `scripts/storage-config.mjs`) and their tests remain
-for any deployment whose store IS reachable — nothing in CI calls them.
+There was previously a second workflow that wrote straight into the RustFS
+**production** bucket over S3, on every green `main`. It has been removed: two
+writers of one `stable/` key meant two answers to "which bytes are live", and
+the answer that mattered was the cluster's.
+
+The S3 publisher scripts (`scripts/publish-cdn.mjs`, `scripts/rollback-cdn.mjs`,
+`scripts/storage-config.mjs`) are not vestigial — the dev rail above calls them,
+and they remain correct for any deployment whose store IS reachable. What
+changed is which bucket a runner may address: `story-player-dev` from `dev`, and
+nothing from `main`.
 
 ## Rollback
 

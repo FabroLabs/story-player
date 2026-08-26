@@ -325,14 +325,35 @@ test('repository commands, protected workflows, and public examples describe onl
   assert.match(ci, /playwright install --with-deps chromium/);
   assert.match(ci, /npm run test:e2e/);
   assert.doesNotMatch(ci, /npm pack|verify-package|verify-install/);
-  // The RustFS push workflow is gone: the store this player is consumed from is
-  // ClusterIP-only, so CI publishes a release and the cluster pulls. Asserted
-  // ABSENT rather than merely unmentioned, so it cannot quietly come back and
-  // give the repository two answers to "which bytes are live".
+  // The old RustFS push workflow stays gone: it wrote the PRODUCTION bucket
+  // from `main`, which is what gave the repository two answers to "which bytes
+  // are live". Asserted ABSENT rather than merely unmentioned, so it cannot
+  // quietly come back.
   assert.equal(
     fs.existsSync(path.join(ROOT, '.github', 'workflows', 'publish-cdn.yml')),
     false,
   );
+
+  // `deploy-dev.yml` replaces it with a rail that CANNOT reach production.
+  // story-engine-v2 loads `story-player/stable/story-player.js` at runtime, so
+  // the guarantee below is the one that matters: the dev workflow addresses a
+  // different bucket, holds a different environment's credential, and publishes
+  // no release. This is asserted rather than trusted because a one-word edit
+  // here would silently point dev builds at real users.
+  const dev = read('.github/workflows/deploy-dev.yml');
+  assert.match(dev, /on:[\s\S]*?push:[\s\S]*?branches: \[dev\]/);
+  assert.match(dev, /environment: cdn-dev/);
+  assert.match(dev, /STORY_PLAYER_BUCKET: story-player-dev/);
+  // The production bucket, named without the `-dev` suffix, must never appear
+  // as this workflow's target.
+  assert.doesNotMatch(dev, /STORY_PLAYER_BUCKET:\s*story-player(?!-dev)/);
+  assert.doesNotMatch(dev, /cdn-production/);
+  // No release is created and no tag moves, so it needs no write access.
+  assert.match(dev, /permissions:\s*\n\s*contents: read/);
+  assert.doesNotMatch(dev, /gh release/);
+  // A superseded dev build is worth nothing; a superseded production build is
+  // immutable and may be pinned. The two workflows differ here on purpose.
+  assert.match(dev, /cancel-in-progress: true/);
 
   const deploy = read('.github/workflows/deploy-player.yml');
   // `production` is the deploy branch, and the trigger must stay `push`: a
@@ -365,6 +386,9 @@ test('repository commands, protected workflows, and public examples describe onl
   assert.match(deploy, /gh release create "build-\$SHA" dist\/story-player\.js dist\/build\.json/);
   // No store credential reaches this workflow.
   assert.doesNotMatch(deploy, /RUSTFS_|ACCESS_KEY|SECRET_KEY/);
+  // And the isolation runs both ways: the production rail never names the dev
+  // bucket or the dev environment either.
+  assert.doesNotMatch(deploy, /story-player-dev|cdn-dev/);
 
   for (const document of [read('README.md'), read('docs/embedding.md')]) {
     assert.match(document, /createStoryPlayer/);
