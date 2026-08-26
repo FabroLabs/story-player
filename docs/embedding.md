@@ -521,8 +521,19 @@ never names the other's bucket or environment.
 Dev publishes no GitHub release. `production` does that because the cluster
 mirrors releases over a pull-shaped path it cannot invert; the dev store answers
 directly, so the build is written where it is read and `latest` keeps meaning
-exactly one thing — the newest production player. The dev gate is also lighter:
-unit tests and the repository contract, not the Chromium end-to-end suite.
+exactly one thing — the newest production player.
+
+**Dev runs no tests, on purpose.** Five steps: checkout, Node, `npm ci`,
+`build:cdn`, `publish:cdn`. `dev` is where work is tried, and a preview rail
+that refuses to publish a broken build cannot show you the break — a dev page
+rendering wrong is faster feedback than a red tick. The consequence is worth
+holding onto: a commit pushed straight to `dev` is tested nowhere, because CI
+runs on pull requests and on `main`. The pull request into `main` is the first
+gate, and `production` reruns the whole suite before it publishes anything.
+
+There is no `workflow_dispatch` either — the trigger is a push to `dev` and
+nothing else. To republish without a new commit (after creating the bucket, or
+rotating a key), rerun the last run: `gh run rerun <id>`.
 
 ### Naming, and why the two halves differ
 
@@ -572,19 +583,27 @@ The S3 publisher scripts (`scripts/publish-cdn.mjs`, `scripts/storage-config.mjs
 changed is which bucket a runner may address: `story-player-dev` from `dev`, and
 nothing from `main`.
 
-`scripts/rollback-cdn.mjs` went with that change. It rolled an S3 `stable/` key
-back to an earlier immutable build, which no longer describes anything either
-rail does: dev rolls back by pushing again, and production rolls back by pinning
-an immutable release, below. A script with no caller is a claim about how the
-system works, and that one had stopped being true.
+`scripts/rollback-cdn.mjs` went with that change — see **Rollback** below for
+what replaced it. A script with no caller is a claim about how the system works,
+and that one had stopped being true.
 
 ## Rollback
 
-Pick the immutable `build-<commit>` release and pin the consumer to it. In the
-moonykids cluster that is `infra/scripts/17-player-rollback.sh <full-commit>`,
-which writes `stable/pinned.json`; the mirror keeps ingesting new builds but
-will not promote over the pin until it is removed. Nothing is rebuilt and no
-immutable release is ever edited.
+Production: pick the immutable `build-<commit>` release and pin the consumer to
+it. In the moonykids cluster that is `infra/scripts/17-player-rollback.sh
+<full-commit>`, which writes `stable/pinned.json`; the mirror keeps ingesting
+new builds but will not promote over the pin until it is removed. Nothing is
+rebuilt and no immutable release is ever edited.
+
+Dev: push again. If a specific older build is wanted meanwhile, point the dev
+server at its immutable object —
+`${S3_URL}/story-player-dev/builds/<commit>/story-player.js` — which is still
+there, because `builds/` writes are create-only and nothing prunes them.
+
+There is no rollback script. There used to be one that moved an S3 `stable/` key
+back to an earlier build; it described neither of these paths and had no caller,
+so it was removed rather than left as a claim about a mechanism that no longer
+existed.
 
 ## GitLab migration
 
