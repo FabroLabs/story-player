@@ -479,9 +479,11 @@ why the symptom looks like missing characters rather than a missing background.
 
 ## Branches and deployment
 
-`main` is where work lands. **`production` is what is deployed** — merging into
-it is the deliberate act that publishes a player, and nothing else in this
-repository moves what the cluster serves.
+Three branches, and only one of them reaches a child's bedtime. `dev` is where
+work is tried, `main` is where work lands and means "ready for production", and
+**`production` is what is deployed** — merging into it is the deliberate act
+that publishes a player, and nothing else in this repository moves what the
+cluster serves.
 
 A merge into `production` runs **Deploy player**
 (`.github/workflows/deploy-player.yml`):
@@ -494,6 +496,67 @@ A merge into `production` runs **Deploy player**
    and byte-compares them against what it just built.
 
 The `release` job cannot start unless `verify` passes.
+
+## The dev rail
+
+A push to `dev` runs **Deploy dev** (`.github/workflows/deploy-dev.yml`), which
+builds the player and writes it straight into the **`story-player-dev`** S3
+bucket — same layout as production, so an integration can point at
+
+```text
+${S3_URL}/story-player-dev/stable/story-player.js
+```
+
+or pin `story-player-dev/builds/<commit>/story-player.js` for an exact build.
+
+It is a separate bucket and not a prefix, because the production bucket is read
+at runtime: story-engine-v2 loads `story-player/stable/story-player.js` and pins
+`story-player/builds/<commit>/` in its `story-player.lock.json`. A dev build
+promoted into that bucket would be served to whoever is using that engine. A
+second bucket lets the credential itself be scoped, so a wrong key here cannot
+reach production even in principle — `scripts/storage-config.mjs` enforces the
+two names as an allow-list, and the workflow contract test asserts each rail
+never names the other's bucket or environment.
+
+Dev publishes no GitHub release. `production` does that because the cluster
+mirrors releases over a pull-shaped path it cannot invert; the dev store answers
+directly, so the build is written where it is read and `latest` keeps meaning
+exactly one thing — the newest production player.
+
+**Dev runs no tests, on purpose.** Five steps: checkout, Node, `npm ci`,
+`build:cdn`, `publish:cdn`. `dev` is where work is tried, and a preview rail
+that refuses to publish a broken build cannot show you the break — a dev page
+rendering wrong is faster feedback than a red tick. The consequence is worth
+holding onto: a commit pushed straight to `dev` is tested nowhere, because CI
+runs on pull requests and on `main`. The pull request into `main` is the first
+gate, and `production` reruns the whole suite before it publishes anything.
+
+There is no `workflow_dispatch` either — the trigger is a push to `dev` and
+nothing else. To republish without a new commit (after creating the bucket, or
+rotating a key), rerun the last run: `gh run rerun <id>`.
+
+### Naming, and why the two halves differ
+
+The `cdn-dev` environment holds these, named for the **rail**:
+
+| Name | Kind | Example |
+| --- | --- | --- |
+| `S3_DEV_URL` | variable | `http://<host>:9002` |
+| `S3_DEV_REGION` | variable | `us-east-1` (default if unset) |
+| `S3_DEV_ACCESS_KEY` | secret | — |
+| `S3_DEV_SECRET_KEY` | secret | — |
+
+The workflow maps them onto `S3_URL`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` and
+`S3_REGION`, which is what `scripts/storage-config.mjs` reads. The script side is
+named for the **protocol**, because it is not the script's business which rail
+called it — it is given an endpoint, a bucket and a key pair, and it validates
+them the same way either time. The GitHub side is named for the rail because a
+repository setting called `S3_ACCESS_KEY` gives a reader no clue which store it
+opens, and the one it used to open was production's. The workflow contract test
+asserts the dev workflow reads only `S3_DEV_*`.
+
+Neither side is named for a vendor. The store is RustFS today and MinIO in the
+cluster; the publisher only needs it to speak S3.
 
 ## How the bytes reach the store
 
@@ -510,20 +573,37 @@ verifies all three fields in `build.json` before it trusts a byte, mirrors into
 opened and the store credential never leaves the cluster. Expect the site to be
 serving a new player within about ten minutes of a green deploy.
 
-There was previously a second workflow that wrote straight into a RustFS bucket
-over S3 from the runner. It has been removed: it delivered to a store nothing
-now reads from, and two publish paths meant two answers to "which bytes are
-live". The S3 publisher scripts (`scripts/publish-cdn.mjs`,
-`scripts/rollback-cdn.mjs`, `scripts/storage-config.mjs`) and their tests remain
-for any deployment whose store IS reachable — nothing in CI calls them.
+There was previously a second workflow that wrote straight into the
+**production** bucket over S3, on every green `main`. It has been removed: two
+writers of one `stable/` key meant two answers to "which bytes are live", and
+the answer that mattered was the cluster's.
+
+The S3 publisher scripts (`scripts/publish-cdn.mjs`, `scripts/storage-config.mjs`,
+`scripts/verify-cdn.mjs`) are not vestigial — the dev rail above calls them. What
+changed is which bucket a runner may address: `story-player-dev` from `dev`, and
+nothing from `main`.
+
+`scripts/rollback-cdn.mjs` went with that change — see **Rollback** below for
+what replaced it. A script with no caller is a claim about how the system works,
+and that one had stopped being true.
 
 ## Rollback
 
-Pick the immutable `build-<commit>` release and pin the consumer to it. In the
-moonykids cluster that is `infra/scripts/17-player-rollback.sh <full-commit>`,
-which writes `stable/pinned.json`; the mirror keeps ingesting new builds but
-will not promote over the pin until it is removed. Nothing is rebuilt and no
-immutable release is ever edited.
+Production: pick the immutable `build-<commit>` release and pin the consumer to
+it. In the moonykids cluster that is `infra/scripts/17-player-rollback.sh
+<full-commit>`, which writes `stable/pinned.json`; the mirror keeps ingesting
+new builds but will not promote over the pin until it is removed. Nothing is
+rebuilt and no immutable release is ever edited.
+
+Dev: push again. If a specific older build is wanted meanwhile, point the dev
+server at its immutable object —
+`${S3_URL}/story-player-dev/builds/<commit>/story-player.js` — which is still
+there, because `builds/` writes are create-only and nothing prunes them.
+
+There is no rollback script. There used to be one that moved an S3 `stable/` key
+back to an earlier build; it described neither of these paths and had no caller,
+so it was removed rather than left as a claim about a mechanism that no longer
+existed.
 
 ## GitLab migration
 

@@ -57,23 +57,32 @@
 - Keep package metadata private at `0.0.0-development`. `dist/` is generated,
   ignored, and never committed.
 - Never commit credentials, `.npmrc`, registry configuration, or a
-  credential-bearing URL. Deployment publishes to GitHub releases with the job's
-  own token; there is no store credential in this repository any more.
-- `main` is where work lands; **`production` is what is deployed**. A merge into
-  `production` runs `deploy-player.yml`, which gates the release on the full
-  suite and then moves the rolling `latest` tag.
-- CD is **pull, not push**: the cluster's MinIO is ClusterIP-only, so a runner
-  cannot write to it. A CronJob in the cluster fetches `latest`, verifies
-  `build.json` and promotes `stable/`. The RustFS push workflow that used to
-  write an S3 bucket directly is gone; its scripts remain, uncalled, for any
-  deployment whose store IS reachable.
+  credential-bearing URL. The production release job carries no store
+  credential — only the job's own token. The one store credential in this
+  repository lives in the `cdn-dev` environment, is named `S3_DEV_*`, and must
+  never be able to write the production bucket.
+- Three branches. `dev` is where work is tried, `main` is where it lands and
+  means "ready for production", and **`production` is what is deployed**. A
+  merge into `production` runs `deploy-player.yml`, which gates the release on
+  the full suite and then moves the rolling `latest` tag.
+- Production CD is **pull, not push**: the cluster's MinIO is ClusterIP-only, so
+  a runner cannot write to it. A CronJob in the cluster fetches `latest`,
+  verifies `build.json` and promotes `stable/`.
+- Dev CD is push, because its store answers over HTTP. A push to `dev` runs
+  `deploy-dev.yml`: build, upload to the **`story-player-dev`** bucket, nothing
+  else. It runs no tests on purpose — `dev` is a preview rail, and a broken dev
+  page is the feedback. Never let it address the production bucket:
+  `storage-config.mjs` holds both names as an allow-list and the workflow
+  contract test asserts each rail never names the other's bucket or environment.
 - `build.json` is the whole contract — commit, byte count, SHA-256. Never
   publish one of the two files without the other, and never edit an immutable
   release.
 - Immutable commit objects are create-only and must be anonymously verified
-  before stable promotion. Promote stable metadata last. Rollback only from a
-  verified immutable full-commit object. Never upload from a developer shell
-  without explicit authorization.
+  before stable promotion. Promote stable metadata last. Never upload from a
+  developer shell without explicit authorization.
+- Rollback is not a script. Production pins an immutable `build-<commit>`
+  release (`infra/scripts/17-player-rollback.sh`); dev rolls back by pushing
+  again. Nothing rebuilds and no immutable object is ever edited.
 - Run Node 22 `npm ci --ignore-scripts`, `npm test`,
   `STORY_PLAYER_COMMIT=<full-git-commit> npm run build:cdn`,
   `npm run test:e2e`, and `npm run verify:repository` before integration.
