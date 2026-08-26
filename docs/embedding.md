@@ -567,11 +567,16 @@ There was previously a second workflow that wrote straight into the
 writers of one `stable/` key meant two answers to "which bytes are live", and
 the answer that mattered was the cluster's.
 
-The S3 publisher scripts (`scripts/publish-cdn.mjs`, `scripts/rollback-cdn.mjs`,
-`scripts/storage-config.mjs`) are not vestigial — the dev rail above calls them,
-and they remain correct for any deployment whose store IS reachable. What
+The S3 publisher scripts (`scripts/publish-cdn.mjs`, `scripts/storage-config.mjs`,
+`scripts/verify-cdn.mjs`) are not vestigial — the dev rail above calls them. What
 changed is which bucket a runner may address: `story-player-dev` from `dev`, and
 nothing from `main`.
+
+`scripts/rollback-cdn.mjs` went with that change. It rolled an S3 `stable/` key
+back to an earlier immutable build, which no longer describes anything either
+rail does: dev rolls back by pushing again, and production rolls back by pinning
+an immutable release, below. A script with no caller is a claim about how the
+system works, and that one had stopped being true.
 
 ## Rollback
 

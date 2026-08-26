@@ -1,15 +1,14 @@
 name: Deploy dev
 
-# Push to `dev` → the player reaches the dev S3 bucket.
+# Push to `dev` → build the player, upload it to the dev bucket. Nothing else.
 #
-# WHAT THIS IS FOR
-# ────────────────
-# A real URL to point an integration at before the code is anywhere near a
-# child's bedtime. `dev` is upstream of `main`, which is upstream of
-# `production`: work lands on `dev`, `main` means "ready for production", and
-# merging into `production` is what actually publishes. This workflow gives the
-# first of those three a fetchable artifact so an embed can be tested against a
-# branch build instead of a local file.
+# This is a PREVIEW rail, not a gate. `dev` is where work is tried; `main` means
+# "ready for production" and is where the full suite runs; merging into
+# `production` is the only act that reaches a child's bedtime. So this workflow
+# deliberately does not test — a broken dev build shows up as a broken dev page,
+# which is the fastest feedback there is and costs nobody anything. Pushing
+# straight to `dev` therefore runs no tests at all; the pull request into `main`
+# is where CI stops a bad build from going anywhere that matters.
 #
 # WHY A SEPARATE BUCKET AND NOT A PREFIX
 # ──────────────────────────────────────
@@ -17,40 +16,28 @@ name: Deploy dev
 # RUNTIME by story-engine-v2 — it loads `story-player/stable/story-player.js`
 # and pins `story-player/builds/<commit>/` in `story-player.lock.json` — so a dev
 # build promoted into it would be served to whoever is using that engine. A
-# prefix inside the shared bucket would rely on this file never getting the key
-# wrong; a separate bucket lets the credential itself be scoped, so a mistake
-# here cannot reach production even in principle.
-#
-# `scripts/storage-config.mjs` enforces the pair as an allow-list, so neither
-# rail can be aimed at an arbitrary bucket on a store that also holds
-# `fairytale-assets` and `jobs`.
+# separate bucket lets the credential itself be scoped, so a mistake here cannot
+# reach production even in principle. `scripts/storage-config.mjs` enforces the
+# pair as an allow-list.
 #
 # WHY NO GITHUB RELEASE
 # ─────────────────────
-# Because nothing pulls dev. `production` publishes releases because the cluster
-# mirrors them: MinIO there is ClusterIP-only, so delivery has to be pull-shaped.
-# The dev store answers directly over HTTP, so a dev build can just be written
-# where it is read, and `latest` stays a word that means exactly one thing —
-# the newest production player.
+# Because nothing pulls dev. `production` publishes releases because the
+# cluster's MinIO is ClusterIP-only and delivery has to be pull-shaped. The dev
+# store answers over HTTP, so the build is written where it is read, and
+# `latest` keeps meaning exactly one thing — the newest production player.
 
 on:
   push:
     branches: [dev]
-  # Re-publish the current tip by hand, after a bucket is recreated or a
-  # credential is rotated.
-  workflow_dispatch:
 
-# No release is created and no tag moves, so this workflow never needs to write
-# to the repository.
+# No release is created and no tag moves.
 permissions:
   contents: read
 
-# Deliberately different from `deploy-player.yml`, which queues. A superseded
-# production build is still worth publishing because it is immutable and
-# someone may pin it; a superseded dev build is worth nothing, and waiting for
-# it delays the one the developer is actually waiting on. Cancelling can leave
-# a run's immutable objects written without `stable/` moving — on dev that is
-# acceptable, and the next push repairs it.
+# A superseded dev build is worth nothing, and waiting for it delays the one the
+# developer is actually waiting on. `deploy-player.yml` queues instead, because a
+# superseded production build is immutable and someone may pin it.
 concurrency:
   group: story-player-dev
   cancel-in-progress: true
@@ -70,43 +57,24 @@ jobs:
           cache: npm
       - run: npm ci --ignore-scripts
 
-      # The gate is deliberately lighter than `production`'s. Unit tests and the
-      # repository contract are seconds and catch the things that make a build
-      # not worth publishing; the Chromium end-to-end suite needs a browser
-      # download and is what gates `main`. If a dev build ever ships a black
-      # rectangle that the unit tests missed, move `npm run test:e2e` here and
-      # accept the extra couple of minutes.
-      - run: npm test
-      - run: npm run verify:repository
-
-      # Deterministic, and load-bearing: `publish:cdn` refuses an artifact that
-      # does not contain its declared commit, then writes a `build.json` whose
-      # SHA-256 must describe the bytes beside it.
       - run: npm run build:cdn
         env:
           STORY_PLAYER_COMMIT: ${{ github.sha }}
 
-      # Writes `builds/<commit>/` create-only, then promotes `stable/`, then
-      # re-reads both anonymously to prove the store serves what was uploaded.
-      # Creates the bucket with a public-read policy and CORS on first run, so
-      # the dev key needs CreateBucket the first time.
+      # Writes `builds/<commit>/` create-only, promotes `stable/`, then re-reads
+      # both anonymously to prove the store serves what was uploaded. Refuses an
+      # artifact that does not contain its declared commit. Creates the bucket
+      # with a public-read policy and CORS on first run, so the dev key needs
+      # CreateBucket once.
+      #
+      # GitHub side is named for the RAIL (`S3_DEV_*`), script side for the
+      # PROTOCOL (`S3_*`). The mapping sits beside the bucket it selects, so both
+      # halves of the decision are visible in the same few lines.
       - run: npm run publish:cdn
         env:
           STORY_PLAYER_COMMIT: ${{ github.sha }}
           STORY_PLAYER_BUCKET: story-player-dev
-          # GitHub side is named for the RAIL (`S3_DEV_*`), the script side for
-          # the PROTOCOL (`S3_*`). This mapping is the one place a rail is
-          # chosen, next to the bucket it selects, so a reviewer sees both
-          # halves of the decision in the same four lines — and the repository
-          # settings page can never be ambiguous about which store a key opens.
           S3_URL: ${{ vars.S3_DEV_URL }}
           S3_ACCESS_KEY: ${{ secrets.S3_DEV_ACCESS_KEY }}
           S3_SECRET_KEY: ${{ secrets.S3_DEV_SECRET_KEY }}
           S3_REGION: ${{ vars.S3_DEV_REGION || 'us-east-1' }}
-
-      - name: Say where it went
-        run: |
-          echo "Published to the dev bucket. Point an integration at:"
-          echo "  \${S3_URL}/story-player-dev/stable/story-player.js"
-          echo "or pin this exact build:"
-          echo "  \${S3_URL}/story-player-dev/builds/${GITHUB_SHA}/story-player.js"

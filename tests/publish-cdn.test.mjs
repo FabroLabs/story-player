@@ -311,7 +311,6 @@ test('repository commands, protected workflows, and public examples describe onl
     test: 'node --test "tests/*.test.mjs"',
     'build:cdn': 'node scripts/build-cdn.mjs',
     'publish:cdn': 'node scripts/publish-cdn.mjs',
-    'rollback:cdn': 'node scripts/rollback-cdn.mjs',
     'test:e2e': 'playwright test',
     'verify:cdn': 'node scripts/verify-cdn.mjs',
     'verify:repository': 'node scripts/verify-repository.mjs',
