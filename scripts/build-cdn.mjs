@@ -28,13 +28,26 @@ export async function buildCdn({ commit, outfile = path.join(ROOT, 'dist', 'stor
     format: 'iife',
     legalComments: 'none',
     metafile: true,
-    // Every visitor's browser downloads this before a story can start, so the
-    // bytes are the product's first impression on a slow connection. esbuild's
-    // minifier is deterministic, which the whole delivery chain depends on:
-    // `build.json` states a SHA-256 and the cluster's mirror refuses an
-    // artifact that does not match it, so a non-reproducible minifier would
-    // break deployment rather than merely change the output.
-    minify: true,
+    // NOT MINIFIED, ON PURPOSE.
+    //
+    // This is the one artifact nobody can debug from the outside. It runs in a
+    // parent's browser, on a device we do not have, and when a character fails
+    // to appear the only evidence that survives is a console line and a stack
+    // trace. Minified, that trace names `t`, `n` and `a` — there is no source
+    // map published for this file, so those names are all anyone gets, and the
+    // report says nothing about which part of the player gave up.
+    //
+    // Readable names cost bytes and buy the ability to answer "why did this
+    // story not play". `keepNames` is set as well, so the intent survives
+    // anyone switching minification back on: esbuild renames functions and
+    // classes even in ways that `.name` and the `tooling` export can observe.
+    //
+    // Determinism is what the delivery chain actually requires, and it is
+    // unaffected either way: `build.json` states a SHA-256, the cluster's
+    // mirror refuses an artifact that does not match it, and esbuild is
+    // byte-reproducible (`tests/cdn-build.test.mjs` builds twice and compares).
+    minify: false,
+    keepNames: true,
     outfile: target,
     platform: 'browser',
     sourcemap: false,
