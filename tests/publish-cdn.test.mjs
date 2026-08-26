@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 import {
   IMMUTABLE_CACHE_CONTROL,
   PUBLIC_READ_CORS,
-  PUBLIC_READ_POLICY,
+  publicReadPolicy,
   STABLE_CACHE_CONTROL,
   ensurePublicBucket,
   publishCdn,
@@ -24,12 +24,18 @@ const CONFIG = loadStorageConfig({
   S3_ACCESS_KEY: 'access-do-not-log',
   S3_SECRET_KEY: 'secret-do-not-log',
 });
+const DEV_CONFIG = loadStorageConfig({
+  S3_URL: 'https://storage.example',
+  STORY_PLAYER_BUCKET: 'story-player-dev',
+  S3_ACCESS_KEY: 'access-do-not-log',
+  S3_SECRET_KEY: 'secret-do-not-log',
+});
 const ROOT = fileURLToPath(new URL('../', import.meta.url));
 
 test('creates and configures the one public bucket idempotently without weakening conflicts', async () => {
   assert.equal(IMMUTABLE_CACHE_CONTROL, 'public, max-age=31536000, immutable');
   assert.equal(STABLE_CACHE_CONTROL, 'public, max-age=60, must-revalidate');
-  assert.deepEqual(PUBLIC_READ_POLICY, {
+  assert.deepEqual(publicReadPolicy('story-player'), {
     Version: '2012-10-17',
     Statement: [{
       Sid: 'AnonymousStoryPlayerRead',
@@ -39,6 +45,13 @@ test('creates and configures the one public bucket idempotently without weakenin
       Resource: ['arn:aws:s3:::story-player/*'],
     }],
   });
+  // The policy must name the bucket it is attached to. A constant here granted
+  // read on `story-player/*` while attached to `story-player-dev`, and every
+  // object the dev rail wrote came back 403 from its own verification step.
+  assert.deepEqual(
+    publicReadPolicy('story-player-dev').Statement[0].Resource,
+    ['arn:aws:s3:::story-player-dev/*'],
+  );
   assert.deepEqual(PUBLIC_READ_CORS, [{
     AllowedHeaders: ['*'],
     AllowedMethods: ['GET', 'HEAD'],
@@ -52,7 +65,7 @@ test('creates and configures the one public bucket idempotently without weakenin
     'bucketExists', 'createBucket', 'getBucketPolicy', 'putBucketPolicy',
     'getBucketCors', 'putBucketCors',
   ]);
-  assert.deepEqual(fresh.policy, PUBLIC_READ_POLICY);
+  assert.deepEqual(fresh.policy, publicReadPolicy('story-player'));
   assert.deepEqual(fresh.cors, PUBLIC_READ_CORS);
 
   fresh.calls.length = 0;
@@ -73,6 +86,34 @@ test('creates and configures the one public bucket idempotently without weakenin
     );
     assert.equal(conflict.calls.some(([name]) => name.startsWith('putBucket')), false);
   }
+});
+
+test('attaches the policy for the bucket it is on, and repairs its own cross-bucket mistake', async () => {
+  // The dev rail's first real publish created the bucket, granted anonymous
+  // read on `story-player/*`, attached that to `story-player-dev`, and then
+  // failed its own verification with 403 on every object it had just written.
+  const fresh = fakeStore();
+  await ensurePublicBucket({ store: fresh, config: DEV_CONFIG });
+  assert.deepEqual(fresh.policy, publicReadPolicy('story-player-dev'));
+
+  // A bucket already left in that state must heal without anyone reaching for
+  // an S3 client — the policy is byte-identical to this script's output for the
+  // other allowed bucket, so it is ours and it is wrong.
+  const stale = fakeStore({ exists: true, configured: true });
+  await ensurePublicBucket({ store: stale, config: DEV_CONFIG });
+  assert.deepEqual(stale.policy, publicReadPolicy('story-player-dev'));
+  assert.equal(stale.calls.filter(([name]) => name === 'putBucketPolicy').length, 1);
+
+  // But only that. A policy someone narrowed on purpose differs in more than
+  // the ARN and must never be silently widened back.
+  const narrowed = fakeStore({ exists: true, configured: true });
+  narrowed.policy = structuredClone(publicReadPolicy('story-player-dev'));
+  narrowed.policy.Statement[0].Principal = { AWS: 'arn:aws:iam::1:root' };
+  await assert.rejects(
+    ensurePublicBucket({ store: narrowed, config: DEV_CONFIG }),
+    /conflicting public bucket policy/,
+  );
+  assert.equal(narrowed.calls.some(([name]) => name === 'putBucketPolicy'), false);
 });
 
 test('publishes immutable objects create-only, verifies anonymously, and promotes metadata last', async () => {
@@ -417,7 +458,7 @@ function fakeStore({
     cors: configured ? structuredClone(PUBLIC_READ_CORS) : null,
     exists,
     objects: new Map(),
-    policy: configured ? structuredClone(PUBLIC_READ_POLICY) : null,
+    policy: configured ? structuredClone(publicReadPolicy('story-player')) : null,
     async bucketExists() { this.calls.push(['bucketExists']); return this.exists; },
     async createBucket() { this.calls.push(['createBucket']); this.exists = true; },
     async getBucketPolicy() { this.calls.push(['getBucketPolicy']); return structuredClone(this.policy); },
