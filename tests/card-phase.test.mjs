@@ -1539,6 +1539,15 @@ test('the stylesheet really takes a hidden card layer off the screen', () => {
   // And `is-arriving` is the transparent state the reflow in `openOnBlack` is
   // forced for: without a rule making it transparent there is nothing to fade.
   assert.match(css, /\.card-layer\.is-arriving\s*\{[^}]*opacity:\s*0/);
+  // The film is what the black is IN FRONT OF. Without this the layer's own ink
+  // is never uncovered: the card fades up film-and-all in the same 250 ms, the
+  // classes above still come and go in the right order, and the black beat the
+  // whole arrival exists for is simply not there.
+  assert.match(
+    css,
+    /\.card-layer\.is-arriving\s+\.card-video,\s*\.card-layer\.is-dark\s+\.card-video\s*\{[^}]*opacity:\s*0/,
+    'nothing hides the film under the black — the opening is a cut again',
+  );
 });
 
 test('the stylesheet keeps the title beat off the card it outlives', () => {
@@ -1587,6 +1596,171 @@ test('the stylesheet keeps the title beat off the card it outlives', () => {
   assert.doesNotMatch(sprite[1], /\d(vh|vw)/, 'the sprite is sized against the window rather than the player');
   assert.match(sprite[1], /height:\s*\d+%/, 'the sprite is not sized against the layer it sits in');
 });
+
+test('a name whose length lands while the tab is away does not run the ending in the dark', async (t) => {
+  const { player, spoken } = await openBeat(t);
+  document.visibilityState = 'hidden';
+  document.dispatch('visibilitychange');
+
+  // A hidden tab does not stop a file loading, so the one thing the beat was
+  // waiting for can arrive after the beat has been stopped by hand. Armed on
+  // it, the held frame, the curtain and the linger would all run out unwatched
+  // and the viewer would come back to a story already begun with nothing over
+  // it — which is the exact failure `holdCard` clears the hold to prevent.
+  spoken.duration = 4.1;
+  spoken.listeners.get('loadedmetadata')({ type: 'loadedmetadata' });
+  assert.throws(
+    () => player.timers.runOf(4_100 + CARD_TITLE_TAIL_MS),
+    /no timer was armed/,
+    'the ending was let go of while nobody was watching',
+  );
+
+  // The length is still learned. It is the arming that waits for the viewer.
+  document.visibilityState = 'visible';
+  document.dispatch('visibilitychange');
+  player.timers.runOf(4_100 + CARD_TITLE_TAIL_MS);
+  assert.equal(player.layer.classList.contains('is-gone'), true, 'the beat came back at the wrong length');
+});
+
+test('a linger that lands while the tab is away waits for it to come back', (t) => {
+  const beat = bareTitle(t, { story: oneCharacter(soloist) });
+  beat.title.reveal(TITLE);
+  beat.title.freeze();
+
+  // The curtain can end after the tab has gone: the phase is over by then, so
+  // nothing hands this beat a second freeze. A linger armed here runs out in
+  // the dark and the title is gone before the viewer is back to read it.
+  beat.title.linger();
+  assert.throws(
+    () => beat.timers.runOf(CARD_TITLE_LINGER_MS),
+    /no timer was armed/,
+    'the title held over the story counted itself down with the tab away',
+  );
+
+  beat.title.thaw();
+  beat.timers.runOf(CARD_TITLE_LINGER_MS);
+  assert.equal(beat.layer.classList.contains('is-fading'), true, 'the linger was lost rather than held');
+});
+
+test('a title that throws after the film has already stalled is still named', async (t) => {
+  const card = bareCard(t, {
+    title: recordingTitle({ reveal() { throw new Error('no canvas'); } }),
+  });
+  card.phase.playIntro();
+  // A film that buffered once has spoken under its own url, and one line per
+  // file is the rule. The beat failing is a different thing that went wrong
+  // with the same card, and it is the only word on why the opening it
+  // recovered into carries no name.
+  card.video.dispatch('stalled');
+  assert.match(card.warnings.at(-1).message, /stalled/, 'the film never spoke — this test proves nothing');
+  card.video.dispatch('playing');
+  card.video.dispatch('ended');
+  assert.match(
+    card.warnings.at(-1).message,
+    /the title card could not be raised/,
+    'the film’s own line swallowed the only word about the missing title',
+  );
+});
+
+test('a second performance whose sheet is merely late is named for that', (t) => {
+  const beat = bareTitle(t, { story: oneCharacter(soloist), cache: brokenCache() });
+  beat.title.warm();
+  return Promise.resolve().then(() => {
+    beat.title.reveal(TITLE);
+    beat.title.clear();
+    // The replay's sheet did not refuse — it had not arrived. A refusal
+    // remembered across the performance that owned it leaves the second one
+    // with a hole beside the name and a log with nothing in it at all.
+    beat.title.reveal(TITLE);
+    assert.deepEqual(
+      beat.said().slice(1),
+      ['the lead’s sprite sheet was not ready when the title card began'],
+      'the performance before it did the replay’s talking',
+    );
+  });
+});
+
+test('a sheet gone by the replay is not blamed on the memory budget', async (t) => {
+  let held = true;
+  const drawable = { width: 64, height: 64 };
+  const beat = bareTitle(t, {
+    story: oneCharacter(soloist),
+    cache: { has: () => held, get: () => (held ? drawable : null), load: async () => drawable },
+  });
+  beat.title.warm();
+  await settle();
+  beat.title.reveal(TITLE);
+  beat.title.clear();
+
+  // Which of the two sentences is true is a fact about THIS performance. A
+  // sheet that decoded for the one before and has since gone is, to the replay,
+  // a sheet still on the wire — the budget had nothing to do with it.
+  held = false;
+  beat.title.reveal(TITLE);
+  assert.deepEqual(
+    beat.said(),
+    ['the lead’s sprite sheet was not ready when the title card began'],
+    'the replay was told about a memory budget it never hit',
+  );
+});
+
+test('a replayed opening takes down the title the last one left standing', async (t) => {
+  const title = recordingTitle();
+  const card = bareCard(t, { title });
+  card.phase.playIntro();
+  card.video.dispatch('playing');
+  card.video.dispatch('ended');
+  playOutTitle(card);
+  await settle();
+  assert.equal(title.calls.at(-1), 'linger', 'the linger never started — this test proves nothing');
+
+  // The title holds over the story for the best part of three seconds, and a
+  // replay can land inside them. Left standing, the old name watches the new
+  // film — and its own linger then takes the NEW title down behind it.
+  card.phase.playIntro();
+  assert.equal(title.calls.at(-1), 'clear', 'a replay was watched through the title of the card before it');
+});
+
+test('a cancel mid-linger takes the title with it', async (t) => {
+  const title = recordingTitle();
+  const card = bareCard(t, { title });
+  card.phase.playIntro();
+  card.video.dispatch('playing');
+  card.video.dispatch('ended');
+  playOutTitle(card);
+  await settle();
+  assert.equal(title.calls.at(-1), 'linger', 'the linger never started — this test proves nothing');
+
+  // A scrub out of the end, a replay from the end screen: the story the title
+  // was lingering over is gone, so the title has nothing left to linger over.
+  card.phase.cancel();
+  assert.equal(title.calls.at(-1), 'clear', 'a cancelled story kept the last card’s name over it');
+});
+
+test('an end card that carries a name of its own still raises no title', async (t) => {
+  const cards = cardBlocks();
+  const title = recordingTitle();
+  const card = bareCard(t, {
+    title,
+    cards: { ...cards, end_card: { ...cards.end_card, narration: cards.intro.narration } },
+  });
+  card.phase.playEnd();
+  card.video.dispatch('playing');
+  card.video.dispatch('ended');
+
+  // The beat is the OPENING's ending. A closing film that happens to carry a
+  // narration block would otherwise raise the story's name and its lead over
+  // the credits and hold six seconds for it.
+  assert.equal(title.calls.includes('reveal'), false, 'the end card raised the opening’s title');
+  assert.throws(
+    () => card.timers.runOf(CARD_TITLE_HOLD_MS),
+    /no timer was armed/,
+    'the end card held for a title beat it does not have',
+  );
+  card.timers.runOf(CARD_HOLD_MS);
+  assert.equal(card.layer.classList.contains('is-gone'), true, 'the end card never faded');
+});
+
 
 const floorZone = {
   name: 'floor', surface: 'floor', description: '', depth: null, scale: null,
@@ -1637,6 +1811,7 @@ const SHARPER_SPRITE = `${ASSET_BASE}bucket/moth-right-512.webp`;
 function bareTitle(t, { story, lead = LEAD, cache = heldSheet(), canvas = fakeElement('canvas') } = {}) {
   const dom = installDom();
   const frames = virtualFrames();
+  const timers = installTimers();
   const elements = { layer: fakeElement('div'), canvas, name: fakeElement('p') };
   const warnings = [];
   const title = createCardTitle({
@@ -1644,6 +1819,7 @@ function bareTitle(t, { story, lead = LEAD, cache = heldSheet(), canvas = fakeEl
   });
   t.after(() => {
     title.clear();
+    timers.restore();
     frames.restore();
     dom.restore();
   });
@@ -1651,6 +1827,7 @@ function bareTitle(t, { story, lead = LEAD, cache = heldSheet(), canvas = fakeEl
     ...elements,
     title,
     frames,
+    timers,
     said: () => warnings.map(({ message }) => message),
     loaded: () => cache.asked ?? [],
     drawn: () => (elements.canvas.context?.calls ?? []).filter(([name]) => name === 'drawImage'),

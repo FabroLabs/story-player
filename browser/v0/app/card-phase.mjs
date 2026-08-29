@@ -328,7 +328,16 @@ export function createCardPhase({ elements, cards, title = null, onWarning = () 
       try {
         openTitleBeat(phase);
       } catch (error) {
-        warn(phase, phase.film, `the title card could not be raised (${error?.message ?? String(error)})`);
+        // Keyed apart from the film's own lines. `warn` allows one line per
+        // key, and the film has already spoken under this url whenever it
+        // stalled once — which would swallow the only line saying why the
+        // opening it recovered into has no name on it.
+        warn(
+          phase,
+          phase.film,
+          `the title card could not be raised (${error?.message ?? String(error)})`,
+          'title-beat',
+        );
       }
     }
     armHold(phase);
@@ -350,6 +359,10 @@ export function createCardPhase({ elements, cards, title = null, onWarning = () 
   }
 
   function armHold(phase) {
+    // Never two at once. Three things reach this — the film ending, the line's
+    // length arriving, and a tab coming back — and a second timer laid over a
+    // live one would close the card on whichever of them was shorter.
+    clearHold(phase);
     phase.hold = setTimeout(() => {
       phase.hold = null;
       close(phase, { curtain: true });
@@ -460,7 +473,13 @@ export function createCardPhase({ elements, cards, title = null, onWarning = () 
     );
     if (wanted <= phase.holdMs) return;
     phase.holdMs = wanted;
-    clearHold(phase);
+    // The length is recorded whatever the tab is doing, but a beat a hidden tab
+    // stopped by hand stays stopped. Armed here it would run the held frame, the
+    // curtain and the linger out in the dark, and the viewer would come back to
+    // a story already begun with the card they never saw behind it. `resumeCard`
+    // arms this length when the tab comes back, which is the whole reason the
+    // length lives on the phase rather than in the timer.
+    if (held) return;
     armHold(phase);
   }
 
@@ -704,10 +723,16 @@ export function createCardPhase({ elements, cards, title = null, onWarning = () 
     phase.timers.push(setTimeout(handler, milliseconds));
   }
 
-  /** One line per file, whatever else goes wrong with it afterwards. */
-  function warn(phase, url, message) {
-    if (phase.named.has(url)) return;
-    phase.named.add(url);
+  /**
+   * One line per file, whatever else goes wrong with it afterwards.
+   *
+   * `key` is that file by default. A failure that is not the file's own — the
+   * title beat refusing to be raised over it — passes its own key instead, or
+   * a film that stalled once would be the last word on it.
+   */
+  function warn(phase, url, message, key = url) {
+    if (phase.named.has(key)) return;
+    phase.named.add(key);
     onWarning({ type: 'media', asset: `${phase.kind}-card`, url, message });
   }
 

@@ -178,7 +178,14 @@ export function createCardTitle({
     // A replay is a new performance and it gets its own lines. Kept, a sheet
     // that failed the first time and fails again would say nothing at all,
     // which is the one thing worse than saying it twice.
+    //
+    // The two flags that decide WHICH line go with them. `refused` left
+    // standing gags a second performance whose sheet merely arrived late —
+    // the beat is title-only and the log says nothing at all — and `decoded`
+    // left standing blames the memory budget for a sheet still on the wire.
     named.clear();
+    refused = false;
+    decoded = false;
   }
 
   /**
@@ -317,7 +324,11 @@ export function createCardTitle({
 
   function armTimer() {
     const held = waiting;
-    if (!held || held.id !== null) return;
+    // A beat the tab stopped stays stopped, whatever reaches it while it is
+    // away: `thaw` is the only thing that starts this clock again. A linger
+    // armed in the dark runs out there, and the viewer comes back to a story
+    // already begun with nothing over it — the failure `freeze` exists for.
+    if (!held || held.id !== null || frozen !== null) return;
     held.armedAt = now();
     held.id = setTimeout(() => {
       waiting = null;
