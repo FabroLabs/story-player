@@ -22,12 +22,16 @@ import { createStoryPlayer } from '../browser/embed.mjs';
 import {
   CARD_CURTAIN_MS,
   CARD_DUCKED_MUSIC_VOLUME,
+  CARD_HOLD_MS,
   CARD_LINE_DELAY_MS,
+  CARD_MUSIC_FADE_STEP_MS,
   CARD_MUSIC_VOLUME,
   CARD_READY_TIMEOUT_MS,
+  CARD_REVEAL_MS,
+  createCardPhase,
 } from '../browser/v0/app/card-phase.mjs';
 import { compileTimeline } from '../browser/v0/core/timeline/compile.mjs';
-import { findByClass, installAudio, installDom, virtualFrames } from './_dom.mjs';
+import { fakeElement, findByClass, installAudio, installDom, virtualFrames } from './_dom.mjs';
 
 const ASSET_BASE = 'https://storage.example/';
 const TITLE = 'The owl’s quiet friend';
@@ -79,7 +83,7 @@ test('the story’s name is read over the card, and the music makes room for it'
   assert.equal(music.volume, CARD_MUSIC_VOLUME, 'the music stayed ducked after the line it made room for');
 });
 
-test('the card hands the stage over when its film ends, behind a curtain', async (t) => {
+test('the film’s last frame is held, and only then handed over behind a curtain', async (t) => {
   const player = await mount(t);
   player.begin();
   player.video.dispatch('playing');
@@ -88,19 +92,110 @@ test('the card hands the stage over when its film ends, behind a curtain', async
   player.video.dispatch('ended');
   await settle();
 
-  // The story is running before the layer is gone: the curtain fades over a
-  // performance that has already started, which is what makes it a curtain
-  // rather than a gap.
-  assert.equal(player.controls.hidden, false, 'the story never began');
-  assert.ok(player.frames.pending() > 0, 'the story began without asking for a frame');
+  // The ending is the held frame. Nothing else has happened yet: the picture is
+  // the film's own last one, the music is still playing over it, and the story
+  // is not running behind it.
+  assert.equal(player.layer.classList.contains('is-gone'), false, 'the curtain cut the film’s ending short');
+  assert.equal(music.paused, false, 'the music stopped on the frame the film ran out on');
+  assert.equal(music.volume, CARD_MUSIC_VOLUME, 'the music started fading before the ending was over');
+  assert.equal(player.controls.hidden, true, 'the story began under the card’s last frame');
+  assert.equal(player.frames.pending(), 0);
+
+  player.timers.runOf(CARD_HOLD_MS);
+  await settle();
   assert.equal(player.layer.classList.contains('is-gone'), true, 'the card cut instead of fading');
   assert.equal(player.layer.hidden, false, 'the card was taken away before it could fade');
-  assert.equal(music.paused, true, 'the card music played on over the story');
-  assert.equal(music.removed, true, 'the card music was left holding its file');
+  // Still nothing of the story: a curtain the story starts behind is a
+  // cross-fade between two performances, and its first line is spoken into one.
+  assert.equal(player.controls.hidden, true, 'the story started behind the curtain');
+  assert.equal(player.frames.pending(), 0, 'the story asked for a frame from under the card');
 
   player.timers.runOf(CARD_CURTAIN_MS);
+  await settle();
   assert.equal(player.layer.hidden, true, 'the faded card stayed in the way');
   assert.equal(player.line.textContent, '', 'the story’s name outlived the card it was written on');
+  assert.equal(music.paused, true, 'the card music played on over the story');
+  assert.equal(music.removed, true, 'the card music was left holding its file');
+  assert.equal(player.controls.hidden, false, 'the story never began');
+  assert.ok(player.frames.pending() > 0, 'the story began without asking for a frame');
+});
+
+test('the music is faded down inside the curtain rather than cut with it', async (t) => {
+  const player = await mount(t);
+  player.begin();
+  player.video.dispatch('playing');
+  const music = player.audio.at(-1);
+
+  player.video.dispatch('ended');
+  player.timers.runOf(CARD_HOLD_MS);
+  await settle();
+  assert.equal(music.paused, false, 'the music was cut on the tick the curtain started');
+
+  // One slope rather than a step, and one that reaches silence before the layer
+  // it is falling under is taken away.
+  let previous = music.volume;
+  const steps = Math.floor(CARD_CURTAIN_MS / CARD_MUSIC_FADE_STEP_MS);
+  for (let step = 0; step < steps; step += 1) {
+    player.timers.runOf(CARD_MUSIC_FADE_STEP_MS);
+    assert.ok(music.volume < previous, `the fade stopped falling at step ${step}`);
+    previous = music.volume;
+  }
+  assert.equal(music.volume, 0, 'the fade never reached silence');
+  assert.equal(music.paused, false, 'the music was released before its fade was over');
+
+  player.timers.runOf(CARD_CURTAIN_MS);
+  assert.equal(music.paused, true, 'the faded-out music was left running under the story');
+  assert.equal(music.removed, true, 'the faded-out music was left holding its file');
+});
+
+test('the card comes up through black instead of in front of it', async (t) => {
+  const player = await mount(t);
+  player.begin();
+
+  // Inside the click: the layer is on screen and laid out, but transparent —
+  // `display: none` is a state nothing transitions out of, so the frame with
+  // `is-arriving` on it is the only thing that makes the fade possible at all.
+  assert.equal(player.layer.hidden, false);
+  assert.equal(player.layer.classList.contains('is-arriving'), false, 'the layer was left transparent for ever');
+  assert.equal(player.layer.classList.contains('is-dark'), true, 'the film was revealed before the black arrived');
+
+  player.timers.runOf(CARD_REVEAL_MS);
+  assert.equal(player.layer.classList.contains('is-dark'), false, 'the film never came out of the black');
+});
+
+test('the black is laid out for a frame before it is asked to arrive', async (t) => {
+  const card = bareCard(t);
+  const seen = [];
+  // The one thing the class names alone cannot say: `display: none` is a state
+  // nothing transitions out of, so the layer has to be READ while it is laid out
+  // and still transparent. Without that read the browser folds "laid out" and
+  // "opaque" into one frame and the card cuts to black — the bug this arrival
+  // was written to fix, silently back with a green suite.
+  card.layer.getBoundingClientRect = () => {
+    seen.push(card.layer.classList.values().join(' '));
+    return { width: 0, height: 0 };
+  };
+
+  card.phase.playIntro();
+  assert.deepEqual(seen, ['is-arriving is-dark'], 'nothing forced the transparent frame the fade needs');
+  assert.equal(card.layer.classList.contains('is-arriving'), false, 'the layer was left transparent for ever');
+  assert.deepEqual(card.warnings, [], 'the arrival threw and the card was named for it');
+});
+
+test('a card curtained inside its own arrival fades its picture, not a black rectangle', async (t) => {
+  const player = await mount(t);
+  player.begin();
+  assert.equal(player.layer.classList.contains('is-dark'), true);
+
+  // Skip before the reveal timer has fired. `release` cancels that timer, so
+  // without the curtain taking the black off itself the layer would spend its
+  // whole fade at `opacity: 0` on the film — 700 ms of nothing, in front of a
+  // story that is not begun until the fade is over.
+  player.skip.dispatch('click');
+  await settle();
+  assert.equal(player.layer.classList.contains('is-gone'), true);
+  assert.equal(player.layer.classList.contains('is-dark'), false, 'the curtain faded out a black rectangle');
+  assert.equal(player.layer.classList.contains('is-arriving'), false);
 });
 
 test('skip takes the opening away at once, wherever it had got to', async (t) => {
@@ -116,15 +211,20 @@ test('skip takes the opening away at once, wherever it had got to', async (t) =>
   player.skip.dispatch('click');
   await settle();
 
-  // The music stops on the click — the story's own is starting underneath it —
-  // while the picture keeps moving through the fade rather than freezing on the
-  // frame the skip landed on.
+  // The curtain starts on the click, with no beat before it: a viewer who
+  // pressed skip wants out of the opening, not the ending of it held for them.
+  // The picture keeps moving through the fade rather than freezing where the
+  // skip landed, and the music falls with the fade.
+  assert.equal(player.layer.classList.contains('is-gone'), true, 'skip held the card it was asked to drop');
+  assert.equal(music.paused, false, 'the skipped card’s music was cut instead of faded');
+  assert.equal(player.controls.hidden, true, 'the story started behind the skip’s curtain');
+
+  player.timers.runOf(CARD_CURTAIN_MS);
+  await settle();
+  assert.equal(player.layer.hidden, true);
   assert.equal(music.paused, true, 'the skipped card kept its music');
   assert.equal(player.controls.hidden, false, 'skip did not reach the story');
   assert.ok(player.frames.pending() > 0);
-
-  player.timers.runOf(CARD_CURTAIN_MS);
-  assert.equal(player.layer.hidden, true);
   assert.equal(player.video.paused, true, 'the skipped film played on behind the story');
 });
 
@@ -155,6 +255,7 @@ test('the end card plays between the story stopping and its end screen', async (
   const player = await mount(t);
   player.begin();
   player.video.dispatch('ended');
+  playOut(player);
   await settle();
   const heard = player.audio.length;
 
@@ -174,6 +275,7 @@ test('the end card plays between the story stopping and its end screen', async (
   assert.equal(music.played, true);
 
   player.skip.dispatch('click');
+  player.timers.runOf(CARD_CURTAIN_MS);
   await settle();
   assert.equal(player.end.hidden, false, 'the end screen never arrived after the card');
   assert.equal(music.paused, true);
@@ -183,8 +285,8 @@ test('the end card’s film is warmed as the last scene opens, not before', asyn
   const player = await mount(t);
   player.begin();
   player.video.dispatch('ended');
+  playOut(player);
   await settle();
-  player.timers.runOf(CARD_CURTAIN_MS);
 
   // Inside the first scene of two: the end card is minutes away and the bytes
   // belong to the scene the viewer is watching.
@@ -204,11 +306,12 @@ test('the end card never takes the element while the opening is still on screen'
 
   player.begin();
   player.video.dispatch('ended');
+  player.timers.runOf(CARD_HOLD_MS);
   await settle();
 
-  // Mid-curtain: the layer is still on screen, fading over a story that has
-  // begun. Swapping the source here blanks the frame being faded, and the
-  // curtain becomes a cut to black.
+  // Mid-curtain: the layer is still on screen, fading over the story it is
+  // about to hand the stage to. Swapping the source here blanks the frame being
+  // faded, and the curtain becomes a cut to black.
   assert.equal(player.layer.hidden, false);
   assert.equal(player.video.src, `${ASSET_BASE}bucket/intro.mp4`, 'the end card blanked the fading opening');
 
@@ -220,6 +323,7 @@ test('a writer who finishes mid-curtain does not blank the fade either', async (
   const player = await mount(t, { published: 1, stream: { scenes: 2 }, story: oneSceneStory() });
   player.begin();
   player.video.dispatch('ended');
+  player.timers.runOf(CARD_HOLD_MS);
   await settle();
   assert.equal(player.layer.hidden, false, 'the curtain is not up — this test proves nothing now');
 
@@ -237,8 +341,8 @@ test('the transport is out of the way for as long as a card is up', async (t) =>
   const player = await mount(t);
   player.begin();
   player.video.dispatch('ended');
+  playOut(player);
   await settle();
-  player.timers.runOf(CARD_CURTAIN_MS);
   assert.equal(player.controls.hidden, false, 'the story is playing and the transport is not there');
 
   player.frames.advanceTo(player.duration);
@@ -256,6 +360,7 @@ test('the transport is out of the way for as long as a card is up', async (t) =>
   assert.equal(player.frames.pending(), 0, 'a key under the card started the story behind it');
 
   player.skip.dispatch('click');
+  player.timers.runOf(CARD_CURTAIN_MS);
   await settle();
   assert.equal(player.controls.hidden, false, 'the transport never came back after the card');
   assert.equal(player.end.hidden, false);
@@ -265,10 +370,11 @@ test('the transport is out of the way of a REPLAYED opening too', async (t) => {
   const player = await mount(t);
   player.begin();
   player.video.dispatch('ended');
+  playOut(player);
   await settle();
-  player.timers.runOf(CARD_CURTAIN_MS);
   player.frames.advanceTo(player.duration);
   player.skip.dispatch('click');
+  player.timers.runOf(CARD_CURTAIN_MS);
   await settle();
 
   // The bar has been shown by now — `begin()` showed it and nothing hides it —
@@ -283,6 +389,7 @@ test('the transport is out of the way of a REPLAYED opening too', async (t) => {
   assert.equal(player.frames.pending(), 0, 'a key under the replayed card started the story behind it');
 
   player.video.dispatch('ended');
+  playOut(player);
   await settle();
   assert.equal(player.controls.hidden, false, 'the transport never came back after the replay');
   assert.ok(player.frames.pending() > 0, 'the story never came back after its replayed opening');
@@ -292,10 +399,11 @@ test('a replay is the whole performance again: the card, then the story', async 
   const player = await mount(t);
   player.begin();
   player.video.dispatch('ended');
+  playOut(player);
   await settle();
-  player.timers.runOf(CARD_CURTAIN_MS);
   player.frames.advanceTo(player.duration);
   player.skip.dispatch('click');
+  player.timers.runOf(CARD_CURTAIN_MS);
   await settle();
   assert.equal(player.end.hidden, false);
 
@@ -311,6 +419,7 @@ test('a replay is the whole performance again: the card, then the story', async 
   assert.equal(music.url, `${ASSET_BASE}bucket/intro-music.mp3`);
 
   player.video.dispatch('ended');
+  playOut(player);
   await settle();
   assert.ok(player.frames.pending() > 0, 'the story never came back after its replayed opening');
   assert.equal(player.at.textContent, '0:00', 'the replay resumed where the story had ended');
@@ -338,6 +447,43 @@ test('destroy takes a card and its music with it', async (t) => {
   assert.equal(player.video.src, '', 'the card film was left decoding for a player that is gone');
 });
 
+test('every ending settles the promise the story is waiting behind', async (t) => {
+  const card = bareCard(t);
+  const done = [];
+
+  // Played out. Nothing settles when the film ends, and nothing settles when
+  // the beat it is held for is over — only when the curtain has really left the
+  // screen, which is the instant the story is handed a stage of its own.
+  const played = card.phase.playIntro().then(() => done.push('played'));
+  card.video.dispatch('ended');
+  await settle();
+  assert.deepEqual(done, [], 'the story was let go on the film’s last frame');
+  card.timers.runOf(CARD_HOLD_MS);
+  await settle();
+  assert.deepEqual(done, [], 'the story was let go behind a curtain still on screen');
+  card.timers.runOf(CARD_CURTAIN_MS);
+  await played;
+
+  // Cancelled. There is nothing worth fading behind a card taken away, so it
+  // goes at once and the promise goes with it — untouched by any of this.
+  const cancelled = card.phase.playEnd().then(() => done.push('cancelled'));
+  card.phase.cancel();
+  await cancelled;
+
+  // And a teardown DURING a curtain: the phase is closed, the layer is fading,
+  // its timer will never fire, and the promise is held by nothing else. This is
+  // the one route the deferral opened, and a story left waiting on it would be
+  // a child in front of a still frame with a clean log beside them.
+  const torn = card.phase.playIntro().then(() => done.push('torn'));
+  card.video.dispatch('ended');
+  card.timers.runOf(CARD_HOLD_MS);
+  await settle();
+  card.phase.destroy();
+  await torn;
+
+  assert.deepEqual(done, ['played', 'cancelled', 'torn']);
+});
+
 test('a story mounted before it has a scene opens on its card and waits behind it', async (t) => {
   const player = await mount(t, { published: 0, stream: { scenes: 3 } });
 
@@ -350,6 +496,7 @@ test('a story mounted before it has a scene opens on its card and waits behind i
   player.begin();
   assert.equal(player.video.src, `${ASSET_BASE}bucket/intro.mp4`);
   player.video.dispatch('ended');
+  playOut(player);
   await settle();
 
   // The card ran out before the writer published: the spinner says so, and the
@@ -375,6 +522,7 @@ test('a scene that lands during the card is played the moment the curtain falls'
   assert.equal(player.waiting.hidden, true, 'a story with its scene in hand said it was waiting');
 
   player.video.dispatch('ended');
+  playOut(player);
   await settle();
   assert.equal(player.controls.hidden, false, 'the story that was ready never started');
   assert.ok(player.frames.pending() > 0);
@@ -384,6 +532,7 @@ test('a writer who publishes nothing at all is not left behind the curtain', asy
   const player = await mount(t, { published: 0, stream: { scenes: 3 } });
   player.begin();
   player.video.dispatch('ended');
+  playOut(player);
   await settle();
   assert.equal(player.waiting.hidden, false);
 
@@ -470,6 +619,7 @@ test('a film that stops moving does not hold the story behind it', async (t) => 
   // the ready deadline disarmed itself the moment the first frame landed.
   player.video.dispatch('waiting');
   player.timers.runOf(CARD_READY_TIMEOUT_MS);
+  player.timers.runOf(CARD_CURTAIN_MS);
   await settle();
   assert.equal(player.controls.hidden, false, 'the story stood behind a film that had stopped moving');
 });
@@ -531,12 +681,98 @@ test('a tab that goes away takes the card’s picture and music together', async
   assert.equal(music.paused, false, 'the music never came back');
 });
 
+test('a tab that goes away during the held frame keeps the beat, and does not replay the film', async (t) => {
+  const player = await mount(t);
+  player.begin();
+  player.video.dispatch('playing');
+  player.video.dispatch('ended');
+
+  // The held frame is on no clock the browser stops, so the beat would run out
+  // in the dark: a phone locked on the last frame comes back to a card gone.
+  document.visibilityState = 'hidden';
+  document.dispatch('visibilitychange');
+  assert.throws(
+    () => player.timers.runOf(CARD_HOLD_MS),
+    /no timer was armed/,
+    'the held beat ran on in a hidden tab',
+  );
+
+  document.visibilityState = 'visible';
+  document.dispatch('visibilitychange');
+  // And the film is NOT asked to play again — it has already ended, so a card
+  // that restarted it would never reach its own ending, and the story behind it
+  // would wait for a curtain that is never drawn.
+  assert.equal(player.video.paused, true, 'the ended film was started again on the way back');
+  playOut(player);
+  await settle();
+  assert.equal(player.controls.hidden, false, 'the story never started after the tab came back');
+});
+
+test('a tab that goes away mid-curtain ends the fade rather than leaving it in a pocket', async (t) => {
+  const card = bareCard(t);
+  const done = [];
+  card.phase.playIntro().then(() => done.push('gone'));
+  const music = card.audio[0];
+  card.video.dispatch('ended');
+  card.timers.runOf(CARD_HOLD_MS);
+  assert.equal(music.paused, false, 'the curtain is not fading — this test proves nothing now');
+
+  // A hidden tab clamps the curtain's own timer and the fade's steps to the same
+  // floor, so the ramp never runs: the track would play on out of a pocket and
+  // then be CUT, which is the failure the fade was written to remove.
+  globalThis.document.visibilityState = 'hidden';
+  globalThis.document.dispatch('visibilitychange');
+  await settle();
+  assert.equal(music.paused, true, 'the card’s music played on in a hidden tab');
+  assert.equal(card.layer.hidden, true, 'a fade nobody could see was left on screen');
+  assert.deepEqual(done, ['gone'], 'the story was left waiting behind a fade nobody could see');
+});
+
+test('cancel takes a card away even when it is already fading', async (t) => {
+  const card = bareCard(t);
+  const done = [];
+  card.phase.playIntro().then(() => done.push('gone'));
+  const music = card.audio[0];
+  card.video.dispatch('ended');
+  card.timers.runOf(CARD_HOLD_MS);
+  assert.equal(music.paused, false, 'the curtain is not fading — this test proves nothing now');
+
+  // What `cancel` is for: a replay, a teardown, a scrub back out of the end
+  // card. Its music outlives the phase by the whole curtain now, and a viewer
+  // who has just returned to the story would hear the card playing over it.
+  card.phase.cancel();
+  await settle();
+  assert.equal(music.paused, true, 'the cancelled card kept its music over the story');
+  assert.equal(card.layer.hidden, true, 'the cancelled card stayed on screen fading');
+  assert.deepEqual(done, ['gone']);
+});
+
+test('a card skipped over its own spoken line still fades from the music’s full level', async (t) => {
+  const player = await mount(t);
+  player.begin();
+  const music = player.audio.at(-1);
+  player.video.dispatch('playing');
+  player.timers.runOf(CARD_LINE_DELAY_MS);
+  assert.equal(music.volume, CARD_DUCKED_MUSIC_VOLUME);
+
+  // The skip stops the voice the music was making room for, and the `ended` that
+  // would have handed the level back can never fire — the element is gone with
+  // the phase. A curtain played at a quarter volume is one nobody hears.
+  player.skip.dispatch('click');
+  assert.equal(music.volume, CARD_MUSIC_VOLUME, 'the curtain’s music stayed under a voice that had stopped');
+  player.timers.runOf(CARD_MUSIC_FADE_STEP_MS);
+  assert.ok(
+    music.volume < CARD_MUSIC_VOLUME && music.volume > CARD_DUCKED_MUSIC_VOLUME,
+    'the fade started from the ducked level rather than the card’s own',
+  );
+});
+
 test('the end card of a story its writer has just finished is warmed too', async (t) => {
   const player = await mount(t, { published: 1, stream: { scenes: 2 } });
   player.begin();
   player.video.dispatch('ended');
+  playOut(player);
   await settle();
-  player.timers.runOf(CARD_CURTAIN_MS);
   player.frames.advanceTo(500);
 
   // The warm is gated on the story being complete, and a streaming story is not
@@ -551,6 +787,7 @@ test('a first scene the player refuses leaves the spinner up rather than an empt
   const player = await mount(t, { published: 0, stream: { scenes: 3 } });
   player.begin();
   player.video.dispatch('ended');
+  playOut(player);
   await settle();
 
   const stranger = structuredClone(cardStory().scenes[0]);
@@ -584,6 +821,7 @@ test('a scene that lands while the card plays is not begun before it is decoded'
   // existed would cut onto placeholder sprites, an unplayed plate and a
   // transport that has not been armed.
   player.video.dispatch('ended');
+  playOut(player);
   await settle();
   assert.equal(player.waiting.hidden, false, 'the curtain fell onto a scene that had not decoded');
   assert.equal(player.controls.hidden, true, 'the story began on an undecoded scene');
@@ -616,6 +854,7 @@ test('a first scene whose assets never come still opens the story', async (t) =>
   const player = await mount(t, { published: 0, stream: { scenes: 3 }, assets: () => ({ status: 500 }) });
   player.begin();
   player.video.dispatch('ended');
+  playOut(player);
   await settle();
 
   await player.appendScene(0);
@@ -651,6 +890,25 @@ test('the stylesheet really takes a hidden card layer off the screen', () => {
   const fade = css.match(/\.card-layer\s*\{[^}]*transition:\s*opacity\s*(\d+)ms/);
   assert.ok(fade, 'no transition on .card-layer — the curtain is a cut now');
   assert.equal(Number(fade[1]), CARD_CURTAIN_MS, 'the curtain timer and the stylesheet disagree');
+
+  // A curtain drawn while the arrival is still in flight must still be the
+  // curtain: these selectors weigh the same, so the fade is spelled out on
+  // `is-gone` as well and placed after them.
+  const gone = css.match(/\.card-layer\.is-gone\s*\{[^}]*transition:\s*opacity\s*(\d+)ms/);
+  assert.ok(gone, 'a card skipped during its own arrival fades at the arrival’s speed');
+  assert.equal(Number(gone[1]), CARD_CURTAIN_MS, 'the curtain timer and the stylesheet disagree');
+
+  // The arrival is one fade written in two places too, and the film comes out of
+  // the black over the same number the black arrived in.
+  const black = css.match(/\.card-layer\.is-arriving,\s*\.card-layer\.is-dark\s*\{[^}]*transition:\s*opacity\s*(\d+)ms/);
+  assert.ok(black, 'nothing fades the card layer up — the opening is a cut to black now');
+  assert.equal(Number(black[1]), CARD_REVEAL_MS, 'the reveal timer and the stylesheet disagree');
+  const film = css.match(/\.card-video\s*\{[^}]*transition:\s*opacity\s*(\d+)ms/);
+  assert.ok(film, 'the film is not faded up — it pops out of the black');
+  assert.equal(Number(film[1]), CARD_REVEAL_MS, 'the film’s reveal and the stylesheet disagree');
+  // And `is-arriving` is the transparent state the reflow in `openOnBlack` is
+  // forced for: without a rule making it transparent there is nothing to fade.
+  assert.match(css, /\.card-layer\.is-arriving\s*\{[^}]*opacity:\s*0/);
 });
 
 const floorZone = {
@@ -771,6 +1029,50 @@ function installTimers() {
 
 async function settle() {
   for (let turn = 0; turn < 12; turn += 1) await Promise.resolve();
+}
+
+/**
+ * The whole of a card's ending, which is two instants rather than one: the beat
+ * the last frame is held for, and the curtain that follows it. A test standing
+ * between them is standing inside the ending, not after it.
+ */
+function playOut(player) {
+  player.timers.runOf(CARD_HOLD_MS);
+  player.timers.runOf(CARD_CURTAIN_MS);
+}
+
+/**
+ * The card phase with none of the player around it.
+ *
+ * Everywhere else a card is watched through what the story does afterwards,
+ * which is the right way round for every question but one: the promise itself.
+ * The law this file is written around is that it always settles, and every
+ * ending now defers it to the end of a fade — so here it is the return value
+ * rather than something inferred from a transport coming back.
+ */
+function bareCard(t) {
+  const dom = installDom();
+  const audio = installAudio();
+  const timers = installTimers();
+  const elements = {
+    layer: fakeElement('div'),
+    video: fakeElement('video'),
+    line: fakeElement('p'),
+    skip: fakeElement('button'),
+  };
+  const warnings = [];
+  const phase = createCardPhase({
+    elements,
+    cards: cardBlocks(),
+    onWarning: (warning) => warnings.push(warning),
+  });
+  t.after(() => {
+    phase.destroy();
+    timers.restore();
+    audio.restore();
+    dom.restore();
+  });
+  return { ...elements, phase, timers, audio: audio.opened, warnings };
 }
 
 /**

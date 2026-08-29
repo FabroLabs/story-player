@@ -546,10 +546,28 @@ button:focus-visible {
    for: without this the card would never leave the screen. */
 .card-layer[hidden] { display: none; }
 
+/* The arrival, through black rather than in front of it. `is-arriving` is the
+   layer laid out and still transparent — the state `display: none` cannot be
+   transitioned out of, which is why `card-phase.mjs` forces a frame with it on
+   — and `is-dark` is the black holding while the film comes up behind it. Both
+   halves are `CARD_REVEAL_MS`, pinned against it like the curtain. */
+.card-layer.is-arriving { opacity: 0; }
+
+.card-layer.is-arriving,
+.card-layer.is-dark {
+  transition: opacity 250ms ease;
+}
+
+.card-layer.is-arriving .card-video,
+.card-layer.is-dark .card-video { opacity: 0; }
+
 .card-layer.is-gone {
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
+  /* Spelled out again so an arrival still in flight cannot shorten the curtain:
+     these selectors weigh the same, and the one further down the file wins. */
+  transition: opacity 700ms ease, visibility 700ms ease;
 }
 
 /* Letterboxed rather than cropped: one film is shared by every story told in
@@ -560,6 +578,8 @@ button:focus-visible {
   height: 100%;
   object-fit: contain;
   background: var(--ink);
+  /* Out of the black the layer arrived as, over the same time it took. */
+  transition: opacity 250ms ease;
 }
 
 /* The story's name, read out and written down. It sits over the card's lower

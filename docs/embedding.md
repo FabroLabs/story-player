@@ -261,8 +261,12 @@ it:
 - The intro plays between the begin click and the story. The film is warmed
   while the opening scene is decoded, its own `<video>` is the clock, the music
   starts inside the click, and the title is spoken a second in with the music
-  ducked under it. A curtain fades the card out over the story, which has
-  already started behind it.
+  ducked under it. It arrives through black rather than in front of what was on
+  screen, and it ENDS as a beat rather than a cut: the film's last frame is held
+  with the music still playing, then a curtain fades the card away with the
+  music falling inside it, and the story is begun only once that fade is over.
+  Budget about two seconds between the film's last frame and the story's first —
+  a host that measures the gap will see it, and it is deliberate.
 - The end card plays after the story has stopped — the clock paused, the plate
   stopped, the last line left to finish — and before the end screen, which waits
   behind it. Its film is warmed as the last scene opens.
@@ -274,7 +278,9 @@ it:
 - A replay is the whole performance again — intro, story, end card — with the
   story standing at zero behind the opening film.
 - A card is not on the story's clock, so a tab that goes away stops it here: the
-  film and its music pause together and resume together.
+  film and its music pause together and resume together. A film that has already
+  ended is not started again — the beat its last frame is held for begins over,
+  so a viewer who looked away gets the whole of it rather than its stub.
 - Nothing here can hold the story up. A card whose file fails, is refused by the
   device, never puts a frame on screen, or stops moving part-way through ends
   its phase and writes one named line into the log. So does a spoken title: if

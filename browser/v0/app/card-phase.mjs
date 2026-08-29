@@ -38,6 +38,20 @@ export const CARD_LINE_DELAY_MS = 1_000;
 // `styles.css` — a shorter timer here would cut the fade, a longer one would
 // leave a transparent layer taking clicks.
 export const CARD_CURTAIN_MS = 700;
+// The hold. A film that has just stopped is not the same as a film that is
+// over: cut on the frame the last motion landed on and an ending reads as a
+// dropped connection. The last frame stays on screen, with the music still
+// playing, for long enough to be a held beat rather than a stutter.
+export const CARD_HOLD_MS = 1_200;
+// The black a card arrives through, on each side of it: whatever was on screen
+// goes under black over this, and the film comes up out of the black over the
+// same again. Matches the transitions in `styles.css` — pinned, like the
+// curtain, and for the same reason.
+export const CARD_REVEAL_MS = 250;
+// The step of the music's fade. An `<audio>` element has no ramp of its own and
+// a card has no clock to hang a WebAudio graph off, so the slope is drawn by
+// hand: short enough steps that the ear hears one fall rather than a staircase.
+export const CARD_MUSIC_FADE_STEP_MS = 60;
 // How long a card may be unresponsive before the story stops waiting for it:
 // one that has not put a frame on screen, one that stopped moving mid-play, and
 // a spoken line that never arrived to be made room for. The same bound the
@@ -58,6 +72,12 @@ export function createCardPhase({ elements, cards, onWarning = () => {} }) {
   // last — would fetch its closing film over its opening one.
   let openingOver = !intro;
   let wantedEnd = null;
+  // The phase whose curtain is falling, and the two things falling with it: the
+  // music being ramped down inside the fade, and the promise the story is
+  // waiting on. All three end together, wherever the curtain ends.
+  let pending = null;
+  let lingering = null;
+  let fade = null;
   // Paused because the tab went away. A card is not on the story's clock, so
   // nothing else would stop it: the picture would freeze where the browser left
   // it while the music played on in a pocket.
@@ -67,9 +87,19 @@ export function createCardPhase({ elements, cards, onWarning = () => {} }) {
   video.muted = true;
   const onSkip = () => close(active, { curtain: true });
   const onVisibility = () => {
-    if (destroyed || !active) return;
-    if (document?.visibilityState === 'hidden') holdCard(active);
-    else resumeCard(active);
+    if (destroyed) return;
+    const away = document?.visibilityState === 'hidden';
+    if (active) {
+      if (away) holdCard(active);
+      else resumeCard(active);
+      return;
+    }
+    // A curtain has no phase left behind it to hold, and a hidden tab clamps
+    // both its timer and the fade's steps to something far longer than either:
+    // the music would play on in a pocket and then be cut rather than faded,
+    // which is the failure this whole handler exists to prevent. A fade nobody
+    // can watch is a fade that is over.
+    if (away && curtain !== null) hideLayer();
   };
   skip.addEventListener('click', onSkip);
   document?.addEventListener?.('visibilitychange', onVisibility);
@@ -95,7 +125,13 @@ export function createCardPhase({ elements, cards, onWarning = () => {} }) {
     playIntro: () => play(intro, 'intro'),
     playEnd: () => play(endCard, 'end'),
     /** Take the card away NOW: a replay, a scrub out of the end, a teardown. */
-    cancel: () => close(active, { curtain: false }),
+    cancel() {
+      close(active, { curtain: false });
+      // NOW includes a card that is already fading. Its music outlives the phase
+      // by the length of the curtain, and a viewer who has just scrubbed back
+      // into the story would otherwise hear the end card playing over it.
+      if (curtain !== null) hideLayer();
+    },
     destroy,
   };
 
@@ -108,12 +144,10 @@ export function createCardPhase({ elements, cards, onWarning = () => {} }) {
         kind, resolve, closed: false, started: false, spoke: false, spoken: false,
         film: card.video, narration: card.narration ?? null,
         media: [], timers: [], listeners: [], named: new Set(), music: null,
-        held: [], stall: null,
+        held: [], stall: null, holding: false, hold: null,
       };
       active = phase;
       held = false;
-      layer.classList.remove('is-gone');
-      layer.hidden = false;
       line.textContent = '';
       skip.setAttribute('aria-label', kind === 'intro' ? 'skip the opening' : 'skip to the end');
       // Everything below is one synchronous stretch inside a promise executor,
@@ -121,6 +155,7 @@ export function createCardPhase({ elements, cards, onWarning = () => {} }) {
       // two calls that gate the story, and would leave the viewer behind an
       // opaque layer with nothing in the log. It cannot be allowed to escape.
       try {
+        openOnBlack(phase);
         startVideo(phase, card.video);
         startMusic(phase, card.music);
       } catch (error) {
@@ -128,6 +163,28 @@ export function createCardPhase({ elements, cards, onWarning = () => {} }) {
         close(phase, { curtain: false });
       }
     });
+  }
+
+  /**
+   * The card arrives through black rather than in front of it.
+   *
+   * `[hidden]` is `display: none`, and nothing transitions out of that: clearing
+   * the attribute alone put a full-frame film on screen in one frame, over a
+   * ceremony that was still fading underneath where nobody could see it. So the
+   * layer is laid out transparent first, and only then asked to go opaque — the
+   * screen goes under black over `CARD_REVEAL_MS`, and the film comes up out of
+   * the black over the same again once it has.
+   */
+  function openOnBlack(phase) {
+    layer.classList.remove('is-gone');
+    layer.classList.add('is-arriving', 'is-dark');
+    layer.hidden = false;
+    // Reading a layout property is what makes the state above a frame of its
+    // own: without it the browser coalesces "laid out" and "opaque" into one and
+    // there is nothing for the transition to run between.
+    layer.getBoundingClientRect?.();
+    layer.classList.remove('is-arriving');
+    timer(phase, CARD_REVEAL_MS, () => layer.classList.remove('is-dark'));
   }
 
   /**
@@ -145,7 +202,7 @@ export function createCardPhase({ elements, cards, onWarning = () => {} }) {
       clearStall(phase);
       if (phase.narration) speak(phase, phase.narration);
     });
-    listen(phase, 'ended', () => close(phase, { curtain: true }));
+    listen(phase, 'ended', () => holdLastFrame(phase));
     listen(phase, 'error', () => {
       warn(phase, url, 'card video could not be played');
       close(phase, { curtain: false });
@@ -209,6 +266,35 @@ export function createCardPhase({ elements, cards, onWarning = () => {} }) {
       close(phase, { curtain: true });
     }, CARD_READY_TIMEOUT_MS);
     phase.timers.push(phase.stall);
+  }
+
+  /**
+   * The film is over, and stays on screen anyway.
+   *
+   * Everything that used to happen on `ended` happened in that one tick — the
+   * music stopped mid-bar, the curtain started, the story began — so the film's
+   * last stretch was a cross-fade over a performance already running and its
+   * final frame was never actually seen. The beat below IS the ending; the
+   * curtain comes after it, which is the order a title sequence has.
+   */
+  function holdLastFrame(phase) {
+    if (phase.closed || phase.holding) return;
+    phase.holding = true;
+    armHold(phase);
+  }
+
+  function armHold(phase) {
+    phase.hold = setTimeout(() => {
+      phase.hold = null;
+      close(phase, { curtain: true });
+    }, CARD_HOLD_MS);
+    phase.timers.push(phase.hold);
+  }
+
+  function clearHold(phase) {
+    if (phase.hold === null) return;
+    clearTimeout(phase.hold);
+    phase.hold = null;
   }
 
   function clearStall(phase) {
@@ -285,6 +371,10 @@ export function createCardPhase({ elements, cards, onWarning = () => {} }) {
     phase.held = phase.media.filter(({ media }) => media.paused === false);
     video.pause?.();
     for (const { media } of phase.held) media.pause?.();
+    // The held frame is on no clock the browser stops, so the beat it is being
+    // held for has to be stopped by hand — or a phone locked on the last frame
+    // comes back to a card already gone.
+    clearHold(phase);
   }
 
   function resumeCard(phase) {
@@ -292,6 +382,13 @@ export function createCardPhase({ elements, cards, onWarning = () => {} }) {
     held = false;
     for (const { media, url } of phase.held) request(phase, media, url, 'card audio would not resume');
     phase.held = [];
+    // A film that has already ended is not asked to play again: what is on
+    // screen is its last frame. The beat starts over rather than resuming, so a
+    // viewer who looked away gets the whole of it instead of its stub.
+    if (phase.holding) {
+      armHold(phase);
+      return;
+    }
     playFilm(phase, phase.film);
   }
 
@@ -302,6 +399,11 @@ export function createCardPhase({ elements, cards, onWarning = () => {} }) {
    * that played out, was skipped, or gave up on a film that stopped moving hands
    * the stage over behind a fade, while one taken away by a replay, a teardown
    * or a broken file goes at once — there is nothing behind it worth fading.
+   *
+   * A drawn curtain is a beat of its own rather than a decoration over one: the
+   * music is ramped down INSIDE it instead of stopping with it, and the story is
+   * not begun until it is over. A story started behind the fade is a cross-fade
+   * between two performances, and its first line is spoken into a card.
    */
   function close(phase, { curtain: draw }) {
     if (!phase || phase.closed || phase !== active) return;
@@ -309,22 +411,40 @@ export function createCardPhase({ elements, cards, onWarning = () => {} }) {
     active = null;
     held = false;
     if (phase.kind === 'intro') openingOver = true;
-    release(phase);
-    if (draw) drawCurtain();
-    else hideLayer();
-    phase.resolve();
+    if (!draw) {
+      release(phase);
+      hideLayer();
+      phase.resolve();
+      return;
+    }
+    pending = phase;
+    release(phase, { keepMusic: true });
+    fadeMusic();
+    drawCurtain();
   }
 
   function drawCurtain() {
+    // The arrival is over the moment the curtain starts, however far into it the
+    // card got: `release` has already cancelled the timer that would have ended
+    // it, so a card skipped inside its own reveal would fade out a black
+    // rectangle — 700 ms of nothing where its picture should be.
+    layer.classList.remove('is-arriving', 'is-dark');
     layer.classList.add('is-gone');
-    clearCurtain();
+    // The timer alone: a curtain being STARTED must not run the end of one.
+    stopCurtainTimer();
     curtain = setTimeout(hideLayer, CARD_CURTAIN_MS);
+  }
+
+  function stopCurtainTimer() {
+    if (curtain === null) return;
+    clearTimeout(curtain);
+    curtain = null;
   }
 
   function hideLayer() {
     clearCurtain();
     layer.hidden = true;
-    layer.classList.remove('is-gone');
+    layer.classList.remove('is-gone', 'is-arriving', 'is-dark');
     line.textContent = '';
     video.pause?.();
     // The element is free: whatever was asked for while it was the picture can
@@ -332,10 +452,60 @@ export function createCardPhase({ elements, cards, onWarning = () => {} }) {
     flushEnd();
   }
 
+  /**
+   * The curtain is over, however it got there — its own timer, a teardown, or a
+   * card starting on top of it.
+   *
+   * Everything the fade was carrying ends here, and the promise is the one that
+   * matters: a phase left unsettled is a story waiting for ever behind a layer
+   * that is already gone, which is the one failure this file has no recovery
+   * for. It is settled last, so the element is free before the story has it.
+   */
   function clearCurtain() {
-    if (curtain === null) return;
-    clearTimeout(curtain);
-    curtain = null;
+    stopCurtainTimer();
+    stopFade();
+    if (lingering) {
+      lingering.pause?.();
+      lingering.removeAttribute?.('src');
+      lingering = null;
+    }
+    const waiting = pending;
+    pending = null;
+    waiting?.resolve();
+  }
+
+  /**
+   * The card's music, taken down inside the curtain instead of stopped with it.
+   *
+   * Cut on the same tick the fade started, the last thing a viewer heard of the
+   * opening was a track ending mid-bar under a picture that was still there.
+   * The ramp reaches silence a step before the layer goes, so the fade is over
+   * by the time the story is handed the stage.
+   */
+  function fadeMusic() {
+    const media = lingering;
+    if (!media) return;
+    // From the card's own level, ducked or not: the close that started this fade
+    // stopped the spoken line the music was making room for, and the `ended` that
+    // would have handed the level back can no longer fire. One step up rather
+    // than a slope, for the reason `duck` is a step — the ear is meeting the
+    // fade anyway, and a curtain at a quarter volume is one nobody hears.
+    media.volume = CARD_MUSIC_VOLUME;
+    const steps = Math.max(1, Math.floor(CARD_CURTAIN_MS / CARD_MUSIC_FADE_STEP_MS));
+    const from = CARD_MUSIC_VOLUME;
+    let step = 0;
+    const down = () => {
+      step += 1;
+      media.volume = step >= steps ? 0 : from * (1 - step / steps);
+      fade = step >= steps ? null : setTimeout(down, CARD_MUSIC_FADE_STEP_MS);
+    };
+    fade = setTimeout(down, CARD_MUSIC_FADE_STEP_MS);
+  }
+
+  function stopFade() {
+    if (fade === null) return;
+    clearTimeout(fade);
+    fade = null;
   }
 
   function flushEnd() {
@@ -377,18 +547,27 @@ export function createCardPhase({ elements, cards, onWarning = () => {} }) {
     }
   }
 
-  function release(phase) {
+  /**
+   * The phase lets go of everything it was holding — except, when a curtain is
+   * about to be drawn, of the music, which has a fade left to play. That one
+   * element outlives the phase and is released by `clearCurtain` instead.
+   */
+  function release(phase, { keepMusic = false } = {}) {
     clearStall(phase);
+    clearHold(phase);
     for (const id of phase.timers) clearTimeout(id);
     phase.timers = [];
     for (const [type, handler] of phase.listeners) video.removeEventListener(type, handler);
     phase.listeners = [];
+    const spared = keepMusic ? phase.music : null;
     for (const { media } of phase.media) {
+      if (media === spared) continue;
       media.pause?.();
       media.removeAttribute?.('src');
     }
     phase.media = [];
     phase.held = [];
+    if (spared) lingering = spared;
     phase.music = null;
   }
 
