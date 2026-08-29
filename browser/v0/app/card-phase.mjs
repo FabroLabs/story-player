@@ -14,12 +14,21 @@
  * opinion about it. The music is not muted, and it starts inside the click that
  * dismissed the ceremony, which is the one gesture the media can spend.
  *
+ * The intro's ending is a beat rather than a stop: its last frame is held, and
+ * where the manifest says who the story is about, the name and the lead are
+ * raised over that held frame by `card-title.mjs` — on a layer of its own, so
+ * they outlive the curtain this file draws.
+ *
  * Nothing here holds the story up, and that is the law this file is written
  * around: a card whose film fails, is refused, never starts, or stops moving
  * mid-play ends the phase with a named warning, and the promise a card hands
  * back always settles — a story waiting on one that never resolved would be a
  * child looking at a still frame with a clean log beside it.
  */
+
+import {
+  CARD_TITLE_HOLD_CEILING_MS, CARD_TITLE_HOLD_MS, CARD_TITLE_TAIL_MS,
+} from './card-title.mjs';
 
 // The card's own numbers. Deliberately NOT in `V0_POLICY`: that surface is the
 // contract between the timeline compiler and every client that interprets it,
@@ -29,9 +38,10 @@ export const CARD_MUSIC_VOLUME = 0.6;
 // A quarter of the level above, which is what "ducked" means for the story's
 // music too — loud enough to stay under the line, quiet enough to be under it.
 export const CARD_DUCKED_MUSIC_VOLUME = 0.15;
-// How far into the card the story's name is spoken. The cards open on movement
-// rather than on a held frame, and a title read over the very first of it lands
-// before a viewer has settled into the picture.
+// How far into the card the story's name is spoken, on a card that has no
+// title beat to save it for — every story published before the manifest said
+// who its lead was. A card that DOES name one shows nothing here: the name
+// waits for the held last frame, which is `CARD_TITLE_HOLD_MS`.
 export const CARD_LINE_DELAY_MS = 1_000;
 // The curtain: how long the card stays on screen once the phase is over, fading
 // over the story that has already started behind it. Matches the transition in
@@ -41,7 +51,8 @@ export const CARD_CURTAIN_MS = 700;
 // The hold. A film that has just stopped is not the same as a film that is
 // over: cut on the frame the last motion landed on and an ending reads as a
 // dropped connection. The last frame stays on screen, with the music still
-// playing, for long enough to be a held beat rather than a stutter.
+// playing, for long enough to be a held beat rather than a stutter. A card with
+// a title to raise over that frame holds longer — `CARD_TITLE_HOLD_MS`.
 export const CARD_HOLD_MS = 1_200;
 // The black a card arrives through, on each side of it: whatever was on screen
 // goes under black over this, and the film comes up out of the black over the
@@ -59,7 +70,7 @@ export const CARD_MUSIC_FADE_STEP_MS = 60;
 // and a story stopped forever in front of one is.
 export const CARD_READY_TIMEOUT_MS = 6_000;
 
-export function createCardPhase({ elements, cards, onWarning = () => {} }) {
+export function createCardPhase({ elements, cards, title = null, onWarning = () => {} }) {
   const { layer, video, line, skip } = elements;
   const intro = cards?.intro ?? null;
   const endCard = cards?.end_card ?? null;
@@ -100,6 +111,12 @@ export function createCardPhase({ elements, cards, onWarning = () => {} }) {
     // which is the failure this whole handler exists to prevent. A fade nobody
     // can watch is a fade that is over.
     if (away && curtain !== null) hideLayer();
+    // The title outlives the phase, so nothing above reaches it once the story
+    // has the stage — and the story itself pauses with the tab. A linger left
+    // running in the dark is a viewer coming back to their story already begun
+    // with nothing over it.
+    if (away) title?.freeze();
+    else title?.thaw();
   };
   skip.addEventListener('click', onSkip);
   document?.addEventListener?.('visibilitychange', onVisibility);
@@ -131,6 +148,9 @@ export function createCardPhase({ elements, cards, onWarning = () => {} }) {
       // by the length of the curtain, and a viewer who has just scrubbed back
       // into the story would otherwise hear the end card playing over it.
       if (curtain !== null) hideLayer();
+      // Last, because the line above ends a curtain, and ending a curtain is
+      // what starts a title's linger.
+      title?.clear();
     },
     destroy,
   };
@@ -139,12 +159,26 @@ export function createCardPhase({ elements, cards, onWarning = () => {} }) {
     if (destroyed || !card) return Promise.resolve();
     close(active, { curtain: false });
     clearCurtain();
+    // Whatever the last card left standing goes now: a replayed opening must
+    // not be watched through the title of the one before it.
+    title?.clear();
     return new Promise((resolve) => {
+      // The title beat is the INTRO's ending — the end card carries no name and
+      // no character, by the same rule that keeps one film per world: it is the
+      // opening that has to say which story this is.
+      //
+      // And only where there is a name to raise. The words come off the card's
+      // narration block, which a story built without a voice does not carry:
+      // the beat would then be a lone sprite over five seconds of held frame
+      // with the story's name shown nowhere, which is worse than the short hold
+      // it replaced.
+      const beat = kind === 'intro' && card.narration ? title : null;
       const phase = {
         kind, resolve, closed: false, started: false, spoke: false, spoken: false,
         film: card.video, narration: card.narration ?? null,
         media: [], timers: [], listeners: [], named: new Set(), music: null,
         held: [], stall: null, holding: false, hold: null,
+        title: beat, holdMs: beat ? CARD_TITLE_HOLD_MS : CARD_HOLD_MS,
       };
       active = phase;
       held = false;
@@ -200,7 +234,13 @@ export function createCardPhase({ elements, cards, onWarning = () => {} }) {
     listen(phase, 'playing', () => {
       phase.started = true;
       clearStall(phase);
-      if (phase.narration) speak(phase, phase.narration);
+      // The sheet is fetched against the film's own running time and is never
+      // waited for: what the beat needs is the name, and the lead is company.
+      phase.title?.warm();
+      // A card that ends on a title beat does not also read the name over the
+      // film — that line IS the beat now, and hearing it twice is the version
+      // this replaced.
+      if (phase.narration && !phase.title) speak(phase, phase.narration);
     });
     listen(phase, 'ended', () => holdLastFrame(phase));
     listen(phase, 'error', () => {
@@ -280,14 +320,40 @@ export function createCardPhase({ elements, cards, onWarning = () => {} }) {
   function holdLastFrame(phase) {
     if (phase.closed || phase.holding) return;
     phase.holding = true;
+    // Guarded like `play`'s own opening stretch, and for the same reason: this
+    // one runs inside the `ended` handler, and a throw escaping it would take
+    // `armHold` with it — a phase that never closes, a promise that never
+    // settles, and a viewer left on a frozen last frame for ever.
+    if (phase.title) {
+      try {
+        openTitleBeat(phase);
+      } catch (error) {
+        warn(phase, phase.film, `the title card could not be raised (${error?.message ?? String(error)})`);
+      }
+    }
     armHold(phase);
+  }
+
+  /**
+   * The held frame with the story's name on it.
+   *
+   * Everything the early line used to do at one second into the film happens
+   * here instead, over a picture that has stopped: the name is written on the
+   * layer above the card, the voice reads it, and the music makes room the same
+   * way it always did. The sprite is raised with it where there is one — and
+   * where there is not, the beat is the name alone rather than a shorter card.
+   */
+  function openTitleBeat(phase) {
+    phase.spoke = true;
+    phase.title.reveal(phase.narration?.text ?? null);
+    if (phase.narration) readTitle(phase, phase.narration);
   }
 
   function armHold(phase) {
     phase.hold = setTimeout(() => {
       phase.hold = null;
       close(phase, { curtain: true });
-    }, CARD_HOLD_MS);
+    }, phase.holdMs);
     phase.timers.push(phase.hold);
   }
 
@@ -332,27 +398,70 @@ export function createCardPhase({ elements, cards, onWarning = () => {} }) {
     timer(phase, CARD_LINE_DELAY_MS, () => {
       if (destroyed || phase.closed) return;
       line.textContent = narration.text;
-      // A story built without a voice still has its title on screen, and the
-      // music has nothing to make room for.
-      if (!narration.audio) return;
-      const media = open(phase, narration.audio);
-      duck(phase, true);
-      media.addEventListener('playing', () => { phase.spoken = true; }, { once: true });
-      media.addEventListener('ended', () => duck(phase, false), { once: true });
-      media.addEventListener('error', () => {
-        warn(phase, narration.audio, 'the spoken title could not be played');
-        duck(phase, false);
-      }, { once: true });
-      media.addEventListener('stalled', () => warn(phase, narration.audio, 'the spoken title stalled'), { once: true });
-      request(phase, media, narration.audio, 'the spoken title would not start', () => duck(phase, false));
-      // A line that was neither refused nor broken and simply never arrived —
-      // a file still fetching into silence. There is no clock here to end it
-      // the way the story's own scheduler ends a line, so this is the bound.
-      timer(phase, CARD_READY_TIMEOUT_MS, () => {
-        if (phase.spoken) return;
-        duck(phase, false);
-      });
+      readTitle(phase, narration);
     });
+  }
+
+  /**
+   * The voice, wherever the words are being shown.
+   *
+   * Called a second into the film by the card that writes its name across it,
+   * and at the held last frame by the one that ends on a title beat — the same
+   * ducking, the same bound, the same handing back of the room it took.
+   */
+  function readTitle(phase, narration) {
+    // A story built without a voice still has its title on screen, and the
+    // music has nothing to make room for.
+    if (!narration.audio) return;
+    const media = open(phase, narration.audio);
+    duck(phase, true);
+    // The one thing the card cannot work out for itself: how long the name it
+    // is showing takes to say. Asked of the element rather than guessed, once,
+    // as soon as the file has a duration to give.
+    media.addEventListener('loadedmetadata', () => holdForTheLine(phase, media.duration), { once: true });
+    media.addEventListener('playing', () => { phase.spoken = true; }, { once: true });
+    media.addEventListener('ended', () => duck(phase, false), { once: true });
+    media.addEventListener('error', () => {
+      warn(phase, narration.audio, 'the spoken title could not be played');
+      duck(phase, false);
+    }, { once: true });
+    media.addEventListener('stalled', () => warn(phase, narration.audio, 'the spoken title stalled'), { once: true });
+    request(phase, media, narration.audio, 'the spoken title would not start', () => duck(phase, false));
+    // A line that was neither refused nor broken and simply never arrived —
+    // a file still fetching into silence. There is no clock here to end it
+    // the way the story's own scheduler ends a line, so this is the bound.
+    timer(phase, CARD_READY_TIMEOUT_MS, () => {
+      if (phase.spoken) return;
+      duck(phase, false);
+    });
+  }
+
+  /**
+   * The beat waits for the line, within reason.
+   *
+   * Only ever LENGTHENS the hold, and only a beat that is already running: a
+   * short title does not shorten the ending, and the early-line path has a film
+   * playing under it and nothing to wait for. A line whose duration never
+   * arrives leaves the floor exactly as it was, which is the card every story
+   * got before this.
+   *
+   * The hold is re-armed whole from here rather than topped up. What that costs
+   * is the moment between the beat opening and the file answering — the element
+   * is created at the hold and answers in a frame or two — and what it buys is
+   * one length in one place, which `resumeCard` re-arms after a hidden tab
+   * without knowing any of this happened.
+   */
+  function holdForTheLine(phase, seconds) {
+    if (destroyed || phase.closed || !phase.title || !phase.holding) return;
+    if (!Number.isFinite(seconds) || seconds <= 0) return;
+    const wanted = Math.min(
+      CARD_TITLE_HOLD_CEILING_MS,
+      Math.round(seconds * 1_000) + CARD_TITLE_TAIL_MS,
+    );
+    if (wanted <= phase.holdMs) return;
+    phase.holdMs = wanted;
+    clearHold(phase);
+    armHold(phase);
   }
 
   function duck(phase, under) {
@@ -371,6 +480,10 @@ export function createCardPhase({ elements, cards, onWarning = () => {} }) {
     phase.held = phase.media.filter(({ media }) => media.paused === false);
     video.pause?.();
     for (const { media } of phase.held) media.pause?.();
+    // The sprite is the one moving thing left on screen once the film has
+    // ended: a loop still breathing over a frozen picture and silent music is
+    // the tell that the beat was never really stopped.
+    phase.title?.freeze();
     // The held frame is on no clock the browser stops, so the beat it is being
     // held for has to be stopped by hand — or a phone locked on the last frame
     // comes back to a card already gone.
@@ -382,6 +495,7 @@ export function createCardPhase({ elements, cards, onWarning = () => {} }) {
     held = false;
     for (const { media, url } of phase.held) request(phase, media, url, 'card audio would not resume');
     phase.held = [];
+    phase.title?.thaw();
     // A film that has already ended is not asked to play again: what is on
     // screen is its last frame. The beat starts over rather than resuming, so a
     // viewer who looked away gets the whole of it instead of its stub.
@@ -414,6 +528,11 @@ export function createCardPhase({ elements, cards, onWarning = () => {} }) {
     if (!draw) {
       release(phase);
       hideLayer();
+      // The title outlives the CURTAIN, not the card. A close with no fade
+      // behind it — a broken film, a refusal, a teardown — has no story opening
+      // for it to linger over, and leaving it up would put the last card's name
+      // over the whole of what follows.
+      phase.title?.clear();
       phase.resolve();
       return;
     }
@@ -472,6 +591,11 @@ export function createCardPhase({ elements, cards, onWarning = () => {} }) {
     const waiting = pending;
     pending = null;
     waiting?.resolve();
+    // The card is gone and the story has the stage. The title does not leave
+    // with the film it was raised over — it holds over the opening seconds and
+    // then fades on its own. Asked of the phase that drew this curtain rather
+    // than of the mount, so a curtain with nothing behind it raises nothing.
+    waiting?.title?.linger();
   }
 
   /**
@@ -592,6 +716,7 @@ export function createCardPhase({ elements, cards, onWarning = () => {} }) {
     destroyed = true;
     close(active, { curtain: false });
     hideLayer();
+    title?.clear();
     skip.removeEventListener('click', onSkip);
     document?.removeEventListener?.('visibilitychange', onVisibility);
     video.pause?.();

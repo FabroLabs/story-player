@@ -30,6 +30,16 @@ import {
   CARD_REVEAL_MS,
   createCardPhase,
 } from '../browser/v0/app/card-phase.mjs';
+import {
+  CARD_TITLE_CELL_PX,
+  CARD_TITLE_FADE_MS,
+  CARD_TITLE_HOLD_CEILING_MS,
+  CARD_TITLE_HOLD_MS,
+  CARD_TITLE_LINGER_MS,
+  CARD_TITLE_OUT_MS,
+  CARD_TITLE_TAIL_MS,
+  createCardTitle,
+} from '../browser/v0/app/card-title.mjs';
 import { compileTimeline } from '../browser/v0/core/timeline/compile.mjs';
 import { fakeElement, findByClass, installAudio, installDom, virtualFrames } from './_dom.mjs';
 
@@ -867,6 +877,626 @@ test('a first scene whose assets never come still opens the story', async (t) =>
   assert.equal(player.controls.hidden, false, 'a scene with broken assets never started');
 });
 
+test('a card that names its lead ends on a title beat instead of an early line', async (t) => {
+  const player = await mountLead(t);
+  player.begin();
+  player.video.dispatch('playing');
+  // The sheet is fetched against the film's running time, so this is the whole
+  // of the wait the card ever does for it.
+  await settle();
+
+  // Nothing over the moving picture. The line this card would have read a
+  // second in is the beat it is about to end on, and reading it twice is the
+  // opening this replaced.
+  assert.throws(
+    () => player.timers.runOf(CARD_LINE_DELAY_MS),
+    /no timer was armed/,
+    'the early line was still armed on a card with a title beat',
+  );
+  assert.equal(player.line.textContent, '');
+  assert.equal(player.titleLayer.hidden, true, 'the title came up over the film rather than its ending');
+
+  const music = player.audio.at(-1);
+  player.video.dispatch('ended');
+  await settle();
+
+  // The held frame, with the name on it and the lead standing in it.
+  assert.equal(player.titleLayer.hidden, false, 'the film ended on nothing');
+  assert.equal(player.titleLayer.classList.contains('is-shown'), true, 'the title popped instead of fading in');
+  assert.equal(player.titleName.textContent, TITLE);
+  const spoken = player.audio.at(-1);
+  assert.equal(spoken.url, `${ASSET_BASE}jobs/story-7/audio/title.wav`);
+  assert.equal(spoken.played, true, 'the name was written on the beat but never read');
+  assert.equal(music.volume, CARD_DUCKED_MUSIC_VOLUME, 'the name was read over music at full volume');
+
+  // The sprite is one cell of the RENDITION's grid — 2x2 for a four-frame
+  // strip — blitted at the size it decoded, which is what the canvas is backed
+  // by. A card reading the bundle's own 4x1 grid draws a slice of two frames
+  // and says nothing about it.
+  const drawn = sprites(player);
+  assert.ok(drawn.length > 0, 'the lead was never drawn');
+  assert.deepEqual(drawn.at(-1).slice(2, 10), [0, 0, 32, 32, 0, 0, 32, 32]);
+  assert.deepEqual(player.titleCanvas.sizes.at(-1), ['height', 32]);
+
+  // The smallest step of the ladder, not the sharpest. The 512 tier of an
+  // eighty-frame idle clip is an 85 MB decode held beside the opening scene's
+  // own sheets, for three seconds of decoration.
+  assert.ok(player.fetched().includes(SPRITE), `the card never asked for ${SPRITE}`);
+  assert.equal(
+    player.fetched().includes(SHARPER_SPRITE),
+    false,
+    `the card asked for ${CARD_TITLE_CELL_PX}px and was handed the sharpest tier there is`,
+  );
+
+  // And it is alive: three eighths of a second in, the fourth frame of the loop.
+  player.frames.advanceTo(375);
+  assert.deepEqual(sprites(player).at(-1).slice(2, 6), [32, 32, 32, 32], 'the sprite is a still picture');
+  // Sized once, at the first frame. Assigning `width` or `height` CLEARS a real
+  // canvas even when the number is unchanged, so a resize per frame is a sprite
+  // that flickers or vanishes on whichever driver clears after it blits.
+  assert.deepEqual(player.titleCanvas.sizes, [['width', 32], ['height', 32]]);
+
+  // The beat is the title's, not the plain hold's.
+  assert.throws(() => player.timers.runOf(CARD_HOLD_MS), /no timer was armed/);
+  player.timers.runOf(CARD_TITLE_HOLD_MS);
+  assert.equal(player.layer.classList.contains('is-gone'), true, 'the curtain never came');
+});
+
+test('the title outlives the curtain, holds over the story, and fades on its own', async (t) => {
+  const player = await mountLead(t);
+  player.begin();
+  player.video.dispatch('playing');
+  await settle();
+  player.video.dispatch('ended');
+  await settle();
+  playOutTitle(player);
+  await settle();
+
+  // The card is gone and the story has the stage — and the title is still on
+  // it. Fading it with the film would leave the story opening on nothing.
+  assert.equal(player.layer.hidden, true, 'the card outstayed its curtain');
+  assert.equal(player.controls.hidden, false, 'the story never began');
+  // The one thing the class names cannot say. Nested inside the card layer the
+  // assertions below would still pass — the fake DOM cascades neither `hidden`
+  // nor `display` — while a real browser took the title away with the film.
+  assert.notEqual(player.titleLayer.parent, player.layer, 'the title is inside the card it outlives');
+  assert.equal(player.titleLayer.parent, player.frame, 'the title left the stage frame');
+  assert.equal(player.titleLayer.hidden, false, 'the title left with the film it was raised over');
+  assert.equal(player.titleLayer.classList.contains('is-fading'), false, 'the linger was skipped');
+
+  player.timers.runOf(CARD_TITLE_LINGER_MS);
+  assert.equal(player.titleLayer.classList.contains('is-fading'), true, 'the title never started leaving');
+  assert.equal(player.titleLayer.hidden, false, 'the title was taken away instead of faded');
+
+  player.timers.runOf(CARD_TITLE_OUT_MS);
+  assert.equal(player.titleLayer.hidden, true, 'a transparent layer was left over the story');
+  assert.equal(player.titleName.textContent, '', 'the story name outlived the beat it was raised on');
+});
+
+test('a story published before the manifest named a lead opens the way it was built to', async (t) => {
+  const player = await mount(t);
+  player.begin();
+  player.video.dispatch('playing');
+  player.timers.runOf(CARD_LINE_DELAY_MS);
+
+  assert.equal(player.line.textContent, TITLE, 'the card without a lead lost its written name');
+  assert.equal(player.titleLayer.hidden, true, 'a card with no lead raised a title layer anyway');
+
+  player.video.dispatch('ended');
+  playOut(player);
+  await settle();
+  assert.equal(player.controls.hidden, false);
+  assert.equal(player.titleLayer.hidden, true, 'the title beat played for a story that never named a lead');
+});
+
+test('a lead the story never cast still gets its beat, with one line in the log', async (t) => {
+  const player = await mountLead(t, 'nobody');
+  assert.match(player.log(), /not in this story/, 'the missing lead was never named');
+
+  player.begin();
+  player.video.dispatch('playing');
+  await settle();
+  player.video.dispatch('ended');
+  await settle();
+
+  // Title-only: the name is the card, the sprite was the company.
+  assert.equal(player.titleLayer.hidden, false, 'a lead this story never cast cost it the whole beat');
+  assert.equal(player.titleName.textContent, TITLE);
+  assert.equal(sprites(player).length, 0, 'something was drawn for a character that is not here');
+
+  playOutTitle(player);
+  await settle();
+  assert.equal(player.controls.hidden, false, 'the story waited on a sprite that does not exist');
+});
+
+test('a sprite sheet that has not decoded costs the story nothing', async (t) => {
+  const player = await mountLead(t);
+  // Held from here on, so the card's own fetch is still in flight when its film
+  // runs out. The opening scene was prepared before this and is unaffected.
+  const release = holdAssets();
+  player.begin();
+  player.video.dispatch('playing');
+  await settle();
+  player.video.dispatch('ended');
+  await settle();
+
+  assert.equal(player.titleLayer.hidden, false, 'a sheet that was late took the name down with it');
+  assert.equal(player.titleName.textContent, TITLE);
+  assert.equal(sprites(player).length, 0);
+  assert.match(player.log(), /was not ready when the title card began/);
+
+  // And the beat is the same length it always is: the sprite is never waited on.
+  playOutTitle(player);
+  await settle();
+  assert.equal(player.controls.hidden, false, 'the story waited for a sprite sheet');
+  release();
+  await settle();
+});
+
+/** The beat, opened, with the narration element the card is reading from. */
+async function openBeat(t, options) {
+  const player = await mountLead(t, ...(options ? [options] : []));
+  player.begin();
+  player.video.dispatch('playing');
+  await settle();
+  player.video.dispatch('ended');
+  await settle();
+  return { player, spoken: player.audio.at(-1) };
+}
+
+test('the beat waits for a name that takes longer than its floor to say', async (t) => {
+  const { player, spoken } = await openBeat(t);
+
+  // The line used to have the rest of a fourteen-second film to be read over
+  // and now has only this beat, so the beat asks it how long it is.
+  spoken.duration = 4.1;
+  spoken.listeners.get('loadedmetadata')({ type: 'loadedmetadata' });
+  assert.throws(
+    () => player.timers.runOf(CARD_TITLE_HOLD_MS),
+    /no timer was armed/,
+    'the card kept its floor and cut the title mid-word',
+  );
+
+  player.timers.runOf(4_100 + CARD_TITLE_TAIL_MS);
+  assert.equal(player.layer.classList.contains('is-gone'), true, 'the curtain never came');
+  player.timers.runOf(CARD_CURTAIN_MS);
+  await settle();
+  assert.equal(player.controls.hidden, false, 'the story never began');
+});
+
+test('a name shorter than the floor does not shorten the beat', async (t) => {
+  const { player, spoken } = await openBeat(t);
+  spoken.duration = 1.4;
+  spoken.listeners.get('loadedmetadata')({ type: 'loadedmetadata' });
+
+  // The floor is the beat's own shape — the fade in, the name, a moment of the
+  // picture. A short title is read inside it, not chased by the curtain.
+  player.timers.runOf(CARD_TITLE_HOLD_MS);
+  assert.equal(player.layer.classList.contains('is-gone'), true);
+});
+
+test('a name with no end to it is still let go of', async (t) => {
+  const { player, spoken } = await openBeat(t);
+  spoken.duration = 45;
+  spoken.listeners.get('loadedmetadata')({ type: 'loadedmetadata' });
+
+  // Whatever the file turns out to be, a story is not held behind its own name.
+  assert.throws(() => player.timers.runOf(45_000 + CARD_TITLE_TAIL_MS), /no timer was armed/);
+  player.timers.runOf(CARD_TITLE_HOLD_CEILING_MS);
+  assert.equal(player.layer.classList.contains('is-gone'), true, 'the beat ran past its own ceiling');
+});
+
+test('a line that never says how long it is keeps the floor', async (t) => {
+  const { player } = await openBeat(t);
+  // No `loadedmetadata` at all — a file still fetching, or one the device will
+  // not measure. This is the card every story got before the beat asked.
+  player.timers.runOf(CARD_TITLE_HOLD_MS);
+  assert.equal(player.layer.classList.contains('is-gone'), true);
+});
+
+test('a longer beat still starts over whole after a hidden tab', async (t) => {
+  const { player, spoken } = await openBeat(t);
+  spoken.duration = 4.1;
+  spoken.listeners.get('loadedmetadata')({ type: 'loadedmetadata' });
+
+  document.visibilityState = 'hidden';
+  document.dispatch('visibilitychange');
+  document.visibilityState = 'visible';
+  document.dispatch('visibilitychange');
+  // The beat begins again rather than resuming, at the length it had grown to:
+  // a viewer who looked away gets the whole of the name, not its stub.
+  player.timers.runOf(4_100 + CARD_TITLE_TAIL_MS);
+  assert.equal(player.layer.classList.contains('is-gone'), true, 'the lengthened beat was lost with the tab');
+});
+
+test('the end card carries no title, and holds for the plain beat', async (t) => {
+  const player = await mountLead(t);
+  player.begin();
+  player.video.dispatch('playing');
+  await settle();
+  player.video.dispatch('ended');
+  await settle();
+  playOutTitle(player);
+  await settle();
+  player.timers.runOf(CARD_TITLE_LINGER_MS);
+  player.timers.runOf(CARD_TITLE_OUT_MS);
+  assert.equal(player.titleLayer.hidden, true);
+
+  // To the end of the story, where the closing film plays. One film per world
+  // is shared by every story told in it, and the name belongs to the opening:
+  // an ending that announced the title again would be reading the credits out.
+  player.frames.advanceTo(player.duration);
+  await settle();
+  assert.equal(player.layer.hidden, false, 'the end card never came up — this test proves nothing');
+  player.video.dispatch('playing');
+  player.video.dispatch('ended');
+  assert.equal(player.titleLayer.hidden, true, 'the end card raised the opening’s title');
+  assert.throws(
+    () => player.timers.runOf(CARD_TITLE_HOLD_MS),
+    /no timer was armed/,
+    'the end card held for a title beat it does not have',
+  );
+  player.timers.runOf(CARD_HOLD_MS);
+  assert.equal(player.layer.classList.contains('is-gone'), true, 'the end card never faded');
+});
+
+test('a replayed opening asks for the lead’s sheet again', async (t) => {
+  let broken = true;
+  const player = await mount(t, {
+    cards: leadCards(),
+    story: leadStory(),
+    assets: (url) => (url.includes('moth-right-200') && broken ? { status: 404 } : {}),
+  });
+  player.begin();
+  player.video.dispatch('playing');
+  await settle();
+  player.video.dispatch('ended');
+  await settle();
+
+  // A sheet that answered 404 is a different failure from one still fetching,
+  // and the log has to be able to tell a broken file from a slow link.
+  assert.match(player.log(), /could not be decoded/, 'a sheet that 404ed was never named');
+  assert.equal(sprites(player).length, 0);
+  playOutTitle(player);
+  await settle();
+  player.timers.runOf(CARD_TITLE_LINGER_MS);
+  player.timers.runOf(CARD_TITLE_OUT_MS);
+
+  player.frames.advanceTo(player.duration);
+  await settle();
+  player.skip.dispatch('click');
+  player.timers.runOf(CARD_CURTAIN_MS);
+  await settle();
+  assert.equal(player.end.hidden, false, 'the story never reached its end — this test proves nothing');
+
+  // The replay is a whole performance again, and the sheet is asked for again
+  // with it: a story's worth of scenes has been decoded since, and the card's
+  // own sheet is the first thing the cache lets go of.
+  broken = false;
+  player.toggle.dispatch('click');
+  assert.equal(player.titleLayer.hidden, true, 'the replay opened behind the title it was replacing');
+  player.video.dispatch('playing');
+  await settle();
+  player.video.dispatch('ended');
+  await settle();
+  assert.ok(sprites(player).length > 0, 'the replayed opening lost its lead');
+});
+
+test('a skip before the ending raises no title over the story', async (t) => {
+  const player = await mountLead(t);
+  player.begin();
+  player.video.dispatch('playing');
+  await settle();
+
+  // A viewer who skips wants out, not a title card — and nothing may fade up
+  // over the story afterwards either.
+  player.skip.dispatch('click');
+  assert.equal(player.titleLayer.hidden, true, 'the skip raised the beat it was skipping');
+  player.timers.runOf(CARD_CURTAIN_MS);
+  await settle();
+  assert.equal(player.controls.hidden, false, 'the story never began');
+  assert.equal(player.titleLayer.hidden, true, 'a title faded up over the story out of nowhere');
+  assert.throws(() => player.timers.runOf(CARD_TITLE_LINGER_MS), /no timer was armed/);
+});
+
+test('a skip DURING the beat keeps the title it is already showing', async (t) => {
+  const player = await mountLead(t);
+  player.begin();
+  player.video.dispatch('playing');
+  await settle();
+  player.video.dispatch('ended');
+  await settle();
+  assert.equal(player.titleLayer.hidden, false);
+
+  player.skip.dispatch('click');
+  player.timers.runOf(CARD_CURTAIN_MS);
+  await settle();
+  assert.equal(player.titleLayer.hidden, false, 'skipping out of the beat cut the title with the card');
+  player.timers.runOf(CARD_TITLE_LINGER_MS);
+  player.timers.runOf(CARD_TITLE_OUT_MS);
+  assert.equal(player.titleLayer.hidden, true);
+});
+
+test('the title is laid out for a frame before it is asked to appear', (t) => {
+  const beat = bareTitle(t, { story: oneCharacter(soloist) });
+  const seen = [];
+  beat.layer.getBoundingClientRect = () => {
+    seen.push(beat.layer.classList.values().join(' '));
+    return { width: 0, height: 0 };
+  };
+
+  beat.title.reveal(TITLE);
+  // The same trap the card layer is opened around: `display: none` is a state
+  // nothing transitions out of, so the layer has to be READ while it is laid
+  // out and still transparent. Without the read the title snaps onto the held
+  // frame with a green suite behind it.
+  assert.deepEqual(seen, [''], 'nothing forced the transparent frame the fade needs');
+  assert.equal(beat.layer.classList.contains('is-shown'), true);
+});
+
+test('the loop comes back on the pose it froze on', (t) => {
+  const beat = bareTitle(t, { story: oneCharacter(soloist) });
+  beat.title.reveal(TITLE);
+  beat.frames.advanceTo(375);
+  assert.deepEqual(beat.drawn().at(-1).slice(2, 4), [32, 32], 'the loop never reached the fourth frame');
+
+  beat.title.freeze();
+  assert.equal(beat.frames.pending(), 0, 'the loop ran on in a hidden tab');
+  beat.frames.setWall(9_000);
+  beat.title.thaw();
+  // Not frame zero: a character that jumps a third of the way through its own
+  // breath is the one thing the still picture it replaced would never have done.
+  assert.deepEqual(beat.drawn().at(-1).slice(2, 4), [32, 32], 'the sprite snapped back to the start');
+});
+
+test('a manifest mounted under its own name is read all the same', (t) => {
+  // A manifest carries BOTH keys and they are different blocks: `cast` there is
+  // a slug-to-display-name map, and the cast a player is mounted with is
+  // `cast_bundle`. A host that mounts the manifest itself before the first
+  // scene exists — the shape `docs/embedding.md` documents — hands over both,
+  // so reading `cast` first would find the lead's NAME where its clips should
+  // be and report a character with nothing to stand in.
+  const beat = bareTitle(t, {
+    story: { cast: { [LEAD]: 'Moth' }, cast_bundle: { [LEAD]: soloist } },
+  });
+  beat.title.reveal(TITLE);
+  assert.deepEqual(beat.said(), []);
+  assert.ok(beat.drawn().length > 0, 'the lead was not found under the manifest’s own key');
+});
+
+test('a bundle the sheet reader cannot make sense of costs a sprite, not the story', (t) => {
+  // `grid` is a pair everywhere the engine writes one; a number here throws out
+  // of `renditionGrid`, three levels below this file. This runs inside the
+  // player's own constructor, so an escape is not a card without a picture —
+  // it is a viewer told the STORY could not be opened.
+  const beat = bareTitle(t, {
+    story: oneCharacter({
+      capability: { idle: { right: 'odd' } },
+      clips: {
+        odd: {
+          spritesheet: 'bucket/odd.png', frames: 4, grid: 4, renditions: { 200: 'bucket/odd-200.webp' },
+        },
+      },
+    }),
+  });
+  assert.equal(beat.said().length, 1, `the reader said ${beat.said().length} lines`);
+  assert.match(beat.said()[0], /could not be read/);
+  beat.title.reveal(TITLE);
+  assert.equal(beat.name.textContent, TITLE, 'the beat lost its name with the sprite');
+  assert.equal(beat.drawn().length, 0);
+});
+
+test('a canvas that hands out no context is named rather than left blank', (t) => {
+  const beat = bareTitle(t, { story: oneCharacter(soloist), canvas: fakeElement('div') });
+  assert.deepEqual(beat.said(), ['the intro card’s lead has no canvas to be drawn on']);
+  // And nothing is fetched for a picture that cannot be drawn: the bytes would
+  // be charged to a memory budget the scene on screen is competing for.
+  beat.title.warm();
+  assert.equal(beat.loaded().length, 0, 'a sheet was decoded for a canvas that cannot draw it');
+});
+
+test('a sheet that fails is one line, not two', (t) => {
+  const beat = bareTitle(t, { story: oneCharacter(soloist), cache: brokenCache() });
+  beat.title.warm();
+  return Promise.resolve().then(() => {
+    beat.title.reveal(TITLE);
+    // "could not be decoded" and "was not ready" are two different sentences
+    // about one file, and the second one is not even true.
+    assert.deepEqual(beat.said(), ['the lead’s sprite sheet could not be decoded (no)']);
+  });
+});
+
+test('a second performance gets its own lines', (t) => {
+  const beat = bareTitle(t, { story: oneCharacter(soloist), cache: emptyCache() });
+  beat.title.reveal(TITLE);
+  beat.title.clear();
+  beat.title.reveal(TITLE);
+  assert.equal(beat.said().length, 2, 'a replay that failed the same way said nothing at all');
+});
+
+test('a title that throws on its way up costs the card nothing but a line', async (t) => {
+  const card = bareCard(t, {
+    title: recordingTitle({ reveal() { throw new Error('no canvas'); } }),
+  });
+  const done = [];
+  card.phase.playIntro().then(() => done.push('gone'));
+  card.video.dispatch('playing');
+  card.video.dispatch('ended');
+
+  // The beat is raised inside the `ended` handler and the hold is armed after
+  // it. A throw taken with the hold is a card that never closes and a story
+  // waiting on a promise that never settles.
+  assert.match(card.warnings.at(-1).message, /the title card could not be raised/);
+  card.timers.runOf(CARD_TITLE_HOLD_MS);
+  card.timers.runOf(CARD_CURTAIN_MS);
+  await settle();
+  assert.deepEqual(done, ['gone'], 'the phase promise never settled');
+});
+
+test('a card that ends without a curtain takes its title with it', async (t) => {
+  const title = recordingTitle();
+  const card = bareCard(t, { title });
+  const done = [];
+  card.phase.playIntro().then(() => done.push('gone'));
+  card.video.dispatch('playing');
+  card.video.dispatch('ended');
+  assert.ok(title.calls.includes('reveal'), 'the beat never opened — this test proves nothing');
+
+  // A film that breaks after its own ending: there is no fade for the title to
+  // outlive, and no story opening for it to linger over.
+  card.video.dispatch('error');
+  assert.equal(title.calls.at(-1), 'clear', 'the title was left over the whole story');
+  await settle();
+  assert.deepEqual(done, ['gone']);
+});
+
+test('a lingering title stops with the tab, and the story it lingers over', async (t) => {
+  const player = await mountLead(t);
+  player.begin();
+  player.video.dispatch('playing');
+  await settle();
+  player.video.dispatch('ended');
+  await settle();
+  playOutTitle(player);
+  await settle();
+  assert.equal(player.titleLayer.hidden, false, 'the linger never started');
+
+  // Nothing in the card phase is holding a title once the curtain is over, and
+  // the story underneath pauses with the tab: a linger left running in the dark
+  // is a viewer coming back to a story already begun with nothing over it.
+  document.visibilityState = 'hidden';
+  document.dispatch('visibilitychange');
+  assert.throws(
+    () => player.timers.runOf(CARD_TITLE_LINGER_MS),
+    /no timer was armed/,
+    'the linger ran on in a hidden tab',
+  );
+
+  document.visibilityState = 'visible';
+  document.dispatch('visibilitychange');
+  player.timers.runOf(CARD_TITLE_LINGER_MS);
+  assert.equal(player.titleLayer.classList.contains('is-fading'), true, 'the linger never came back');
+});
+
+test('a lead with no name to raise keeps the card it always had', async (t) => {
+  const cards = leadCards();
+  delete cards.intro.narration;
+  const player = await mount(t, { cards, story: leadStory() });
+  player.begin();
+  player.video.dispatch('playing');
+  await settle();
+  player.video.dispatch('ended');
+  await settle();
+
+  // The words come off the narration block. Without one there is no name to
+  // show, and a lone sprite held for five seconds over a film that has stopped
+  // is worse than the short beat it would replace.
+  assert.equal(player.titleLayer.hidden, true, 'a card with no name raised a title anyway');
+  assert.throws(() => player.timers.runOf(CARD_TITLE_HOLD_MS), /no timer was armed/);
+  player.timers.runOf(CARD_HOLD_MS);
+  player.timers.runOf(CARD_CURTAIN_MS);
+  await settle();
+  assert.equal(player.controls.hidden, false, 'the story never began');
+});
+
+
+
+test('a lead with no idle to stand in is still drawn', (t) => {
+  // Facing right first, then left — pinned by the mounted beat. What is left is
+  // the two below: an idle this world keys differently, and a character with no
+  // idle at all, whose first clip of anything is still a picture of it.
+  const facing = bareTitle(t, {
+    story: oneCharacter({
+      capability: { idle: { camera: 'still' } },
+      clips: { still: { spritesheet: 'bucket/still.png' } },
+    }),
+  });
+  facing.title.reveal(TITLE);
+  assert.deepEqual(facing.said(), []);
+  assert.ok(facing.drawn().length > 0, 'an idle keyed at the camera drew nothing');
+
+  const busy = bareTitle(t, {
+    story: oneCharacter({
+      capability: { move: { left: 'walk' } },
+      clips: { walk: { spritesheet: 'bucket/walk.png' } },
+    }),
+  });
+  busy.title.reveal(TITLE);
+  assert.deepEqual(busy.said(), []);
+  assert.ok(busy.drawn().length > 0, 'a character with no idle at all left a hole on the card');
+});
+
+test('every way a lead can answer badly is one line, and a card that still plays', (t) => {
+  const cases = [
+    [{ capability: {}, clips: {} }, /carries no clip to stand in/],
+    [{ capability: { idle: { right: 'gone' } }, clips: {} }, /carries no clip to stand in/],
+    [{ capability: { idle: { right: 'bare' } }, clips: { bare: {} } }, /no sheet behind it/],
+    [
+      { capability: { idle: { right: 'far' } }, clips: { far: { spritesheet: 'https://elsewhere.example/far.png' } } },
+      /could not be addressed/,
+    ],
+  ];
+  for (const [member, expected] of cases) {
+    const beat = bareTitle(t, { story: oneCharacter(member) });
+    beat.title.reveal(TITLE);
+    assert.equal(beat.said().length, 1, `${expected} said ${beat.said().length} lines`);
+    assert.match(beat.said()[0], expected);
+    // Said, and then the card carries on: the name IS the beat, the lead was
+    // company, and the story behind it is untouched either way.
+    assert.equal(beat.layer.hidden, false);
+    assert.equal(beat.name.textContent, TITLE);
+    assert.equal(beat.drawn().length, 0);
+  }
+});
+
+test('a sheet the cache never held is named once, whatever the loop is asked', (t) => {
+  const beat = bareTitle(t, { story: oneCharacter(soloist), cache: emptyCache() });
+  beat.title.reveal(TITLE);
+  beat.frames.advanceTo(400);
+  beat.frames.advanceTo(800);
+  assert.deepEqual(beat.said(), ['the lead’s sprite sheet was not ready when the title card began']);
+  assert.equal(beat.drawn().length, 0);
+  assert.equal(beat.name.textContent, TITLE);
+});
+
+test('the sprite freezes with the tab and comes back with it', async (t) => {
+  const player = await mountLead(t);
+  player.begin();
+  player.video.dispatch('playing');
+  await settle();
+  player.video.dispatch('ended');
+  await settle();
+  assert.ok(player.frames.pending() > 0, 'the sprite loop never started — this test proves nothing');
+
+  document.visibilityState = 'hidden';
+  document.dispatch('visibilitychange');
+  // The film is frozen and the music is paused; a sprite still breathing over
+  // them is the tell that the beat was never really stopped.
+  assert.equal(player.frames.pending(), 0, 'the sprite kept looping over a frozen card');
+
+  document.visibilityState = 'visible';
+  document.dispatch('visibilitychange');
+  assert.ok(player.frames.pending() > 0, 'the sprite never came back with the tab');
+  playOutTitle(player);
+  await settle();
+  assert.equal(player.controls.hidden, false);
+});
+
+test('a teardown mid-linger takes the title with it', async (t) => {
+  const player = await mountLead(t);
+  player.begin();
+  player.video.dispatch('playing');
+  await settle();
+  player.video.dispatch('ended');
+  await settle();
+  playOutTitle(player);
+  await settle();
+  assert.equal(player.titleLayer.hidden, false, 'the linger never started — this test proves nothing');
+
+  player.handle.destroy();
+  assert.equal(player.titleLayer.hidden, true, 'a torn-down player left its title on the page');
+});
+
 test('the stylesheet really takes a hidden card layer off the screen', () => {
   const css = fs.readFileSync(new URL('../browser/styles.css', import.meta.url), 'utf8');
 
@@ -911,6 +1541,53 @@ test('the stylesheet really takes a hidden card layer off the screen', () => {
   assert.match(css, /\.card-layer\.is-arriving\s*\{[^}]*opacity:\s*0/);
 });
 
+test('the stylesheet keeps the title beat off the card it outlives', () => {
+  const css = fs.readFileSync(new URL('../browser/styles.css', import.meta.url), 'utf8');
+
+  // The same weak-`hidden` trap as the card layer, and the same consequence: a
+  // title that cannot leave the screen sits over every story that follows it.
+  assert.match(
+    css,
+    /\.card-title\[hidden\]\s*\{[^}]*display:\s*none/,
+    'styles.css does not force the hidden title layer to actually disappear',
+  );
+  // It covers the whole stage while the story plays underneath, so a layer that
+  // took clicks would take the ones meant for the picture.
+  assert.match(css, /\.card-title\s*\{[^}]*pointer-events:\s*none/);
+  // Above the card it outlives — a title that fades WITH the film leaves the
+  // story opening on nothing.
+  const above = css.match(/\.card-title\s*\{[^}]*z-index:\s*(\d+)/);
+  const card = css.match(/\.card-layer\s*\{[^}]*z-index:\s*(\d+)/);
+  assert.ok(above && card, 'neither layer says where it sits — the stacking is an accident now');
+  assert.ok(Number(above[1]) > Number(card[1]), 'the title is drawn under the card it has to outlive');
+
+  // Both fades are one number written in two places, exactly like the curtain.
+  const shown = css.match(/\.card-title\s*\{[^}]*transition:\s*opacity\s*(\d+)ms/);
+  assert.ok(shown, 'the title pops onto the held frame instead of fading in');
+  assert.equal(Number(shown[1]), CARD_TITLE_FADE_MS, 'the title fade and the stylesheet disagree');
+  const out = css.match(/\.card-title\.is-fading\s*\{[^}]*transition:\s*opacity\s*(\d+)ms/);
+  assert.ok(out, 'the title is cut off the story rather than faded off it');
+  assert.equal(Number(out[1]), CARD_TITLE_OUT_MS, 'the slow fade and the stylesheet disagree');
+
+  // And the two levels the fades run between. Without these the layer is laid
+  // out at nothing for ever: the film ends, the card holds its three seconds on
+  // a blank frame, the name is spoken over nothing, and every JS assertion
+  // above still passes because the class really is on the element.
+  assert.match(css, /\.card-title\s*\{[^}]*opacity:\s*0/, 'the title has no transparent state to fade from');
+  assert.match(css, /\.card-title\.is-shown\s*\{[^}]*opacity:\s*1/, 'nothing ever makes the title visible');
+
+  // The sprite is sized against this layer, which `inset: 0` makes definite —
+  // never against the window. An embedded player is a box on somebody's page,
+  // and a `vh` sprite is two thirds of a phone's screen inside a 16:9 frame a
+  // third of it tall, with the name pushed off the bottom edge.
+  const box = css.match(/\.card-title\s*\{([^}]*)\}/);
+  assert.ok(box && /inset:\s*0/.test(box[1]) && /display:\s*flex/.test(box[1]), 'the title layer is not a definite box');
+  const sprite = css.match(/\.card-title-sprite\s*\{([^}]*)\}/);
+  assert.ok(sprite, 'no .card-title-sprite rule — this reader is stale, not the stylesheet');
+  assert.doesNotMatch(sprite[1], /\d(vh|vw)/, 'the sprite is sized against the window rather than the player');
+  assert.match(sprite[1], /height:\s*\d+%/, 'the sprite is not sized against the layer it sits in');
+});
+
 const floorZone = {
   name: 'floor', surface: 'floor', description: '', depth: null, scale: null,
   polygon: [[20, 80], [80, 80], [80, 100], [20, 100]],
@@ -923,6 +1600,124 @@ const plateOf = (name) => ({
   default_zone: 'floor',
   zones: [floorZone],
 });
+
+const soloist = {
+  height_cm: 70,
+  capability: { idle: { left: 'moth-idle-left', right: 'moth-idle-right' } },
+  clips: {
+    'moth-idle-left': { spritesheet: 'bucket/moth-left.png', frames: 4, fps: 8, grid: [4, 1] },
+    // The one the card is meant to pick: idle, facing right, and a ladder to
+    // read it off. `renditionGrid` re-grids a 4x1 strip into 2x2, which is
+    // exactly the trap a card drawing from the bundle's own grid would fall in.
+    'moth-idle-right': {
+      spritesheet: 'bucket/moth-right.png',
+      frames: 4,
+      fps: 8,
+      grid: [4, 1],
+      // A ladder rather than one step, so which tier the card asks for is a
+      // decision this fixture can catch it making.
+      renditions: { 200: 'bucket/moth-right-200.webp', 512: 'bucket/moth-right-512.webp' },
+    },
+  },
+};
+
+const LEAD = 'moth';
+const SPRITE = `${ASSET_BASE}bucket/moth-right-200.webp`;
+const SHARPER_SPRITE = `${ASSET_BASE}bucket/moth-right-512.webp`;
+
+/**
+ * The card phase's title beat with none of the player around it.
+ *
+ * Everywhere else the beat is watched through a mounted story, which is the
+ * right way round for every question but two: what a lead the bundle answers
+ * badly does, and what the loop draws frame by frame. Both are about this
+ * module alone, and reaching them through a mount would mean a whole fixture
+ * story per branch.
+ */
+function bareTitle(t, { story, lead = LEAD, cache = heldSheet(), canvas = fakeElement('canvas') } = {}) {
+  const dom = installDom();
+  const frames = virtualFrames();
+  const elements = { layer: fakeElement('div'), canvas, name: fakeElement('p') };
+  const warnings = [];
+  const title = createCardTitle({
+    elements, story, assetBase: ASSET_BASE, lead, cache, onWarning: (w) => warnings.push(w),
+  });
+  t.after(() => {
+    title.clear();
+    frames.restore();
+    dom.restore();
+  });
+  return {
+    ...elements,
+    title,
+    frames,
+    said: () => warnings.map(({ message }) => message),
+    loaded: () => cache.asked ?? [],
+    drawn: () => (elements.canvas.context?.calls ?? []).filter(([name]) => name === 'drawImage'),
+  };
+}
+
+/** A cache holding one decoded sheet, and one holding nothing. */
+function heldSheet({ width = 64, height = 64 } = {}) {
+  const drawable = { width, height };
+  const asked = [];
+  return {
+    asked, has: () => true, get: () => drawable, load: async (url) => { asked.push(url); return drawable; },
+  };
+}
+
+function emptyCache() {
+  const asked = [];
+  return { asked, has: () => false, get: () => null, load: async (url) => { asked.push(url); return null; } };
+}
+
+/** A cache whose decode fails, which is not the same as one still fetching. */
+function brokenCache() {
+  const asked = [];
+  return {
+    asked,
+    has: () => false,
+    get: () => null,
+    load: async (url) => {
+      asked.push(url);
+      throw new Error('no');
+    },
+  };
+}
+
+function oneCharacter(member) {
+  return { cast: { [LEAD]: member } };
+}
+
+/**
+ * The lead is cast but never staged, which is the point: the sheet the title
+ * beat draws from is then the CARD's own fetch rather than one the opening
+ * scene had already put in the cache, so "was it ready?" is a real question.
+ */
+function leadStory() {
+  const story = cardStory();
+  return { ...story, cast: { ...story.cast, [LEAD]: soloist } };
+}
+
+function leadCards(lead = LEAD) {
+  const cards = cardBlocks();
+  cards.intro.lead = lead;
+  return cards;
+}
+
+function mountLead(t, lead = LEAD) {
+  return mount(t, { cards: leadCards(lead), story: leadStory() });
+}
+
+/** The ending of a card that has a title to raise: a longer beat, then the fade. */
+function playOutTitle(player) {
+  player.timers.runOf(CARD_TITLE_HOLD_MS);
+  player.timers.runOf(CARD_CURTAIN_MS);
+}
+
+function sprites(player) {
+  return (player.titleCanvas.context?.calls ?? []).filter(([name]) => name === 'drawImage');
+}
 
 const walker = {
   height_cm: 90,
@@ -1050,7 +1845,7 @@ function playOut(player) {
  * ending now defers it to the end of a fade — so here it is the return value
  * rather than something inferred from a transport coming back.
  */
-function bareCard(t) {
+function bareCard(t, { title = null, cards = cardBlocks() } = {}) {
   const dom = installDom();
   const audio = installAudio();
   const timers = installTimers();
@@ -1063,7 +1858,8 @@ function bareCard(t) {
   const warnings = [];
   const phase = createCardPhase({
     elements,
-    cards: cardBlocks(),
+    cards,
+    title,
     onWarning: (warning) => warnings.push(warning),
   });
   t.after(() => {
@@ -1073,6 +1869,24 @@ function bareCard(t) {
     dom.restore();
   });
   return { ...elements, phase, timers, audio: audio.opened, warnings };
+}
+
+/** A title that answers every call by writing down that it was called. */
+function recordingTitle(overrides = {}) {
+  const calls = [];
+  const record = (name) => (...args) => {
+    calls.push(name);
+    overrides[name]?.(...args);
+  };
+  return {
+    calls,
+    warm: record('warm'),
+    reveal: record('reveal'),
+    freeze: record('freeze'),
+    thaw: record('thaw'),
+    linger: record('linger'),
+    clear: record('clear'),
+  };
 }
 
 /**
@@ -1126,11 +1940,13 @@ async function mount(t, {
   await handle.ready;
 
   const root = host.shadowRoot;
+  const fetched = dom.fetched;
   const timeline = compileTimeline({ ...whole, scenes: whole.scenes }, { plates: platesOf(whole) });
   return {
     handle,
     frames,
     timers,
+    fetched,
     audio: audio.opened,
     duration: timeline.duration_ms,
     sceneOpensAt: (index) => timeline.events.find(
@@ -1144,6 +1960,9 @@ async function mount(t, {
     video: findByClass(root, 'card-video'),
     line: findByClass(root, 'card-line'),
     skip: findByClass(root, 'card-skip'),
+    titleLayer: findByClass(root, 'card-title'),
+    titleName: findByClass(root, 'card-title-name'),
+    titleCanvas: findByClass(root, 'card-title-sprite'),
     plate: findByClass(root, 'plate-video'),
     ceremony: findByClass(root, 'start-ceremony'),
     controls: findByClass(root, 'controls'),

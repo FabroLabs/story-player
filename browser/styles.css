@@ -602,6 +602,79 @@ button:focus-visible {
   text-wrap: balance;
 }
 
+/* The title beat, on its own layer above the card and outside it: the curtain
+   fades the film away from under the name, which stays over the story's first
+   seconds and then goes on the slower fade below. `pointer-events: none`
+   because there is nothing here to press and the transport is live underneath
+   again the moment the story begins.
+
+   No `filter` here either — this sits over a playing story now, not just over a
+   film. */
+.card-title {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  /* Flex rather than grid so the sprite's percentage height below resolves
+     against THIS box, which `inset: 0` makes definite. A centred grid row is
+     sized by its own content, and a percentage against that is a cycle the
+     browser resolves as `auto` — the sprite would fall back to its backing
+     store's pixels. */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(0.5rem, 2vh, 1.3rem);
+  padding: 0 1.5rem;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 500ms ease;
+}
+
+/* The same weak-`hidden` trap every other laid-out overlay is spelled out for:
+   the `display` above beats the UA rule behind the attribute, and without this
+   line the title would never leave the screen. */
+.card-title[hidden] { display: none; }
+
+.card-title.is-shown { opacity: 1; }
+
+/* Slower than it arrived, and spelled out after `is-shown` so the two selectors
+   cannot be settled by order alone: what is underneath by now is the story, and
+   a title that leaves at the speed it came reads as a cut. */
+.card-title.is-fading {
+  opacity: 0;
+  transition: opacity 900ms ease;
+}
+
+/* Backed by exactly one cell of the lead's sheet and scaled here, so the sprite
+   is a CSS size rather than a redraw.
+
+   Sized against the LAYER rather than the viewport, which is the difference
+   between a title card and a clipped one: an embedded player is a box on
+   somebody's page and its height has nothing to do with the window's. A `vh`
+   sprite is two thirds of a phone's screen inside a 16:9 frame a third of it
+   tall, and the name under it falls off the bottom edge. `object-fit` keeps a
+   wide cell from being squashed by the width cap. */
+.card-title-sprite {
+  flex: none;
+  height: 38%;
+  max-width: 44%;
+  object-fit: contain;
+}
+
+/* The story's name, over the held frame the film ended on. Larger than the
+   line it replaces — that one was read across a moving picture, this one is
+   the card. */
+.card-title-name {
+  margin: 0;
+  color: #fbfffd;
+  font-family: ui-serif, Georgia, serif;
+  font-size: clamp(1.2rem, 4.4vw, 4rem);
+  line-height: 1.1;
+  text-align: center;
+  text-shadow: 0 0.35rem 2.6rem rgba(0, 0, 0, 0.62);
+  text-wrap: balance;
+}
+
 /* Always visible while a card is up. A viewer who has heard this opening
    fifteen nights running must not have to hunt for the way past it, and a
    control that appears on a pointer move is a control a child on a tablet
