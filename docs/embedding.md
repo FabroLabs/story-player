@@ -307,7 +307,13 @@ it:
   the time the film ends leaves the name alone on the card, on schedule.
 - The end card plays after the story has stopped — the clock paused, the plate
   stopped, the last line left to finish — and before the end screen, which waits
-  behind it. Its film is warmed as the last scene opens.
+  behind it. Its film is warmed as the last scene opens. It ends differently
+  from the intro: there is no curtain, because there is nothing left to hand the
+  stage back to. The closing film holds its last frame and KEEPS it — the layer
+  drops under the end screen and the transport and becomes the ground "the end"
+  is written on, rather than fading out to show the scene the story stopped on.
+  The music still goes, over the length the curtain would have taken. Scrubbing
+  back into the story, or replaying it, takes that backdrop away with it.
 - A dedicated skip sits on the card, visible the whole time either one is up,
   and it is the only control there: the transport is withdrawn for as long as a
   card is playing and comes back when it is over. Covered is not enough — its

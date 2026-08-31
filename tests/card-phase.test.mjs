@@ -1143,7 +1143,12 @@ test('the end card carries no title, and holds for the plain beat', async (t) =>
     'the end card held for a title beat it does not have',
   );
   player.timers.runOf(CARD_HOLD_MS);
-  assert.equal(player.layer.classList.contains('is-gone'), true, 'the end card never faded');
+  // And it does not fade at all: the end card STAYS. Its last frame is what the
+  // end screen is written over, so the layer drops to a backdrop rather than
+  // handing the stage back to the scene the story stopped on.
+  assert.equal(player.layer.classList.contains('is-gone'), false, 'the end card faded the story back in');
+  assert.equal(player.layer.classList.contains('is-backdrop'), true, 'the end card did not become the backdrop');
+  assert.equal(player.layer.hidden, false, 'the end card took its own last frame away');
 });
 
 test('a replayed opening asks for the lead’s sheet again', async (t) => {
@@ -1772,7 +1777,7 @@ test('an end card that carries a name of its own still raises no title', async (
     'the end card held for a title beat it does not have',
   );
   card.timers.runOf(CARD_HOLD_MS);
-  assert.equal(card.layer.classList.contains('is-gone'), true, 'the end card never faded');
+  assert.equal(card.layer.classList.contains('is-backdrop'), true, 'the end card did not become the backdrop');
 });
 
 
@@ -1836,6 +1841,85 @@ test('a teardown inside the black beat still settles the story’s promise', asy
     /no timer was armed/,
     'the black beat was left running after the teardown',
   );
+});
+
+test('the end card stays, and the end screen is written over its last frame', async (t) => {
+  const card = bareCard(t);
+  const done = [];
+  card.phase.playEnd().then(() => done.push('gone'));
+  card.video.dispatch('playing');
+  card.timers.runOf(CARD_REVEAL_MS);
+  card.video.dispatch('ended');
+  card.timers.runOf(CARD_HOLD_MS);
+  await settle();
+
+  // The phase is over the moment the hold is — that is what brings the end
+  // screen and the transport back — but the picture is not: the closing film's
+  // last frame is the ground the end screen stands on.
+  assert.deepEqual(done, ['gone'], 'the end screen was left waiting on a phase that never settled');
+  assert.equal(card.layer.hidden, false, 'the end screen has nothing to stand on');
+  assert.equal(card.layer.classList.contains('is-backdrop'), true);
+  assert.equal(card.layer.classList.contains('is-gone'), false, 'the last frame was faded out from under the end screen');
+
+  // The music is the one thing that does leave, over the length the curtain
+  // used to take. An end screen is a quiet place.
+  const music = card.audio.find((a) => (a.url || '').includes('end-music'));
+  assert.ok(music, 'the end card played no music — this test proves nothing');
+  assert.equal(music.paused, false, 'the music was cut rather than faded');
+  card.timers.runOf(CARD_CURTAIN_MS);
+  assert.equal(music.paused, true, 'the end card’s music played on under the end screen');
+});
+
+test('scrubbing back out of the end takes the backdrop with it', async (t) => {
+  const card = bareCard(t);
+  card.phase.playEnd();
+  card.video.dispatch('playing');
+  card.timers.runOf(CARD_REVEAL_MS);
+  card.video.dispatch('ended');
+  card.timers.runOf(CARD_HOLD_MS);
+  await settle();
+  assert.equal(card.layer.classList.contains('is-backdrop'), true, 'the backdrop never came up');
+
+  // A story dragged back into is not one that ended: the closing film's frame
+  // has no business over the scene the pointer landed on.
+  card.phase.cancel();
+  assert.equal(card.layer.hidden, true, 'the end card stayed over a story that started again');
+  assert.equal(card.layer.classList.contains('is-backdrop'), false, 'the backdrop class outlived the backdrop');
+});
+
+test('a hidden tab takes the end card’s music but leaves its picture', async (t) => {
+  const card = bareCard(t);
+  card.phase.playEnd();
+  card.video.dispatch('playing');
+  card.timers.runOf(CARD_REVEAL_MS);
+  card.video.dispatch('ended');
+  card.timers.runOf(CARD_HOLD_MS);
+  await settle();
+  const music = card.audio.find((a) => (a.url || '').includes('end-music'));
+
+  // The frame is staying either way — it is a backdrop, not a fade. The music
+  // cannot wait: a hidden tab clamps its steps and it would be cut, not faded.
+  document.visibilityState = 'hidden';
+  document.dispatch('visibilitychange');
+  assert.equal(music.paused, true, 'the music went on in a pocket');
+  assert.equal(card.layer.hidden, false, 'the end screen lost the frame it stands on');
+  assert.equal(card.layer.classList.contains('is-backdrop'), true);
+});
+
+test('the stylesheet puts the backdrop under the end screen and the transport', () => {
+  const css = fs.readFileSync(new URL('../browser/styles.css', import.meta.url), 'utf8');
+  const backdrop = css.match(/\.card-layer\.is-backdrop\s*\{([^}]*)\}/);
+  assert.ok(backdrop, 'no .card-layer.is-backdrop rule — the end card is still a card');
+  const depth = Number(backdrop[1].match(/z-index:\s*(\d+)/)?.[1]);
+  const end = Number(css.match(/\.end-overlay\s*\{[^}]*z-index:\s*(\d+)/)?.[1]);
+  const bar = Number(css.match(/\.controls\s*\{[^}]*z-index:\s*(\d+)/)?.[1]);
+  const stage = Number(css.match(/\.stage-canvas\s*\{[^}]*z-index:\s*(\d+)/)?.[1]);
+  assert.ok(depth < end, `the end screen is behind the frame it is written on (${depth} vs ${end})`);
+  assert.ok(depth < bar, `the transport is behind the backdrop (${depth} vs ${bar})`);
+  assert.ok(depth > stage, `the backdrop is behind the story it replaces (${depth} vs ${stage})`);
+  // Nothing to click and nothing to skip: the card is over.
+  assert.match(backdrop[1], /pointer-events:\s*none/);
+  assert.match(css, /\.card-layer\.is-backdrop\s+\.card-skip\s*\{[^}]*display:\s*none/);
 });
 
 const floorZone = {

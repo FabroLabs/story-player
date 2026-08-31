@@ -573,6 +573,18 @@ button:focus-visible {
   transition: opacity 450ms ease, visibility 450ms ease;
 }
 
+/* The end card does not leave. Its last frame is what "the end" is written
+   over, so once its phase is done the layer stops being a card and becomes the
+   story's backdrop: out of the card's z-index and under the end screen (7) and
+   the transport (8), above the plate and the canvas it replaces. Nothing here
+   takes a click any more, and the skip it carried has nothing left to skip. */
+.card-layer.is-backdrop {
+  z-index: 4;
+  pointer-events: none;
+}
+
+.card-layer.is-backdrop .card-skip { display: none; }
+
 /* Letterboxed rather than cropped: one film is shared by every story told in
    its world, and a card cropped to the stage would cut whatever the frame was
    composed around. */

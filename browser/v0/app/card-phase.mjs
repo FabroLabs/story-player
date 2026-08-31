@@ -83,6 +83,8 @@ export function createCardPhase({ elements, cards, title = null, onWarning = () 
   const document = video.ownerDocument ?? globalThis.document ?? null;
   let active = null;
   let curtain = null;
+  // The end card's music, going quiet under a frame that is staying put.
+  let quiet = null;
   // The black beat inside the curtain: the film is down, the ink is not yet.
   let blackout = null;
   // One `<video>`, used twice and never at once, so the films are warmed in the
@@ -119,6 +121,11 @@ export function createCardPhase({ elements, cards, title = null, onWarning = () 
     // which is the failure this whole handler exists to prevent. A fade nobody
     // can watch is a fade that is over.
     if (away && curtain !== null) hideLayer();
+    // The end card's frame is staying either way — it is the end screen's
+    // backdrop, not a fade. What cannot wait is the music: a hidden tab clamps
+    // its steps into something far longer than the fade, and it would be cut
+    // rather than faded. A fade nobody can hear is a fade that is over.
+    if (away && quiet !== null) { stopQuiet(); dropMusic(); }
     // The title's own fade is started by the curtain and outlives the phase by
     // the rest of it, so nothing above reaches it — and the story underneath
     // pauses with the tab. A fade left running in the dark is a viewer coming
@@ -152,10 +159,12 @@ export function createCardPhase({ elements, cards, title = null, onWarning = () 
     /** Take the card away NOW: a replay, a scrub out of the end, a teardown. */
     cancel() {
       close(active, { curtain: false });
-      // NOW includes a card that is already fading. Its music outlives the phase
-      // by the length of the curtain, and a viewer who has just scrubbed back
-      // into the story would otherwise hear the end card playing over it.
-      if (curtain !== null) hideLayer();
+      // NOW includes a card that is already fading, and the end card's held
+      // frame standing as the end screen's backdrop. Its music outlives the
+      // phase by the length of the curtain, and a viewer who has just scrubbed
+      // back into the story would otherwise hear the end card playing over it —
+      // and watch it over the scene they scrubbed to.
+      if (curtain !== null || layer.classList.contains('is-backdrop')) hideLayer();
       // Last, because the line above ends a curtain, and a curtain is what puts
       // the title on its way out.
       title?.clear();
@@ -218,7 +227,7 @@ export function createCardPhase({ elements, cards, title = null, onWarning = () 
    * the black over the same again once it has.
    */
   function openOnBlack(phase) {
-    layer.classList.remove('is-gone');
+    layer.classList.remove('is-gone', 'is-backdrop');
     layer.classList.add('is-arriving', 'is-dark');
     layer.hidden = false;
     // Reading a layout property is what makes the state above a frame of its
@@ -563,6 +572,20 @@ export function createCardPhase({ elements, cards, title = null, onWarning = () 
       phase.resolve();
       return;
     }
+    // The END card does not hand the stage back — it keeps it. Its last frame
+    // is what "the end" is written over, so there is no curtain here: the film
+    // stays exactly where it stopped and the layer only drops out of the card's
+    // z-index into the story's, under the end screen and the transport. The
+    // phase is over at once, which is what raises them; the music still goes,
+    // over the length the curtain would have taken, under a picture that stays.
+    if (phase.kind === 'end') {
+      release(phase, { keepMusic: true });
+      fadeMusic();
+      layer.classList.add('is-backdrop');
+      quiet = setTimeout(() => { quiet = null; dropMusic(); }, CARD_CURTAIN_MS);
+      phase.resolve();
+      return;
+    }
     pending = phase;
     release(phase, { keepMusic: true });
     fadeMusic();
@@ -628,7 +651,7 @@ export function createCardPhase({ elements, cards, title = null, onWarning = () 
   function hideLayer() {
     clearCurtain();
     layer.hidden = true;
-    layer.classList.remove('is-gone', 'is-arriving', 'is-dark');
+    layer.classList.remove('is-gone', 'is-arriving', 'is-dark', 'is-backdrop');
     line.textContent = '';
     video.pause?.();
     // The element is free: whatever was asked for while it was the picture can
@@ -647,15 +670,26 @@ export function createCardPhase({ elements, cards, title = null, onWarning = () 
    */
   function clearCurtain() {
     stopCurtainTimer();
-    stopFade();
-    if (lingering) {
-      lingering.pause?.();
-      lingering.removeAttribute?.('src');
-      lingering = null;
-    }
+    stopQuiet();
+    dropMusic();
     const waiting = pending;
     pending = null;
     waiting?.resolve();
+  }
+
+  /** The card's music, wherever it was in its fade. */
+  function dropMusic() {
+    stopFade();
+    if (!lingering) return;
+    lingering.pause?.();
+    lingering.removeAttribute?.('src');
+    lingering = null;
+  }
+
+  function stopQuiet() {
+    if (quiet === null) return;
+    clearTimeout(quiet);
+    quiet = null;
   }
 
   /**
