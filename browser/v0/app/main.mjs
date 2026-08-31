@@ -3,6 +3,7 @@ import { createBitmapCache } from './assets/bitmap-cache.mjs';
 import { createSceneLoader } from './assets/scene-loader.mjs';
 import { probeCapability } from './capability.mjs';
 import { createCardPhase } from './card-phase.mjs';
+import { createCardTitle } from './card-title.mjs';
 import { StoryClock } from './clock.mjs';
 import { DebugPanel, ObservableEventLog } from './debug-panel.mjs';
 import { createTimelinePlayer } from './timeline-player.mjs';
@@ -33,7 +34,10 @@ const SUBTITLES_KEY = 'storytime:subtitles';
  * sequenced here rather than compiled into the timeline (see `card-phase.mjs`),
  * which is what keeps `t` the story's own: the intro plays between the begin
  * click and `runtime.begin()`, the end card between the story stopping and its
- * end screen. A mount with no `cards` reaches none of it.
+ * end screen. A mount with no `cards` reaches none of it. Where the intro block
+ * names a `lead`, the opening ends on a title card instead of a cut — the
+ * story's name and that character, raised over the film's held last frame by
+ * `card-title.mjs`.
  */
 export function createV0Player({
   root, elements, story, assetBase, plates = null, stream = null, cards = null,
@@ -82,8 +86,27 @@ export function createV0Player({
       message: `the scene on screen needs ${megabytes(heldBytes)} MB of decoded sheets against a ${megabytes(budgetBytes)} MB budget`,
     }),
   });
+  // Who the intro's title beat is about, when the manifest says so. Built here
+  // rather than inside the phase because it is the only part of a card that
+  // reads the STORY: the lead is a cast slug, its sprite is a clip of that
+  // character, and the sheet goes through the same decoded-bitmap cache the
+  // scenes are drawn from. A manifest that names no lead builds none of it, and
+  // the card plays the opening every already-published story was built for.
+  const cardTitle = cardsBlock?.intro?.lead
+    ? createCardTitle({
+      elements: elements.card.title,
+      story,
+      assetBase,
+      lead: cardsBlock.intro.lead,
+      cache: bitmaps,
+      signal,
+      onWarning: warn,
+    })
+    : null;
   const card = cardsBlock
-    ? createCardPhase({ elements: elements.card, cards: cardsBlock, onWarning: warn })
+    ? createCardPhase({
+      elements: elements.card, cards: cardsBlock, title: cardTitle, onWarning: warn,
+    })
     : null;
   // The log button opens the panel, so a build that has no panel open to it has
   // no button either — a control that does nothing is worse than one absence.

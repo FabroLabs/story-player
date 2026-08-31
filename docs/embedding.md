@@ -252,6 +252,20 @@ story's own title, and its `audio` is optional too — the words are shown on th
 card either way, because a name only a listener gets is a name half the audience
 never hears.
 
+`intro.lead` is the cast slug of the character the story is about, and it is
+what turns the opening's ending into a title card — see the intro below. It is
+optional, and its absence is not a lesser card: a manifest written before this
+key existed opens exactly the way it was built to. It is read together with
+`intro.narration`, which carries the words: a card that names a lead but has no
+narration has no name to raise, and plays the ordinary short ending instead.
+
+The slug is looked up in the cast the player was mounted with — `story.cast`
+for a joined story, `story.cast_bundle` for a host that mounts the manifest
+itself (the no-scenes case below), which is where a manifest keeps that block.
+A slug neither carries, a character with no clip to stand in, or a sheet that
+has not decoded by the time the film ends costs the card its sprite and writes
+one line in the log. None of them costs the story anything.
+
 Neither card is in the compiled timeline, and that is the point: `duration_ms`,
 the scrub bar and every `t_ms` cover the story alone, so seeking cannot land
 inside a title sequence and the timeline a phone client is handed is the same
@@ -259,13 +273,47 @@ one this player compiles. What the cards are instead is a phase either side of
 it:
 
 - The intro plays between the begin click and the story. The film is warmed
-  while the opening scene is decoded, its own `<video>` is the clock, the music
-  starts inside the click, and the title is spoken a second in with the music
-  ducked under it. A curtain fades the card out over the story, which has
-  already started behind it.
+  while the opening scene is decoded, its own `<video>` is the clock, and the
+  music starts inside the click. It arrives through black rather than in front
+  of what was on screen, and it ENDS as a beat rather than a cut: the film's
+  last frame is held with the music still playing, then a curtain takes the card
+  away with the music falling inside it, and the story is begun only once that
+  curtain is over. The curtain is the arrival run backwards and takes the same
+  half-second: the film goes under the layer's own black first, then the black
+  goes out onto the story. A card that simply dissolved into scene one would not
+  read as an ending at all — two lit forests crossing over each other is a blur,
+  not a curtain — and a black that outstayed the arrival that made it would read
+  as a wait.
+- What happens on that held frame is what `intro.lead` decides. **Without a
+  lead**, the story's name is written and spoken a second into the film, with
+  the music ducked under it, and the held frame is a short beat — budget about a
+  second and three quarters between the film's last frame and the story's first. **With one**,
+  nothing is written over the moving picture at all: the name waits for the held
+  frame and fades in there, spoken at the same moment, with the lead standing
+  beside it in its idle loop. The name and the sprite are drawn on a layer of
+  their own ABOVE the card, so the curtain can take the film out from under them
+  and leave them standing on the black — and then they go WITH that black, on
+  the curtain's second half. What the story opens on is the story.
+- That beat is at least three seconds and no more than six: it asks the spoken
+  title's own file how long it is and waits for it, because a title sequence
+  that clips the title is the thing this beat exists to fix. A narration with no
+  audio, or one that never reports a duration, gets the three. So budget between
+  three and a half and six and a half seconds between the film's last frame and
+  the story's first.
+- The lead's sprite is drawn from the same bundle and the same decoded-sheet
+  cache the scenes are, at the smallest rendition the ladder carries: it is a
+  decoration on a three-second beat, not a subject. It is asked for while the
+  film is still playing and never waited on — a sheet that has not decoded by
+  the time the film ends leaves the name alone on the card, on schedule.
 - The end card plays after the story has stopped — the clock paused, the plate
   stopped, the last line left to finish — and before the end screen, which waits
-  behind it. Its film is warmed as the last scene opens.
+  behind it. Its film is warmed as the last scene opens. It ends differently
+  from the intro: there is no curtain, because there is nothing left to hand the
+  stage back to. The closing film holds its last frame and KEEPS it — the layer
+  drops under the end screen and the transport and becomes the ground "the end"
+  is written on, rather than fading out to show the scene the story stopped on.
+  The music still goes, over the length the curtain would have taken. Scrubbing
+  back into the story, or replaying it, takes that backdrop away with it.
 - A dedicated skip sits on the card, visible the whole time either one is up,
   and it is the only control there: the transport is withdrawn for as long as a
   card is playing and comes back when it is over. Covered is not enough — its
@@ -274,11 +322,17 @@ it:
 - A replay is the whole performance again — intro, story, end card — with the
   story standing at zero behind the opening film.
 - A card is not on the story's clock, so a tab that goes away stops it here: the
-  film and its music pause together and resume together.
+  film, its music and the lead's idle loop pause together and resume together. A
+  film that has already ended is not started again — the beat its last frame is
+  held for begins over, so a viewer who looked away gets the whole of it rather
+  than its stub.
 - Nothing here can hold the story up. A card whose file fails, is refused by the
   device, never puts a frame on screen, or stops moving part-way through ends
   its phase and writes one named line into the log. So does a spoken title: if
-  it cannot be heard the music stops making room for it.
+  it cannot be heard the music stops making room for it. And so does the lead —
+  a slug this story never cast, a character with no clip to stand in, a sheet
+  that was still fetching when the film ended: one line each, and a title beat
+  with the name on it and nothing beside it.
 
 `cards.intro` is also what allows a mount with **no scenes at all**, alongside
 `stream` and `plates`:

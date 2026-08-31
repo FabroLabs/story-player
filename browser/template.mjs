@@ -88,7 +88,7 @@ export function createPlayerTemplate(root, { stylesheet = STYLESHEET } = {}) {
   }, [
     element(document, 'div', { className: 'stage-letterbox', 'aria-hidden': 'true' }),
     stage, flash, badge.root, actions, ceremony, waiting, subtitleArea, end,
-    controls.root, card.layer,
+    controls.root, card.layer, card.title.layer,
   ]);
   const shell = element(document, 'main', { className: 'player-shell' }, [frame]);
   const debugClose = element(document, 'button', { className: 'icon-button', type: 'button', 'aria-label': 'close event log', text: '×' });
@@ -154,7 +154,28 @@ function createCardLayer(document) {
   }, [element(document, 'span', { text: 'skip' })]);
   const layer = element(document, 'div', { className: 'card-layer', hidden: '' }, [video, line, skip]);
   layer.hidden = true;
-  return { layer, video, line, skip };
+  return { layer, video, line, skip, title: createTitleLayer(document) };
+}
+
+/**
+ * The intro card's title beat, on a layer of its own ABOVE the card.
+ *
+ * Above it and outside it, which is the whole reason this is a second element:
+ * the curtain fades the card away from underneath the name, and the name stays
+ * on over the story's first seconds before going on its own slower fade. Put
+ * inside `.card-layer` it would leave with the film it was raised over.
+ *
+ * It takes no pointer — there is nothing on it to press, and the transport
+ * underneath is live again the moment the story begins. The canvas is hidden
+ * from assistive technology for the reason the stage's is: it changes many
+ * times a second and carries no text. The name beside it is the text.
+ */
+function createTitleLayer(document) {
+  const canvas = element(document, 'canvas', { className: 'card-title-sprite', 'aria-hidden': 'true' });
+  const name = element(document, 'p', { className: 'card-title-name' });
+  const layer = element(document, 'div', { className: 'card-title', hidden: '' }, [canvas, name]);
+  layer.hidden = true;
+  return { layer, canvas, name };
 }
 
 /**

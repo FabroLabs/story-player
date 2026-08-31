@@ -288,7 +288,8 @@ test('the cards block is resolved at the door, slot by slot', () => {
       video: 'fairytale-assets/intros/forest/lantern.mp4',
       music: 'fairytale-assets/intro_music/gentle_lullaby.mp3',
       narration: { text: 'The owl’s quiet friend', audio: 'jobs/story-7/audio/title.wav' },
-      // A field a later manifest grew. This build performs the three above and
+      lead: 'owl',
+      // A field a later manifest grew. This build performs the four above and
       // plays the card rather than refusing a story over a key it does not read.
       duration_ms: 14_000,
     },
@@ -300,11 +301,16 @@ test('the cards block is resolved at the door, slot by slot', () => {
       video: `${BASE}/fairytale-assets/intros/forest/lantern.mp4`,
       music: `${BASE}/fairytale-assets/intro_music/gentle_lullaby.mp3`,
       narration: { text: 'The owl’s quiet friend', audio: `${BASE}/jobs/story-7/audio/title.wav` },
+      lead: 'owl',
     },
     end_card: {
       video: `${BASE}/fairytale-assets/intros/forest/goodnight.mp4`,
       music: `${BASE}/fairytale-assets/intro_music/dusk.mp3`,
       narration: null,
+      // Absent from the block, so absent from the card: an end card carries no
+      // title beat, and every story published before this key existed opens the
+      // way it was built to.
+      lead: null,
     },
   });
   assert.ok(Object.isFrozen(cards.intro), 'a resolved card can be written to by whoever plays it');
@@ -320,7 +326,7 @@ test('a card with nothing to play, and one with only half of it, are told apart'
   // closing one still opens.
   const opening = requireCardsBlock({ intro: { video: 'bucket/intro.mp4' } }, BASE);
   assert.deepEqual(opening, {
-    intro: { video: `${BASE}/bucket/intro.mp4`, music: null, narration: null },
+    intro: { video: `${BASE}/bucket/intro.mp4`, music: null, narration: null, lead: null },
   });
 });
 
@@ -335,6 +341,12 @@ test('what the cards block refuses, it refuses before a frame is drawn', () => {
   refuses({ intro: {} }, /cards intro video has invalid media path/);
   refuses({ intro: { video: 'https://elsewhere.example/intro.mp4' } }, /cards intro video has invalid media path/);
   refuses({ intro: { video: 'bucket/intro.mp4', music: '../escape.mp3' } }, /cards intro music has invalid media path/);
+  // A lead is a cast slug or nothing. Whether the story actually cast that
+  // character is a question about the bundle, answered by a warning and a card
+  // with no sprite on it — but a lead that is not a name at all is a block this
+  // player cannot perform, and it is refused where every other shape is.
+  refuses({ intro: { video: 'bucket/intro.mp4', lead: '' } }, /cards intro lead must be/);
+  refuses({ intro: { video: 'bucket/intro.mp4', lead: 7 } }, /cards intro lead must be/);
   refuses(
     { intro: { video: 'bucket/intro.mp4', narration: { audio: 'jobs/7/title.wav' } } },
     /cards intro narration must carry the line to speak/,

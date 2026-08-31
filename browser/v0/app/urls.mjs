@@ -248,6 +248,7 @@ export function requireCardsBlock(cards, assetBase) {
       // story whose music the writer left out is still a story that opens.
       music: card.music == null ? null : resolveMediaUrl(card.music, base, `cards ${slot} music`),
       narration: requireCardLine(card.narration, slot, base),
+      lead: requireCardLead(card.lead, slot),
     };
   }
   // Both slots empty is the same nothing as no block at all — said here so the
@@ -275,6 +276,25 @@ function requireCardLine(narration, slot, base) {
       ? null
       : resolveMediaUrl(narration.audio, base, `cards ${slot} narration audio`),
   };
+}
+
+/**
+ * Who the card's title beat is about, by cast slug.
+ *
+ * Optional, and its absence is not a lesser card: every story published before
+ * the manifest carried this key plays the opening it was built for — the name
+ * read a second into the film — while a card that names a lead ends on a title
+ * beat instead. Only the SHAPE is settled here. Whether the story actually cast
+ * that character is a question about the mounted bundle rather than about this
+ * block, and the answer to it is a warning and a card with no sprite on it, not
+ * a refusal that would cost the viewer the story.
+ */
+function requireCardLead(lead, slot) {
+  if (lead == null) return null;
+  if (typeof lead !== 'string' || !lead) {
+    throw new Error(`cards ${slot} lead must be the lead character's cast slug`);
+  }
+  return lead;
 }
 
 function projectScene(scene, resolve, index) {
