@@ -11,11 +11,12 @@
  *
  * Two rules shape everything here.
  *
- * It outlives the card. The title is not on the card layer — it is its own
- * element above it, so the curtain fades the film away from underneath while
- * the name stays, lingers over the story's opening seconds and goes on its own
- * slow fade. A title inside the card would leave with the card, and the story
- * would open on nothing.
+ * It outlives the FILM, not the card. The title is not on the card layer — it
+ * is its own element above it, so the curtain can take the film out from under
+ * the name and leave the name standing on the black. It goes with that black,
+ * on the curtain's second half: a title inside the card would be pulled off the
+ * moment the film was, and one that outlasted the curtain would still be
+ * fading over a scene that had already begun.
  *
  * It never holds the story up, and it never takes the story down. That is
  * `card-phase.mjs`'s law and it reaches in here whole: a lead the story never
@@ -54,14 +55,12 @@ export const CARD_TITLE_TAIL_MS = 600;
 // here: a timer and a stylesheet that disagree about a fade is a fade cut in
 // half at one end or a dead layer left at the other.
 export const CARD_TITLE_FADE_MS = 500;
-// How long the title stays after the curtain has gone, over the story's own
-// opening. The film it was raised over is gone by then and the story is
-// running; this is the beat where the two overlap.
-export const CARD_TITLE_LINGER_MS = 1_800;
-// And the slow way out of it. Slower than it arrived, deliberately: a title
-// that leaves at the speed it came reads as a cut, and the story underneath is
-// already the thing being watched.
-export const CARD_TITLE_OUT_MS = 900;
+// The way out, taken with the black rather than after it. The name and the
+// sprite belong to the card, so they go when the card does: held over the story
+// they are a title sequence still running over a scene that has begun, which is
+// the one place they are in the way. Matches the curtain's second half in
+// `styles.css` — the ink and the name reach nothing at the same moment.
+export const CARD_TITLE_OUT_MS = 450;
 // The cell size the lead's sheet is asked for. NOT the sprite's size on a
 // device's screen, which is what the stage asks the same ladder for. A scene
 // draws its cast from CHUNKS of a tier — a few frames at a time — while a card
@@ -79,9 +78,9 @@ export function createCardTitle({
   const context = canvas.getContext?.('2d') ?? null;
   const named = new Set();
   const sprite = findSprite();
-  // The one timer the beat ever has: the linger, and then the fade out of it,
-  // one after the other and never at once. Held rather than fired and
-  // forgotten, because it has to be able to STOP — see `freeze`.
+  // The one timer the beat ever has: the fade out, started by the curtain.
+  // Held rather than fired and forgotten, because it has to be able to STOP —
+  // see `freeze`.
   let waiting = null;
   let frame = null;
   let looping = false;
@@ -90,7 +89,7 @@ export function createCardTitle({
   let decoded = false;
   let refused = false;
 
-  return { warm, reveal, freeze, thaw, linger, clear };
+  return { warm, reveal, freeze, thaw, leave, clear };
 
   /**
    * The sheet, asked for while the film is still playing.
@@ -157,13 +156,17 @@ export function createCardTitle({
     if (looping) tick(now());
   }
 
-  /** The curtain is over. The title stays a moment longer, then goes. */
-  function linger() {
+  /**
+   * The black is going out, and the name goes with it.
+   *
+   * Started by the curtain's second half rather than by its end: what the two
+   * of them uncover is the story, and a name still fading over an opening scene
+   * is the card refusing to be over.
+   */
+  function leave() {
     if (layer.hidden) return;
-    after(CARD_TITLE_LINGER_MS, () => {
-      layer.classList.add('is-fading');
-      after(CARD_TITLE_OUT_MS, clear);
-    });
+    layer.classList.add('is-fading');
+    after(CARD_TITLE_OUT_MS, clear);
   }
 
   /** Off NOW: a replay, a second card, a teardown. */

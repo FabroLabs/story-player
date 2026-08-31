@@ -43,11 +43,6 @@ export const CARD_DUCKED_MUSIC_VOLUME = 0.15;
 // who its lead was. A card that DOES name one shows nothing here: the name
 // waits for the held last frame, which is `CARD_TITLE_HOLD_MS`.
 export const CARD_LINE_DELAY_MS = 1_000;
-// The curtain: how long the card stays on screen once the phase is over, fading
-// over the story that has already started behind it. Matches the transition in
-// `styles.css` — a shorter timer here would cut the fade, a longer one would
-// leave a transparent layer taking clicks.
-export const CARD_CURTAIN_MS = 700;
 // The hold. A film that has just stopped is not the same as a film that is
 // over: cut on the frame the last motion landed on and an ending reads as a
 // dropped connection. The last frame stays on screen, with the music still
@@ -59,6 +54,17 @@ export const CARD_HOLD_MS = 1_200;
 // same again. Matches the transitions in `styles.css` — pinned, like the
 // curtain, and for the same reason.
 export const CARD_REVEAL_MS = 250;
+// The curtain, whole: the film going under the layer's own ink over
+// `CARD_REVEAL_MS`, then the ink going out onto the story over what is left.
+// The arrival run backwards — a card that dissolved straight into scene one
+// reads as a blur rather than an ending, two lit forests crossing over.
+// Matches the transitions in `styles.css` — a shorter timer here would cut the
+// fade, a longer one would leave a transparent layer taking clicks.
+export const CARD_CURTAIN_MS = 700;
+
+/** The second half of the curtain: the black going out onto the story. */
+export const CARD_CURTAIN_OUT_MS = CARD_CURTAIN_MS - CARD_REVEAL_MS;
+
 // The step of the music's fade. An `<audio>` element has no ramp of its own and
 // a card has no clock to hang a WebAudio graph off, so the slope is drawn by
 // hand: short enough steps that the ear hears one fall rather than a staircase.
@@ -77,6 +83,8 @@ export function createCardPhase({ elements, cards, title = null, onWarning = () 
   const document = video.ownerDocument ?? globalThis.document ?? null;
   let active = null;
   let curtain = null;
+  // The black beat inside the curtain: the film is down, the ink is not yet.
+  let blackout = null;
   // One `<video>`, used twice and never at once, so the films are warmed in the
   // order they are played: the end card may not take the element until the
   // opening has had it, or a story that opens on scene 0 — which is also its
@@ -111,10 +119,10 @@ export function createCardPhase({ elements, cards, title = null, onWarning = () 
     // which is the failure this whole handler exists to prevent. A fade nobody
     // can watch is a fade that is over.
     if (away && curtain !== null) hideLayer();
-    // The title outlives the phase, so nothing above reaches it once the story
-    // has the stage — and the story itself pauses with the tab. A linger left
-    // running in the dark is a viewer coming back to their story already begun
-    // with nothing over it.
+    // The title's own fade is started by the curtain and outlives the phase by
+    // the rest of it, so nothing above reaches it — and the story underneath
+    // pauses with the tab. A fade left running in the dark is a viewer coming
+    // back to their story already begun with nothing over it.
     if (away) title?.freeze();
     else title?.thaw();
   };
@@ -148,8 +156,8 @@ export function createCardPhase({ elements, cards, title = null, onWarning = () 
       // by the length of the curtain, and a viewer who has just scrubbed back
       // into the story would otherwise hear the end card playing over it.
       if (curtain !== null) hideLayer();
-      // Last, because the line above ends a curtain, and ending a curtain is
-      // what starts a title's linger.
+      // Last, because the line above ends a curtain, and a curtain is what puts
+      // the title on its way out.
       title?.clear();
     },
     destroy,
@@ -475,8 +483,8 @@ export function createCardPhase({ elements, cards, title = null, onWarning = () 
     phase.holdMs = wanted;
     // The length is recorded whatever the tab is doing, but a beat a hidden tab
     // stopped by hand stays stopped. Armed here it would run the held frame, the
-    // curtain and the linger out in the dark, and the viewer would come back to
-    // a story already begun with the card they never saw behind it. `resumeCard`
+    // curtain and the title's fade out in the dark, and the viewer would come
+    // back to a story already begun with the card they never saw. `resumeCard`
     // arms this length when the tab comes back, which is the whole reason the
     // length lives on the phase rather than in the timer.
     if (held) return;
@@ -547,10 +555,10 @@ export function createCardPhase({ elements, cards, title = null, onWarning = () 
     if (!draw) {
       release(phase);
       hideLayer();
-      // The title outlives the CURTAIN, not the card. A close with no fade
-      // behind it — a broken film, a refusal, a teardown — has no story opening
-      // for it to linger over, and leaving it up would put the last card's name
-      // over the whole of what follows.
+      // The title leaves ON the curtain, so a close with no curtain behind it —
+      // a broken film, a refusal, a teardown — has nothing to take it out, and
+      // leaving it up would put the last card's name over the whole of what
+      // follows.
       phase.title?.clear();
       phase.resolve();
       return;
@@ -561,19 +569,57 @@ export function createCardPhase({ elements, cards, title = null, onWarning = () 
     drawCurtain();
   }
 
+  /**
+   * The curtain, which is the arrival run backwards.
+   *
+   * A card that simply dissolved into the story would not read as an ending at
+   * all: one lit forest cross-fading into another lit forest over 700 ms is a
+   * blur, not a curtain, and a viewer watching for it does not see it. So the
+   * picture goes first, under the layer's own ink, and the ink goes second —
+   * film, black, story, the same three beats the opening has in the other order.
+   *
+   * The exception is a card curtained INSIDE its own arrival, which is already
+   * black and has no picture left to take down. `release` has cancelled the
+   * timer that would have ended the arrival, so the black is taken off here
+   * instead and the fade is of the film — otherwise the card would spend its
+   * whole beat on a black rectangle in front of a story that has not begun.
+   */
   function drawCurtain() {
-    // The arrival is over the moment the curtain starts, however far into it the
-    // card got: `release` has already cancelled the timer that would have ended
-    // it, so a card skipped inside its own reveal would fade out a black
-    // rectangle — 700 ms of nothing where its picture should be.
-    layer.classList.remove('is-arriving', 'is-dark');
-    layer.classList.add('is-gone');
     // The timer alone: a curtain being STARTED must not run the end of one.
     stopCurtainTimer();
+    const arriving = layer.classList.contains('is-dark');
+    layer.classList.remove('is-arriving');
+    if (arriving) {
+      layer.classList.remove('is-dark');
+      goOut();
+    } else {
+      layer.classList.add('is-dark');
+      blackout = setTimeout(() => {
+        blackout = null;
+        goOut();
+      }, CARD_REVEAL_MS);
+    }
     curtain = setTimeout(hideLayer, CARD_CURTAIN_MS);
   }
 
+  /**
+   * The ink goes out onto the story, and the title goes out with it.
+   *
+   * The name and the sprite are on a layer of their own above the card so the
+   * FILM can be taken out from under them — not so they can outlast the ending.
+   * They leave on the same half of the curtain the black does, and what the
+   * story opens on is the story.
+   */
+  function goOut() {
+    layer.classList.add('is-gone');
+    pending?.title?.leave();
+  }
+
   function stopCurtainTimer() {
+    if (blackout !== null) {
+      clearTimeout(blackout);
+      blackout = null;
+    }
     if (curtain === null) return;
     clearTimeout(curtain);
     curtain = null;
@@ -610,11 +656,6 @@ export function createCardPhase({ elements, cards, title = null, onWarning = () 
     const waiting = pending;
     pending = null;
     waiting?.resolve();
-    // The card is gone and the story has the stage. The title does not leave
-    // with the film it was raised over — it holds over the opening seconds and
-    // then fades on its own. Asked of the phase that drew this curtain rather
-    // than of the mount, so a curtain with nothing behind it raises nothing.
-    waiting?.title?.linger();
   }
 
   /**

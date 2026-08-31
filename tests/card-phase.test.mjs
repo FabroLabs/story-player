@@ -21,6 +21,7 @@ import test from 'node:test';
 import { createStoryPlayer } from '../browser/embed.mjs';
 import {
   CARD_CURTAIN_MS,
+  CARD_CURTAIN_OUT_MS,
   CARD_DUCKED_MUSIC_VOLUME,
   CARD_HOLD_MS,
   CARD_LINE_DELAY_MS,
@@ -35,7 +36,6 @@ import {
   CARD_TITLE_FADE_MS,
   CARD_TITLE_HOLD_CEILING_MS,
   CARD_TITLE_HOLD_MS,
-  CARD_TITLE_LINGER_MS,
   CARD_TITLE_OUT_MS,
   CARD_TITLE_TAIL_MS,
   createCardTitle,
@@ -942,31 +942,35 @@ test('a card that names its lead ends on a title beat instead of an early line',
   assert.equal(player.layer.classList.contains('is-gone'), true, 'the curtain never came');
 });
 
-test('the title outlives the curtain, holds over the story, and fades on its own', async (t) => {
+test('the title outlives the FILM and leaves with the black, not after it', async (t) => {
   const player = await mountLead(t);
   player.begin();
   player.video.dispatch('playing');
+  player.timers.runOf(CARD_REVEAL_MS); // out of the arrival's black, as a real card is
   await settle();
   player.video.dispatch('ended');
   await settle();
-  playOutTitle(player);
-  await settle();
+  player.timers.runOf(CARD_TITLE_HOLD_MS);
 
-  // The card is gone and the story has the stage — and the title is still on
-  // it. Fading it with the film would leave the story opening on nothing.
-  assert.equal(player.layer.hidden, true, 'the card outstayed its curtain');
-  assert.equal(player.controls.hidden, false, 'the story never began');
+  // First half of the curtain: the film goes under the black with the name
+  // still on it. Fading the name with the FILM would leave the black bare.
+  assert.equal(player.titleLayer.hidden, false, 'the title left with the film it was raised over');
+  assert.equal(player.titleLayer.classList.contains('is-fading'), false, 'the title left before the black did');
   // The one thing the class names cannot say. Nested inside the card layer the
   // assertions below would still pass — the fake DOM cascades neither `hidden`
   // nor `display` — while a real browser took the title away with the film.
   assert.notEqual(player.titleLayer.parent, player.layer, 'the title is inside the card it outlives');
   assert.equal(player.titleLayer.parent, player.frame, 'the title left the stage frame');
-  assert.equal(player.titleLayer.hidden, false, 'the title left with the film it was raised over');
-  assert.equal(player.titleLayer.classList.contains('is-fading'), false, 'the linger was skipped');
 
-  player.timers.runOf(CARD_TITLE_LINGER_MS);
-  assert.equal(player.titleLayer.classList.contains('is-fading'), true, 'the title never started leaving');
+  // Second half: the black goes out onto the story, and the name goes with it.
+  player.timers.runOf(CARD_REVEAL_MS);
+  assert.equal(player.titleLayer.classList.contains('is-fading'), true, 'the title stayed on over the story');
   assert.equal(player.titleLayer.hidden, false, 'the title was taken away instead of faded');
+
+  player.timers.runOf(CARD_CURTAIN_MS);
+  await settle();
+  assert.equal(player.layer.hidden, true, 'the card outstayed its curtain');
+  assert.equal(player.controls.hidden, false, 'the story never began');
 
   player.timers.runOf(CARD_TITLE_OUT_MS);
   assert.equal(player.titleLayer.hidden, true, 'a transparent layer was left over the story');
@@ -995,6 +999,7 @@ test('a lead the story never cast still gets its beat, with one line in the log'
 
   player.begin();
   player.video.dispatch('playing');
+  player.timers.runOf(CARD_REVEAL_MS); // out of the arrival's black, as a real card is
   await settle();
   player.video.dispatch('ended');
   await settle();
@@ -1016,6 +1021,7 @@ test('a sprite sheet that has not decoded costs the story nothing', async (t) =>
   const release = holdAssets();
   player.begin();
   player.video.dispatch('playing');
+  player.timers.runOf(CARD_REVEAL_MS); // out of the arrival's black, as a real card is
   await settle();
   player.video.dispatch('ended');
   await settle();
@@ -1113,12 +1119,12 @@ test('the end card carries no title, and holds for the plain beat', async (t) =>
   const player = await mountLead(t);
   player.begin();
   player.video.dispatch('playing');
+  player.timers.runOf(CARD_REVEAL_MS); // out of the arrival's black, as a real card is
   await settle();
   player.video.dispatch('ended');
   await settle();
   playOutTitle(player);
   await settle();
-  player.timers.runOf(CARD_TITLE_LINGER_MS);
   player.timers.runOf(CARD_TITLE_OUT_MS);
   assert.equal(player.titleLayer.hidden, true);
 
@@ -1149,6 +1155,7 @@ test('a replayed opening asks for the lead’s sheet again', async (t) => {
   });
   player.begin();
   player.video.dispatch('playing');
+  player.timers.runOf(CARD_REVEAL_MS); // out of the arrival's black, as a real card is
   await settle();
   player.video.dispatch('ended');
   await settle();
@@ -1159,7 +1166,6 @@ test('a replayed opening asks for the lead’s sheet again', async (t) => {
   assert.equal(sprites(player).length, 0);
   playOutTitle(player);
   await settle();
-  player.timers.runOf(CARD_TITLE_LINGER_MS);
   player.timers.runOf(CARD_TITLE_OUT_MS);
 
   player.frames.advanceTo(player.duration);
@@ -1186,6 +1192,7 @@ test('a skip before the ending raises no title over the story', async (t) => {
   const player = await mountLead(t);
   player.begin();
   player.video.dispatch('playing');
+  player.timers.runOf(CARD_REVEAL_MS); // out of the arrival's black, as a real card is
   await settle();
 
   // A viewer who skips wants out, not a title card — and nothing may fade up
@@ -1196,7 +1203,7 @@ test('a skip before the ending raises no title over the story', async (t) => {
   await settle();
   assert.equal(player.controls.hidden, false, 'the story never began');
   assert.equal(player.titleLayer.hidden, true, 'a title faded up over the story out of nowhere');
-  assert.throws(() => player.timers.runOf(CARD_TITLE_LINGER_MS), /no timer was armed/);
+  assert.throws(() => player.timers.runOf(CARD_TITLE_OUT_MS), /no timer was armed/);
 });
 
 test('a skip DURING the beat keeps the title it is already showing', async (t) => {
@@ -1212,7 +1219,6 @@ test('a skip DURING the beat keeps the title it is already showing', async (t) =
   player.timers.runOf(CARD_CURTAIN_MS);
   await settle();
   assert.equal(player.titleLayer.hidden, false, 'skipping out of the beat cut the title with the card');
-  player.timers.runOf(CARD_TITLE_LINGER_MS);
   player.timers.runOf(CARD_TITLE_OUT_MS);
   assert.equal(player.titleLayer.hidden, true);
 });
@@ -1343,39 +1349,40 @@ test('a card that ends without a curtain takes its title with it', async (t) => 
   assert.ok(title.calls.includes('reveal'), 'the beat never opened — this test proves nothing');
 
   // A film that breaks after its own ending: there is no fade for the title to
-  // outlive, and no story opening for it to linger over.
+  // outlive, and no curtain to take it out.
   card.video.dispatch('error');
   assert.equal(title.calls.at(-1), 'clear', 'the title was left over the whole story');
   await settle();
   assert.deepEqual(done, ['gone']);
 });
 
-test('a lingering title stops with the tab, and the story it lingers over', async (t) => {
+test('a title on its way out stops with the tab, and the story under it', async (t) => {
   const player = await mountLead(t);
   player.begin();
   player.video.dispatch('playing');
+  player.timers.runOf(CARD_REVEAL_MS); // out of the arrival's black, as a real card is
   await settle();
   player.video.dispatch('ended');
   await settle();
   playOutTitle(player);
   await settle();
-  assert.equal(player.titleLayer.hidden, false, 'the linger never started');
+  assert.equal(player.titleLayer.hidden, false, 'the title was taken away rather than faded');
 
-  // Nothing in the card phase is holding a title once the curtain is over, and
-  // the story underneath pauses with the tab: a linger left running in the dark
-  // is a viewer coming back to a story already begun with nothing over it.
+  // The card phase is over by the time the fade finishes, and the story under
+  // it pauses with the tab: a fade left running in the dark is a viewer coming
+  // back to a story already begun with nothing over it.
   document.visibilityState = 'hidden';
   document.dispatch('visibilitychange');
   assert.throws(
-    () => player.timers.runOf(CARD_TITLE_LINGER_MS),
+    () => player.timers.runOf(CARD_TITLE_OUT_MS),
     /no timer was armed/,
-    'the linger ran on in a hidden tab',
+    'the title finished leaving in a hidden tab',
   );
 
   document.visibilityState = 'visible';
   document.dispatch('visibilitychange');
-  player.timers.runOf(CARD_TITLE_LINGER_MS);
-  assert.equal(player.titleLayer.classList.contains('is-fading'), true, 'the linger never came back');
+  player.timers.runOf(CARD_TITLE_OUT_MS);
+  assert.equal(player.titleLayer.hidden, true, 'the title never finished leaving');
 });
 
 test('a lead with no name to raise keeps the card it always had', async (t) => {
@@ -1463,6 +1470,7 @@ test('the sprite freezes with the tab and comes back with it', async (t) => {
   const player = await mountLead(t);
   player.begin();
   player.video.dispatch('playing');
+  player.timers.runOf(CARD_REVEAL_MS); // out of the arrival's black, as a real card is
   await settle();
   player.video.dispatch('ended');
   await settle();
@@ -1482,16 +1490,17 @@ test('the sprite freezes with the tab and comes back with it', async (t) => {
   assert.equal(player.controls.hidden, false);
 });
 
-test('a teardown mid-linger takes the title with it', async (t) => {
+test('a teardown mid-fade takes the title with it', async (t) => {
   const player = await mountLead(t);
   player.begin();
   player.video.dispatch('playing');
+  player.timers.runOf(CARD_REVEAL_MS); // out of the arrival's black, as a real card is
   await settle();
   player.video.dispatch('ended');
   await settle();
   playOutTitle(player);
   await settle();
-  assert.equal(player.titleLayer.hidden, false, 'the linger never started — this test proves nothing');
+  assert.equal(player.titleLayer.hidden, false, 'the fade never started — this test proves nothing');
 
   player.handle.destroy();
   assert.equal(player.titleLayer.hidden, true, 'a torn-down player left its title on the page');
@@ -1526,7 +1535,10 @@ test('the stylesheet really takes a hidden card layer off the screen', () => {
   // `is-gone` as well and placed after them.
   const gone = css.match(/\.card-layer\.is-gone\s*\{[^}]*transition:\s*opacity\s*(\d+)ms/);
   assert.ok(gone, 'a card skipped during its own arrival fades at the arrival’s speed');
-  assert.equal(Number(gone[1]), CARD_CURTAIN_MS, 'the curtain timer and the stylesheet disagree');
+  // The SECOND half of the curtain. The first is the film going under the ink
+  // at the reveal's own speed; what is left of the beat is the ink going out.
+  assert.equal(Number(gone[1]), CARD_CURTAIN_OUT_MS, 'the curtain’s two halves and the stylesheet disagree');
+  assert.equal(CARD_CURTAIN_OUT_MS + CARD_REVEAL_MS, CARD_CURTAIN_MS, 'the two halves no longer make the curtain');
 
   // The arrival is one fade written in two places too, and the film comes out of
   // the black over the same number the black arrived in.
@@ -1604,7 +1616,7 @@ test('a name whose length lands while the tab is away does not run the ending in
 
   // A hidden tab does not stop a file loading, so the one thing the beat was
   // waiting for can arrive after the beat has been stopped by hand. Armed on
-  // it, the held frame, the curtain and the linger would all run out unwatched
+  // it, the held frame, the curtain and the title's fade would run out unwatched
   // and the viewer would come back to a story already begun with nothing over
   // it — which is the exact failure `holdCard` clears the hold to prevent.
   spoken.duration = 4.1;
@@ -1622,24 +1634,24 @@ test('a name whose length lands while the tab is away does not run the ending in
   assert.equal(player.layer.classList.contains('is-gone'), true, 'the beat came back at the wrong length');
 });
 
-test('a linger that lands while the tab is away waits for it to come back', (t) => {
+test('a title told to leave while the tab is away waits for it to come back', (t) => {
   const beat = bareTitle(t, { story: oneCharacter(soloist) });
   beat.title.reveal(TITLE);
   beat.title.freeze();
 
-  // The curtain can end after the tab has gone: the phase is over by then, so
-  // nothing hands this beat a second freeze. A linger armed here runs out in
-  // the dark and the title is gone before the viewer is back to read it.
-  beat.title.linger();
+  // The curtain can reach its second half after the tab has gone: the phase is
+  // over by then, so nothing hands this beat a second freeze. A fade counted
+  // down in the dark takes the title away before the viewer is back to read it.
+  beat.title.leave();
   assert.throws(
-    () => beat.timers.runOf(CARD_TITLE_LINGER_MS),
+    () => beat.timers.runOf(CARD_TITLE_OUT_MS),
     /no timer was armed/,
-    'the title held over the story counted itself down with the tab away',
+    'the title counted its own way out with the tab away',
   );
 
   beat.title.thaw();
-  beat.timers.runOf(CARD_TITLE_LINGER_MS);
-  assert.equal(beat.layer.classList.contains('is-fading'), true, 'the linger was lost rather than held');
+  beat.timers.runOf(CARD_TITLE_OUT_MS);
+  assert.equal(beat.layer.hidden, true, 'the title was left on the page');
 });
 
 test('a title that throws after the film has already stalled is still named', async (t) => {
@@ -1709,30 +1721,32 @@ test('a replayed opening takes down the title the last one left standing', async
   const card = bareCard(t, { title });
   card.phase.playIntro();
   card.video.dispatch('playing');
+  card.timers.runOf(CARD_REVEAL_MS); // out of the arrival's black, as a real card is
   card.video.dispatch('ended');
   playOutTitle(card);
   await settle();
-  assert.equal(title.calls.at(-1), 'linger', 'the linger never started — this test proves nothing');
+  assert.equal(title.calls.at(-1), 'leave', 'the way out never started — this test proves nothing');
 
-  // The title holds over the story for the best part of three seconds, and a
-  // replay can land inside them. Left standing, the old name watches the new
-  // film — and its own linger then takes the NEW title down behind it.
+  // The title is still fading when the curtain ends, and a replay can land
+  // inside that. Left standing, the old name watches the new film — and its own
+  // fade then takes the NEW title down behind it.
   card.phase.playIntro();
   assert.equal(title.calls.at(-1), 'clear', 'a replay was watched through the title of the card before it');
 });
 
-test('a cancel mid-linger takes the title with it', async (t) => {
+test('a cancel mid-fade takes the title with it', async (t) => {
   const title = recordingTitle();
   const card = bareCard(t, { title });
   card.phase.playIntro();
   card.video.dispatch('playing');
+  card.timers.runOf(CARD_REVEAL_MS); // out of the arrival's black, as a real card is
   card.video.dispatch('ended');
   playOutTitle(card);
   await settle();
-  assert.equal(title.calls.at(-1), 'linger', 'the linger never started — this test proves nothing');
+  assert.equal(title.calls.at(-1), 'leave', 'the way out never started — this test proves nothing');
 
-  // A scrub out of the end, a replay from the end screen: the story the title
-  // was lingering over is gone, so the title has nothing left to linger over.
+  // A scrub out of the end, a replay from the end screen: whatever the title
+  // was fading over is gone, so it has nothing left to fade over.
   card.phase.cancel();
   assert.equal(title.calls.at(-1), 'clear', 'a cancelled story kept the last card’s name over it');
 });
@@ -1761,6 +1775,68 @@ test('an end card that carries a name of its own still raises no title', async (
   assert.equal(card.layer.classList.contains('is-gone'), true, 'the end card never faded');
 });
 
+
+test('the curtain takes the picture down before it takes the layer', async (t) => {
+  const card = bareCard(t);
+  const done = [];
+  card.phase.playIntro().then(() => done.push('gone'));
+  card.video.dispatch('playing');
+  card.timers.runOf(CARD_REVEAL_MS);
+  assert.equal(card.layer.classList.contains('is-dark'), false, 'the film never came out of the black');
+  card.video.dispatch('ended');
+  card.timers.runOf(CARD_HOLD_MS);
+
+  // The film goes first, under the layer's own ink. A card that dissolved
+  // straight into the story reads as nothing at all — one lit forest over
+  // another — which is the whole reason the ending has a black beat.
+  assert.equal(card.layer.classList.contains('is-dark'), true, 'the curtain dissolved the film into the story');
+  assert.equal(card.layer.classList.contains('is-gone'), false, 'the ink went out with the picture still on it');
+
+  card.timers.runOf(CARD_REVEAL_MS);
+  assert.equal(card.layer.classList.contains('is-gone'), true, 'the black never went out onto the story');
+  assert.equal(card.layer.classList.contains('is-dark'), true, 'the film came back up inside the curtain');
+
+  card.timers.runOf(CARD_CURTAIN_MS);
+  await settle();
+  assert.deepEqual(done, ['gone'], 'the phase promise never settled');
+  assert.equal(card.layer.hidden, true);
+});
+
+test('a skip goes through the same black as an ending', async (t) => {
+  const card = bareCard(t);
+  card.phase.playIntro();
+  card.video.dispatch('playing');
+  card.timers.runOf(CARD_REVEAL_MS);
+  card.skip.dispatch('click');
+
+  // A viewer who skips wants out, not a title card — but they get the same
+  // ending, at once instead of after the hold.
+  assert.equal(card.layer.classList.contains('is-dark'), true, 'the skip dissolved the film into the story');
+  assert.equal(card.layer.classList.contains('is-gone'), false);
+  card.timers.runOf(CARD_REVEAL_MS);
+  assert.equal(card.layer.classList.contains('is-gone'), true);
+});
+
+test('a teardown inside the black beat still settles the story’s promise', async (t) => {
+  const card = bareCard(t);
+  const done = [];
+  card.phase.playIntro().then(() => done.push('gone'));
+  card.video.dispatch('playing');
+  card.timers.runOf(CARD_REVEAL_MS);
+  card.skip.dispatch('click');
+  assert.equal(card.layer.classList.contains('is-gone'), false, 'the black beat never started — this proves nothing');
+
+  // Between the picture going down and the ink going out there is a timer of
+  // its own, and a phase torn down across it must not leave the story waiting.
+  card.phase.destroy();
+  await settle();
+  assert.deepEqual(done, ['gone']);
+  assert.throws(
+    () => card.timers.runOf(CARD_REVEAL_MS),
+    /no timer was armed/,
+    'the black beat was left running after the teardown',
+  );
+});
 
 const floorZone = {
   name: 'floor', surface: 'floor', description: '', depth: null, scale: null,
@@ -1889,6 +1965,9 @@ function mountLead(t, lead = LEAD) {
 /** The ending of a card that has a title to raise: a longer beat, then the fade. */
 function playOutTitle(player) {
   player.timers.runOf(CARD_TITLE_HOLD_MS);
+  // The curtain is two beats now: the film goes under the black, and then the
+  // black — and the title with it — goes out onto the story.
+  player.timers.runOf(CARD_REVEAL_MS);
   player.timers.runOf(CARD_CURTAIN_MS);
 }
 
@@ -2061,7 +2140,7 @@ function recordingTitle(overrides = {}) {
     reveal: record('reveal'),
     freeze: record('freeze'),
     thaw: record('thaw'),
-    linger: record('linger'),
+    leave: record('leave'),
     clear: record('clear'),
   };
 }

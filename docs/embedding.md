@@ -276,24 +276,30 @@ it:
   while the opening scene is decoded, its own `<video>` is the clock, and the
   music starts inside the click. It arrives through black rather than in front
   of what was on screen, and it ENDS as a beat rather than a cut: the film's
-  last frame is held with the music still playing, then a curtain fades the card
+  last frame is held with the music still playing, then a curtain takes the card
   away with the music falling inside it, and the story is begun only once that
-  fade is over.
+  curtain is over. The curtain is the arrival run backwards and takes the same
+  half-second: the film goes under the layer's own black first, then the black
+  goes out onto the story. A card that simply dissolved into scene one would not
+  read as an ending at all — two lit forests crossing over each other is a blur,
+  not a curtain — and a black that outstayed the arrival that made it would read
+  as a wait.
 - What happens on that held frame is what `intro.lead` decides. **Without a
   lead**, the story's name is written and spoken a second into the film, with
-  the music ducked under it, and the held frame is a short beat — budget about
-  two seconds between the film's last frame and the story's first. **With one**,
+  the music ducked under it, and the held frame is a short beat — budget about a
+  second and three quarters between the film's last frame and the story's first. **With one**,
   nothing is written over the moving picture at all: the name waits for the held
   frame and fades in there, spoken at the same moment, with the lead standing
   beside it in its idle loop. The name and the sprite are drawn on a layer of
-  their own ABOVE the card, so the curtain takes the film out from under them —
-  they hold over the story's opening seconds and then go on a slower fade of
-  their own.
+  their own ABOVE the card, so the curtain can take the film out from under them
+  and leave them standing on the black — and then they go WITH that black, on
+  the curtain's second half. What the story opens on is the story.
 - That beat is at least three seconds and no more than six: it asks the spoken
   title's own file how long it is and waits for it, because a title sequence
   that clips the title is the thing this beat exists to fix. A narration with no
-  audio, or one that never reports a duration, gets the three. So budget four to
-  seven seconds between the film's last frame and the story's first.
+  audio, or one that never reports a duration, gets the three. So budget between
+  three and a half and six and a half seconds between the film's last frame and
+  the story's first.
 - The lead's sprite is drawn from the same bundle and the same decoded-sheet
   cache the scenes are, at the smallest rendition the ladder carries: it is a
   decoration on a three-second beat, not a subject. It is asked for while the

@@ -565,9 +565,12 @@ button:focus-visible {
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
-  /* Spelled out again so an arrival still in flight cannot shorten the curtain:
-     these selectors weigh the same, and the one further down the file wins. */
-  transition: opacity 700ms ease, visibility 700ms ease;
+  /* The SECOND half of the curtain: the film has already gone under the ink
+     over the reveal's 250 ms, so what is left of `CARD_CURTAIN_MS` is the ink
+     itself going out onto the story. Spelled out here rather than inherited so
+     an arrival still in flight cannot lend the curtain its own speed: these
+     selectors weigh the same, and the one further down the file wins. */
+  transition: opacity 450ms ease, visibility 450ms ease;
 }
 
 /* Letterboxed rather than cropped: one film is shared by every story told in
@@ -637,12 +640,13 @@ button:focus-visible {
 
 .card-title.is-shown { opacity: 1; }
 
-/* Slower than it arrived, and spelled out after `is-shown` so the two selectors
-   cannot be settled by order alone: what is underneath by now is the story, and
-   a title that leaves at the speed it came reads as a cut. */
+/* Out with the black, not after it: this is the curtain's second half, so the
+   ink under the name and the name itself reach nothing on the same frame.
+   Spelled out after `is-shown` so the two selectors cannot be settled by order
+   alone. */
 .card-title.is-fading {
   opacity: 0;
-  transition: opacity 900ms ease;
+  transition: opacity 450ms ease;
 }
 
 /* Backed by exactly one cell of the lead's sheet and scaled here, so the sprite
