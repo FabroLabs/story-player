@@ -29,6 +29,7 @@ import {
   buildDrawList,
 } from '../browser/v0/app/stage/draw-list.mjs';
 import { stateAt } from '../browser/v0/core/state/state.mjs';
+import { HIGHLIGHT, SLATE } from '../browser/v0/policy.mjs';
 import { STEMS, read } from './_parity.mjs';
 
 const GOLDENS = new URL('fixtures/drawlist/', import.meta.url);
@@ -220,6 +221,156 @@ test('paint order is the state core’s answer, carried through unchanged', () =
 test('a plate with no resolution of its own is the stage’s default', () => {
   const list = buildDrawList(actorState({ plate: { poster: 'p.jpg' } }));
   assert.deepEqual([list.width, list.height], [1920, 1080]);
+});
+
+// --- the lesson's two overlays ---------------------------------------------
+
+const slateList = (slate, tMs = 0, plate) => buildDrawList({ ...actorState({ plate }), slate, tMs });
+const only = (list, op) => list.commands.filter((command) => command.op === op);
+
+test('a story that counts nothing draws no board at all', () => {
+  for (const slate of [undefined, null, { count: 0, sinceMs: 0 }, { count: 1.5, sinceMs: 0 }]) {
+    assert.deepEqual(only(slateList(slate), 'slate'), [], JSON.stringify(slate));
+  }
+});
+
+test('the board is one card per number, in a row centred on the plate', () => {
+  const [board] = only(slateList({ count: 3, sinceMs: 0 }, SLATE.popMs), 'slate');
+  const cell = (SLATE.cellPct / 100) * 1080;
+  const gap = (SLATE.gapPct / 100) * 1080;
+  const width = (3 * cell) + (2 * gap);
+
+  assert.equal(board.count, 3);
+  assert.deepEqual(board.cells.map((card) => card.n), [1, 2, 3]);
+  assert.deepEqual(board.cells.map((card) => card.dy), [32.4, 32.4, 32.4]);
+  assert.equal(board.cells[0].dx, Math.round(((1920 - width) / 2) * 100) / 100);
+  // A card is square: `cellPct` is one number and it measures both sides.
+  for (const card of board.cells) assert.equal(card.dh, card.dw);
+  // Every card the same size, and the gap between two of them is the published one.
+  assert.deepEqual(new Set(board.cells.map((card) => card.dw)), new Set([board.cells[0].dw]));
+  assert.equal(
+    Math.round((board.cells[1].dx - (board.cells[0].dx + board.cells[0].dw)) * 10) / 10,
+    Math.round(gap * 10) / 10,
+  );
+});
+
+test('past five the board wraps, and each row is centred on its own width', () => {
+  const [board] = only(slateList({ count: 7, sinceMs: 0 }, SLATE.popMs), 'slate');
+  const top = board.cells.filter((card) => card.n <= SLATE.perRow);
+  const wrapped = board.cells.filter((card) => card.n > SLATE.perRow);
+
+  assert.equal(new Set(top.map((card) => card.dy)).size, 1);
+  assert.equal(new Set(wrapped.map((card) => card.dy)).size, 1);
+  // The rows step by a card and a gap — not by a card, which overlaps them, and
+  // not by more, which walks the board down the frame.
+  const cell = (SLATE.cellPct / 100) * 1080;
+  const gap = (SLATE.gapPct / 100) * 1080;
+  assert.equal(Math.round((wrapped[0].dy - top[0].dy) * 10) / 10, Math.round((cell + gap) * 10) / 10);
+  // Two cards centred sit further in than five do.
+  assert.ok(wrapped[0].dx > top[0].dx, 'the short row is centred, not left-aligned');
+});
+
+test('the board stops at the published ceiling rather than running down the frame', () => {
+  const [board] = only(slateList({ count: SLATE.max + 5, sinceMs: 0 }, SLATE.popMs), 'slate');
+
+  assert.equal(board.count, SLATE.max);
+  assert.equal(board.cells.length, SLATE.max);
+  assert.equal(board.cells.at(-1).n, SLATE.max);
+});
+
+test('a card whose instant has not arrived yet is not drawn at a negative size', () => {
+  // Unreachable through the fold, which never hands out a `sinceMs` ahead of
+  // its own t — but `pop` is a published field, and a client that trusts it
+  // would scale a card by a large negative number.
+  const [board] = only(slateList({ count: 1, sinceMs: 1_000 }, 0), 'slate');
+
+  assert.equal(board.cells[0].pop, 0);
+});
+
+test('only the newest card is ringed, and only the newest card pops', () => {
+  const [board] = only(slateList({ count: 3, sinceMs: 0 }, SLATE.popMs / 2), 'slate');
+
+  assert.deepEqual(board.cells.map((card) => card.ring), [false, false, true]);
+  assert.deepEqual(board.cells.slice(0, 2).map((card) => card.pop), [1, 1]);
+  assert.ok(board.cells[2].pop !== 1, 'the newest card is still arriving');
+});
+
+test('the pop starts at nothing, peaks at the published overshoot, and settles at one', () => {
+  // `overshoot` is the number a phone is handed; the curve lives here. Two
+  // files apart is exactly how a published number and its meaning drift.
+  const popAt = (tMs) => only(slateList({ count: 1, sinceMs: 0 }, tMs), 'slate')[0].cells[0].pop;
+  const swept = [];
+  for (let tMs = 0; tMs <= SLATE.popMs; tMs += 1) swept.push(popAt(tMs));
+
+  assert.equal(popAt(0), 0);
+  assert.equal(popAt(SLATE.popMs), 1);
+  assert.equal(popAt(SLATE.popMs * 4), 1);
+  assert.equal(Math.round(Math.max(...swept) * 100) / 100, SLATE.overshoot);
+});
+
+test('the board is marked hud, and it is the last thing on the list', () => {
+  const list = buildDrawList({
+    ...actorState({ actors: [{ slug: 'ruby', x: 50, feetY: 90, heightPx: 200, clip: 'idle_right' }] }),
+    slate: { count: 1, sinceMs: 0 },
+  }, oneSheet('sheet.webp', [1, 1]));
+
+  assert.equal(list.commands.at(-1).op, 'slate');
+  assert.equal(list.commands.at(-1).hud, true);
+  // Nothing else claims to be outside the camera.
+  assert.deepEqual(list.commands.filter((command) => command.hud).map((command) => command.op), ['slate']);
+});
+
+test('the board is measured against the plate, so a smaller stage gets a smaller board', () => {
+  const [big] = only(slateList({ count: 1, sinceMs: 0 }, SLATE.popMs), 'slate');
+  const [small] = only(
+    slateList({ count: 1, sinceMs: 0 }, SLATE.popMs, { resolution: [960, 540] }),
+    'slate',
+  );
+
+  assert.equal(small.cells[0].dw, big.cells[0].dw / 2);
+  assert.equal(small.cells[0].dy, big.cells[0].dy / 2);
+});
+
+test('a ring is drawn around its own actor, right after them', () => {
+  const list = buildDrawList({
+    ...actorState({
+      actors: [
+        { slug: 'ruby', x: 50, feetY: 90, heightPx: 200, clip: 'idle_right', highlightMs: 0 },
+        { slug: 'clover', x: 80, feetY: 90, heightPx: 200, clip: 'idle_right' },
+      ],
+    }),
+    tMs: 300,
+  }, oneSheet('sheet.webp', [1, 1]));
+  const [ring] = only(list, 'ring');
+  const sprite = list.commands.find((command) => command.op === 'sprite' && command.slug === 'ruby');
+
+  assert.equal(list.commands.indexOf(ring), list.commands.indexOf(sprite) + 1);
+  assert.equal(ring.slug, 'ruby');
+  assert.equal(ring.cx, sprite.dx + (sprite.dw / 2));
+  assert.equal(ring.cy, sprite.dy + (sprite.dh / 2));
+  assert.equal(ring.rx, Math.round((sprite.dw / 2) * (1 + (HIGHLIGHT.ringPct / 100)) * 100) / 100);
+  assert.ok(ring.rx > sprite.dw / 2, 'the ring is drawn outside the sprite it names');
+});
+
+test('a ring carries how far through its own life it is, and stops when that is over', () => {
+  const ringAt = (tMs) => only(buildDrawList({
+    ...actorState({ actors: [{ slug: 'ruby', x: 50, feetY: 90, heightPx: 200, clip: 'idle_right', highlightMs: 1_000 }] }),
+    tMs,
+  }, oneSheet('sheet.webp', [1, 1])), 'ring');
+
+  assert.deepEqual(ringAt(900), [], 'nothing before it fires — a seek backward');
+  assert.equal(ringAt(1_000)[0].progress, 0);
+  assert.equal(ringAt(1_000 + (HIGHLIGHT.durationMs / 2))[0].progress, 0.5);
+  assert.deepEqual(ringAt(1_000 + HIGHLIGHT.durationMs), []);
+});
+
+test('an actor nobody ever named carries no ring', () => {
+  const list = buildDrawList(
+    actorState({ actors: [{ slug: 'ruby', x: 50, feetY: 90, heightPx: 200, clip: 'idle_right' }] }),
+    oneSheet('sheet.webp', [1, 1]),
+  );
+
+  assert.deepEqual(only(list, 'ring'), []);
 });
 
 /**

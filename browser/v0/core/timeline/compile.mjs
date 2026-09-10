@@ -12,6 +12,7 @@ import {
   MINIMUM_DEPARTURE_SECONDS,
   MINIMUM_MOVE_SECONDS,
   MOVE_X_PCT_PER_SECOND,
+  SLATE,
 } from '../../policy.mjs';
 
 /**
@@ -181,6 +182,10 @@ class Director {
   #recorder;
   #stage;
   #board = new PlayerBoard();
+  // Props never join the board — a prop on it comes back as a character at the
+  // next scene in the same place — so the one thing that does need to know a
+  // prop is standing here keeps its own scene-scoped note.
+  #propsHere = new Set();
   #scene = null;
   #sceneIndex = null;
   #currentLine = null;
@@ -201,6 +206,7 @@ class Director {
     this.#scene = scene;
     this.#sceneIndex = sceneIndex;
     this.#currentLine = scene.line ?? null;
+    this.#propsHere.clear();
     const origin = this.#origin(scene.line);
     this.#stage.showScene(scene, origin);
     const arrivals = this.#board.beginScene(scene.place, this.#floorSpanFor(scene.place));
@@ -317,7 +323,43 @@ class Director {
       case 'shot': this.#shot(step); break;
       case 'pan_to': this.#panTo(step, reference); break;
       case 'follow': this.#follow(step, reference); break;
+      case 'slate': this.#slate(step, origin); break;
+      case 'highlight': this.#highlight(step, origin); break;
       default: this.warning({ type: 'policy', policy: 'unknown-command', cmd: step.cmd });
+    }
+  }
+
+  // The count is the story's, and it is checked here because a slate is drawn
+  // straight from it: a count that is not a whole number of cards would leave
+  // every client to invent its own board, and they would not agree.
+  #slate(step, origin) {
+    const { count } = step;
+    if (!Number.isInteger(count) || count < 0 || count > SLATE.max) {
+      this.warning({ type: 'policy', policy: 'slate-count-unusable', count: count ?? null });
+      return;
+    }
+    this.#stage.setSlate(count, origin);
+  }
+
+  // Read off the LIVE board rather than the `together` snapshot every other
+  // command resolves against: a highlight asks whether something is on stage,
+  // not where it is, and it is sorted last inside a `together` precisely so
+  // that answer includes whatever that instant has just put there.
+  #highlight(step, origin) {
+    // A step that named nobody is not a step that rang nobody: it is a lesson
+    // whose ring never appears, shipped with a clean compile report.
+    if (!(step.subjects?.length > 0)) {
+      this.warning({ type: 'policy', policy: 'highlight-unaimed' });
+      return;
+    }
+    for (const slug of step.subjects) {
+      const staged = this.#propsHere.has(slug)
+        || this.#board.positionOf(slug)?.place === this.#scene.place;
+      if (!staged) {
+        this.warning({ type: 'policy', policy: 'highlight-missing', slug });
+        continue;
+      }
+      this.#stage.highlight(slug, origin);
     }
   }
 
@@ -436,6 +478,7 @@ class Director {
       ?? sideX(step.position, own.span)
       ?? alongFloor(0.5, own.span);
     this.#stage.placeObject(slug, x, own.zone?.name ?? null, origin);
+    this.#propsHere.add(slug);
   }
 
   #emote(step, reference, origin) {
@@ -624,8 +667,11 @@ function compareTogetherSteps(left, right) {
 
 function togetherStepKey(step) {
   // Position/camera/audio effects begin before expression writes so a valid
-  // simultaneous move+emote keeps the authored emotion while still moving.
-  const phase = step.cmd === 'emote' ? 1 : 0;
+  // simultaneous move+emote keeps the authored emotion while still moving. A
+  // highlight comes after both: it decorates whatever the instant produced, and
+  // sorted on its name alone it would ring a card the same instant is about to
+  // put down.
+  const phase = step.cmd === 'emote' ? 1 : (step.cmd === 'highlight' ? 2 : 0);
   const subjects = [...(step.subjects ?? [])].sort().join(',');
   const target = step.target ?? step.destination ?? step.position ?? step.name ?? '';
   return `${phase}|${step.cmd}|${subjects}|${target}`;

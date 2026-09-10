@@ -12,13 +12,19 @@
  * It is also the seam the plan's WebGL renderer would plug into: a command list
  * that names no 2D context can be executed by anything. Nothing here draws.
  *
- * The four commands, in the order they are emitted per actor:
+ * The commands, in the order they are emitted:
  *
  *   shadow      the soft ellipse that replaces the DOM stage's drop-shadow
  *   sprite      one cell of a sheet, feet-anchored in a square box
  *   prop        a whole SVG, fitted inside that same box
  *   missing     the placeholder, for a clip the bundle lacks or a sheet that
  *               has not decoded yet
+ *   ring        the lesson's glow around the thing being named, right after the
+ *               actor it belongs to, so it lies over them and under whoever
+ *               stands in front
+ *   slate       the counting board, last of all and marked `hud`, because it
+ *               sits over the whole picture and is NOT under the camera — see
+ *               the note on it below
  *
  * The sheet comes from the caller, not from the bundle, and that is deliberate:
  * which sheet a clip draws from is the rendition picker's answer (a tier chosen
@@ -29,7 +35,7 @@
  */
 
 import { frameCell } from '../../core/clips.mjs';
-import { DEFAULT_STAGE_RESOLUTION } from '../../policy.mjs';
+import { DEFAULT_STAGE_RESOLUTION, HIGHLIGHT, SLATE } from '../../policy.mjs';
 
 // The shadow, as fractions of the sprite's drawn height. The DOM stage traced
 // the artwork's own silhouette with `filter: drop-shadow`, which costs a
@@ -92,9 +98,93 @@ export function buildDrawList(state, sheets = NO_SHEETS) {
       opacity: round(opacity * SHADOW_OPACITY, 4),
     });
     commands.push(figure(actor, box, sheets));
+    const ring = ringFor(actor, box, state?.tMs);
+    if (ring) commands.push(ring);
   }
 
+  const slate = slateFor(state?.slate, state?.tMs, width, height);
+  if (slate) commands.push(slate);
+
   return { width, height, camera: framing(state?.camera), commands };
+}
+
+/**
+ * The ring a `highlight` leaves on its subject, while it is still ringing.
+ *
+ * Its own progress travels with it rather than the instant it started, so the
+ * renderer needs no clock and no policy of its own to know how far through the
+ * pulse it is — and a golden reads as a fraction rather than as a timestamp
+ * that moves whenever the story ahead of it does.
+ */
+function ringFor(actor, box, tMs) {
+  const since = actor?.highlightMs;
+  if (!Number.isFinite(since) || !Number.isFinite(tMs)) return null;
+  const progress = (tMs - since) / HIGHLIGHT.durationMs;
+  if (progress < 0 || progress >= 1) return null;
+  const radius = (box.dw / 2) * (1 + (HIGHLIGHT.ringPct / 100));
+  return {
+    op: 'ring',
+    slug: actor.slug,
+    cx: round(box.dx + (box.dw / 2)),
+    cy: round(box.dy + (box.dh / 2)),
+    rx: round(radius),
+    ry: round(radius),
+    progress: round(progress, 4),
+  };
+}
+
+/**
+ * The counting board: `count` cards in rows of five, each row centred, the
+ * newest ringed and still growing into place.
+ *
+ * `hud` is the one word that matters to whoever executes this list. Everything
+ * else here is under the camera, so a push-in magnifies it; the slate is not,
+ * because a board that doubled in size and slid off the top of the frame when
+ * the story leaned in on somebody would take the number a child is counting
+ * with it. It is measured against the plate all the same, so it is still the
+ * same list on every device.
+ */
+function slateFor(slate, tMs, width, height) {
+  const count = slate?.count;
+  if (!Number.isInteger(count) || count < 1) return null;
+  const shown = Math.min(count, SLATE.max);
+  const cell = (SLATE.cellPct / 100) * height;
+  const gap = (SLATE.gapPct / 100) * height;
+  const pop = popScale((tMs - slate.sinceMs) / SLATE.popMs);
+  const cells = [];
+
+  for (let n = 1; n <= shown; n += 1) {
+    const row = Math.floor((n - 1) / SLATE.perRow);
+    const column = (n - 1) % SLATE.perRow;
+    const inRow = Math.min(shown - (row * SLATE.perRow), SLATE.perRow);
+    const rowWidth = (inRow * cell) + ((inRow - 1) * gap);
+    cells.push({
+      n,
+      dx: round(((width - rowWidth) / 2) + (column * (cell + gap))),
+      dy: round(((SLATE.topPct / 100) * height) + (row * (cell + gap))),
+      dw: round(cell),
+      dh: round(cell),
+      // Only the newest card is new: the ring marks the total the story just
+      // said, and the pop is that card arriving. Everything before it is
+      // furniture and must not move, or the whole board breathes on every count.
+      ring: n === shown,
+      pop: n === shown ? round(pop, 4) : 1,
+    });
+  }
+
+  return { op: 'slate', hud: true, count: shown, cells };
+}
+
+// The standard back-out: the card overshoots its size and settles. `c1` is the
+// curve's own constant and not a second number to tune — its peak is exactly
+// `SLATE.overshoot`, which is the number that IS published, and a test holds
+// the two together.
+const BACK_C1 = 1.70158;
+
+function popScale(progress) {
+  if (!Number.isFinite(progress) || progress >= 1) return 1;
+  const past = Math.max(0, progress) - 1;
+  return 1 + ((BACK_C1 + 1) * past * past * past) + (BACK_C1 * past * past);
 }
 
 function figure(actor, box, sheets) {

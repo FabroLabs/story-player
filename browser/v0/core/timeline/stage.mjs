@@ -154,6 +154,25 @@ export class TimelineStage {
     this.#record('camera_reset', {}, {});
   }
 
+  // The counting board belongs to the SCENE, not to anybody standing in it, and
+  // a count of 0 is the board going away.
+  //
+  // Unlike the subtitle, nothing records a reset for it: a cut and the ending
+  // clear it inside the state fold, off the `scene` and `end` ops, so a bedtime
+  // story never carries a slate event it did not ask for. A client folding the
+  // stream itself has to clear it at those two ops — mirroring the subtitle's
+  // explicit reset instead leaves a lesson's board standing into the next scene.
+  setSlate(count, origin = {}) {
+    this.#record('slate', origin, { count });
+  }
+
+  // One subject per event. A step naming three things is three rings, each of
+  // which a client may find or fail to find on its own — and a client that
+  // could only be told "these three" would have to guess which one was missing.
+  highlight(slug, origin = {}) {
+    this.#record('highlight', origin, { slug });
+  }
+
   setSubtitle(text) {
     this.#record('subtitle', {}, { text: text ?? '' });
   }

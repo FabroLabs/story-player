@@ -23,6 +23,7 @@ import {
   DEPARTURE_DEADLINE_MS,
   DUCKED_MUSIC_VOLUME,
   DUCK_FADE_MS,
+  HIGHLIGHT,
   MINIMUM_DEPARTURE_SECONDS,
   MINIMUM_MOVE_SECONDS,
   MOVE_X_PCT_PER_SECOND,
@@ -33,6 +34,7 @@ import {
   PLATE_PARALLAX,
   PUSH_SCALE,
   SHOT_SIZES,
+  SLATE,
 } from '../browser/v0/policy.mjs';
 import { V0_POLICY } from '../tooling/v0.mjs';
 
@@ -67,6 +69,8 @@ test('V0_POLICY is composed from the constants the player implementation consume
     defaultExitXPct: DEFAULT_EXIT_X_PCT,
     departureDeadlineMs: DEPARTURE_DEADLINE_MS,
   });
+  assert.equal(V0_POLICY.slate, SLATE);
+  assert.equal(V0_POLICY.highlight, HIGHLIGHT);
   assert.deepEqual(V0_POLICY.audio, {
     musicVolume: MUSIC_VOLUME,
     duckedMusicVolume: DUCKED_MUSIC_VOLUME,

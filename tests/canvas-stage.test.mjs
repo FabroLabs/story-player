@@ -509,6 +509,119 @@ test('the painter clears the frame before it draws the next one', () => {
   assert.equal(context.imageSmoothingQuality, 'high');
 });
 
+// --- the lesson's two overlays ---------------------------------------------
+
+function lessonList({ camera, slate, highlightMs, tMs = 0 } = {}) {
+  return buildDrawList({
+    ...stageState({
+      actors: [{ slug: 'ruby', x: 50, feetY: 90, heightPx: 200, clip: 'idle', highlightMs }],
+      camera,
+    }),
+    slate,
+    tMs,
+  }, book());
+}
+
+test('the board is painted outside the camera, and the picture is handed back under it', () => {
+  const context = fakeContext();
+  const list = lessonList({ camera: { scale: 2, x: -25, y: -25 }, slate: { count: 2, sinceMs: 0 }, tMs: 400 });
+  // Half a letterbox: the board drops the CAMERA and keeps the viewport, and at
+  // scale 1 those two are indistinguishable — which is every device but this
+  // harness, where a board painted in raw plate pixels is a postage stamp or a
+  // board off the top of the frame.
+  paintDrawList(context, list, { lookup: () => bitmap(512, 512), scale: 0.5 });
+
+  // A push-in doubles the cast under it; the numerals are written at the
+  // viewport alone, at the plate coordinates the list gave them.
+  assert.deepEqual(context.of('drawImage')[0].at(-1).transform, [1, 1, -240, -135]);
+  const numerals = context.of('fillText');
+  assert.deepEqual(numerals.map((call) => call[0]), ['1', '2']);
+  for (const call of numerals) assert.deepEqual(call.at(-1).transform, [0.5, 0.5, 0, 0]);
+  // And put back, so a second frame painted from the same list starts where the
+  // first one did rather than one camera behind it.
+  assert.deepEqual(context.matrix(), [1, 1, -240, -135]);
+  assert.equal(context.depth(), 0);
+});
+
+test('the ring stays under the camera, because it is a mark on somebody', () => {
+  const context = fakeContext();
+  const list = lessonList({
+    camera: { scale: 2, x: -25, y: -25 },
+    slate: { count: 1, sinceMs: 0 },
+    highlightMs: 0,
+    tMs: 400,
+  });
+  paintDrawList(context, list, { lookup: () => bitmap(512, 512), scale: 1 });
+
+  // The transform in force when the ring was stroked, which is the whole claim:
+  // asserting the ellipse's own arguments would pass under any transform at
+  // all, because those are plate coordinates either way.
+  assert.deepEqual(context.of('stroke')[0].at(-1).transform, [2, 2, -480, -270]);
+  assert.deepEqual(context.of('ellipse')[0].slice(0, 2), [list.commands[1].dx + 100, list.commands[1].dy + 100]);
+});
+
+test('the numerals stand on a pane, each in the middle of its own card', () => {
+  const context = fakeContext();
+  const list = lessonList({ slate: { count: 2, sinceMs: 0 }, tMs: 400 });
+  const [board] = list.commands.filter((command) => command.op === 'slate');
+  // Shadows off so every `fill` in the log belongs to the board.
+  paintDrawList(context, list, { lookup: () => bitmap(512, 512), scale: 1, shadows: false });
+
+  // The pane is drawn around the cards, not on one of them: without it the
+  // numerals sit unbacked over a bright plate. Its rounded path starts a corner
+  // radius in from its own left edge, and the radius IS the padding.
+  const pad = board.cells[0].dw * 0.18;
+  assert.deepEqual(context.of('moveTo')[0], [board.cells[0].dx, board.cells[0].dy - pad]);
+  assert.equal(context.of('fill').length, 3, 'one pane and two cards');
+
+  const numerals = context.of('fillText');
+  assert.equal(context.textAlign, 'center');
+  assert.equal(context.textBaseline, 'middle');
+  for (const [index, call] of numerals.entries()) {
+    const card = board.cells[index];
+    assert.deepEqual(call.slice(1, 3), [card.dx + (card.dw / 2), card.dy + (card.dh / 2)]);
+  }
+});
+
+test('the ring brightens twice across its life, and is out at both ends', () => {
+  const ringAlpha = (tMs) => {
+    const context = fakeContext();
+    paintDrawList(context, lessonList({ highlightMs: 0, tMs }), { lookup: () => bitmap(512, 512), scale: 1 });
+    const [ring] = context.of('stroke');
+    return ring === undefined ? null : Math.round(ring.at(-1).alpha * 1000) / 1000;
+  };
+
+  // Two pulses across 1.5 s: brightest a quarter and three quarters through,
+  // out at the start and between them. `null` is the ring being gone entirely
+  // rather than merely dark, which is the difference the last line asks about.
+  assert.equal(ringAlpha(0), 0);
+  assert.equal(ringAlpha(375), 1);
+  assert.equal(ringAlpha(750), 0);
+  assert.equal(ringAlpha(1_125), 1);
+  assert.equal(ringAlpha(1_500), null, 'the ring outlived its own duration');
+});
+
+test('the weak tier still draws the lesson, shadows or no shadows', () => {
+  const context = fakeContext();
+  const list = lessonList({ slate: { count: 3, sinceMs: 0 }, highlightMs: 0, tMs: 375 });
+  paintDrawList(context, list, { lookup: () => bitmap(512, 512), scale: 1, shadows: false });
+
+  assert.equal(context.of('createRadialGradient').length, 0, 'the low tier painted a shadow');
+  assert.deepEqual(context.of('fillText').map((call) => call[0]), ['1', '2', '3']);
+  assert.equal(context.of('stroke').length, 2, 'the ringed card and the highlight');
+});
+
+test('a card still at the very start of its pop is not drawn as a slit', () => {
+  const context = fakeContext();
+  paintDrawList(context, lessonList({ slate: { count: 2, sinceMs: 0 }, tMs: 0 }), {
+    lookup: () => bitmap(512, 512), scale: 1,
+  });
+
+  // The pane is there — it is sized for where the card will land, so the board
+  // does not jump — and the card itself waits until it has a size.
+  assert.deepEqual(context.of('fillText').map((call) => call[0]), ['1']);
+});
+
 test('the painter draws each figure at its own opacity and leaves none behind', () => {
   const context = fakeContext();
   const list = buildDrawList(

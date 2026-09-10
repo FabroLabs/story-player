@@ -12,6 +12,36 @@ export const MINIMUM_DEPARTURE_SECONDS = 0.35;
 export const DEFAULT_EXIT_X_PCT = Object.freeze({ left: -8, right: 108 });
 export const DEPARTURE_DEADLINE_MS = 5_000;
 
+// The counting board a lesson draws, and the ring that names a thing.
+//
+// Both are HUD, and they are HUD in two different senses. The slate is painted
+// in plate space with the camera left out, so a push-in magnifies the actors
+// underneath while the numbers keep their size and their corner; the ring rides
+// its actor, under the framing, because it is a mark on that actor.
+//
+// Every number here is published for the same reason the movement numbers are:
+// a client drawing its own rectangles has to land them where these do. The
+// glyph inside a cell is the platform's own rounded font and is deliberately
+// NOT parity — a numeral is legible or it is not, and nobody diffs its pixels.
+export const SLATE = Object.freeze({
+  perRow: 5,
+  // Of the plate's HEIGHT, both of them, so one row keeps its proportions on a
+  // stage of any aspect and the board never grows wider than the frame.
+  cellPct: 7,
+  gapPct: 1.2,
+  topPct: 3,
+  popMs: 350,
+  // The peak the newest cell overshoots to on its way in. It is the peak of the
+  // standard back-out curve rather than a second free number, and a test holds
+  // the curve to it.
+  overshoot: 1.1,
+  max: 20,
+});
+
+// `pulses` is how many times the ring brightens across `durationMs`, and
+// `ringPct` is how far outside the subject's own box it is drawn.
+export const HIGHLIGHT = Object.freeze({ durationMs: 1_500, pulses: 2, ringPct: 12 });
+
 export const MUSIC_VOLUME = 0.38;
 export const DUCKED_MUSIC_VOLUME = 0.14;
 export const MUSIC_FADE_MS = 850;
