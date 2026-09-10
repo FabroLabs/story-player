@@ -1,12 +1,19 @@
 import fs from 'node:fs';
 
 // The engine's parity corpus, copied in verbatim. Every `.timeline.json` here
-// was produced by the machinery the compiler replaced, so these seven are the
-// goldens both the compiler and the state core are held against.
+// was produced by the machinery the compiler replaced, so these are the goldens
+// both the compiler and the state core are held against.
+//
+// `golden_slate` is the one exception, and it has to be: it is the lesson story,
+// written after that machinery was gone, and the build the engine has locked
+// answers its two ops with `unknown-command`. Its timeline was therefore written
+// by THIS compiler, and the engine regenerates its own copy to match once the
+// lock moves to a build that knows them.
 export const STEMS = [
   'golden_camera_moves',
   'golden_heal_travel',
   'golden_push_dusk',
+  'golden_slate',
   'golden_together_audio',
   'ruby_and_the_gentle_dark',
   'the_owls_quiet_friend',

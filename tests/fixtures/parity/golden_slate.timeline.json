@@ -1,0 +1,982 @@
+{
+  "duration_ms": 20008,
+  "events": [
+    {
+      "line": 14,
+      "op": "scene",
+      "place": "forest_clearing",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 0
+    },
+    {
+      "cmd": "put",
+      "detail": {
+        "beside": null,
+        "facing": null,
+        "objects": [],
+        "position": "center",
+        "subjects": [
+          "squirrel"
+        ],
+        "zone": null
+      },
+      "kind": "cmd",
+      "line": 15,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 0
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "right",
+        "slug": "squirrel",
+        "verb": "idle"
+      },
+      "kind": "warning",
+      "line": 15,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 0
+    },
+    {
+      "clip": "idle_right",
+      "line": 15,
+      "op": "place",
+      "scene_index": 0,
+      "slug": "squirrel",
+      "source": "stage",
+      "t_ms": 0,
+      "x": 46.07000000000001
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/d926d8d3fa382748478a1af4017c70f60677c8e09faf3d97fb59e8e27b60e316.m4a",
+        "duration_s": 2.013,
+        "text": "Nutmeg is counting treasures today."
+      },
+      "kind": "chunk",
+      "line": 17,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 0
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 0,
+      "text": "Nutmeg is counting treasures today."
+    },
+    {
+      "cmd": "put",
+      "detail": {
+        "beside": null,
+        "facing": null,
+        "object_zones": {
+          "acorn": "foreground"
+        },
+        "objects": [
+          "acorn"
+        ],
+        "position": "left_edge",
+        "subjects": [
+          "acorn"
+        ],
+        "zone": null
+      },
+      "kind": "cmd",
+      "line": 18,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 2013
+    },
+    {
+      "line": 18,
+      "op": "place_object",
+      "scene_index": 0,
+      "slug": "acorn",
+      "source": "stage",
+      "t_ms": 2013,
+      "x": 25.454,
+      "zone": "foreground"
+    },
+    {
+      "cmd": "put",
+      "detail": {
+        "beside": null,
+        "facing": null,
+        "object_zones": {
+          "numeral_1": "foreground"
+        },
+        "objects": [
+          "numeral_1"
+        ],
+        "position": "right_third",
+        "subjects": [
+          "numeral_1"
+        ],
+        "zone": null
+      },
+      "kind": "cmd",
+      "line": 19,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 2013
+    },
+    {
+      "line": 19,
+      "op": "place_object",
+      "scene_index": 0,
+      "slug": "numeral_1",
+      "source": "stage",
+      "t_ms": 2013,
+      "x": 56.378,
+      "zone": "foreground"
+    },
+    {
+      "cmd": "slate",
+      "detail": {
+        "count": 1,
+        "subjects": []
+      },
+      "kind": "cmd",
+      "line": 20,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 2013
+    },
+    {
+      "count": 1,
+      "line": 20,
+      "op": "slate",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 2013
+    },
+    {
+      "cmd": "sound",
+      "detail": {
+        "name": "pop",
+        "subjects": []
+      },
+      "kind": "cmd",
+      "line": 21,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 2013
+    },
+    {
+      "cmd": "pause",
+      "detail": {
+        "seconds": 0.5,
+        "subjects": []
+      },
+      "kind": "cmd",
+      "line": 22,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 2013
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/1729ea5447d1bee60227ed43c9ac1aeef2168549ec3fe910396b03a2aad6215f.m4a",
+        "duration_s": 2.013,
+        "text": "Nutmeg found an acorn. One."
+      },
+      "kind": "chunk",
+      "line": 22,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 2513
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 2513,
+      "text": "Nutmeg found an acorn. One."
+    },
+    {
+      "cmd": "emote",
+      "detail": {
+        "emotion": "happy",
+        "facing": null,
+        "subjects": [
+          "squirrel"
+        ]
+      },
+      "kind": "cmd",
+      "line": 23,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 4526
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "right",
+        "slug": "squirrel",
+        "verb": "happy"
+      },
+      "kind": "warning",
+      "line": 23,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 4526
+    },
+    {
+      "clip": "happy_right_jumping",
+      "line": 23,
+      "op": "clip",
+      "scene_index": 0,
+      "slug": "squirrel",
+      "source": "stage",
+      "t_ms": 4526
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 4526,
+      "text": ""
+    },
+    {
+      "line": null,
+      "op": "camera_reset",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 4526
+    },
+    {
+      "line": 25,
+      "op": "scene",
+      "place": "forest_clearing",
+      "scene_index": 1,
+      "source": "stage",
+      "t_ms": 4526
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "right",
+        "slug": "squirrel",
+        "verb": "idle"
+      },
+      "kind": "warning",
+      "line": 25,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 4526
+    },
+    {
+      "clip": "idle_right",
+      "line": 25,
+      "op": "place",
+      "scene_index": 1,
+      "slug": "squirrel",
+      "source": "stage",
+      "t_ms": 4526,
+      "x": 46.07000000000001
+    },
+    {
+      "cmd": "put",
+      "detail": {
+        "beside": null,
+        "facing": null,
+        "objects": [],
+        "position": "center",
+        "subjects": [
+          "squirrel"
+        ],
+        "zone": null
+      },
+      "kind": "cmd",
+      "line": 26,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 4526
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "right",
+        "slug": "squirrel",
+        "verb": "idle"
+      },
+      "kind": "warning",
+      "line": 26,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 4526
+    },
+    {
+      "clip": "idle_right",
+      "line": 26,
+      "op": "place",
+      "scene_index": 1,
+      "slug": "squirrel",
+      "source": "stage",
+      "t_ms": 4526,
+      "x": 46.07000000000001
+    },
+    {
+      "cmd": "put",
+      "detail": {
+        "beside": null,
+        "facing": null,
+        "object_zones": {
+          "acorn": "foreground"
+        },
+        "objects": [
+          "acorn"
+        ],
+        "position": "left_edge",
+        "subjects": [
+          "acorn"
+        ],
+        "zone": null
+      },
+      "kind": "cmd",
+      "line": 27,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 4526
+    },
+    {
+      "line": 27,
+      "op": "place_object",
+      "scene_index": 1,
+      "slug": "acorn",
+      "source": "stage",
+      "t_ms": 4526,
+      "x": 25.454,
+      "zone": "foreground"
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/33510f03f45b5655d7d66f3722a050373456dd5c3550d39ea5c3f7fa297c3957.m4a",
+        "duration_s": 2.416,
+        "text": "Then a pinecone, right beside it."
+      },
+      "kind": "chunk",
+      "line": 29,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 4526
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 1,
+      "source": "stage",
+      "t_ms": 4526,
+      "text": "Then a pinecone, right beside it."
+    },
+    {
+      "cmd": "put",
+      "detail": {
+        "beside": null,
+        "facing": null,
+        "object_zones": {
+          "pinecone": "foreground"
+        },
+        "objects": [
+          "pinecone"
+        ],
+        "position": "left_third",
+        "subjects": [
+          "pinecone"
+        ],
+        "zone": null
+      },
+      "kind": "cmd",
+      "line": 30,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 6942
+    },
+    {
+      "line": 30,
+      "op": "place_object",
+      "scene_index": 1,
+      "slug": "pinecone",
+      "source": "stage",
+      "t_ms": 6942,
+      "x": 35.762,
+      "zone": "foreground"
+    },
+    {
+      "cmd": "put",
+      "detail": {
+        "beside": null,
+        "facing": null,
+        "object_zones": {
+          "numeral_2": "foreground"
+        },
+        "objects": [
+          "numeral_2"
+        ],
+        "position": "right_third",
+        "subjects": [
+          "numeral_2"
+        ],
+        "zone": null
+      },
+      "kind": "cmd",
+      "line": 31,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 6942
+    },
+    {
+      "line": 31,
+      "op": "place_object",
+      "scene_index": 1,
+      "slug": "numeral_2",
+      "source": "stage",
+      "t_ms": 6942,
+      "x": 56.378,
+      "zone": "foreground"
+    },
+    {
+      "cmd": "slate",
+      "detail": {
+        "count": 2,
+        "subjects": []
+      },
+      "kind": "cmd",
+      "line": 32,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 6942
+    },
+    {
+      "count": 2,
+      "line": 32,
+      "op": "slate",
+      "scene_index": 1,
+      "source": "stage",
+      "t_ms": 6942
+    },
+    {
+      "cmd": "sound",
+      "detail": {
+        "name": "pop",
+        "subjects": []
+      },
+      "kind": "cmd",
+      "line": 33,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 6942
+    },
+    {
+      "cmd": "pause",
+      "detail": {
+        "seconds": 0.5,
+        "subjects": []
+      },
+      "kind": "cmd",
+      "line": 34,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 6942
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/bc2311c98e742c543226978311b57fa1dc5c186317f347b586a0aeb550b86559.m4a",
+        "duration_s": 3.221,
+        "text": "An acorn and a pinecone. That is two."
+      },
+      "kind": "chunk",
+      "line": 34,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 7442
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 1,
+      "source": "stage",
+      "t_ms": 7442,
+      "text": "An acorn and a pinecone. That is two."
+    },
+    {
+      "cmd": "emote",
+      "detail": {
+        "emotion": "happy",
+        "facing": null,
+        "subjects": [
+          "squirrel"
+        ]
+      },
+      "kind": "cmd",
+      "line": 35,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 10663
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "right",
+        "slug": "squirrel",
+        "verb": "happy"
+      },
+      "kind": "warning",
+      "line": 35,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 10663
+    },
+    {
+      "clip": "happy_right_jumping",
+      "line": 35,
+      "op": "clip",
+      "scene_index": 1,
+      "slug": "squirrel",
+      "source": "stage",
+      "t_ms": 10663
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 1,
+      "source": "stage",
+      "t_ms": 10663,
+      "text": ""
+    },
+    {
+      "line": null,
+      "op": "camera_reset",
+      "scene_index": 1,
+      "source": "stage",
+      "t_ms": 10663
+    },
+    {
+      "line": 37,
+      "op": "scene",
+      "place": "forest_clearing",
+      "scene_index": 2,
+      "source": "stage",
+      "t_ms": 10663
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "right",
+        "slug": "squirrel",
+        "verb": "idle"
+      },
+      "kind": "warning",
+      "line": 37,
+      "scene_index": 2,
+      "source": "step",
+      "t_ms": 10663
+    },
+    {
+      "clip": "idle_right",
+      "line": 37,
+      "op": "place",
+      "scene_index": 2,
+      "slug": "squirrel",
+      "source": "stage",
+      "t_ms": 10663,
+      "x": 46.07000000000001
+    },
+    {
+      "cmd": "put",
+      "detail": {
+        "beside": null,
+        "facing": null,
+        "objects": [],
+        "position": "center",
+        "subjects": [
+          "squirrel"
+        ],
+        "zone": null
+      },
+      "kind": "cmd",
+      "line": 38,
+      "scene_index": 2,
+      "source": "step",
+      "t_ms": 10663
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "right",
+        "slug": "squirrel",
+        "verb": "idle"
+      },
+      "kind": "warning",
+      "line": 38,
+      "scene_index": 2,
+      "source": "step",
+      "t_ms": 10663
+    },
+    {
+      "clip": "idle_right",
+      "line": 38,
+      "op": "place",
+      "scene_index": 2,
+      "slug": "squirrel",
+      "source": "stage",
+      "t_ms": 10663,
+      "x": 46.07000000000001
+    },
+    {
+      "cmd": "put",
+      "detail": {
+        "beside": null,
+        "facing": null,
+        "object_zones": {
+          "acorn": "foreground"
+        },
+        "objects": [
+          "acorn"
+        ],
+        "position": "left_edge",
+        "subjects": [
+          "acorn"
+        ],
+        "zone": null
+      },
+      "kind": "cmd",
+      "line": 39,
+      "scene_index": 2,
+      "source": "step",
+      "t_ms": 10663
+    },
+    {
+      "line": 39,
+      "op": "place_object",
+      "scene_index": 2,
+      "slug": "acorn",
+      "source": "stage",
+      "t_ms": 10663,
+      "x": 25.454,
+      "zone": "foreground"
+    },
+    {
+      "cmd": "put",
+      "detail": {
+        "beside": null,
+        "facing": null,
+        "object_zones": {
+          "pinecone": "foreground"
+        },
+        "objects": [
+          "pinecone"
+        ],
+        "position": "left_third",
+        "subjects": [
+          "pinecone"
+        ],
+        "zone": null
+      },
+      "kind": "cmd",
+      "line": 40,
+      "scene_index": 2,
+      "source": "step",
+      "t_ms": 10663
+    },
+    {
+      "line": 40,
+      "op": "place_object",
+      "scene_index": 2,
+      "slug": "pinecone",
+      "source": "stage",
+      "t_ms": 10663,
+      "x": 35.762,
+      "zone": "foreground"
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/6618c3db054253cb6becc49fe016852b97f9037165e3dff3be9229ffa1401876.m4a",
+        "duration_s": 3.221,
+        "text": "Last of all, a mushroom under the ferns."
+      },
+      "kind": "chunk",
+      "line": 42,
+      "scene_index": 2,
+      "source": "step",
+      "t_ms": 10663
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 2,
+      "source": "stage",
+      "t_ms": 10663,
+      "text": "Last of all, a mushroom under the ferns."
+    },
+    {
+      "cmd": "put",
+      "detail": {
+        "beside": null,
+        "facing": null,
+        "object_zones": {
+          "mushroom": "foreground"
+        },
+        "objects": [
+          "mushroom"
+        ],
+        "position": "right_edge",
+        "subjects": [
+          "mushroom"
+        ],
+        "zone": null
+      },
+      "kind": "cmd",
+      "line": 43,
+      "scene_index": 2,
+      "source": "step",
+      "t_ms": 13884
+    },
+    {
+      "line": 43,
+      "op": "place_object",
+      "scene_index": 2,
+      "slug": "mushroom",
+      "source": "stage",
+      "t_ms": 13884,
+      "x": 66.686,
+      "zone": "foreground"
+    },
+    {
+      "cmd": "put",
+      "detail": {
+        "beside": null,
+        "facing": null,
+        "object_zones": {
+          "numeral_3": "foreground"
+        },
+        "objects": [
+          "numeral_3"
+        ],
+        "position": "right_third",
+        "subjects": [
+          "numeral_3"
+        ],
+        "zone": null
+      },
+      "kind": "cmd",
+      "line": 44,
+      "scene_index": 2,
+      "source": "step",
+      "t_ms": 13884
+    },
+    {
+      "line": 44,
+      "op": "place_object",
+      "scene_index": 2,
+      "slug": "numeral_3",
+      "source": "stage",
+      "t_ms": 13884,
+      "x": 56.378,
+      "zone": "foreground"
+    },
+    {
+      "cmd": "slate",
+      "detail": {
+        "count": 3,
+        "subjects": []
+      },
+      "kind": "cmd",
+      "line": 45,
+      "scene_index": 2,
+      "source": "step",
+      "t_ms": 13884
+    },
+    {
+      "count": 3,
+      "line": 45,
+      "op": "slate",
+      "scene_index": 2,
+      "source": "stage",
+      "t_ms": 13884
+    },
+    {
+      "cmd": "pause",
+      "detail": {
+        "seconds": 0.5,
+        "subjects": []
+      },
+      "kind": "cmd",
+      "line": 46,
+      "scene_index": 2,
+      "source": "step",
+      "t_ms": 13884
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/02977099558a85acdafad24ac4a5d916316be1ef9585dd863735db7f9e2c4f9e.m4a",
+        "duration_s": 1.611,
+        "text": "How many treasures now?"
+      },
+      "kind": "chunk",
+      "line": 46,
+      "scene_index": 2,
+      "source": "step",
+      "t_ms": 14384
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 2,
+      "source": "stage",
+      "t_ms": 14384,
+      "text": "How many treasures now?"
+    },
+    {
+      "cmd": "pause",
+      "detail": {
+        "seconds": 2,
+        "subjects": []
+      },
+      "kind": "cmd",
+      "line": 47,
+      "scene_index": 2,
+      "source": "step",
+      "t_ms": 15995
+    },
+    {
+      "cmd": "highlight",
+      "detail": {
+        "subjects": [
+          "numeral_3"
+        ]
+      },
+      "kind": "cmd",
+      "line": 48,
+      "scene_index": 2,
+      "source": "step",
+      "t_ms": 17995
+    },
+    {
+      "line": 48,
+      "op": "highlight",
+      "scene_index": 2,
+      "slug": "numeral_3",
+      "source": "stage",
+      "t_ms": 17995
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/0753fe46926a975d4b1f3224a5b669036f4ee18b82aaa0e8b6d328e7923f3c3d.m4a",
+        "duration_s": 2.013,
+        "text": "One. Two. Three. Three treasures!"
+      },
+      "kind": "chunk",
+      "line": 49,
+      "scene_index": 2,
+      "source": "step",
+      "t_ms": 17995
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 2,
+      "source": "stage",
+      "t_ms": 17995,
+      "text": "One. Two. Three. Three treasures!"
+    },
+    {
+      "cmd": "emote",
+      "detail": {
+        "emotion": "happy",
+        "facing": null,
+        "subjects": [
+          "squirrel"
+        ]
+      },
+      "kind": "cmd",
+      "line": 50,
+      "scene_index": 2,
+      "source": "step",
+      "t_ms": 20008
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "right",
+        "slug": "squirrel",
+        "verb": "happy"
+      },
+      "kind": "warning",
+      "line": 50,
+      "scene_index": 2,
+      "source": "step",
+      "t_ms": 20008
+    },
+    {
+      "clip": "happy_right_jumping",
+      "line": 50,
+      "op": "clip",
+      "scene_index": 2,
+      "slug": "squirrel",
+      "source": "stage",
+      "t_ms": 20008
+    },
+    {
+      "cmd": "slate",
+      "detail": {
+        "count": 0,
+        "subjects": []
+      },
+      "kind": "cmd",
+      "line": 51,
+      "scene_index": 2,
+      "source": "step",
+      "t_ms": 20008
+    },
+    {
+      "count": 0,
+      "line": 51,
+      "op": "slate",
+      "scene_index": 2,
+      "source": "stage",
+      "t_ms": 20008
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 2,
+      "source": "stage",
+      "t_ms": 20008,
+      "text": ""
+    },
+    {
+      "line": null,
+      "op": "camera_reset",
+      "scene_index": 2,
+      "source": "stage",
+      "t_ms": 20008
+    },
+    {
+      "line": null,
+      "op": "end",
+      "scene_index": 2,
+      "source": "stage",
+      "t_ms": 20008
+    }
+  ],
+  "storylang_version": 0,
+  "timeline_version": 1,
+  "title": "Golden: the counting board"
+}

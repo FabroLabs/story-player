@@ -1,0 +1,745 @@
+{
+  "instants": [
+    {
+      "t_ms": 2014,
+      "list": {
+        "width": 1920,
+        "height": 1080,
+        "camera": {
+          "scale": 1,
+          "x": 0,
+          "y": 0
+        },
+        "commands": [
+          {
+            "op": "shadow",
+            "slug": "squirrel",
+            "cx": 743.89,
+            "cy": 1014.96,
+            "rx": 66,
+            "ry": 13.2,
+            "opacity": 0.34
+          },
+          {
+            "op": "sprite",
+            "slug": "squirrel",
+            "url": "fairytale-assets/renditions/sprites/3cf00bad8cbee58d541b67ec8cdc999e.webp",
+            "cell": [
+              0,
+              2
+            ],
+            "cells": [
+              3,
+              3
+            ],
+            "dx": 633.89,
+            "dy": 794.96,
+            "dw": 220,
+            "dh": 220,
+            "opacity": 1
+          },
+          {
+            "op": "shadow",
+            "slug": "acorn",
+            "cx": 488.72,
+            "cy": 1014.32,
+            "rx": 21.6,
+            "ry": 4.32,
+            "opacity": 0.34
+          },
+          {
+            "op": "prop",
+            "slug": "acorn",
+            "url": "fairytale-assets/objects/biology_plants_and_geology/acorn.svg",
+            "dx": 452.72,
+            "dy": 942.32,
+            "dw": 72,
+            "dh": 72,
+            "opacity": 1
+          },
+          {
+            "op": "shadow",
+            "slug": "numeral_1",
+            "cx": 1082.46,
+            "cy": 1015.81,
+            "rx": 137.14,
+            "ry": 27.43,
+            "opacity": 0.34
+          },
+          {
+            "op": "prop",
+            "slug": "numeral_1",
+            "url": "fairytale-assets/objects/placeholders/numeral_1.svg",
+            "dx": 853.89,
+            "dy": 558.67,
+            "dw": 457.14,
+            "dh": 457.14,
+            "opacity": 1
+          },
+          {
+            "op": "slate",
+            "hud": true,
+            "count": 1,
+            "cells": [
+              {
+                "n": 1,
+                "dx": 922.2,
+                "dy": 32.4,
+                "dw": 75.6,
+                "dh": 75.6,
+                "ring": true,
+                "pop": 0.0134
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "t_ms": 2188,
+      "list": {
+        "width": 1920,
+        "height": 1080,
+        "camera": {
+          "scale": 1,
+          "x": 0,
+          "y": 0
+        },
+        "commands": [
+          {
+            "op": "shadow",
+            "slug": "squirrel",
+            "cx": 743.89,
+            "cy": 1014.96,
+            "rx": 66,
+            "ry": 13.2,
+            "opacity": 0.34
+          },
+          {
+            "op": "sprite",
+            "slug": "squirrel",
+            "url": "fairytale-assets/renditions/sprites/8f479bfe85c523a3fbaa55aca958df67.webp",
+            "cell": [
+              1,
+              0
+            ],
+            "cells": [
+              3,
+              3
+            ],
+            "dx": 633.89,
+            "dy": 794.96,
+            "dw": 220,
+            "dh": 220,
+            "opacity": 1
+          },
+          {
+            "op": "shadow",
+            "slug": "acorn",
+            "cx": 488.72,
+            "cy": 1014.32,
+            "rx": 21.6,
+            "ry": 4.32,
+            "opacity": 0.34
+          },
+          {
+            "op": "prop",
+            "slug": "acorn",
+            "url": "fairytale-assets/objects/biology_plants_and_geology/acorn.svg",
+            "dx": 452.72,
+            "dy": 942.32,
+            "dw": 72,
+            "dh": 72,
+            "opacity": 1
+          },
+          {
+            "op": "shadow",
+            "slug": "numeral_1",
+            "cx": 1082.46,
+            "cy": 1015.81,
+            "rx": 137.14,
+            "ry": 27.43,
+            "opacity": 0.34
+          },
+          {
+            "op": "prop",
+            "slug": "numeral_1",
+            "url": "fairytale-assets/objects/placeholders/numeral_1.svg",
+            "dx": 853.89,
+            "dy": 558.67,
+            "dw": 457.14,
+            "dh": 457.14,
+            "opacity": 1
+          },
+          {
+            "op": "slate",
+            "hud": true,
+            "count": 1,
+            "cells": [
+              {
+                "n": 1,
+                "dx": 922.2,
+                "dy": 32.4,
+                "dw": 75.6,
+                "dh": 75.6,
+                "ring": true,
+                "pop": 1.0877
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "t_ms": 6943,
+      "list": {
+        "width": 1920,
+        "height": 1080,
+        "camera": {
+          "scale": 1,
+          "x": 0,
+          "y": 0
+        },
+        "commands": [
+          {
+            "op": "shadow",
+            "slug": "squirrel",
+            "cx": 743.89,
+            "cy": 1014.96,
+            "rx": 66,
+            "ry": 13.2,
+            "opacity": 0.34
+          },
+          {
+            "op": "sprite",
+            "slug": "squirrel",
+            "url": "fairytale-assets/renditions/sprites/8f479bfe85c523a3fbaa55aca958df67.webp",
+            "cell": [
+              1,
+              1
+            ],
+            "cells": [
+              3,
+              3
+            ],
+            "dx": 633.89,
+            "dy": 794.96,
+            "dw": 220,
+            "dh": 220,
+            "opacity": 1
+          },
+          {
+            "op": "shadow",
+            "slug": "acorn",
+            "cx": 488.72,
+            "cy": 1014.32,
+            "rx": 21.6,
+            "ry": 4.32,
+            "opacity": 0.34
+          },
+          {
+            "op": "prop",
+            "slug": "acorn",
+            "url": "fairytale-assets/objects/biology_plants_and_geology/acorn.svg",
+            "dx": 452.72,
+            "dy": 942.32,
+            "dw": 72,
+            "dh": 72,
+            "opacity": 1
+          },
+          {
+            "op": "shadow",
+            "slug": "pinecone",
+            "cx": 686.63,
+            "cy": 1014.81,
+            "rx": 30,
+            "ry": 6,
+            "opacity": 0.34
+          },
+          {
+            "op": "prop",
+            "slug": "pinecone",
+            "url": "fairytale-assets/objects/biology_plants_and_geology/pinecone.svg",
+            "dx": 636.63,
+            "dy": 914.81,
+            "dw": 100,
+            "dh": 100,
+            "opacity": 1
+          },
+          {
+            "op": "shadow",
+            "slug": "numeral_2",
+            "cx": 1082.46,
+            "cy": 1015.81,
+            "rx": 137.14,
+            "ry": 27.43,
+            "opacity": 0.34
+          },
+          {
+            "op": "prop",
+            "slug": "numeral_2",
+            "url": "fairytale-assets/objects/placeholders/numeral_2.svg",
+            "dx": 853.89,
+            "dy": 558.67,
+            "dw": 457.14,
+            "dh": 457.14,
+            "opacity": 1
+          },
+          {
+            "op": "slate",
+            "hud": true,
+            "count": 2,
+            "cells": [
+              {
+                "n": 1,
+                "dx": 877.92,
+                "dy": 32.4,
+                "dw": 75.6,
+                "dh": 75.6,
+                "ring": false,
+                "pop": 1
+              },
+              {
+                "n": 2,
+                "dx": 966.48,
+                "dy": 32.4,
+                "dw": 75.6,
+                "dh": 75.6,
+                "ring": true,
+                "pop": 0.0134
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "t_ms": 13885,
+      "list": {
+        "width": 1920,
+        "height": 1080,
+        "camera": {
+          "scale": 1,
+          "x": 0,
+          "y": 0
+        },
+        "commands": [
+          {
+            "op": "shadow",
+            "slug": "squirrel",
+            "cx": 743.89,
+            "cy": 1014.96,
+            "rx": 66,
+            "ry": 13.2,
+            "opacity": 0.34
+          },
+          {
+            "op": "sprite",
+            "slug": "squirrel",
+            "url": "fairytale-assets/renditions/sprites/725ba924fa38544a7d708a9df230642c.webp",
+            "cell": [
+              1,
+              1
+            ],
+            "cells": [
+              3,
+              3
+            ],
+            "dx": 633.89,
+            "dy": 794.96,
+            "dw": 220,
+            "dh": 220,
+            "opacity": 1
+          },
+          {
+            "op": "shadow",
+            "slug": "acorn",
+            "cx": 488.72,
+            "cy": 1014.32,
+            "rx": 21.6,
+            "ry": 4.32,
+            "opacity": 0.34
+          },
+          {
+            "op": "prop",
+            "slug": "acorn",
+            "url": "fairytale-assets/objects/biology_plants_and_geology/acorn.svg",
+            "dx": 452.72,
+            "dy": 942.32,
+            "dw": 72,
+            "dh": 72,
+            "opacity": 1
+          },
+          {
+            "op": "shadow",
+            "slug": "pinecone",
+            "cx": 686.63,
+            "cy": 1014.81,
+            "rx": 30,
+            "ry": 6,
+            "opacity": 0.34
+          },
+          {
+            "op": "prop",
+            "slug": "pinecone",
+            "url": "fairytale-assets/objects/biology_plants_and_geology/pinecone.svg",
+            "dx": 636.63,
+            "dy": 914.81,
+            "dw": 100,
+            "dh": 100,
+            "opacity": 1
+          },
+          {
+            "op": "shadow",
+            "slug": "mushroom",
+            "cx": 1280.37,
+            "cy": 1016.31,
+            "rx": 45,
+            "ry": 9,
+            "opacity": 0.34
+          },
+          {
+            "op": "prop",
+            "slug": "mushroom",
+            "url": "fairytale-assets/objects/nature_and_city/mushroom.svg",
+            "dx": 1205.37,
+            "dy": 866.31,
+            "dw": 150,
+            "dh": 150,
+            "opacity": 1
+          },
+          {
+            "op": "shadow",
+            "slug": "numeral_3",
+            "cx": 1082.46,
+            "cy": 1015.81,
+            "rx": 137.14,
+            "ry": 27.43,
+            "opacity": 0.34
+          },
+          {
+            "op": "prop",
+            "slug": "numeral_3",
+            "url": "fairytale-assets/objects/placeholders/numeral_3.svg",
+            "dx": 853.89,
+            "dy": 558.67,
+            "dw": 457.14,
+            "dh": 457.14,
+            "opacity": 1
+          },
+          {
+            "op": "slate",
+            "hud": true,
+            "count": 3,
+            "cells": [
+              {
+                "n": 1,
+                "dx": 833.64,
+                "dy": 32.4,
+                "dw": 75.6,
+                "dh": 75.6,
+                "ring": false,
+                "pop": 1
+              },
+              {
+                "n": 2,
+                "dx": 922.2,
+                "dy": 32.4,
+                "dw": 75.6,
+                "dh": 75.6,
+                "ring": false,
+                "pop": 1
+              },
+              {
+                "n": 3,
+                "dx": 1010.76,
+                "dy": 32.4,
+                "dw": 75.6,
+                "dh": 75.6,
+                "ring": true,
+                "pop": 0.0134
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "t_ms": 18370,
+      "list": {
+        "width": 1920,
+        "height": 1080,
+        "camera": {
+          "scale": 1,
+          "x": 0,
+          "y": 0
+        },
+        "commands": [
+          {
+            "op": "shadow",
+            "slug": "squirrel",
+            "cx": 743.89,
+            "cy": 1014.96,
+            "rx": 66,
+            "ry": 13.2,
+            "opacity": 0.34
+          },
+          {
+            "op": "sprite",
+            "slug": "squirrel",
+            "url": "fairytale-assets/renditions/sprites/725ba924fa38544a7d708a9df230642c.webp",
+            "cell": [
+              2,
+              2
+            ],
+            "cells": [
+              3,
+              3
+            ],
+            "dx": 633.89,
+            "dy": 794.96,
+            "dw": 220,
+            "dh": 220,
+            "opacity": 1
+          },
+          {
+            "op": "shadow",
+            "slug": "acorn",
+            "cx": 488.72,
+            "cy": 1014.32,
+            "rx": 21.6,
+            "ry": 4.32,
+            "opacity": 0.34
+          },
+          {
+            "op": "prop",
+            "slug": "acorn",
+            "url": "fairytale-assets/objects/biology_plants_and_geology/acorn.svg",
+            "dx": 452.72,
+            "dy": 942.32,
+            "dw": 72,
+            "dh": 72,
+            "opacity": 1
+          },
+          {
+            "op": "shadow",
+            "slug": "pinecone",
+            "cx": 686.63,
+            "cy": 1014.81,
+            "rx": 30,
+            "ry": 6,
+            "opacity": 0.34
+          },
+          {
+            "op": "prop",
+            "slug": "pinecone",
+            "url": "fairytale-assets/objects/biology_plants_and_geology/pinecone.svg",
+            "dx": 636.63,
+            "dy": 914.81,
+            "dw": 100,
+            "dh": 100,
+            "opacity": 1
+          },
+          {
+            "op": "shadow",
+            "slug": "mushroom",
+            "cx": 1280.37,
+            "cy": 1016.31,
+            "rx": 45,
+            "ry": 9,
+            "opacity": 0.34
+          },
+          {
+            "op": "prop",
+            "slug": "mushroom",
+            "url": "fairytale-assets/objects/nature_and_city/mushroom.svg",
+            "dx": 1205.37,
+            "dy": 866.31,
+            "dw": 150,
+            "dh": 150,
+            "opacity": 1
+          },
+          {
+            "op": "shadow",
+            "slug": "numeral_3",
+            "cx": 1082.46,
+            "cy": 1015.81,
+            "rx": 137.14,
+            "ry": 27.43,
+            "opacity": 0.34
+          },
+          {
+            "op": "prop",
+            "slug": "numeral_3",
+            "url": "fairytale-assets/objects/placeholders/numeral_3.svg",
+            "dx": 853.89,
+            "dy": 558.67,
+            "dw": 457.14,
+            "dh": 457.14,
+            "opacity": 1
+          },
+          {
+            "op": "ring",
+            "slug": "numeral_3",
+            "cx": 1082.46,
+            "cy": 787.24,
+            "rx": 256,
+            "ry": 256,
+            "progress": 0.25
+          },
+          {
+            "op": "slate",
+            "hud": true,
+            "count": 3,
+            "cells": [
+              {
+                "n": 1,
+                "dx": 833.64,
+                "dy": 32.4,
+                "dw": 75.6,
+                "dh": 75.6,
+                "ring": false,
+                "pop": 1
+              },
+              {
+                "n": 2,
+                "dx": 922.2,
+                "dy": 32.4,
+                "dw": 75.6,
+                "dh": 75.6,
+                "ring": false,
+                "pop": 1
+              },
+              {
+                "n": 3,
+                "dx": 1010.76,
+                "dy": 32.4,
+                "dw": 75.6,
+                "dh": 75.6,
+                "ring": true,
+                "pop": 1
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "t_ms": 20008,
+      "list": {
+        "width": 1920,
+        "height": 1080,
+        "camera": {
+          "scale": 1,
+          "x": 0,
+          "y": 0
+        },
+        "commands": [
+          {
+            "op": "shadow",
+            "slug": "squirrel",
+            "cx": 743.89,
+            "cy": 1014.96,
+            "rx": 66,
+            "ry": 13.2,
+            "opacity": 0.34
+          },
+          {
+            "op": "sprite",
+            "slug": "squirrel",
+            "url": "fairytale-assets/renditions/sprites/28d10376e4aebe1f1f205b19278018c9.webp",
+            "cell": [
+              0,
+              0
+            ],
+            "cells": [
+              3,
+              3
+            ],
+            "dx": 633.89,
+            "dy": 794.96,
+            "dw": 220,
+            "dh": 220,
+            "opacity": 1
+          },
+          {
+            "op": "shadow",
+            "slug": "acorn",
+            "cx": 488.72,
+            "cy": 1014.32,
+            "rx": 21.6,
+            "ry": 4.32,
+            "opacity": 0.34
+          },
+          {
+            "op": "prop",
+            "slug": "acorn",
+            "url": "fairytale-assets/objects/biology_plants_and_geology/acorn.svg",
+            "dx": 452.72,
+            "dy": 942.32,
+            "dw": 72,
+            "dh": 72,
+            "opacity": 1
+          },
+          {
+            "op": "shadow",
+            "slug": "pinecone",
+            "cx": 686.63,
+            "cy": 1014.81,
+            "rx": 30,
+            "ry": 6,
+            "opacity": 0.34
+          },
+          {
+            "op": "prop",
+            "slug": "pinecone",
+            "url": "fairytale-assets/objects/biology_plants_and_geology/pinecone.svg",
+            "dx": 636.63,
+            "dy": 914.81,
+            "dw": 100,
+            "dh": 100,
+            "opacity": 1
+          },
+          {
+            "op": "shadow",
+            "slug": "mushroom",
+            "cx": 1280.37,
+            "cy": 1016.31,
+            "rx": 45,
+            "ry": 9,
+            "opacity": 0.34
+          },
+          {
+            "op": "prop",
+            "slug": "mushroom",
+            "url": "fairytale-assets/objects/nature_and_city/mushroom.svg",
+            "dx": 1205.37,
+            "dy": 866.31,
+            "dw": 150,
+            "dh": 150,
+            "opacity": 1
+          },
+          {
+            "op": "shadow",
+            "slug": "numeral_3",
+            "cx": 1082.46,
+            "cy": 1015.81,
+            "rx": 137.14,
+            "ry": 27.43,
+            "opacity": 0.34
+          },
+          {
+            "op": "prop",
+            "slug": "numeral_3",
+            "url": "fairytale-assets/objects/placeholders/numeral_3.svg",
+            "dx": 853.89,
+            "dy": 558.67,
+            "dw": 457.14,
+            "dh": 457.14,
+            "opacity": 1
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -383,6 +383,13 @@ test('an actor nobody ever named carries no ring', () => {
  * far end of the first camera move of EACH kind, the moment a prop is on the
  * stage, and the ending.
  *
+ * The lesson's two overlays need instants of their own for the same reason the
+ * camera did: they animate on the clock, and every instant this selector chose
+ * before them lands a millisecond or two after the op that started one — which
+ * pins a card at the very beginning of its pop and a ring nowhere at all. So the
+ * board is also sampled halfway through its pop, and the ring at the first of
+ * its two peaks.
+ *
  * The camera instants are where this was quietly empty. A `pan` sometimes
  * carries `duration_ms`; a `push_in` and a `pull_out` never do — their length
  * comes from `speed` through `cameraDuration`, exactly as the state core reads
@@ -413,6 +420,10 @@ function instantsOf(timeline) {
   }
   const prop = first('place_object');
   if (prop) chosen.add(prop.t_ms + 1);
+  const board = first('slate');
+  if (board) chosen.add(board.t_ms + Math.round(SLATE.popMs / 2));
+  const ring = first('highlight');
+  if (ring) chosen.add(ring.t_ms + Math.round(HIGHLIGHT.durationMs / 4));
   return [...chosen].sort((left, right) => left - right);
 }
 
@@ -465,5 +476,5 @@ test('the goldens cover every command a healthy story draws', () => {
     const { instants } = JSON.parse(fs.readFileSync(new URL(`${stem}.json`, GOLDENS), 'utf8'));
     for (const instant of instants) for (const command of instant.list.commands) seen.add(command.op);
   }
-  assert.deepEqual([...seen].sort(), ['prop', 'shadow', 'sprite']);
+  assert.deepEqual([...seen].sort(), ['prop', 'ring', 'shadow', 'slate', 'sprite']);
 });
