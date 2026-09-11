@@ -109,6 +109,40 @@ test('refuses unresolved cast references during ready instead of after the begin
   player.destroy();
 });
 
+test('opens a lesson that rings a prop, and still refuses a ring around nobody', async (t) => {
+  const dom = installDom();
+  t.after(dom.restore);
+  // The mount door used to hold every subject to the cast, so the numeral card a
+  // maths lesson rings — a prop, never cast — turned the whole lesson into "this
+  // story could not be opened". The compiler resolves a ring against the props
+  // standing in the scene as well as the cast; this is the same rule at the door.
+  const lesson = (slug) => ({
+    ...VALID_STORY,
+    objects: { numeral_3: { height_cm: 40, svg: 'assets/three.svg' } },
+    scenes: [{
+      ...VALID_STORY.scenes[0],
+      steps: [
+        { kind: 'cmd', cmd: 'place_object', objects: ['numeral_3'], line: 6 },
+        { kind: 'cmd', cmd: 'highlight', subjects: [slug], line: 7 },
+      ],
+    }],
+  });
+
+  const player = createStoryPlayer(document.createElement('div'), {
+    story: lesson('numeral_3'),
+    assetBase: 'https://storage.example/',
+  });
+  await player.ready;
+  player.destroy();
+
+  const wrong = createStoryPlayer(document.createElement('div'), {
+    story: lesson('fox'),
+    assetBase: 'https://storage.example/',
+  });
+  await assert.rejects(wrong.ready, /fox.*absent from cast and objects/);
+  wrong.destroy();
+});
+
 test('refuses a second live owner and preserves foreign ShadowRoot content', async (t) => {
   const dom = installDom();
   t.after(dom.restore);
