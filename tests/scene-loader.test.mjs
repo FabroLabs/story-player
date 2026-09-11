@@ -41,9 +41,18 @@ const name = (url) => String(url).split('/').pop();
 function clipsNamedBy(timeline, sceneIndex) {
   const named = new Set();
   const lastAtInstant = new Map();
+  // The instant this scene is cut away at. A clip applied THERE is wiped by the
+  // cut in the same breath, so it is never drawn for a millisecond either — the
+  // same rule as the per-instant replacement below, arriving from the other
+  // direction. An emote on a scene's last line costs no time, so the cut lands
+  // on the very millisecond it was asked for.
+  const cutAt = timeline.events.find(
+    (event) => event.source === 'stage' && event.op === 'scene' && event.scene_index > sceneIndex,
+  )?.t_ms ?? null;
   for (const event of timeline.events) {
     if (event.source !== 'stage' || event.scene_index !== sceneIndex || !event.clip) continue;
     named.add(`${event.slug} ${event.clip}`);
+    if (event.t_ms === cutAt) continue;
     lastAtInstant.set(`${event.slug} ${event.t_ms}`, `${event.slug} ${event.clip}`);
   }
   const visible = new Set(lastAtInstant.values());
@@ -111,14 +120,22 @@ test('the corpus draws every clip that is ever on screen, and asks for no PNG', 
 
       for (const sheet of plan.sheets) {
         sheets += 1;
-        assert.match(sheet.url, /\/mobile\/sprites\/[^/]+\.webp$/, 'a rendition, never the original');
+        // Two prefixes because the bucket layout was renamed and the corpus was
+        // not: the seven older fixtures were copied in while renditions lived
+        // under `mobile/sprites`, and the engine writes `renditions/sprites`
+        // today (`tools/playerkit/renditions.py`). What is being asserted is the
+        // same either way — a rendition, never the original PNG.
+        assert.match(sheet.url, /\/(?:mobile|renditions)\/sprites\/[^/]+\.webp$/, 'a rendition, never the original');
         assert.ok([200, 320, 384, 512].includes(sheet.tier));
       }
     }
   }
   // Measured, so a test that quietly stops covering the corpus fails loudly.
-  assert.equal(sheets, 161, 'the corpus draws 161 sheets across its 24 scenes');
-  assert.equal(replaced, 3, 'three clips in the corpus are replaced in the same millisecond they are set');
+  assert.equal(sheets, 165, 'the corpus draws 165 sheets across its 27 scenes');
+  // Three set and re-set at one instant, and two more the scene is cut away
+  // from at the very millisecond they are asked for — an emote on a scene's
+  // last line, which costs no time, so the cut lands on top of it.
+  assert.equal(replaced, 5, 'five clips in the corpus are never drawn for a millisecond');
 });
 
 test('a scene is planned at the magnification it actually reaches', () => {

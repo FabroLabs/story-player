@@ -935,6 +935,74 @@ function lastNarrationCue(timeline) {
  * test's hands. `story` is the parity corpus, so what plays is a real compile
  * of a real bundle rather than a fixture written to suit the runtime.
  */
+/**
+ * A counting scene: one character standing still under a clip that never
+ * advances a frame.
+ *
+ * That is the shape the lesson commands are actually used in, and the shape
+ * where every OTHER field of the repaint signature is constant for the whole
+ * scene — so if the board and the ring do not put their own progress into it,
+ * the loop has no reason to draw a second frame and the lesson never appears.
+ */
+function stillLesson(bundle) {
+  for (const member of Object.values(bundle.cast)) {
+    for (const clip of Object.values(member.clips ?? {})) {
+      clip.frames = 1;
+      clip.grid = [1, 1];
+    }
+  }
+  const [scene] = bundle.scenes;
+  const spoken = scene.steps.find((step) => step.kind === 'chunk');
+  const says = (line, text) => ({ ...spoken, line, text, duration_s: 2 });
+  bundle.scenes = [{
+    ...scene,
+    steps: [
+      {
+        kind: 'cmd', line: 1, cmd: 'put', subjects: ['robin'], objects: [], position: 'center', facing: null, beside: null, zone: null,
+      },
+      says(2, 'Robin found three.'),
+      { kind: 'cmd', line: 3, cmd: 'slate', count: 3 },
+      says(4, 'Three.'),
+      { kind: 'cmd', line: 5, cmd: 'highlight', subjects: ['robin'] },
+      says(6, 'There is Robin.'),
+    ],
+  }];
+}
+
+test('the lesson repaints on its own clock, and stops when it has landed', async (t) => {
+  const player = await mount(t, { doctor: stillLesson });
+  const context = player.canvas.context;
+  player.start();
+
+  // One frame, and everything it drew. `advanceTo` fires exactly one.
+  const frame = (at) => {
+    const from = context.calls.length;
+    player.frames.advanceTo(at);
+    return context.calls.slice(from);
+  };
+  const numerals = (calls) => calls.filter(([name]) => name === 'fillText').map(([, text]) => text);
+
+  // The first line: somebody standing still, and no board.
+  assert.deepEqual(numerals(frame(1_000)), []);
+
+  // The board arrives with the second line and grows into place across `popMs`.
+  const arriving = frame(2_040);
+  const settling = frame(2_120);
+  assert.deepEqual(numerals(arriving), ['1', '2', '3']);
+  assert.deepEqual(numerals(settling), ['1', '2', '3']);
+  assert.notDeepEqual(arriving, settling, 'the pop did not move between two frames');
+
+  // And once it has landed, a still scene is free again — the overlay's own
+  // progress reaches its ceiling and stops making every instant different.
+  frame(3_000);
+  assert.deepEqual(frame(3_040), [], 'the loop kept repainting a picture nothing was changing');
+
+  // The ring runs on the same clock.
+  frame(4_040);
+  assert.ok(frame(4_120).length > 0, 'the ring stopped pulsing');
+  player.destroy();
+});
+
 async function mount(t, {
   doctor = () => {}, options = {}, machine = null, assets, story = null,
 } = {}) {

@@ -17,6 +17,7 @@
  */
 
 import { createStateCursor } from '../core/state/cursor.mjs';
+import { HIGHLIGHT, SLATE } from '../policy.mjs';
 import { KEEP_CADENCE_MS } from './assets/scene-loader.mjs';
 import { DEFAULT_DRAW_HZ, tierSettings } from './capability.mjs';
 import { createControls } from './controls.mjs';
@@ -852,6 +853,12 @@ export function createTimelinePlayer({
  * Rounded to what the eye and the canvas can tell apart: a hundredth of a
  * percent of stage width, a tenth of a pixel of height. Two instants with the
  * same signature paint the same picture, so the second one is not painted.
+ *
+ * Everything above the lesson's two overlays moves because somebody moved. The
+ * overlays move because the CLOCK moved, and a counting scene is often one prop
+ * standing still — a prop's `frame` is `null` for its whole life — so without
+ * their own progress in here the string is constant for the scene and the board
+ * never arrives, the pop never runs and the ring never pulses.
  */
 function signatureOf(state) {
   const parts = [
@@ -869,9 +876,28 @@ function signatureOf(state) {
       round(actor.feetY, 1),
       round(actor.heightPx, 1),
       round(actor.opacity, 2),
+      overlayPhase(state.tMs, actor.highlightMs, HIGHLIGHT.durationMs),
     );
   }
+  parts.push(
+    state.slate?.count ?? 0,
+    overlayPhase(state.tMs, state.slate?.sinceMs, SLATE.popMs),
+  );
   return parts.join('|');
+}
+
+/**
+ * How far an overlay is through its own animation, or 1 once it is over.
+ *
+ * The ceiling is the point: while it runs, every instant is a different string
+ * and every frame is painted; the moment it lands, one last repaint settles it
+ * and a still scene goes back to costing nothing. Without that, a ring that
+ * finished an hour of story ago would keep the loop redrawing for ever.
+ */
+function overlayPhase(tMs, sinceMs, spanMs) {
+  if (!Number.isFinite(sinceMs) || !Number.isFinite(tMs)) return 1;
+  const elapsed = tMs - sinceMs;
+  return elapsed >= 0 && elapsed < spanMs ? round(elapsed / spanMs, 3) : 1;
 }
 
 function round(value, places) {

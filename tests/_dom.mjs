@@ -197,11 +197,29 @@ export function fakeContext() {
     fillStyle: null,
     imageSmoothingEnabled: false,
     imageSmoothingQuality: null,
+    strokeStyle: null,
+    lineWidth: 1,
+    font: null,
+    textAlign: null,
+    textBaseline: null,
     clearRect: record('clearRect'),
     beginPath: record('beginPath'),
     arc: record('arc'),
     ellipse: record('ellipse'),
+    moveTo: record('moveTo'),
+    lineTo: record('lineTo'),
+    arcTo: record('arcTo'),
+    closePath: record('closePath'),
     fill: record('fill'),
+    stroke: (...args) => calls.push([
+      'stroke', ...args, { alpha: context.globalAlpha, transform: [...transform] },
+    ]),
+    // Recorded like `drawImage` and for the same reason: a numeral is only
+    // right if it landed where the transform in force would have put it, and
+    // the slate's whole point is that that transform is NOT the camera's.
+    fillText: (...args) => calls.push([
+      'fillText', ...args, { alpha: context.globalAlpha, transform: [...transform] },
+    ]),
     setTransform(a, b, c, d, e, f) {
       calls.push(['setTransform', a, b, c, d, e, f]);
       transform = [a, d, e, f];
@@ -218,15 +236,14 @@ export function fakeContext() {
     },
     save() {
       calls.push(['save']);
-      stack.push([[...transform], context.globalAlpha, context.fillStyle]);
+      stack.push([[...transform], context.globalAlpha, context.fillStyle, context.strokeStyle, context.lineWidth]);
     },
     restore() {
       calls.push(['restore']);
       const held = stack.pop();
       if (!held) throw new Error('restore with nothing saved');
-      transform = held[0];
-      context.globalAlpha = held[1];
-      context.fillStyle = held[2];
+      [, context.globalAlpha, context.fillStyle, context.strokeStyle, context.lineWidth] = held;
+      [transform] = held;
     },
     drawImage: (...args) => calls.push([
       'drawImage', ...args, { alpha: context.globalAlpha, transform: [...transform] },

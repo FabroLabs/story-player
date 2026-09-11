@@ -17,7 +17,7 @@
  */
 
 import { DPR_CAP, chunkAt } from '../assets/rendition-picker.mjs';
-import { DEFAULT_STAGE_RESOLUTION } from '../../policy.mjs';
+import { DEFAULT_STAGE_RESOLUTION, HIGHLIGHT } from '../../policy.mjs';
 import { buildDrawList } from './draw-list.mjs';
 
 // The ink of the shadow and of the placeholder, kept here rather than in the
@@ -26,6 +26,18 @@ import { buildDrawList } from './draw-list.mjs';
 const SHADOW_INK = '2, 3, 12';
 const MISSING_INK = ['rgba(245, 220, 163, 0.28)', 'rgba(27, 31, 67, 0.88)'];
 const TAU = Math.PI * 2;
+
+// The lesson's ink. The board is a dark pane with pale cards on it so the
+// numerals read over a bright plate and a dark one alike, and the gold is the
+// one accent both the ringed card and the highlight ring are drawn in — a child
+// is being shown two halves of one answer, and they should look like it.
+const SLATE_PANEL_INK = 'rgba(10, 12, 30, 0.42)';
+const SLATE_CARD_INK = 'rgba(250, 247, 236, 0.94)';
+const SLATE_NUMERAL_INK = '#1b1f43';
+const GOLD_INK = '245, 197, 66';
+// Rounded first, then the ordinary stacks: a counting card wants the shape of a
+// nursery numeral, and every platform that has one names it differently.
+const NUMERAL_FONT = '"SF Pro Rounded", ui-rounded, Nunito, Quicksand, system-ui, sans-serif';
 
 // How long a character may be missing before the placeholder is shown.
 //
@@ -344,14 +356,10 @@ export function paintDrawList(context, list, {
   context.setTransform(1, 0, 0, 1, 0, 0);
   context.clearRect(0, 0, Math.round(list.width * scale), Math.round(list.height * scale));
   const magnification = camera.scale * scale;
-  context.setTransform(
-    magnification,
-    0,
-    0,
-    magnification,
-    (camera.x / 100) * list.width * scale,
-    (camera.y / 100) * list.height * scale,
-  );
+  const offsetX = (camera.x / 100) * list.width * scale;
+  const offsetY = (camera.y / 100) * list.height * scale;
+  const underCamera = () => context.setTransform(magnification, 0, 0, magnification, offsetX, offsetY);
+  underCamera();
   context.imageSmoothingEnabled = true;
   context.imageSmoothingQuality = 'high';
 
@@ -361,6 +369,21 @@ export function paintDrawList(context, list, {
       // frame is the most expensive thing on the list and the least of what a
       // viewer is looking at.
       if (shadows) paintShadow(context, command);
+      continue;
+    }
+    if (command.op === 'ring') {
+      paintRing(context, command);
+      continue;
+    }
+    // The one command drawn outside the camera. The transform drops to the
+    // viewport alone for the length of it and is put straight back, so nothing
+    // after this line has to know the slate was ever painted. Both it and the
+    // ring survive the low tier — they carry the lesson, and a device too weak
+    // for a drop shadow is not too weak for a rectangle.
+    if (command.op === 'slate') {
+      context.setTransform(scale, 0, 0, scale, 0, 0);
+      paintSlate(context, command);
+      underCamera();
       continue;
     }
     const drawable = command.url ? lookup(command.url) : null;
@@ -436,6 +459,93 @@ function paintProp(context, command, drawable) {
     drawnWidth,
     drawnHeight,
   );
+}
+
+/**
+ * The counting board: one pane, and a card per numeral standing on it.
+ *
+ * The newest card is drawn at `pop` about its own centre, so it overshoots and
+ * settles without shifting the cards beside it — the pane is sized for where it
+ * will land, not for where it is now, which is why the board does not jump as
+ * the last card arrives.
+ */
+function paintSlate(context, { cells }) {
+  if (!cells?.length) return;
+  const pad = cells[0].dw * 0.18;
+  const left = Math.min(...cells.map((cell) => cell.dx));
+  const top = Math.min(...cells.map((cell) => cell.dy));
+  const right = Math.max(...cells.map((cell) => cell.dx + cell.dw));
+  const bottom = Math.max(...cells.map((cell) => cell.dy + cell.dh));
+
+  context.save();
+  context.fillStyle = SLATE_PANEL_INK;
+  roundedRect(context, left - pad, top - pad, (right - left) + (pad * 2), (bottom - top) + (pad * 2), pad);
+  context.fill();
+
+  for (const cell of cells) {
+    const width = cell.dw * cell.pop;
+    const height = cell.dh * cell.pop;
+    // A card at the very start of its pop has no size at all, and a zero-radius
+    // rounded rect is a path nothing sensible comes out of.
+    if (!(width > 0) || !(height > 0)) continue;
+    const x = cell.dx + ((cell.dw - width) / 2);
+    const y = cell.dy + ((cell.dh - height) / 2);
+    context.fillStyle = SLATE_CARD_INK;
+    roundedRect(context, x, y, width, height, width * 0.22);
+    context.fill();
+    if (cell.ring) {
+      context.strokeStyle = `rgba(${GOLD_INK}, 1)`;
+      context.lineWidth = Math.max(2, width * 0.07);
+      context.stroke();
+    }
+    context.fillStyle = SLATE_NUMERAL_INK;
+    context.font = `${Math.round(height * 0.62)}px ${NUMERAL_FONT}`;
+    context.textAlign = 'center';
+    context.textBaseline = 'middle';
+    context.fillText(String(cell.n), x + (width / 2), y + (height / 2));
+  }
+  context.restore();
+}
+
+/**
+ * The ring a `highlight` leaves: gold, and pulsing `HIGHLIGHT.pulses` times
+ * across its life.
+ *
+ * A sine of the progress rather than a fade, so it begins and ends at nothing —
+ * a ring that appeared at full strength would read as a second object arriving
+ * on stage rather than as the one already there being pointed at.
+ */
+function paintRing(context, { cx, cy, rx, ry, progress }) {
+  if (!(rx > 0) || !(ry > 0)) return;
+  // Stroked at every instant of its life, including the two it is invisible at:
+  // a canvas draws nothing at alpha 0, and one branch fewer is one fewer place
+  // for the ring to disappear at a boundary nobody meant.
+  const alpha = Math.abs(Math.sin(progress * HIGHLIGHT.pulses * Math.PI));
+  context.save();
+  context.globalAlpha = alpha;
+  context.strokeStyle = `rgba(${GOLD_INK}, 1)`;
+  context.lineWidth = Math.max(2, rx * 0.06);
+  context.beginPath();
+  context.ellipse(cx, cy, rx, ry, 0, 0, TAU);
+  context.stroke();
+  context.restore();
+}
+
+// Written out rather than `roundRect`, which is younger than the browsers this
+// player still draws on — the same reason the placeholder is an ellipse.
+function roundedRect(context, x, y, width, height, radius) {
+  const r = Math.max(0, Math.min(radius, width / 2, height / 2));
+  context.beginPath();
+  context.moveTo(x + r, y);
+  context.lineTo((x + width) - r, y);
+  context.arcTo(x + width, y, x + width, y + r, r);
+  context.lineTo(x + width, (y + height) - r);
+  context.arcTo(x + width, y + height, (x + width) - r, y + height, r);
+  context.lineTo(x + r, y + height);
+  context.arcTo(x, y + height, x, (y + height) - r, r);
+  context.lineTo(x, y + r);
+  context.arcTo(x, y, x + r, y, r);
+  context.closePath();
 }
 
 // An ellipse cannot carry a radial gradient of its own, so the gradient is

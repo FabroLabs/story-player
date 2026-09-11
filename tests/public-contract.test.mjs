@@ -57,8 +57,8 @@ test('v0 tooling keeps the exact semantics every client consumes', () => {
   assert.equal(typeof tooling.compileTimeline, 'function');
   assert.deepEqual(tooling.TIMELINE_OPS, [
     'scene', 'place', 'place_object', 'clip', 'move', 'settle', 'depart',
-    'exit', 'push_in', 'pull_out', 'shot', 'pan', 'camera_reset', 'subtitle',
-    'end',
+    'exit', 'push_in', 'pull_out', 'shot', 'pan', 'camera_reset', 'slate',
+    'highlight', 'subtitle', 'end',
   ]);
   assert.ok(Object.isFrozen(tooling.TIMELINE_OPS));
   assertDeeplyFrozen(tooling.V0_POLICY);
@@ -94,6 +94,16 @@ test('v0 tooling keeps the exact semantics every client consumes', () => {
       defaultExitXPct: { left: -8, right: 108 },
       departureDeadlineMs: 5000,
     },
+    slate: {
+      perRow: 5,
+      cellPct: 7,
+      gapPct: 1.2,
+      topPct: 3,
+      popMs: 350,
+      overshoot: 1.1,
+      max: 20,
+    },
+    highlight: { durationMs: 1500, pulses: 2, ringPct: 12 },
     audio: {
       musicVolume: 0.38,
       duckedMusicVolume: 0.14,

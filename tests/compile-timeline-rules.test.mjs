@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { compileTimeline } from '../browser/v0/core/timeline/compile.mjs';
+import { SLATE } from '../browser/v0/policy.mjs';
 
 /**
  * The rules the parity corpus cannot reach.
@@ -634,6 +635,118 @@ test('a verb the character has no clip for falls back, and the fallback is named
     { policy: 'facing-fallback', verb: 'furious', requested: 'camera', selected: null, slug: 'ruby' },
     { type: 'policy', policy: 'clip-missing', slug: 'ruby', verb: 'furious', selected: 'happy' },
   ]);
+});
+
+// --- the lesson commands ---------------------------------------------------
+
+const slate = (line, count) => ({ kind: 'cmd', line, cmd: 'slate', count });
+const highlight = (line, ...subjects) => ({ kind: 'cmd', line, cmd: 'highlight', subjects });
+
+function lessonStory(steps) {
+  const story = baseStory(steps);
+  story.objects = { acorn: { height_cm: 8 }, numeral_3: { height_cm: 40 } };
+  return story;
+}
+
+test('a slate is recorded at the count the story asked for, and 0 takes it away', () => {
+  // `SLATE.max` is the published maximum, so it is a count that WORKS — pinned
+  // beside the refusal, which otherwise leaves `>` and `>=` indistinguishable.
+  const events = compile(lessonStory([slate(1, 3), slate(2, SLATE.max), slate(3, 0)]));
+
+  assert.deepEqual(
+    ops(events, 'slate').map((event) => [event.count, event.line]),
+    [[3, 1], [SLATE.max, 2], [0, 3]],
+  );
+  assert.deepEqual(warnings(events), []);
+});
+
+test('a count that is not a whole number of cards is refused, not rounded', () => {
+  for (const count of [2.5, '3', -1, null, undefined, SLATE.max + 1]) {
+    const events = compile(lessonStory([{ kind: 'cmd', line: 7, cmd: 'slate', count }]));
+
+    assert.deepEqual(ops(events, 'slate'), [], `${JSON.stringify(count)} reached the stage`);
+    assert.deepEqual(warnings(events), [
+      { type: 'policy', policy: 'slate-count-unusable', count: count ?? null },
+    ]);
+  }
+});
+
+test('the compiler records no slate at a scene boundary — the cut is the state core job', () => {
+  // The compiler records no reset — the state core clears it on the cut — so
+  // what this pins is the ABSENCE of a second slate op at the scene boundary.
+  const story = lessonStory([slate(1, 2)]);
+  story.scenes.push({ ...story.scenes[0], line: 20, steps: [] });
+  const events = compile(story);
+
+  assert.equal(ops(events, 'slate').length, 1);
+});
+
+test('a highlight names one subject per event, so a client knows which one it lost', () => {
+  const events = compile(lessonStory([
+    put(1, 'ruby', 'center'),
+    { kind: 'cmd', line: 2, cmd: 'put', subjects: ['acorn'], objects: ['acorn'], position: 'left_third', facing: null },
+    highlight(3, 'ruby', 'acorn'),
+  ]));
+
+  // The line travels with the ring: it is what the debug drawer, the warning
+  // router and the writer's repair loop point at.
+  assert.deepEqual(
+    ops(events, 'highlight').map((event) => [event.slug, event.line]),
+    [['ruby', 3], ['acorn', 3]],
+  );
+  assert.deepEqual(warnings(events), []);
+});
+
+test('a highlight that names nobody is a step that did nothing, and it says so', () => {
+  for (const subjects of [undefined, [], null]) {
+    const events = compile(lessonStory([{ kind: 'cmd', line: 5, cmd: 'highlight', subjects }]));
+
+    assert.deepEqual(ops(events, 'highlight'), [], JSON.stringify(subjects));
+    assert.deepEqual(warnings(events), [{ type: 'policy', policy: 'highlight-unaimed' }]);
+  }
+});
+
+test('a highlight of somebody who is not on this stage is refused and named', () => {
+  const events = compile(lessonStory([put(1, 'ruby', 'center'), highlight(2, 'ruby', 'clover')]));
+
+  assert.deepEqual(ops(events, 'highlight').map((event) => event.slug), ['ruby']);
+  assert.deepEqual(warnings(events), [{ type: 'policy', policy: 'highlight-missing', slug: 'clover' }]);
+});
+
+test('a highlight reaches somebody standing in THIS place, not merely on the board', () => {
+  const story = lessonStory([put(1, 'ruby', 'center')]);
+  story.scenes.push({ ...story.scenes[0], line: 20, place: 'grove', steps: [highlight(21, 'ruby')] });
+  const events = compile(story);
+
+  assert.deepEqual(ops(events, 'highlight'), []);
+  assert.deepEqual(warnings(events), [{ type: 'policy', policy: 'highlight-missing', slug: 'ruby' }]);
+});
+
+test('a prop is only highlightable in the scene it was put down in', () => {
+  const story = lessonStory([
+    { kind: 'cmd', line: 1, cmd: 'put', subjects: ['acorn'], objects: ['acorn'], position: 'center', facing: null },
+  ]);
+  story.scenes.push({ ...story.scenes[0], line: 20, steps: [highlight(21, 'acorn')] });
+  const events = compile(story);
+
+  assert.deepEqual(ops(events, 'highlight'), []);
+  assert.deepEqual(warnings(events), [{ type: 'policy', policy: 'highlight-missing', slug: 'acorn' }]);
+});
+
+test('a highlight sharing a together with the put it rings is applied after it', () => {
+  // Sorted on its name alone, `highlight` comes before `put` — and would ring a
+  // card the same instant is about to set down.
+  const events = compile(lessonStory([{
+    kind: 'together',
+    line: 1,
+    steps: [
+      highlight(3, 'acorn'),
+      { kind: 'cmd', line: 2, cmd: 'put', subjects: ['acorn'], objects: ['acorn'], position: 'center', facing: null },
+    ],
+  }]));
+
+  assert.deepEqual(ops(events, 'highlight').map((event) => event.slug), ['acorn']);
+  assert.deepEqual(warnings(events), []);
 });
 
 test('a command this player does not perform keeps its own line', () => {

@@ -34,6 +34,7 @@ const SEPARATING = new Map([
   ['golden_camera_moves', 4],
   ['golden_heal_travel', 1],
   ['golden_push_dusk', 0],
+  ['golden_slate', 14],
   ['golden_together_audio', 0],
   ['ruby_and_the_gentle_dark', 24],
   ['the_owls_quiet_friend', 8],
@@ -47,6 +48,7 @@ const WALKS = new Map([
   ['golden_camera_moves', 1],
   ['golden_heal_travel', 0],
   ['golden_push_dusk', 0],
+  ['golden_slate', 0],
   ['golden_together_audio', 0],
   ['ruby_and_the_gentle_dark', 6],
   ['the_owls_quiet_friend', 0],
@@ -63,6 +65,7 @@ const EXACT_PLACEMENTS = new Map([
   ['golden_camera_moves', 1],
   ['golden_heal_travel', 0],
   ['golden_push_dusk', 3],
+  ['golden_slate', 1],
   ['golden_together_audio', 0],
   ['ruby_and_the_gentle_dark', 0],
   ['the_owls_quiet_friend', 1],
@@ -75,6 +78,14 @@ const EXACT_PLACEMENTS = new Map([
 // two sentences, exactly as the DOM stage warned. Pinned so the channel is
 // known to be reachable from the corpus, and known to say nothing else.
 const WARNINGS = new Map([
+  // A lesson stands its whole pile on one band — the counted props and the
+  // numeral card beside whoever is counting them — so the foreground really is
+  // a few percent short of the room they all want. Everybody is still drawn and
+  // still separated; this is the plate saying so at the instant it was measured.
+  ['golden_slate', [
+    { t_ms: 6_942, scene_index: 1, line: 31, type: 'policy', policy: 'band-overcrowded', zone: 'foreground', occupants: 4, short_pct: 5.4 },
+    { t_ms: 13_884, scene_index: 2, line: 44, type: 'policy', policy: 'band-overcrowded', zone: 'foreground', occupants: 5, short_pct: 5.5 },
+  ]],
   ['the_owls_quiet_friend', [
     { t_ms: 65_564, scene_index: 2, line: 52, type: 'policy', policy: 'band-overcrowded', zone: 'foreground', occupants: 3, short_pct: 1.5 },
     { t_ms: 65_564, scene_index: 2, line: 53, type: 'policy', policy: 'band-overcrowded', zone: 'foreground', occupants: 3, short_pct: 1.5 },
@@ -193,11 +204,8 @@ for (const { stem, bundle, timeline } of STORIES) {
         // A walk-off is not crowded: the whole cast leaves through one anchor,
         // fading as they go, and the browser never separated them either.
         const standing = members.filter((actor) => !actor.moving && actor.opacity > 0);
-        // Measured off the plate rather than read back off the state, so the
-        // exemption is not the implementation grading its own homework.
         const room = floorSpan(zoneNamed(state.plate, band)?.polygon);
-        const short = !room
-          || standing.reduce((total, actor) => total + (2 * half.get(actor.slug)), 0) > (room.max - room.min);
+        const short = overcrowded(standing, half, room);
         for (let index = 1; index < standing.length; index += 1) {
           for (let other = 0; other < index; other += 1) {
             const needed = half.get(standing[index].slug) + half.get(standing[other].slug);
@@ -568,6 +576,40 @@ function lastClipPerInstant(timeline) {
     dressed.set(`${event.t_ms}|${event.slug}`, event.clip);
   }
   return dressed;
+}
+
+/**
+ * Is this band beyond separating?
+ *
+ * Measured off the plate rather than read back off the state, so the exemption
+ * is not the implementation grading its own homework.
+ *
+ * Two ways a band runs out of room, and the corpus needs both. The first is the
+ * obvious one: everybody's width adds up to more than the floor. The second is
+ * the one a lesson brought in — a prop is immovable (`crowding.mjs`: an anchor
+ * keeps its x and the characters flow around it), so what a character really has
+ * is the GAPS the props leave, not the band minus everybody. A numeral card is
+ * 80 cm and fills near a quarter of the frame; set it down beside a pile and the
+ * widest gap left can be narrower than the one who is counting them while the
+ * totals still add up fine. Asking the picture to separate them then is asking
+ * for a place that does not exist.
+ */
+function overcrowded(standing, half, room) {
+  if (!room) return true;
+  const width = (actor) => 2 * half.get(actor.slug);
+  if (standing.reduce((total, actor) => total + width(actor), 0) > (room.max - room.min)) return true;
+
+  let from = room.min;
+  let widest = 0;
+  for (const prop of standing.filter((actor) => actor.kind === 'object').sort((a, b) => a.x - b.x)) {
+    widest = Math.max(widest, (prop.x - half.get(prop.slug)) - from);
+    from = Math.max(from, prop.x + half.get(prop.slug));
+  }
+  widest = Math.max(widest, room.max - from);
+  // The widest SINGLE gap, so two wanderers that each fit it but not together
+  // are not caught here. The corpus has one; the day a story has two, this is
+  // the line that has to grow.
+  return standing.some((actor) => actor.kind !== 'object' && width(actor) > widest);
 }
 
 function alone(state, actor) {

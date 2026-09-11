@@ -4,6 +4,7 @@ import { NO_FLOOR_STAND_Y, floorYAtX, zoneDepthOrder, zoneNamed } from '../geome
 // compiler already inherited; phase 7 deletes the DOM stage and is the cheap
 // moment to move the module. The policy itself is pure.
 import { drawnSpriteHeightPx } from '../../app/stage/presentation-policy.mjs';
+import { SLATE } from '../../policy.mjs';
 import { BandBook } from './bands.mjs';
 import { WIDE_FRAMING, framingBetween, framingForOp } from './camera.mjs';
 import { paintOrder, spreadBand } from './layout.mjs';
@@ -111,6 +112,9 @@ export class World {
   #place = null;
   #plate = null;
   #subtitle = '';
+  // The counting board, and the instant its newest card landed — the pop is a
+  // function of that instant and t, so the same t always draws the same board.
+  #slate = { count: 0, sinceMs: 0 };
   #ended = false;
   #warnings = [];
   #camera = { from: WIDE_FRAMING, held: WIDE_FRAMING, startMs: 0, durationMs: 0 };
@@ -133,8 +137,10 @@ export class World {
       case 'settle': this.#settle(event); break;
       case 'depart': this.#depart(event); break;
       case 'exit': this.#exit(event); break;
+      case 'slate': this.#showSlate(event); break;
+      case 'highlight': this.#highlight(event); break;
       case 'subtitle': this.#subtitle = event.text ?? ''; break;
-      case 'end': this.#end(); break;
+      case 'end': this.#end(event); break;
       case 'push_in': case 'pull_out': case 'shot': case 'pan': case 'camera_reset':
         this.#camera_(event); break;
       // An op this player has no meaning for is not a shrug: it is content the
@@ -154,6 +160,7 @@ export class World {
       plate: this.#plate,
       actors,
       camera: this.#framingAt(tMs),
+      slate: { ...this.#slate },
       subtitle: this.#subtitle,
       ended: this.#ended,
       warnings: this.#warnings,
@@ -170,6 +177,7 @@ export class World {
     this.#actors.clear();
     this.#bands.openScene(this.#plate);
     this.#subtitle = '';
+    this.#slate = { count: 0, sinceMs: event.t_ms };
     this.#ended = false;
     this.#camera = { from: WIDE_FRAMING, held: WIDE_FRAMING, startMs: event.t_ms, durationMs: 0 };
   }
@@ -266,8 +274,47 @@ export class World {
     this.#bands.forget(event.slug);
   }
 
-  #end() {
+  // A count that is not a whole number of cards is refused rather than rounded:
+  // the board is the answer a child is being shown, and half a card is not one.
+  //
+  // The ceiling is checked HERE and not only at the drawer, because the drawer's
+  // answer to a count of 25 is a board of 20 — five of the story's own cards
+  // gone, `slate.count` still saying 25, and nobody told. The compiler refuses
+  // the same count out loud; a timeline from anywhere else gets the same
+  // refusal rather than a quietly shortened answer.
+  #showSlate(event) {
+    const { count } = event;
+    if (!Number.isInteger(count) || count < 0 || count > SLATE.max) {
+      this.#warn(event, { type: 'policy', policy: 'slate-count-unusable', count: count ?? null });
+      return;
+    }
+    // Asking for the count already showing is not a new card. Re-stamping
+    // `sinceMs` would replay the pop on a cell that has been sitting there,
+    // which is what a story repeating a total between two chunks would look
+    // like — the board twitching on a number nobody changed.
+    if (count === this.#slate.count) return;
+    this.#slate = { count, sinceMs: event.t_ms };
+  }
+
+  // Unreachable from this repository's compiler, which refuses a highlight of
+  // somebody who is not on stage — but a timeline is read from wherever it came
+  // from, and a ring around nobody is content the picture is missing.
+  #highlight(event) {
+    const actor = this.#actors.get(event.slug);
+    if (!actor) {
+      this.#warn(event, { type: 'policy', policy: 'highlight-missing', slug: event.slug ?? null });
+      return;
+    }
+    actor.highlightMs = event.t_ms;
+  }
+
+  // The board goes with the subtitle. It is cleared here rather than by an op of
+  // its own so no bedtime story pays a slate event it never asked for — and it
+  // has to be cleared somewhere, or the last frame a lesson freezes on is its
+  // final answer still ringed, over a story that has otherwise finished.
+  #end(event) {
     this.#subtitle = '';
+    this.#slate = { count: 0, sinceMs: event.t_ms };
     this.#ended = true;
   }
 
@@ -304,6 +351,7 @@ export class World {
       clipStartedMs: 0,
       clipMissing: false,
       motion: null,
+      highlightMs: null,
       approaching: false,
       order: this.#actors.size + 1,
     };
@@ -432,6 +480,7 @@ export class World {
       frame,
       cell: clip ? frameCell(frame, clip.grid ?? [clip.frames, 1]) : null,
       moving: actor.motion !== null,
+      highlightMs: actor.highlightMs,
     };
   }
 }

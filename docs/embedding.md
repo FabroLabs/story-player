@@ -73,8 +73,9 @@ play one schedule rather than two implementations of it.
 
 `stateAt` is one frame: a pure function of that timeline, the bundle and an
 instant in milliseconds, answering with the actors on stage, their clips and
-frame cells, the camera framing, the subtitle showing, and the warnings crossed
-on the way. It interprets the timeline and never re-decides it.
+frame cells, the camera framing, the subtitle showing, the counting board
+(`slate: {count, sinceMs}`, and `highlightMs` on each actor—see below), and the
+warnings crossed on the way. It interprets the timeline and never re-decides it.
 
 The picture is a single canvas 2D stage drawn over the hardware-decoded
 `<video>` plate, both inside the player's open Shadow DOM. Camera framing is a
@@ -82,10 +83,30 @@ CSS transform on the plate and the matching `ctx.setTransform` on the canvas,
 written only when the framing moves. Subtitles, the media note and the controls
 stay ordinary DOM.
 
+A lesson draws two things a bedtime story never asks for, and both come through
+the same path. `slate` is the counting board: `count` cards, numerals 1..count in
+rows of five across the top of the frame, the newest ringed and popping into
+place, and `count: 0` takes it away. `V0_POLICY.slate.max` is the largest count
+there is—a timeline carrying more is refused with `slate-count-unusable` rather
+than shortened, at the compiler and again at `stateAt`, so no client is left
+drawing a smaller board than the story asked for without being told. It is a HUD—painted in plate coordinates
+with the camera left out, so a push-in magnifies the cast underneath while the
+numbers keep their size and their corner. `highlight` is a gold ring around one
+subject, pulsing twice over `V0_POLICY.highlight.durationMs` and riding its
+actor under the camera. A scene cut clears both, and so does the ending—but
+watch where that happens: the subtitle is reset by an event of its own, while
+the board and the ring are cleared by the `scene` and `end` ops themselves, so
+a client folding the stream must clear them at those two ops rather than wait
+for a reset that never arrives. Every rectangle either one draws is measured from `V0_POLICY.slate`
+and `V0_POLICY.highlight`; the numeral inside a card is drawn with the
+platform's own rounded font and is deliberately not part of that contract.
+
 The story clock is pausable and seekable, and audio follows it: each cue starts
 at its own `t_ms` and is aligned by `currentTime`, so blocked or late audio
-never holds up the picture. The loop redraws only when the frame changed, and
-never faster than 24 Hz. A story that is paused, hidden, ended or destroyed
+never holds up the picture. The loop redraws only when the frame changed—and a
+board still popping or a ring still pulsing IS the frame changing, so a counting
+scene where nobody moves still repaints until its overlay has landed—and never
+faster than 24 Hz. A story that is paused, hidden, ended or destroyed
 schedules nothing.
 
 ## Plain JavaScript
