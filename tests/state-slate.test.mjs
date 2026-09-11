@@ -178,6 +178,24 @@ test('a scene cut takes the ring with the actor it was on', () => {
   assert.equal(actorAt(events, 'rabbit', 3_000).highlightMs, null);
 });
 
+test('the ending takes the ring too, because the cast is still standing there', () => {
+  // `scene` clears the rings by clearing the actors; `end` leaves everybody on
+  // stage, so the ring has to be taken off them one at a time or the last frame
+  // a lesson freezes on keeps a gold ellipse around its final answer. The page
+  // every other client is written from (`docs/embedding.md`) promises exactly
+  // this at exactly these two ops.
+  const events = [
+    stage(500, 'place', { slug: 'rabbit', x: 40, clip: 'idle_right' }),
+    stage(7_800, 'highlight', { slug: 'rabbit' }),
+    stage(8_000, 'end', {}),
+  ];
+
+  assert.equal(actorAt(events, 'rabbit', 8_500).highlightMs, null);
+  // The frame before the ending is still ringed — cleared at the op, not
+  // retroactively, the same as the board.
+  assert.equal(actorAt(events, 'rabbit', 7_900).highlightMs, 7_800);
+});
+
 test('a ring around nobody is content the picture is missing, and it says so', () => {
   const state = stateAt(timeline([stage(1_000, 'highlight', { slug: 'fox' })]), BUNDLE, 5_000);
 

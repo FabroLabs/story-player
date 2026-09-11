@@ -315,6 +315,9 @@ export class World {
   #end(event) {
     this.#subtitle = '';
     this.#slate = { count: 0, sinceMs: event.t_ms };
+    // One actor at a time because `end` leaves the cast standing, unlike
+    // `scene`, which takes the rings with the actors it clears.
+    for (const actor of this.#actors.values()) actor.highlightMs = null;
     this.#ended = true;
   }
 

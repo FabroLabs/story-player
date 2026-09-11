@@ -364,6 +364,20 @@ test('a ring carries how far through its own life it is, and stops when that is 
   assert.deepEqual(ringAt(1_000 + HIGHLIGHT.durationMs), []);
 });
 
+test('a ring carries its subject\'s opacity, the way the shadow under them does', () => {
+  const list = buildDrawList({
+    ...actorState({
+      actors: [{
+        slug: 'ruby', x: 50, feetY: 90, heightPx: 200, clip: 'idle_right', highlightMs: 0, opacity: 0.4,
+      }],
+    }),
+    tMs: 300,
+  }, oneSheet('sheet.webp', [1, 1]));
+  const [ring] = only(list, 'ring');
+
+  assert.equal(ring.opacity, 0.4);
+});
+
 test('an actor nobody ever named carries no ring', () => {
   const list = buildDrawList(
     actorState({ actors: [{ slug: 'ruby', x: 50, feetY: 90, heightPx: 200, clip: 'idle_right' }] }),

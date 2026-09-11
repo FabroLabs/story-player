@@ -511,10 +511,14 @@ test('the painter clears the frame before it draws the next one', () => {
 
 // --- the lesson's two overlays ---------------------------------------------
 
-function lessonList({ camera, slate, highlightMs, tMs = 0 } = {}) {
+function lessonList({
+  camera, slate, highlightMs, tMs = 0, opacity = 1,
+} = {}) {
   return buildDrawList({
     ...stageState({
-      actors: [{ slug: 'ruby', x: 50, feetY: 90, heightPx: 200, clip: 'idle', highlightMs }],
+      actors: [{
+        slug: 'ruby', x: 50, feetY: 90, heightPx: 200, clip: 'idle', highlightMs, opacity,
+      }],
       camera,
     }),
     slate,
@@ -599,6 +603,45 @@ test('the ring brightens twice across its life, and is out at both ends', () => 
   assert.equal(ringAlpha(750), 0);
   assert.equal(ringAlpha(1_125), 1);
   assert.equal(ringAlpha(1_500), null, 'the ring outlived its own duration');
+});
+
+test('the ring fades with the subject it is marking', () => {
+  const context = fakeContext();
+  // A naming scene puts the thing down and rings it in the same instant, so the
+  // ring's brightest moment lands while the character is still fading in. At
+  // full strength over a quarter-visible fox it reads as a gold ellipse that
+  // arrived on its own.
+  paintDrawList(context, lessonList({ highlightMs: 0, tMs: 375, opacity: 0.25 }), {
+    lookup: () => bitmap(512, 512), scale: 1,
+  });
+
+  const [ring] = context.of('stroke');
+  // 375 ms is the pulse's own peak (1), so what is left is the subject's.
+  assert.equal(Math.round(ring.at(-1).alpha * 1000) / 1000, 0.25);
+});
+
+test('the newest card grows about its own centre, and its numeral grows with it', () => {
+  const context = fakeContext();
+  // Half way through the pop, where the back-out curve is past full size: the
+  // only instants pinned until now were 0 and settled, and a card drawn from its
+  // corner or a numeral at a constant size looks identical at both.
+  const list = lessonList({ slate: { count: 2, sinceMs: 0 }, tMs: 175 });
+  const [board] = list.commands.filter((command) => command.op === 'slate');
+  paintDrawList(context, list, { lookup: () => bitmap(512, 512), scale: 1, shadows: false });
+
+  const card = board.cells[1];
+  assert.ok(card.pop > 1, 'the sample instant is not mid-pop, where the card overshoots');
+  const width = card.dw * card.pop;
+  const height = card.dh * card.pop;
+  // The card's own rounded path, which starts a corner radius in from its left
+  // edge: grown about its centre, so the settled card beside it does not move.
+  assert.deepEqual(context.of('moveTo')[2], [
+    card.dx + ((card.dw - width) / 2) + (width * 0.22),
+    card.dy + ((card.dh - height) / 2),
+  ]);
+  // And the numeral is measured from the card it stands on — the last font set
+  // is the newest card's, because the cards are painted in order.
+  assert.equal(Number.parseInt(context.font, 10), Math.round(height * 0.62));
 });
 
 test('the weak tier still draws the lesson, shadows or no shadows', () => {
