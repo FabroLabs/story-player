@@ -115,6 +115,12 @@ export function buildDrawList(state, sheets = NO_SHEETS) {
  * renderer needs no clock and no policy of its own to know how far through the
  * pulse it is — and a golden reads as a fraction rather than as a timestamp
  * that moves whenever the story ahead of it does.
+ *
+ * It also carries its subject's opacity, like the shadow under the same figure:
+ * a ring is a mark ON somebody, and one drawn at full strength around a
+ * character still fading in — which is every naming scene, where the thing is
+ * put down and ringed in the same instant — is a gold ellipse floating over an
+ * arrival rather than a pointer at it.
  */
 function ringFor(actor, box, tMs) {
   const since = actor?.highlightMs;
@@ -130,6 +136,7 @@ function ringFor(actor, box, tMs) {
     rx: round(radius),
     ry: round(radius),
     progress: round(progress, 4),
+    opacity: box.opacity,
   };
 }
 

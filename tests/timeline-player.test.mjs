@@ -994,8 +994,13 @@ test('the lesson repaints on its own clock, and stops when it has landed', async
 
   // And once it has landed, a still scene is free again — the overlay's own
   // progress reaches its ceiling and stops making every instant different.
+  //
+  // The two frames are further apart than the draw cadence (1000 / 24 = 41.67
+  // ms), or the empty result is the cadence gate turning the second frame away
+  // before it ever reached the picture — an assertion that passes with the
+  // ceiling deleted.
   frame(3_000);
-  assert.deepEqual(frame(3_040), [], 'the loop kept repainting a picture nothing was changing');
+  assert.deepEqual(frame(3_080), [], 'the loop kept repainting a picture nothing was changing');
 
   // The ring runs on the same clock.
   frame(4_040);

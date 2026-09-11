@@ -585,7 +585,8 @@
             "cy": 787.24,
             "rx": 256,
             "ry": 256,
-            "progress": 0.25
+            "progress": 0.25,
+            "opacity": 1
           },
           {
             "op": "slate",

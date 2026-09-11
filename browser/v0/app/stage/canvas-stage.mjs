@@ -515,12 +515,19 @@ function paintSlate(context, { cells }) {
  * a ring that appeared at full strength would read as a second object arriving
  * on stage rather than as the one already there being pointed at.
  */
-function paintRing(context, { cx, cy, rx, ry, progress }) {
+function paintRing(context, {
+  cx, cy, rx, ry, progress, opacity = 1,
+}) {
   if (!(rx > 0) || !(ry > 0)) return;
   // Stroked at every instant of its life, including the two it is invisible at:
   // a canvas draws nothing at alpha 0, and one branch fewer is one fewer place
   // for the ring to disappear at a boundary nobody meant.
-  const alpha = Math.abs(Math.sin(progress * HIGHLIGHT.pulses * Math.PI));
+  //
+  // The subject's own opacity multiplies the pulse, so the ring arrives and
+  // leaves with whoever it is marking. The default is for a list written before
+  // the field existed: a ring with no opacity is a ring at full strength, which
+  // is what those lists meant.
+  const alpha = Math.abs(Math.sin(progress * HIGHLIGHT.pulses * Math.PI)) * opacity;
   context.save();
   context.globalAlpha = alpha;
   context.strokeStyle = `rgba(${GOLD_INK}, 1)`;
