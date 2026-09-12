@@ -4,12 +4,13 @@ import fs from 'node:fs';
 // was produced by the machinery the compiler replaced, so these are the goldens
 // both the compiler and the state core are held against.
 //
-// `golden_slate` is the one exception, and it has to be: it is the lesson story,
-// written after that machinery was gone, and the build the engine has locked
-// answers its two ops with `unknown-command`. Its timeline was therefore written
-// by THIS compiler, and the engine regenerates its own copy to match once the
-// lock moves to a build that knows them.
+// `golden_board` and `golden_slate` are the exceptions, and they have to be:
+// they are the lesson stories, written after that machinery was gone, and the
+// build the engine has locked answers their ops with `unknown-command`. Their
+// timelines were therefore written by THIS compiler, and the engine regenerates
+// its own copies to match once the lock moves to a build that knows them.
 export const STEMS = [
+  'golden_board',
   'golden_camera_moves',
   'golden_heal_travel',
   'golden_push_dusk',

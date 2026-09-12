@@ -316,6 +316,7 @@ class Director {
     const origin = this.#origin(step.line);
     switch (step.cmd) {
       case 'put': this.#put(step, reference, origin); break;
+      case 'take': this.#take(step, origin); break;
       case 'emote': this.#emote(step, reference, origin); break;
       case 'move': this.#move(step, reference, origin); break;
       case 'travel': this.#travel(step, reference, origin); break;
@@ -374,6 +375,24 @@ class Director {
         continue;
       }
       this.#stage.highlight(slug, origin);
+    }
+  }
+
+  // The prop's own exit. Only a prop can be taken — a character leaves by
+  // `travel` — and only one standing HERE, which is `#propsHere` and not the
+  // board: a card put down two scenes ago is gone with that cut, and taking it
+  // again would delete a prop the scene never showed.
+  #take(step, origin) {
+    if (!(step.subjects?.length > 0)) {
+      this.warning({ type: 'policy', policy: 'take-unaimed' });
+      return;
+    }
+    for (const slug of step.subjects) {
+      if (!this.#propsHere.delete(slug)) {
+        this.warning({ type: 'policy', policy: 'take-missing', slug });
+        continue;
+      }
+      this.#stage.removeObject(slug, origin);
     }
   }
 

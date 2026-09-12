@@ -20,7 +20,7 @@ export function createStoryPlayer(container, options) {
     throw new Error('container ShadowRoot is not empty');
   }
   const abort = new AbortController();
-  const elements = createPlayerTemplate(root);
+  const elements = createPlayerTemplate(root, { kicker: options.kicker });
   const token = {};
   root[OWNER] = token;
   let performer = null;

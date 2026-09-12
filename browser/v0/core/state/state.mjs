@@ -152,7 +152,8 @@ export class World {
       case 'move': this.#move(event); break;
       case 'settle': this.#settle(event); break;
       case 'depart': this.#depart(event); break;
-      case 'exit': this.#exit(event); break;
+      case 'exit': this.#leave(event.slug); break;
+      case 'remove_object': this.#removeObject(event); break;
       case 'slate': this.#showSlate(event); break;
       case 'highlight': this.#highlight(event); break;
       case 'subtitle': this.#subtitle = event.text ?? ''; break;
@@ -285,9 +286,31 @@ export class World {
     this.#applyClip(actor, event.clip, event);
   }
 
-  #exit(event) {
-    this.#actors.delete(event.slug);
-    this.#bands.forget(event.slug);
+  // Unreachable from this repository's compiler, which refuses a take of a prop
+  // this scene has not put down — but a timeline is read from wherever it came
+  // from, and this op is the one that makes things DISAPPEAR. A slug that names
+  // nobody takes nothing away and says so; one that names a character would
+  // vanish them mid-scene with no walk and no fade, which is a departure the
+  // story never wrote. Characters leave by `travel`.
+  #removeObject(event) {
+    const actor = this.#actors.get(event.slug);
+    if (!actor) {
+      this.#warn(event, { type: 'policy', policy: 'remove-missing', slug: event.slug ?? null });
+      return;
+    }
+    if (actor.kind !== 'object') {
+      this.#warn(event, { type: 'policy', policy: 'remove-not-a-prop', slug: event.slug ?? null });
+      return;
+    }
+    this.#leave(event.slug);
+  }
+
+  // The two ways a figure leaves the stage between cuts are one fold: the
+  // character who has finished walking off, and the prop somebody took. Both
+  // stop being drawn, and the band each stood on is no longer theirs to crowd.
+  #leave(slug) {
+    this.#actors.delete(slug);
+    this.#bands.forget(slug);
   }
 
   // A board whose arithmetic does not add up is refused rather than mended: it

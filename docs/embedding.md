@@ -20,7 +20,8 @@ base, for example `https://storage.example/`.
 
 Beside `story` and `assetBase`, `options` accepts the manifest's `plates` block,
 the `stream` object that says the story is still being written, the `cards`
-either side of the story, and two booleans, both off by default:
+either side of the story, the `kicker` line the ceremony opens with, and two
+booleans, both off by default:
 
 - `plates` is the manifest block of the same name, `{place: {time: plate}}`,
   and each leaf is a whole plate—one carrying at least a non-empty `zones`
@@ -44,6 +45,10 @@ either side of the story, and two booleans, both off by default:
 - `cards` are the manifest's `intro` and `end_card` blocks, passed under those
   two names. See [the cards either side of the
   story](#the-cards-either-side-of-the-story).
+- `kicker` is the line over the story's name on the opening screen, for a host
+  mounting something that is not a bedtime story—`kicker: 'a counting lesson'`.
+  Anything that is not a string with words in it leaves the default,
+  `a bedtime story`, rather than an empty line where it would have been.
 - `debug: true` shows the log button and its drawer, and the log downloaded from
   that drawer carries the compiled timeline.
 - `perf: true` measures the running player—frame times per scene, long frames,
@@ -428,8 +433,11 @@ export function Performance({ story }) {
 }
 ```
 
-Changing `story`, `assetBase`, `plates`, `cards`, `debug`, or `perf` destroys the
-previous instance before mounting the replacement. Unmounting destroys the
+Changing `story`, `assetBase`, `plates`, `cards`, `kicker`, `debug`, or `perf`
+destroys the previous instance before mounting the replacement — the eyebrow is
+written once, when the ceremony is built, so a `kicker` that changes mid-story
+sends the viewer back to the opening screen. Hold it still, as you would a
+story. Unmounting destroys the
 instance. React StrictMode is supported.
 
 `plates` and `cards` are props here for the same reason they are options there:
