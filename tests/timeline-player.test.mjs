@@ -969,6 +969,24 @@ function stillLesson(bundle) {
   }];
 }
 
+test('the board blurs the plate under it, and lets it go sharp again at the end', async (t) => {
+  const player = await mount(t, { doctor: stillLesson });
+  player.start();
+
+  player.frames.advanceTo(1_000);
+  assert.equal(player.plate.style.filter ?? '', '', 'the scene was blurred before any board');
+
+  // 2.2% of the plate's own height. The canvas cannot do this one: the plate is
+  // a `<video>` on its own compositor layer, so the frost is asked for from the
+  // render loop at the same instant the board is drawn.
+  player.frames.advanceTo(2_500);
+  assert.equal(player.plate.style.filter, 'blur(23.76px)');
+
+  // The board goes with the story; so does the blur.
+  player.frames.advanceTo(60_000);
+  assert.equal(player.plate.style.filter, '');
+});
+
 test('the lesson repaints on its own clock, and stops when it has landed', async (t) => {
   const player = await mount(t, { doctor: stillLesson });
   const context = player.canvas.context;
@@ -1058,6 +1076,7 @@ async function mount(t, {
     canvas: findByClass(root, 'stage-canvas'),
     subtitle: findByClass(root, 'subtitle'),
     video: findByClass(root, 'plate-video'),
+    plate: findByClass(root, 'plate-layer'),
     end: findByClass(root, 'end-overlay'),
     bar: {
       at: findByClass(root, 'time-at'),

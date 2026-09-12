@@ -114,11 +114,27 @@ previous count, and those counters are drawn settled while the build starts at
 the first new one, so a lesson counting on to four does not re-pop the three
 that never left. A client folding the stream itself has to work `from` out the
 same way, or its board breathes on every number. It is a HUD—painted in plate
-coordinates with the camera left out, so a push-in magnifies the cast
-underneath while the arithmetic keeps its size and its place; any command the
-list marks `hud` is drawn that way, not the board alone. `highlight` is a gold ring around one
-subject, pulsing twice over `V0_POLICY.highlight.durationMs` and riding its
-actor under the camera. A scene cut clears both, and so does the ending—but
+coordinates with the camera left out, so a push-in moves the scene behind the
+glass while the arithmetic keeps its size and its place; any command the
+list marks `hud` is drawn that way, not the board alone. While a board is up it
+IS the picture: nothing standing on the floor is drawn—not the pile being
+counted, not the numeral card, not the shadow under either, because the panel
+covers 91 x 84.5% of the stage and a sprite under it is a sliver sticking out
+past the glass—and the plate behind it is blurred by
+`V0_POLICY.slate.frost.pct` of the plate's own height, eased over `frost.ms`.
+That blur is a CSS filter on the plate layer rather than a command in the list:
+the plate is a `<video>` on its own compositor layer that the list never
+reaches, so a client folding the stream itself has to apply it to whatever its
+background is. The one thing kept over the board is the companion, redrawn as a
+`hud` figure `V0_POLICY.slate.companion.heightPct` of the plate tall, centred at
+`centreXPct` with its feet at `feetPct`—the first character on stage, never a
+prop, and nobody who has already faded out. `highlight` is a gold ring around
+one subject, pulsing twice over `V0_POLICY.highlight.durationMs` and riding its
+actor under the camera—unless a board has hidden that subject, and then the same
+pulse is drawn `hud` just clear of the gold mark on the counter the count has
+reached. A highlight of the companion stays on the companion, up in the corner;
+two hidden subjects ringed in one instant leave only the one named last, since
+they would both land on the same counter. A scene cut clears both, and so does the ending—but
 watch where that happens: the subtitle is reset by an event of its own, while
 the board and the ring are cleared by the `scene` and `end` ops themselves, so
 a client folding the stream must clear them at those two ops rather than wait

@@ -507,17 +507,142 @@ const timelineOf = ({ count, mode, groups }) => ({
   ],
 });
 
-test('the board is marked hud, and it is the last thing on the list', () => {
-  const list = buildDrawList({
-    ...actorState({ actors: [{ slug: 'ruby', x: 50, feetY: 90, heightPx: 200, clip: 'idle_right' }] }),
-    slate: counting(1),
-  }, oneSheet('sheet.webp', [1, 1]));
+// --- behind the board -------------------------------------------------------
 
-  assert.equal(list.commands.at(-1).op, 'slate');
-  assert.equal(list.commands.at(-1).hud, true);
-  // Nothing else claims to be outside the camera.
-  assert.deepEqual(list.commands.filter((command) => command.hud).map((command) => command.op), ['slate']);
+const lesson = (slate, actors, tMs = 0) => buildDrawList(
+  { ...actorState({ actors }), slate, tMs },
+  oneSheet('sheet.webp', [1, 1]),
+);
+const RUBY = { slug: 'ruby', x: 50, feetY: 90, heightPx: 200, clip: 'idle_right' };
+const ACORN = { slug: 'acorn', kind: 'object', x: 20, feetY: 95, heightPx: 120 };
+
+test('the board takes the floor: nobody standing on it is drawn', () => {
+  const list = lesson(counting(1), [RUBY, ACORN]);
+
+  // Not the pile, not the card, not the shadow under either - the board covers
+  // them and the plate behind it is blurred.
+  assert.deepEqual(list.commands.map((command) => command.op), ['slate', 'sprite']);
+  assert.equal(list.commands.every((command) => command.hud === true), true);
+  assert.equal(list.commands.at(-1).slug, 'ruby');
 });
+
+test('the same cast without a board is the ordinary picture again', () => {
+  const list = lesson(null, [RUBY, ACORN]);
+
+  assert.deepEqual(
+    list.commands.map((command) => command.op),
+    ['shadow', 'sprite', 'shadow', 'missing'],
+  );
+  assert.equal(list.commands.some((command) => command.hud), false);
+});
+
+test('the companion stands small in the corner, feet on the line', () => {
+  const [companion] = only(lesson(counting(1), [RUBY]), 'sprite');
+  const { heightPct, centreXPct, feetPct } = SLATE.companion;
+  const size = (heightPct / 100) * 1080;
+
+  assert.deepEqual(
+    { dx: companion.dx, dy: companion.dy, dw: companion.dw, dh: companion.dh },
+    {
+      dx: ((centreXPct / 100) * 1920) - (size / 2),
+      dy: ((feetPct / 100) * 1080) - size,
+      dw: size,
+      dh: size,
+    },
+  );
+  // Its own art, at its own instant - it goes on acting up there.
+  assert.equal(companion.url, 'sheet.webp');
+});
+
+test('a prop is never the companion, and neither is somebody already gone', () => {
+  assert.deepEqual(lesson(counting(1), [ACORN]).commands.map((c) => c.op), ['slate']);
+  assert.deepEqual(
+    lesson(counting(1), [{ ...RUBY, opacity: 0 }]).commands.map((c) => c.op),
+    ['slate'],
+  );
+  // The first character on stage, with the prop passed over rather than counted.
+  const [companion] = only(lesson(counting(1), [ACORN, RUBY]), 'sprite');
+  assert.equal(companion.slug, 'ruby');
+});
+
+test('a highlight the board hid is a pulse on the counter the count reached', () => {
+  // The numeral card: put down, ringed, and then covered by the glass.
+  const list = lesson(counting(3), [RUBY, { ...ACORN, highlightMs: 0 }], settled(3));
+  const board = only(list, 'slate')[0];
+  const [ring] = only(list, 'ring');
+  const marked = board.counters.find((counter) => counter.ring);
+
+  assert.deepEqual([ring.cx, ring.cy], [marked.cx, marked.cy]);
+  assert.equal(ring.hud, true);
+  assert.equal(ring.slug, 'acorn');
+  // Clear of the counter's gold ring at its WIDEST — the ring is drawn at
+  // `scale + ringGap` and is `ringWidth` thick, and the counter overshoots — so
+  // the pulse is never swallowed by the mark it sits outside of.
+  assert.ok(ring.rx > marked.r * (SLATE.overshoot + SLATE.ringGap + (SLATE.ringWidth / 2)));
+  // And still inside its own cell, so it does not reach the counter next door.
+  assert.ok(ring.rx <= marked.r / (2 * SLATE.counterRadius));
+  assert.equal(ring.progress, round(settled(3) / HIGHLIGHT.durationMs, 4));
+  assert.equal(ring.opacity, marked.alpha);
+  // The board, then what it points at, then who is telling the lesson.
+  assert.deepEqual(list.commands.map((command) => command.op), ['slate', 'ring', 'sprite']);
+});
+
+test('a highlight on the companion stays on the companion, in the corner', () => {
+  const list = lesson(counting(3), [{ ...RUBY, highlightMs: 0 }], settled(3));
+  const [companion] = only(list, 'sprite');
+  const [ring] = only(list, 'ring');
+  const marked = only(list, 'slate')[0].counters.find((counter) => counter.ring);
+
+  // Pointing at an apple would be a lie: the thing named is still on screen.
+  assert.deepEqual([ring.cx, ring.cy], [
+    round(companion.dx + (companion.dw / 2), 2),
+    round(companion.dy + (companion.dh / 2), 2),
+  ]);
+  assert.notEqual(ring.cx, marked.cx);
+  assert.equal(ring.hud, true);
+  // A mark follows the thing it marks.
+  assert.deepEqual(list.commands.map((command) => command.op), ['slate', 'sprite', 'ring']);
+});
+
+test('two things ringed at once: the board keeps the one named last', () => {
+  const list = lesson(counting(3), [
+    RUBY,
+    { ...ACORN, highlightMs: 0 },
+    { slug: 'card', kind: 'object', x: 70, feetY: 95, heightPx: 200, highlightMs: 200 },
+  ], 400);
+
+  // Paint order would answer 'acorn' — the farthest away — which is the
+  // opposite of what a lesson means by pointing at the thing it just said.
+  assert.deepEqual(only(list, 'ring').map((ring) => ring.slug), ['card']);
+});
+
+test('a companion whose art has not arrived is a lozenge in the corner, not a hole', () => {
+  const list = lesson(counting(1), [{ ...RUBY, clip: 'idle_right', clipMissing: true }]);
+  const [figure] = list.commands.filter((command) => command.op === 'missing');
+
+  assert.equal(figure.hud, true);
+  assert.equal(figure.dw, (SLATE.companion.heightPct / 100) * 1080);
+});
+
+test('a companion still fading carries its own opacity into the corner', () => {
+  const [companion] = only(lesson(counting(1), [{ ...RUBY, opacity: 0.3 }]), 'sprite');
+  assert.equal(companion.opacity, 0.3);
+});
+
+test('a ring on somebody already faded out is drawn nowhere at all', () => {
+  // The floor refuses to draw them; the board must not mark them either.
+  const gone = lesson(counting(3), [RUBY, { ...ACORN, opacity: 0, highlightMs: 0 }], settled(3));
+  assert.deepEqual(only(gone, 'ring'), []);
+});
+
+test('a ring whose pulse is over is not moved onto the board', () => {
+  const over = lesson(counting(1), [{ ...RUBY, highlightMs: 0 }], HIGHLIGHT.durationMs);
+  assert.deepEqual(only(over, 'ring'), []);
+  const none = lesson(counting(1), [RUBY]);
+  assert.deepEqual(only(none, 'ring'), []);
+});
+
+const round = (value, places) => Math.round(value * (10 ** places)) / (10 ** places);
 
 test('the board is measured against the plate, so a smaller stage gets a smaller board', () => {
   const big = boardAt(counting(1), settled(1));
