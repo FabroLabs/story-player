@@ -139,21 +139,40 @@ test('a take-away after a count is its own build, not a continuation of one', ()
   assert.deepEqual(slateAt(events, 9_000), board(3, 'subtract', [5, 2], 6_000));
 });
 
-test('slate(off) is a count of nothing, and it stays off', () => {
+test('a count of nothing is refused, and the board it was aimed at stays up', () => {
+  // `slate(off)` compiled to this, and lowering a board is no longer something
+  // a story does: the panel is one surface from the first count to the ending.
+  // Refused out loud rather than ignored, because a step that draws nothing and
+  // says nothing is how a board goes missing with every checker green.
   const events = [stage(1_000, 'slate', { count: 3 }), stage(6_000, 'slate', { count: 0 })];
+  const state = stateAt(timeline(events), BUNDLE, 9_000);
 
-  assert.deepEqual(slateAt(events, 9_000), { ...NO_BOARD, sinceMs: 6_000 });
+  assert.deepEqual(state.slate, board(3, 'count', [3], 1_000));
+  assert.equal(state.warnings.at(0)?.policy, 'slate-count-unusable');
 });
 
-test('a scene cut clears the board the way it clears the subtitle', () => {
+test('a scene cut leaves the board standing, unlike the subtitle', () => {
   const events = [
     stage(1_000, 'slate', { count: 3 }),
     stage(6_000, 'scene', { place: 'dell' }, 1),
   ];
 
-  assert.deepEqual(slateAt(events, 9_000), { ...NO_BOARD, sinceMs: 6_000 });
+  assert.deepEqual(slateAt(events, 9_000), board(3, 'count', [3], 1_000));
   // And seeking back is the same answer as never having left.
   assert.deepEqual(slateAt(events, 3_000), board(3, 'count', [3], 1_000));
+});
+
+test('a board raised after a cut counts on from the counters still standing', () => {
+  // The panel never went away, so the three apples on it never went away either:
+  // four is those three and one more, and re-popping all four at the seam is the
+  // breathing this board was rebuilt to stop.
+  const events = [
+    stage(1_000, 'slate', { count: 3 }),
+    stage(6_000, 'scene', { place: 'dell' }, 1),
+    stage(7_000, 'slate', { count: 4 }),
+  ];
+
+  assert.deepEqual(slateAt(events, 9_000), board(4, 'count', [4], 7_000, 3));
 });
 
 test('a count that is not a whole number of counters is refused and said out loud', () => {
@@ -245,16 +264,19 @@ test('the board a fold hands out cannot be written back into the fold', () => {
   );
 });
 
-test('the ending takes the board away, the way it takes the subtitle', () => {
+test('the ending takes the subtitle, and leaves the board standing under it', () => {
+  // A lesson is one surface from its first count to its last frame: the end
+  // card is drawn OVER the answer the child reached, not over the floor it was
+  // counted on. Nothing in the language lowers a board — it is replaced by
+  // another board, or it is the picture the story finishes on.
   const events = [stage(1_000, 'slate', { count: 3 }), stage(8_000, 'end', {})];
   const ended = stateAt(timeline(events), BUNDLE, 9_000);
 
   assert.equal(ended.ended, true);
-  assert.deepEqual(ended.slate, { ...NO_BOARD, sinceMs: 8_000 });
+  assert.deepEqual(ended.slate, board(3, 'count', [3], 1_000));
   assert.equal(ended.subtitle, '');
-  // The frame before it is still the lesson's answer — the board is cleared at
-  // the ending, not retroactively.
-  assert.deepEqual(slateAt(events, 7_000), board(3, 'count', [3], 1_000));
+  // And the instant of the ending itself, not just after it.
+  assert.deepEqual(slateAt(events, 8_000), board(3, 'count', [3], 1_000));
 });
 
 test('a highlight stamps the actor it names, and nobody else', () => {

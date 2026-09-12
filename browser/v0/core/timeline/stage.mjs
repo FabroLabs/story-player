@@ -161,14 +161,16 @@ export class TimelineStage {
     this.#record('camera_reset', {}, {});
   }
 
-  // The counting board belongs to the SCENE, not to anybody standing in it, and
-  // a count of 0 is the board going away.
+  // The counting board belongs to the STORY, not to a scene and not to anybody
+  // standing in one: it goes up at the first count and comes down when the story
+  // ends. A count of 0 is no board at all and is refused.
   //
-  // Unlike the subtitle, nothing records a reset for it: a cut and the ending
-  // clear it inside the state fold, off the `scene` and `end` ops, so a bedtime
-  // story never carries a slate event it did not ask for. A client folding the
-  // stream itself has to clear it at those two ops — mirroring the subtitle's
-  // explicit reset instead leaves a lesson's board standing into the next scene.
+  // Unlike the subtitle, nothing records a reset for it, because nothing resets
+  // it: a board is replaced by another board or it is the picture the story
+  // finishes on, under the end card. A client folding the stream itself must
+  // clear it NOWHERE — clearing it at the cut is what made a lesson open and
+  // close a board at every seam, and clearing it at the ending puts the floor
+  // back for the one frame the answer should be standing on.
   // The payload is the whole claim, always all three fields: the answer, the
   // kind of arithmetic that reached it, and the groups it was reached from. A
   // client that only knows how to draw a row of counters still has `count` and

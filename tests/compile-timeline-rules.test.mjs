@@ -650,7 +650,7 @@ function lessonStory(steps) {
   return story;
 }
 
-test('a slate is recorded as the whole claim, and 0 takes the board away', () => {
+test('a slate is recorded as the whole claim, and 0 is not one', () => {
   // `SLATE.max` is the published maximum, so it is a count that WORKS — pinned
   // beside the refusal, which otherwise leaves `>` and `>=` indistinguishable.
   const events = compile(lessonStory([
@@ -660,6 +660,10 @@ test('a slate is recorded as the whole claim, and 0 takes the board away', () =>
     slate(4, SLATE.max),
     slate(5, 0),
   ]));
+
+  // Zero was `slate(off)`: the board a story put away itself. Nothing lowers a
+  // board now but the ending, so the step draws nothing and is refused by name
+  // rather than passed on as a board of no counters.
 
   // Every op carries all three fields, whatever the step named: a step that
   // names only a count is the plain count every bundle meant before modes
@@ -671,7 +675,6 @@ test('a slate is recorded as the whole claim, and 0 takes the board away', () =>
       [5, 'add', [2, 3], 2],
       [3, 'subtract', [5, 2], 3],
       [SLATE.max, 'count', [SLATE.max], 4],
-      [0, 'count', [], 5],
     ],
   );
   // This story spends no time at all, so every board it raises is taken away
@@ -679,7 +682,7 @@ test('a slate is recorded as the whole claim, and 0 takes the board away', () =>
   // only so that "no OTHER warning" keeps its meaning.
   assert.deepEqual(
     new Set(warnings(events).map((warning) => warning.policy)),
-    new Set(['slate-cut-short']),
+    new Set(['slate-cut-short', 'slate-count-unusable']),
   );
 });
 
@@ -688,7 +691,7 @@ test('a board taken away before it has arrived is said, not silently lost', () =
   // counts itself in, then writes its equation, and a scene that cuts a second
   // later shows a child five apples and never the sentence they were for.
   const pause = (line, seconds) => ({ kind: 'cmd', line, cmd: 'pause', seconds });
-  const cut = compile(lessonStory([slate(1, 5, 'add', [2, 3]), pause(2, 1), slate(3, 0)]));
+  const cut = compile(lessonStory([slate(1, 5, 'add', [2, 3]), pause(2, 1)]));
 
   assert.deepEqual(warnings(cut), [{
     type: 'policy',
@@ -701,7 +704,7 @@ test('a board taken away before it has arrived is said, not silently lost', () =
   }]);
 
   // Given the time it needs, nothing is said.
-  const held = compile(lessonStory([slate(1, 5, 'add', [2, 3]), pause(2, 3), slate(3, 0)]));
+  const held = compile(lessonStory([slate(1, 5, 'add', [2, 3]), pause(2, 3)]));
   assert.deepEqual(warnings(held), []);
 });
 
@@ -763,11 +766,48 @@ test('a board raised again on the same claim is not a second board', () => {
   // having had one.
   const pause = (line, seconds) => ({ kind: 'cmd', line, cmd: 'pause', seconds });
   const events = compile(lessonStory([
-    slate(1, 5, 'add', [2, 3]), pause(2, 3), slate(3, 5, 'add', [2, 3]), pause(4, 1), slate(5, 0),
+    slate(1, 5, 'add', [2, 3]), pause(2, 3), slate(3, 5, 'add', [2, 3]), pause(4, 1),
   ]));
 
   assert.deepEqual(warnings(events), []);
-  assert.equal(ops(events, 'slate').length, 3, 'the op itself is still recorded, as written');
+  assert.equal(ops(events, 'slate').length, 2, 'the op itself is still recorded, as written');
+});
+
+test('a scene cut ends no board, and the board after it is measured counting on', () => {
+  // The one-word revert: putting `scene` back into what `boardsCutShort`
+  // measures. Nothing else in the suite notices it — every board in the parity
+  // corpus outlives its own cut with seconds to spare — so this is the test that
+  // holds the rule, and it holds both halves of it.
+  const pause = (line, seconds) => ({ kind: 'cmd', line, cmd: 'pause', seconds });
+  const twoScenes = (first, second) => {
+    const story = lessonStory(first);
+    story.scenes.push({ ...story.scenes[0], line: 20, steps: second });
+    return story;
+  };
+
+  // A join needs 2850 ms and gets 1000 before the seam. Measured at the cut it
+  // is a lost board; measured at the ending it finishes over the next scene.
+  const acrossTheSeam = compile(twoScenes(
+    [slate(1, 5, 'add', [2, 3]), pause(2, 1)],
+    [pause(21, 4)],
+  ));
+  assert.deepEqual(warnings(acrossTheSeam), []);
+
+  // And the carry: four counters raised over three that never left needs 650 ms,
+  // and 700 is enough. Were the cut to reset what the scan has SHOWN, `from`
+  // would be 0, the same board would need 1400, and this would warn.
+  const countedOn = compile(twoScenes(
+    [slate(1, 3), pause(2, 1)],
+    [slate(21, 4), pause(22, 0.7)],
+  ));
+  assert.deepEqual(warnings(countedOn), []);
+
+  // The ending still measures: the same board given 300 ms is still lost.
+  const stopped = compile(twoScenes(
+    [slate(1, 3), pause(2, 1)],
+    [slate(21, 4), pause(22, 0.3)],
+  ));
+  assert.deepEqual(warnings(stopped).map((warning) => warning.policy), ['slate-cut-short']);
 });
 
 test('a board wiped by a DIFFERENT board is cut short, counting on or not', () => {
@@ -806,7 +846,7 @@ test('the complaint is filed beside the board, not after the story', () => {
 });
 
 test('the compiler records no slate at a scene boundary — the cut is the state core job', () => {
-  // The compiler records no reset — the state core clears it on the cut — so
+  // The compiler records no reset — the state core leaves it standing — so
   // what this pins is the ABSENCE of a second slate op at the scene boundary.
   const story = lessonStory([slate(1, 2)]);
   story.scenes.push({ ...story.scenes[0], line: 20, steps: [] });

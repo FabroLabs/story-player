@@ -34,21 +34,20 @@ const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const FIXTURE_DIRECTORY = path.join(ROOT, 'tests', 'fixtures', 'board');
 const DEFAULT_OUT = path.join('ignored', 'board-sheet.png');
 
-// Four instants into the build and then the end of the board's scene. They are
+// Four instants into the build and then the end of the board's life. They are
 // spaced to straddle the stages rather than to sample evenly: the first lands
 // while the opening counter is still growing, the last after everything the
 // schedule has to say has been said.
 const OFFSETS_MS = [150, 600, 1400, 3200];
 // What the last cell of a row is showing, named after whatever ended the board.
+// A scene cut is not on the list: a board outlives every cut but the ending.
 const CLOSING_CAPTION = Object.freeze({
   slate: 'the next board replaces it',
-  scene: 'the scene cuts',
   end: 'the story ends',
 });
-// The same three, said as a cause, for a board that never outlived its closer.
+// The same two, said as a cause, for a board that never outlived its closer.
 const CLOSING_REASON = Object.freeze({
   slate: 'replaced by the next board',
-  scene: 'cut by its scene',
   end: 'ended with the story',
 });
 const STAGE = [1920, 1080];
@@ -230,11 +229,9 @@ function jobsFor(file, skipped) {
 
   for (const [index, event] of timeline.events.entries()) {
     if (event.source !== 'stage' || event.op !== 'slate') continue;
-    // `slate(off)` is a board going away, not a board: it draws nothing, by
-    // design, and a row for it is five empty stages under a caption — which
-    // then fails the "no board in any build cell" check and takes the whole
-    // sheet down with it. Every real lesson ends with one.
-    if (!(event.count > 0)) continue;
+    // No guard for a board of no counters: `slate 0` was v1's `slate(off)`, and
+    // the compiler this function just ran refuses it rather than recording it.
+    // Anything here is a board with a life of its own to paint.
     const closing = closingAfter(timeline, index);
     // Replaced or cut on its own millisecond. `stateAt` has already folded
     // whatever took its place by then, so every instant this row could ask for
@@ -298,15 +295,19 @@ function nothingToDraw(bundles, skipped) {
 /**
  * What ends this board, and when.
  *
- * Positional, not a time comparison: a scene cut costs no time, so a board
- * raised as the last step of its scene is cleared on its own millisecond, and
- * `t_ms > slate` would skip that cut and describe the NEXT scene under this
- * board's caption. The event stream is ordered, so the index answers it.
+ * Two things can: the next board, and the story. A scene cut used to be a third
+ * and is not one any more — the panel outlives the seam — so a board raised in
+ * the last scene of a lesson is closed by the ending, and a row that stopped at
+ * the cut would show a life the player never gives it.
+ *
+ * Positional, not a time comparison: the next board can land on this board's own
+ * millisecond, and `t_ms > slate` would skip it and describe the board after
+ * that one. The event stream is ordered, so the index answers it.
  */
 function closingAfter(timeline, index) {
   for (const event of timeline.events.slice(index + 1)) {
     if (event.source !== 'stage') continue;
-    if (event.op === 'slate' || event.op === 'scene' || event.op === 'end') {
+    if (event.op === 'slate' || event.op === 'end') {
       return { tMs: event.t_ms, op: event.op };
     }
   }

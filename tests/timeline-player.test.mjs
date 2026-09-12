@@ -969,7 +969,7 @@ function stillLesson(bundle) {
   }];
 }
 
-test('the board blurs the plate under it, and lets it go sharp again at the end', async (t) => {
+test('the board blurs the plate under it, and holds the blur to the last frame', async (t) => {
   const player = await mount(t, { doctor: stillLesson });
   player.start();
 
@@ -982,9 +982,12 @@ test('the board blurs the plate under it, and lets it go sharp again at the end'
   player.frames.advanceTo(2_500);
   assert.equal(player.plate.style.filter, 'blur(23.76px)');
 
-  // The board goes with the story; so does the blur.
+  // Nothing takes the board away, the ending included: the child's last picture
+  // is the answer they reached, drawn under the end card. The blur stays with
+  // it — letting the plate go sharp would be the floor coming back for the
+  // final frame alone.
   player.frames.advanceTo(60_000);
-  assert.equal(player.plate.style.filter, '');
+  assert.equal(player.plate.style.filter, 'blur(23.76px)');
 });
 
 test('the lesson repaints on its own clock, and stops when it has landed', async (t) => {

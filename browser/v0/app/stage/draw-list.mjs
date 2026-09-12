@@ -254,13 +254,13 @@ function onScreen(actor) {
  *
  * Its own progress travels with it rather than the instant it started, so the
  * renderer needs no clock and no policy of its own to know how far through the
- * pulse it is â€” and a golden reads as a fraction rather than as a timestamp
+ * pulse it is — and a golden reads as a fraction rather than as a timestamp
  * that moves whenever the story ahead of it does.
  *
  * It also carries its subject's opacity, like the shadow under the same figure:
  * a ring is a mark ON somebody, and one drawn at full strength around a
- * character still fading in â€” which is every naming scene, where the thing is
- * put down and ringed in the same instant â€” is a gold ellipse floating over an
+ * character still fading in — which is every naming scene, where the thing is
+ * put down and ringed in the same instant — is a gold ellipse floating over an
  * arrival rather than a pointer at it.
  */
 function ringFor(actor, box, tMs) {
@@ -316,7 +316,7 @@ function ringProgress(actor, tMs) {
  */
 function slateFor(slate, tMs, width, height) {
   const board = normaliseSlate(slate);
-  if (!board || board.count < 1) return null;
+  if (!board) return null;
   const drawn = counterCount(board);
   if (drawn < 1) return null;
 

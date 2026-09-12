@@ -322,30 +322,6 @@
       "t_ms": 9456
     },
     {
-      "cmd": "slate",
-      "detail": {
-        "count": 0,
-        "groups": [],
-        "mode": "count",
-        "subjects": []
-      },
-      "kind": "cmd",
-      "line": 26,
-      "scene_index": 0,
-      "source": "step",
-      "t_ms": 9456
-    },
-    {
-      "count": 0,
-      "groups": [],
-      "line": 26,
-      "mode": "count",
-      "op": "slate",
-      "scene_index": 0,
-      "source": "stage",
-      "t_ms": 9456
-    },
-    {
       "line": null,
       "op": "subtitle",
       "scene_index": 0,
@@ -361,7 +337,7 @@
       "t_ms": 9456
     },
     {
-      "line": 28,
+      "line": 27,
       "op": "scene",
       "place": "forest_clearing",
       "scene_index": 1,
@@ -377,14 +353,14 @@
         "verb": "idle"
       },
       "kind": "warning",
-      "line": 28,
+      "line": 27,
       "scene_index": 1,
       "source": "step",
       "t_ms": 9456
     },
     {
       "clip": "idle_right",
-      "line": 28,
+      "line": 27,
       "op": "place",
       "scene_index": 1,
       "slug": "squirrel",
@@ -405,7 +381,7 @@
         "zone": null
       },
       "kind": "cmd",
-      "line": 29,
+      "line": 28,
       "scene_index": 1,
       "source": "step",
       "t_ms": 9456
@@ -419,14 +395,14 @@
         "verb": "idle"
       },
       "kind": "warning",
-      "line": 29,
+      "line": 28,
       "scene_index": 1,
       "source": "step",
       "t_ms": 9456
     },
     {
       "clip": "idle_right",
-      "line": 29,
+      "line": 28,
       "op": "place",
       "scene_index": 1,
       "slug": "squirrel",
@@ -452,13 +428,13 @@
         "zone": null
       },
       "kind": "cmd",
-      "line": 30,
+      "line": 29,
       "scene_index": 1,
       "source": "step",
       "t_ms": 9456
     },
     {
-      "line": 30,
+      "line": 29,
       "op": "place_object",
       "scene_index": 1,
       "slug": "acorn",
@@ -474,7 +450,7 @@
         "text": "Five treasures in the pile, all counted."
       },
       "kind": "chunk",
-      "line": 32,
+      "line": 31,
       "scene_index": 1,
       "source": "step",
       "t_ms": 9456
@@ -505,13 +481,13 @@
         "zone": null
       },
       "kind": "cmd",
-      "line": 33,
+      "line": 32,
       "scene_index": 1,
       "source": "step",
       "t_ms": 12275
     },
     {
-      "line": 33,
+      "line": 32,
       "op": "place_object",
       "scene_index": 1,
       "slug": "numeral_5",
@@ -531,7 +507,7 @@
         "subjects": []
       },
       "kind": "cmd",
-      "line": 34,
+      "line": 33,
       "scene_index": 1,
       "source": "step",
       "t_ms": 12275
@@ -541,7 +517,7 @@
       "groups": [
         5
       ],
-      "line": 34,
+      "line": 33,
       "mode": "count",
       "op": "slate",
       "scene_index": 1,
@@ -555,7 +531,7 @@
         "subjects": []
       },
       "kind": "cmd",
-      "line": 35,
+      "line": 34,
       "scene_index": 1,
       "source": "step",
       "t_ms": 12275
@@ -567,7 +543,7 @@
         "text": "Two of them go home with the badger."
       },
       "kind": "chunk",
-      "line": 35,
+      "line": 34,
       "scene_index": 1,
       "source": "step",
       "t_ms": 12775
@@ -591,14 +567,14 @@
               2
             ],
             "kind": "cmd",
-            "line": 37,
+            "line": 36,
             "mode": "subtract",
             "subjects": []
           },
           {
             "cmd": "take",
             "kind": "cmd",
-            "line": 38,
+            "line": 37,
             "subjects": [
               "numeral_5"
             ]
@@ -606,7 +582,7 @@
         ]
       },
       "kind": "together",
-      "line": 36,
+      "line": 35,
       "scene_index": 1,
       "source": "step",
       "t_ms": 15996
@@ -621,10 +597,10 @@
         ],
         "mode": "subtract",
         "subjects": [],
-        "together_line": 36
+        "together_line": 35
       },
       "kind": "cmd",
-      "line": 37,
+      "line": 36,
       "scene_index": 1,
       "source": "step",
       "t_ms": 15996
@@ -635,10 +611,10 @@
         "subjects": [
           "numeral_5"
         ],
-        "together_line": 36
+        "together_line": 35
       },
       "kind": "cmd",
-      "line": 38,
+      "line": 37,
       "scene_index": 1,
       "source": "step",
       "t_ms": 15996
@@ -649,7 +625,7 @@
         5,
         2
       ],
-      "line": 37,
+      "line": 36,
       "mode": "subtract",
       "op": "slate",
       "scene_index": 1,
@@ -657,7 +633,7 @@
       "t_ms": 15996
     },
     {
-      "line": 38,
+      "line": 37,
       "op": "remove_object",
       "scene_index": 1,
       "slug": "numeral_5",
@@ -671,7 +647,7 @@
         "subjects": []
       },
       "kind": "cmd",
-      "line": 39,
+      "line": 38,
       "scene_index": 1,
       "source": "step",
       "t_ms": 15996
@@ -683,7 +659,7 @@
         "text": "Five, take away two. Three are left."
       },
       "kind": "chunk",
-      "line": 40,
+      "line": 39,
       "scene_index": 1,
       "source": "step",
       "t_ms": 17996
@@ -714,13 +690,13 @@
         "zone": null
       },
       "kind": "cmd",
-      "line": 41,
+      "line": 40,
       "scene_index": 1,
       "source": "step",
       "t_ms": 20815
     },
     {
-      "line": 41,
+      "line": 40,
       "op": "place_object",
       "scene_index": 1,
       "slug": "mushroom",
@@ -737,13 +713,13 @@
         ]
       },
       "kind": "cmd",
-      "line": 42,
+      "line": 41,
       "scene_index": 1,
       "source": "step",
       "t_ms": 20815
     },
     {
-      "line": 42,
+      "line": 41,
       "op": "highlight",
       "scene_index": 1,
       "slug": "mushroom",
@@ -760,7 +736,7 @@
         ]
       },
       "kind": "cmd",
-      "line": 43,
+      "line": 42,
       "scene_index": 1,
       "source": "step",
       "t_ms": 20815
@@ -774,41 +750,17 @@
         "verb": "happy"
       },
       "kind": "warning",
-      "line": 43,
+      "line": 42,
       "scene_index": 1,
       "source": "step",
       "t_ms": 20815
     },
     {
       "clip": "happy_right_jumping",
-      "line": 43,
+      "line": 42,
       "op": "clip",
       "scene_index": 1,
       "slug": "squirrel",
-      "source": "stage",
-      "t_ms": 20815
-    },
-    {
-      "cmd": "slate",
-      "detail": {
-        "count": 0,
-        "groups": [],
-        "mode": "count",
-        "subjects": []
-      },
-      "kind": "cmd",
-      "line": 44,
-      "scene_index": 1,
-      "source": "step",
-      "t_ms": 20815
-    },
-    {
-      "count": 0,
-      "groups": [],
-      "line": 44,
-      "mode": "count",
-      "op": "slate",
-      "scene_index": 1,
       "source": "stage",
       "t_ms": 20815
     },

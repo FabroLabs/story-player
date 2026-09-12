@@ -99,17 +99,22 @@ many counters that is follows the mode: a count or a join draws `count` of
 them, and a SUBTRACTION draws `groups[0]`—everything it started with—then takes
 `groups[1]` away. A step that names only a count is normalised into the
 plain-count shape, so a bundle built before modes existed draws the same board.
-`count: 0` takes it away. `V0_POLICY.slate.max` is the largest count there is,
+`count: 0`—what v1's `slate(off)` compiled to—is refused like any other board
+that cannot be drawn: a board goes up at a story's first count and comes down
+only at its ending, so no step of the story lowers one.
+`V0_POLICY.slate.max` is the largest count there is,
 and a claim whose own groups do not make its count—or that runs past the
 ceiling—is refused with `slate-count-unusable` rather than mended, at the
 compiler and again at `stateAt`, so no client is left drawing a board the story
 did not ask for without being told. A board the story TAKES AWAY before it has
-finished arriving—a cut, the ending, or `slate(off)` less than a build later—is
-said too, as `slate-cut-short` carrying the milliseconds it needed and the
-milliseconds it got: a board raised at the seam of a scene shows a child the
-counters and never the equation, and nothing else about the bundle looks wrong.
-A board replaced by another board is not cut short; that is a lesson counting
-on. The whole build is a function of the
+finished arriving—the ending, or a DIFFERENT board raised over it less than a
+build later—is said too, as `slate-cut-short` carrying the milliseconds it
+needed and the milliseconds it got: a board wiped before its equation shows a
+child the counters and never the sentence they were for, and nothing else about
+the bundle looks wrong. A scene cut is NOT one of them: the board outlives the
+seam, so a board raised a second before a cut goes on counting itself over the
+next scene. A board replaced by one counted on from it is not cut short either;
+that is the lesson working. The whole build is a function of the
 instant the board was raised (`sinceMs`) and of `from`: a counter every
 `staggerMs`, each popping over `popMs`, then a take-away crossing out one
 counter every `takeStaggerMs`, each cross taking `takeMs`, then the equation a
@@ -117,7 +122,8 @@ token every `tokenMs`. `from` is how many counters were ALREADY standing—a
 plain count raised over a smaller plain count in the same scene carries the
 previous count, and those counters are drawn settled while the build starts at
 the first new one, so a lesson counting on to four does not re-pop the three
-that never left. A client folding the stream itself has to work `from` out the
+that never left. A cut does not interrupt that either: the three are still
+standing after it, so a four raised in the next scene still counts on from them. A client folding the stream itself has to work `from` out the
 same way, or its board breathes on every number. It is a HUD—painted in plate
 coordinates with the camera left out, so a push-in moves the scene behind the
 glass while the arithmetic keeps its size and its place; any command the
@@ -139,11 +145,13 @@ actor under the camera—unless a board has hidden that subject, and then the sa
 pulse is drawn `hud` just clear of the gold mark on the counter the count has
 reached. A highlight of the companion stays on the companion, up in the corner;
 two hidden subjects ringed in one instant leave only the one named last, since
-they would both land on the same counter. A scene cut clears both, and so does the ending—but
-watch where that happens: the subtitle is reset by an event of its own, while
-the board and the ring are cleared by the `scene` and `end` ops themselves, so
-a client folding the stream must clear them at those two ops rather than wait
-for a reset that never arrives. Every rectangle, counter and band either one draws is measured
+they would both land on the same counter. A scene cut clears the ring, and so does the ending. NOTHING
+clears the board—a lesson is one uninterrupted surface, and the board its first
+count raises is the board the end card is drawn over. Watch where that happens:
+the subtitle is reset by an event of its own, while the ring is cleared by the
+`scene` and `end` ops themselves, so a client folding the stream must clear the
+ring at both ops rather than wait for a reset that never arrives, and must
+never clear the board at either. Every rectangle, counter and band either one draws is measured
 from `V0_POLICY.slate` and `V0_POLICY.highlight`; the COLOURS are the painter's
 own—a client with its own palette is still drawing this board—and the numerals
 are set in the platform's rounded font, deliberately not part of that contract.
@@ -575,7 +583,8 @@ than simply offset from it. A counting lesson raises `slate 1`, `slate 2` and
 `slate 3` about half a second apart, so a blind `+3.2 s` would paint the third
 board under the first one's caption; instead the row holds at its own last
 moment, its header says how long the board was held, and its final cell is
-whatever ended it — the next board, the scene's cut, or the story.
+whatever ended it — the next board, or the story. A scene cut ends nothing: the
+board outlives it.
 
 `--bundle <path>` (repeatable) takes real built bundles instead of the fixtures
 in `tests/fixtures/board/`; `--out` moves the PNG and `--scale` resizes it.
