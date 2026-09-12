@@ -10,6 +10,16 @@
       "t_ms": 0
     },
     {
+      "count": 0,
+      "groups": [],
+      "line": 16,
+      "mode": "count",
+      "op": "slate",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 0
+    },
+    {
       "cmd": "put",
       "detail": {
         "beside": null,

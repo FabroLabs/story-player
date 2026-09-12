@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { chromium } from '@playwright/test';
 import * as esbuild from 'esbuild';
 
+import { isEmptyBoard } from '../browser/v0/core/slate.mjs';
 import { compileTimeline } from '../browser/v0/core/timeline/compile.mjs';
 
 /**
@@ -229,9 +230,12 @@ function jobsFor(file, skipped) {
 
   for (const [index, event] of timeline.events.entries()) {
     if (event.source !== 'stage' || event.op !== 'slate') continue;
-    // No guard for a board of no counters: `slate 0` was v1's `slate(off)`, and
-    // the compiler this function just ran refuses it rather than recording it.
-    // Anything here is a board with a life of its own to paint.
+    // The empty board a scene opens on has no build to paint: nothing arrives
+    // on it, and the first counted board's row is where it is seen standing.
+    // Anything else here is a board with a life of its own to paint — an
+    // authored `slate 0` (v1's `off`) never reaches a timeline, the compiler
+    // refuses it rather than recording it.
+    if (isEmptyBoard(event)) continue;
     const closing = closingAfter(timeline, index);
     // Replaced or cut on its own millisecond. `stateAt` has already folded
     // whatever took its place by then, so every instant this row could ask for
@@ -264,7 +268,9 @@ function jobsFor(file, skipped) {
     });
   }
 
-  if (!timeline.events.some((event) => event.source === 'stage' && event.op === 'slate')) {
+  // The empty board a scene opens on is not a board to paint, so a bundle
+  // that has only that one is a bundle with no board, and is said to be.
+  if (!timeline.events.some((event) => event.source === 'stage' && event.op === 'slate' && !isEmptyBoard(event))) {
     skipped.push(`${stem}: no board — ${refusals(timeline) ?? 'this bundle raises no slate'}`);
   }
   return jobs;

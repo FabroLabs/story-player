@@ -973,8 +973,10 @@ test('the board blurs the plate under it, and holds the blur to the last frame',
   const player = await mount(t, { doctor: stillLesson });
   player.start();
 
+  // A lesson opens on its board: the scene that counts stands an empty panel
+  // from its first frame, so the plate is behind glass before the first count.
   player.frames.advanceTo(1_000);
-  assert.equal(player.plate.style.filter ?? '', '', 'the scene was blurred before any board');
+  assert.equal(player.plate.style.filter, 'blur(23.76px)', 'the opening was not behind the glass');
 
   // 2.2% of the plate's own height. The canvas cannot do this one: the plate is
   // a `<video>` on its own compositor layer, so the frost is asked for from the
@@ -988,6 +990,40 @@ test('the board blurs the plate under it, and holds the blur to the last frame',
   // final frame alone.
   player.frames.advanceTo(60_000);
   assert.equal(player.plate.style.filter, 'blur(23.76px)');
+});
+
+// The same lesson, with a scene of looking around before the scene that counts.
+function laterLesson(bundle) {
+  stillLesson(bundle);
+  const [lesson] = bundle.scenes;
+  const spoken = lesson.steps.find((step) => step.kind === 'chunk');
+  bundle.scenes = [
+    { ...lesson, steps: [lesson.steps[0], { ...spoken, line: 2, text: 'Robin looks around.', duration_s: 2 }] },
+    lesson,
+  ];
+}
+
+test('the plate is clear until the scene of the first count', async (t) => {
+  const player = await mount(t, { doctor: laterLesson });
+  player.start();
+  const cut = player.timeline.events.find((event) => event.op === 'scene' && event.scene_index === 1).t_ms;
+
+  // Scene 1 counts nothing, so it plays on the floor, sharp.
+  player.frames.advanceTo(cut - 500);
+  assert.equal(player.plate.style.filter ?? '', '', 'a scene before the first count was behind glass');
+  // The panel goes up with the cut into the scene that counts, before its count.
+  player.frames.advanceTo(cut + 300);
+  assert.equal(player.plate.style.filter, 'blur(23.76px)');
+});
+
+test('a story that never counts is never behind glass', async (t) => {
+  const player = await mount(t);
+  player.start();
+
+  for (const at of [1_000, 8_000]) {
+    player.frames.advanceTo(at);
+    assert.equal(player.plate.style.filter ?? '', '', `frosted at ${at} ms`);
+  }
 });
 
 test('the lesson repaints on its own clock, and stops when it has landed', async (t) => {

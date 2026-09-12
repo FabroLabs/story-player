@@ -19,11 +19,39 @@
  * the three-field shape rather than refused, so one client draws one board
  * from either producer. The one v1 step it does NOT take is `{count: 0}`,
  * which was `slate(off)`: nothing lowers a board now, the ending included.
+ * (The compiler's own empty board — `EMPTY_BOARD`, raised where a scene opens
+ * — travels as the same three fields and is met by `isEmptyBoard` before this
+ * is asked; it is the fold's to stand, never a step's to write.)
  */
 
 import { SLATE } from '../policy.mjs';
 
 export const SLATE_MODES = Object.freeze(['count', 'add', 'subtract']);
+
+/**
+ * The board a scene opens on before it has counted anything: a panel with
+ * nothing on it yet.
+ *
+ * The compiler raises one at the opening of the scene that first counts, so a
+ * lesson begins on its board rather than on the floor the board is about to
+ * cover — a numeral card lying on a forest path is not the first thing a
+ * counting lesson should show. `count: 0` with nothing in `groups` is that op
+ * and nothing else: an authored `slate(off)` step is still refused by
+ * `normaliseSlate`, because the language has no way to ask for this and a
+ * count of nothing written by a story is a story that wanted something the
+ * player no longer does.
+ */
+export const EMPTY_BOARD = Object.freeze({ count: 0, mode: 'count', groups: Object.freeze([]) });
+
+export function isEmptyBoard(payload) {
+  // The exact shape `raiseEmptyBoard` writes, and nothing looser: a bare
+  // `{count: 0}` is a v1 producer's `slate(off)`, and it stays a refusal —
+  // a panel standing where a story meant "board away" is the opposite of
+  // what it asked for, with nobody told.
+  return payload?.count === 0
+    && payload.mode === 'count'
+    && Array.isArray(payload.groups) && payload.groups.length === 0;
+}
 
 /**
  * `payload` is a bundle step, a timeline op or a folded board — all three carry
