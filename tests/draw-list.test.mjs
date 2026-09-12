@@ -27,6 +27,7 @@ import {
   SHADOW_RADIUS_X,
   SHADOW_RADIUS_Y,
   buildDrawList,
+  slateBuildMs,
 } from '../browser/v0/app/stage/draw-list.mjs';
 import { stateAt } from '../browser/v0/core/state/state.mjs';
 import { HIGHLIGHT, SLATE } from '../browser/v0/policy.mjs';
@@ -227,78 +228,112 @@ test('a plate with no resolution of its own is the stage’s default', () => {
 
 const slateList = (slate, tMs = 0, plate) => buildDrawList({ ...actorState({ plate }), slate, tMs });
 const only = (list, op) => list.commands.filter((command) => command.op === op);
+const boardAt = (slate, tMs = 0, plate) => only(slateList(slate, tMs, plate), 'slate')[0];
+const counting = (count, from = 0) => ({ count, mode: 'count', groups: [count], sinceMs: 0, from });
+const joining = (left, right) => ({
+  count: left + right, mode: 'add', groups: [left, right], sinceMs: 0, from: 0,
+});
+const taking = (left, right) => ({
+  count: left - right, mode: 'subtract', groups: [left, right], sinceMs: 0, from: 0,
+});
+// The instant every counter has landed and nothing has been taken away yet.
+const settled = (drawn, from = 0) => ((drawn - 1 - from) * SLATE.staggerMs) + SLATE.popMs;
 
 test('a story that counts nothing draws no board at all', () => {
-  for (const slate of [undefined, null, { count: 0, sinceMs: 0 }, { count: 1.5, sinceMs: 0 }]) {
+  const nothing = [
+    undefined,
+    null,
+    { count: 0, sinceMs: 0 },
+    { count: 1.5, sinceMs: 0 },
+    // A board whose own groups do not make its count is not a board to draw:
+    // the fold refused it out loud, and the drawer draws what it can stand behind.
+    { count: 6, mode: 'add', groups: [2, 3], sinceMs: 0 },
+    { count: 3, mode: 'multiply', groups: [1, 3], sinceMs: 0 },
+  ];
+  for (const slate of nothing) {
     assert.deepEqual(only(slateList(slate), 'slate'), [], JSON.stringify(slate));
   }
 });
 
-test('the board is one card per number, in a row centred on the plate', () => {
-  const [board] = only(slateList({ count: 3, sinceMs: 0 }, SLATE.popMs), 'slate');
-  const cell = (SLATE.cellPct / 100) * 1080;
-  const gap = (SLATE.gapPct / 100) * 1080;
-  const width = (3 * cell) + (2 * gap);
+test('a board that names no mode is the plain count every older bundle means', () => {
+  const board = boardAt({ count: 3, sinceMs: 0 }, settled(3));
 
-  assert.equal(board.count, 3);
-  assert.deepEqual(board.cells.map((card) => card.n), [1, 2, 3]);
-  assert.deepEqual(board.cells.map((card) => card.dy), [32.4, 32.4, 32.4]);
-  assert.equal(board.cells[0].dx, Math.round(((1920 - width) / 2) * 100) / 100);
-  // A card is square: `cellPct` is one number and it measures both sides.
-  for (const card of board.cells) assert.equal(card.dh, card.dw);
-  // Every card the same size, and the gap between two of them is the published one.
-  assert.deepEqual(new Set(board.cells.map((card) => card.dw)), new Set([board.cells[0].dw]));
-  assert.equal(
-    Math.round((board.cells[1].dx - (board.cells[0].dx + board.cells[0].dw)) * 10) / 10,
-    Math.round(gap * 10) / 10,
-  );
+  assert.equal(board.mode, 'count');
+  assert.deepEqual(board.groups, [3]);
+  assert.equal(board.counters.length, 3);
 });
 
-test('past five the board wraps, and each row is centred on its own width', () => {
-  const [board] = only(slateList({ count: 7, sinceMs: 0 }, SLATE.popMs), 'slate');
-  const top = board.cells.filter((card) => card.n <= SLATE.perRow);
-  const wrapped = board.cells.filter((card) => card.n > SLATE.perRow);
+test('the panel is the old board own rectangle, in this plate own pixels', () => {
+  // The ratios the lessons were drawn against: 4.5% in from the left, 8.5% down
+  // from the top, 91% by 84.5%, cornered at 5% of the height. On a 1920x1080
+  // plate that is this rectangle, and a client drawing its own panel lands it here.
+  const { panel } = boardAt(counting(3), settled(3));
 
-  assert.equal(new Set(top.map((card) => card.dy)).size, 1);
-  assert.equal(new Set(wrapped.map((card) => card.dy)).size, 1);
-  // The rows step by a card and a gap — not by a card, which overlaps them, and
-  // not by more, which walks the board down the frame.
-  const cell = (SLATE.cellPct / 100) * 1080;
-  const gap = (SLATE.gapPct / 100) * 1080;
-  assert.equal(Math.round((wrapped[0].dy - top[0].dy) * 10) / 10, Math.round((cell + gap) * 10) / 10);
-  // Two cards centred sit further in than five do.
-  assert.ok(wrapped[0].dx > top[0].dx, 'the short row is centred, not left-aligned');
+  assert.deepEqual(panel, {
+    x: 86.4, y: 91.8, w: 1747.2, h: 912.6, r: 54, sheenH: 146.02,
+  });
+  assert.equal(Math.round((panel.x + panel.w) * 10) / 10, 1833.6);
+  assert.equal(Math.round((panel.y + panel.h) * 10) / 10, 1004.4);
 });
 
-test('the board stops at the published ceiling rather than running down the frame', () => {
-  const [board] = only(slateList({ count: SLATE.max + 5, sinceMs: 0 }, SLATE.popMs), 'slate');
+test('the counters stand in one row up to five, centred on the plate', () => {
+  const board = boardAt(counting(5), settled(5));
+  const middle = board.counters.map((counter) => counter.cx);
 
-  assert.equal(board.count, SLATE.max);
-  assert.equal(board.cells.length, SLATE.max);
-  assert.equal(board.cells.at(-1).n, SLATE.max);
+  assert.deepEqual(board.counters.map((counter) => counter.n), [1, 2, 3, 4, 5]);
+  assert.equal(new Set(board.counters.map((counter) => counter.cy)).size, 1, 'one row');
+  // Centred: the row's own middle is the plate's middle, and the counters are
+  // evenly pitched by one cell.
+  assert.equal((middle[0] + middle.at(-1)) / 2, 1920 / 2);
+  const pitch = middle[1] - middle[0];
+  for (const [index, cx] of middle.entries()) {
+    assert.equal(Math.round((cx - middle[0]) * 100) / 100, Math.round(index * pitch * 100) / 100);
+  }
+  // Every counter the same size, and it is the fraction of the cell the old
+  // board drew its apples at.
+  assert.equal(new Set(board.counters.map((counter) => counter.r)).size, 1);
+  assert.equal(board.counters[0].r, Math.round(pitch * SLATE.counterRadius * 100) / 100);
 });
 
-test('a card whose instant has not arrived yet is not drawn at a negative size', () => {
-  // Unreachable through the fold, which never hands out a `sinceMs` ahead of
-  // its own t — but `pop` is a published field, and a client that trusts it
-  // would scale a card by a large negative number.
-  const [board] = only(slateList({ count: 1, sinceMs: 1_000 }, 0), 'slate');
+test('six and over splits into two balanced rows, each centred on its own width', () => {
+  const board = boardAt(counting(7), settled(7));
+  const rows = new Map();
+  for (const counter of board.counters) {
+    rows.set(counter.cy, [...(rows.get(counter.cy) ?? []), counter]);
+  }
+  const [top, bottom] = [...rows.values()];
 
-  assert.equal(board.cells[0].pop, 0);
+  assert.equal(rows.size, 2);
+  assert.deepEqual([top.length, bottom.length], [4, 3], 'the fuller row is the top one');
+  for (const row of [top, bottom]) {
+    assert.equal((row[0].cx + row.at(-1).cx) / 2, 1920 / 2, 'the row is centred');
+  }
+  // Two rows of counters are smaller than one row of them: the rows share the
+  // height between the panel top and the equation band.
+  assert.ok(board.counters[0].r < boardAt(counting(5), settled(5)).counters[0].r);
 });
 
-test('only the newest card is ringed, and only the newest card pops', () => {
-  const [board] = only(slateList({ count: 3, sinceMs: 0 }, SLATE.popMs / 2), 'slate');
+test('the counters arrive one at a time, and the ring marks the newest of them', () => {
+  const arriving = (tMs) => boardAt(counting(3), tMs).counters.map((counter) => counter.scale);
 
-  assert.deepEqual(board.cells.map((card) => card.ring), [false, false, true]);
-  assert.deepEqual(board.cells.slice(0, 2).map((card) => card.pop), [1, 1]);
-  assert.ok(board.cells[2].pop !== 1, 'the newest card is still arriving');
+  assert.deepEqual(arriving(0), [0, 0, 0]);
+  // A counter every `staggerMs`: two of them are on their way at once — the
+  // stagger is shorter than the pop, so the board flows rather than ticks — and
+  // the third has not begun at all.
+  const middle = arriving(SLATE.staggerMs + 50);
+  assert.ok(middle[0] > 0 && middle[1] > 0);
+  assert.equal(middle[2], 0);
+  assert.deepEqual(arriving(settled(3)), [1, 1, 1]);
+  // The ring is on the newest counter that has BEGUN, not on the newest one
+  // that will exist: a ring around nothing is a ring around the next number.
+  assert.deepEqual(boardAt(counting(3), 100).counters.map((c) => c.ring), [true, false, false]);
+  assert.deepEqual(boardAt(counting(3), settled(3)).counters.map((c) => c.ring), [false, false, true]);
 });
 
 test('the pop starts at nothing, peaks at the published overshoot, and settles at one', () => {
-  // `overshoot` is the number a phone is handed; the curve lives here. Two
-  // files apart is exactly how a published number and its meaning drift.
-  const popAt = (tMs) => only(slateList({ count: 1, sinceMs: 0 }, tMs), 'slate')[0].cells[0].pop;
+  // `overshoot` is the number a phone is handed; the curve lives in the drawer.
+  // Two files apart is exactly how a published number and its meaning drift.
+  const popAt = (tMs) => boardAt(counting(1), tMs).counters[0].scale;
   const swept = [];
   for (let tMs = 0; tMs <= SLATE.popMs; tMs += 1) swept.push(popAt(tMs));
 
@@ -308,10 +343,174 @@ test('the pop starts at nothing, peaks at the published overshoot, and settles a
   assert.equal(Math.round(Math.max(...swept) * 100) / 100, SLATE.overshoot);
 });
 
+test('a counter whose instant has not arrived yet is not drawn at a negative size', () => {
+  // Unreachable through the fold, which never hands out a `sinceMs` ahead of
+  // its own t — but the scale is a published field, and a client that trusts it
+  // would draw a counter at a large negative size.
+  assert.equal(boardAt({ ...counting(1), sinceMs: 1_000 }, 0).counters[0].scale, 0);
+});
+
+test('counting on from a smaller count leaves the counters already standing alone', () => {
+  // Three were there and the fourth is arriving: the three do not pop again,
+  // and the fourth starts at the board's own instant rather than fourth in a
+  // queue that already ran.
+  const board = boardAt(counting(4, 3), 0);
+
+  assert.deepEqual(board.counters.map((counter) => counter.scale), [1, 1, 1, 0]);
+  assert.equal(boardAt(counting(4, 3), SLATE.popMs).counters.at(-1).scale, 1);
+});
+
+test('a joining board colours its counters by the group they came from', () => {
+  const board = boardAt(joining(2, 3), settled(5));
+
+  assert.deepEqual(board.counters.map((counter) => counter.group), [0, 0, 1, 1, 1]);
+  assert.deepEqual(board.groups, [2, 3]);
+  assert.equal(board.count, 5);
+  // A plain count has nothing to tell apart, so every counter is the one group.
+  assert.deepEqual(boardAt(counting(3), settled(3)).counters.map((c) => c.group), [0, 0, 0]);
+});
+
+test('a take-away draws what it started with, then crosses out what was taken', () => {
+  const board = (tMs) => boardAt(taking(5, 2), tMs);
+  const drawn = board(settled(5));
+
+  assert.equal(drawn.counters.length, 5, 'a subtraction draws its starting set');
+  assert.equal(drawn.count, 3);
+  assert.deepEqual(drawn.counters.map((counter) => counter.cross), [0, 0, 0, 0, 0]);
+
+  // The two taken go one at a time, each crossed as it fades.
+  const taken = board(settled(5) + SLATE.takeMs);
+  assert.deepEqual(taken.counters.slice(0, 3).map((counter) => counter.alpha), [1, 1, 1]);
+  assert.equal(taken.counters[3].cross, 1);
+  assert.equal(taken.counters[3].alpha, 0);
+  assert.ok(taken.counters[4].cross < 1, 'the second one is still going');
+
+  const gone = board(settled(5) + SLATE.takeStaggerMs + SLATE.takeMs);
+  assert.deepEqual(gone.counters.slice(3).map((counter) => counter.alpha), [0, 0]);
+  // And the ring falls back to the newest counter still standing.
+  assert.deepEqual(gone.counters.map((counter) => counter.ring), [false, false, true, false, false]);
+});
+
+test('the badge counts what is on the board right now, and is not there at nothing', () => {
+  assert.equal(boardAt(counting(3), 0).badge, null, 'the first counter is still on its way');
+  assert.equal(boardAt(counting(3), settled(3)).badge.n, 3);
+  assert.equal(boardAt(joining(2, 3), settled(5)).badge.n, 5);
+  // A take-away's badge counts DOWN as the counters go, which is the whole
+  // cardinality cue: five, then four, then three. A counter is still there
+  // until it is half gone, so the badge changes as the apple does.
+  assert.equal(boardAt(taking(5, 2), settled(5) + SLATE.takeMs).badge.n, 4);
+  const after = settled(5) + SLATE.takeStaggerMs + SLATE.takeMs;
+  assert.equal(boardAt(taking(5, 2), after).badge.n, 3);
+});
+
+test('the badge sits in the panel own top corner, at the old board own offsets', () => {
+  const { panel, badge } = boardAt(counting(3), settled(3));
+  const size = (SLATE.badgePct / 100) * 1080;
+
+  assert.equal(badge.size, size);
+  assert.equal(badge.cx, Math.round(((panel.x + panel.w) - (size * SLATE.badgeOffset[0])) * 100) / 100);
+  assert.equal(badge.cy, Math.round((panel.y + (size * SLATE.badgeOffset[1])) * 100) / 100);
+});
+
+test('the equation waits for the counters, then writes itself one token at a time', () => {
+  const tokensAt = (tMs) => boardAt(joining(2, 3), tMs).equation;
+
+  assert.equal(tokensAt(settled(5) - 1), null, 'the answer arrived before the question');
+  const written = tokensAt(settled(5) + (5 * SLATE.tokenMs));
+  assert.deepEqual(written.tokens.map((token) => token.text), ['2', '+', '3', '=', '5']);
+  assert.deepEqual(
+    written.tokens.map((token) => token.role),
+    ['term', 'operator', 'term', 'equals', 'result'],
+  );
+  assert.deepEqual(written.tokens.map((token) => token.alpha), [1, 1, 1, 1, 1]);
+
+  // One token in: the first is there, the rest are still arriving in order.
+  const opening = tokensAt(settled(5) + SLATE.tokenMs);
+  assert.equal(opening.tokens[0].alpha, 1);
+  assert.deepEqual(opening.tokens.slice(2).map((token) => token.alpha), [0, 0, 0]);
+  // It stands in the band below the counters, inside the panel.
+  const { panel } = boardAt(joining(2, 3), settled(5));
+  assert.ok(written.y > panel.y + (panel.h / 2));
+  assert.ok(written.y + written.h <= panel.y + panel.h);
+});
+
+test('a take-away writes the take-away, and a plain count writes only its numeral', () => {
+  const taken = boardAt(taking(5, 2), settled(5) + (2 * SLATE.takeMs) + (5 * SLATE.tokenMs));
+  assert.deepEqual(taken.equation.tokens.map((token) => token.text), ['5', '-', '2', '3']
+    .toSpliced(3, 0, '='));
+
+  // "3 = 3" would be a sentence about numbers rather than the answer to "how
+  // many?" — the count is one numeral, and it is written in the answer's colour.
+  const counted = boardAt(counting(3), settled(3) + SLATE.tokenMs);
+  assert.deepEqual(counted.equation.tokens, [{ text: '3', role: 'result', alpha: 1 }]);
+});
+
+test('the build own progress runs from nothing to one across the whole board', () => {
+  const build = slateBuildMs(joining(2, 3));
+
+  assert.equal(boardAt(joining(2, 3), 0).progress, 0);
+  assert.equal(boardAt(joining(2, 3), build / 2).progress, 0.5);
+  assert.equal(boardAt(joining(2, 3), build).progress, 1);
+  assert.equal(boardAt(joining(2, 3), build * 3).progress, 1, 'it settles rather than running on');
+  // The last thing to happen is the last token landing, which is what the
+  // player asks about when it decides whether the picture is still moving.
+  assert.ok(boardAt(joining(2, 3), build - (SLATE.tokenMs / 2)).equation.tokens.at(-1).alpha < 1);
+  assert.equal(slateBuildMs({ count: 0, mode: 'count', groups: [] }), 0);
+  // A take-away lasts longer than the join it undoes: its counters have to be
+  // taken away before its equation may be written.
+  assert.ok(slateBuildMs(taking(5, 2)) > build);
+});
+
+test('every board the fold accepts is a board the drawer draws', () => {
+  // The drawer applies the same shared rule as the fold and answers `null` when
+  // it refuses — and it has nowhere to SAY so: a draw list carries commands,
+  // not warnings. That silence is only safe while the two cannot disagree, so
+  // the agreement is pinned here rather than assumed: every board a timeline
+  // can put on screen is swept against the drawer.
+  const boards = [];
+  for (let count = 1; count <= SLATE.max; count += 1) boards.push(counting(count));
+  for (let left = 1; left < SLATE.max; left += 1) {
+    for (let right = 1; left + right <= SLATE.max; right += 1) boards.push(joining(left, right));
+    for (let right = 1; right < left; right += 1) boards.push(taking(left, right));
+  }
+
+  for (const slate of boards) {
+    const state = stateAt(timelineOf(slate), SLATE_BUNDLE, 1_000 + slateBuildMs(slate));
+    assert.deepEqual(state.warnings, [], JSON.stringify(slate));
+    const [board] = only(buildDrawList({ ...actorState({}), slate: state.slate, tMs: state.tMs }), 'slate');
+    assert.ok(board, `the fold accepted ${JSON.stringify(slate)} and the drawer drew nothing`);
+    assert.equal(board.badge.n, board.mode === 'subtract' ? board.count : board.counters.length);
+  }
+});
+
+// A one-scene timeline that raises exactly this board at 1,000 ms.
+const SLATE_BUNDLE = {
+  storylang_version: 0,
+  title: 'boards',
+  cast: {},
+  objects: {},
+  audio: { sfx: {}, bgm: {} },
+  scenes: [{ line: 1, place: 'dell', plate: { resolution: [1920, 1080], zones: [] }, steps: [] }],
+};
+const timelineOf = ({ count, mode, groups }) => ({
+  timeline_version: 1,
+  storylang_version: 0,
+  title: 'boards',
+  duration_ms: 60_000,
+  events: [
+    {
+      t_ms: 0, source: 'stage', op: 'scene', scene_index: 0, line: null, place: 'dell',
+    },
+    {
+      t_ms: 1_000, source: 'stage', op: 'slate', scene_index: 0, line: null, count, mode, groups,
+    },
+  ],
+});
+
 test('the board is marked hud, and it is the last thing on the list', () => {
   const list = buildDrawList({
     ...actorState({ actors: [{ slug: 'ruby', x: 50, feetY: 90, heightPx: 200, clip: 'idle_right' }] }),
-    slate: { count: 1, sinceMs: 0 },
+    slate: counting(1),
   }, oneSheet('sheet.webp', [1, 1]));
 
   assert.equal(list.commands.at(-1).op, 'slate');
@@ -321,14 +520,13 @@ test('the board is marked hud, and it is the last thing on the list', () => {
 });
 
 test('the board is measured against the plate, so a smaller stage gets a smaller board', () => {
-  const [big] = only(slateList({ count: 1, sinceMs: 0 }, SLATE.popMs), 'slate');
-  const [small] = only(
-    slateList({ count: 1, sinceMs: 0 }, SLATE.popMs, { resolution: [960, 540] }),
-    'slate',
-  );
+  const big = boardAt(counting(1), settled(1));
+  const small = boardAt(counting(1), settled(1), { resolution: [960, 540] });
 
-  assert.equal(small.cells[0].dw, big.cells[0].dw / 2);
-  assert.equal(small.cells[0].dy, big.cells[0].dy / 2);
+  assert.equal(small.panel.w, big.panel.w / 2);
+  assert.equal(small.panel.h, big.panel.h / 2);
+  assert.equal(small.counters[0].r, big.counters[0].r / 2);
+  assert.equal(small.badge.size, big.badge.size / 2);
 });
 
 test('a ring is drawn around its own actor, right after them', () => {
@@ -434,8 +632,12 @@ function instantsOf(timeline) {
   }
   const prop = first('place_object');
   if (prop) chosen.add(prop.t_ms + 1);
-  const board = first('slate');
-  if (board) chosen.add(board.t_ms + Math.round(SLATE.popMs / 2));
+  // Every board the story raises, sampled halfway through its own build —
+  // which is a different instant for every shape, and the only one that catches
+  // a board mid-arrival rather than settled.
+  for (const board of stage.filter((event) => event.op === 'slate' && event.count > 0)) {
+    chosen.add(board.t_ms + Math.round(slateBuildMs(board) / 2));
+  }
   const ring = first('highlight');
   if (ring) chosen.add(ring.t_ms + Math.round(HIGHLIGHT.durationMs / 4));
   return [...chosen].sort((left, right) => left - right);

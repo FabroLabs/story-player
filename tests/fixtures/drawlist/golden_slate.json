@@ -79,24 +79,41 @@
           {
             "op": "slate",
             "hud": true,
+            "mode": "count",
             "count": 1,
-            "cells": [
+            "groups": [
+              1
+            ],
+            "progress": 0.0015,
+            "panel": {
+              "x": 86.4,
+              "y": 91.8,
+              "w": 1747.2,
+              "h": 912.6,
+              "r": 54,
+              "sheenH": 146.02
+            },
+            "counters": [
               {
                 "n": 1,
-                "dx": 922.2,
-                "dy": 32.4,
-                "dw": 75.6,
-                "dh": 75.6,
-                "ring": true,
-                "pop": 0.0134
+                "group": 0,
+                "cx": 960,
+                "cy": 424.9,
+                "r": 99.14,
+                "scale": 0.0134,
+                "alpha": 1,
+                "cross": 0,
+                "ring": false
               }
-            ]
+            ],
+            "badge": null,
+            "equation": null
           }
         ]
       }
     },
     {
-      "t_ms": 2188,
+      "t_ms": 2338,
       "list": {
         "width": 1920,
         "height": 1080,
@@ -120,8 +137,8 @@
             "slug": "squirrel",
             "url": "fairytale-assets/renditions/sprites/8f479bfe85c523a3fbaa55aca958df67.webp",
             "cell": [
-              1,
-              0
+              0,
+              1
             ],
             "cells": [
               3,
@@ -174,18 +191,40 @@
           {
             "op": "slate",
             "hud": true,
+            "mode": "count",
             "count": 1,
-            "cells": [
+            "groups": [
+              1
+            ],
+            "progress": 0.5,
+            "panel": {
+              "x": 86.4,
+              "y": 91.8,
+              "w": 1747.2,
+              "h": 912.6,
+              "r": 54,
+              "sheenH": 146.02
+            },
+            "counters": [
               {
                 "n": 1,
-                "dx": 922.2,
-                "dy": 32.4,
-                "dw": 75.6,
-                "dh": 75.6,
-                "ring": true,
-                "pop": 1.0877
+                "group": 0,
+                "cx": 960,
+                "cy": 424.9,
+                "r": 99.14,
+                "scale": 1.0077,
+                "alpha": 1,
+                "cross": 0,
+                "ring": true
               }
-            ]
+            ],
+            "badge": {
+              "cx": 1740.94,
+              "cy": 165.46,
+              "size": 118.8,
+              "n": 1
+            },
+            "equation": null
           }
         ]
       }
@@ -288,27 +327,193 @@
           {
             "op": "slate",
             "hud": true,
+            "mode": "count",
             "count": 2,
-            "cells": [
+            "groups": [
+              2
+            ],
+            "progress": 0.0011,
+            "panel": {
+              "x": 86.4,
+              "y": 91.8,
+              "w": 1747.2,
+              "h": 912.6,
+              "r": 54,
+              "sheenH": 146.02
+            },
+            "counters": [
               {
                 "n": 1,
-                "dx": 877.92,
-                "dy": 32.4,
-                "dw": 75.6,
-                "dh": 75.6,
-                "ring": false,
-                "pop": 1
+                "group": 0,
+                "cx": 814.2,
+                "cy": 424.9,
+                "r": 99.14,
+                "scale": 0.0134,
+                "alpha": 1,
+                "cross": 0,
+                "ring": false
               },
               {
                 "n": 2,
-                "dx": 966.48,
-                "dy": 32.4,
-                "dw": 75.6,
-                "dh": 75.6,
-                "ring": true,
-                "pop": 0.0134
+                "group": 0,
+                "cx": 1105.8,
+                "cy": 424.9,
+                "r": 99.14,
+                "scale": 0,
+                "alpha": 1,
+                "cross": 0,
+                "ring": false
               }
-            ]
+            ],
+            "badge": null,
+            "equation": null
+          }
+        ]
+      }
+    },
+    {
+      "t_ms": 7392,
+      "list": {
+        "width": 1920,
+        "height": 1080,
+        "camera": {
+          "scale": 1,
+          "x": 0,
+          "y": 0
+        },
+        "commands": [
+          {
+            "op": "shadow",
+            "slug": "squirrel",
+            "cx": 743.89,
+            "cy": 1014.96,
+            "rx": 66,
+            "ry": 13.2,
+            "opacity": 0.34
+          },
+          {
+            "op": "sprite",
+            "slug": "squirrel",
+            "url": "fairytale-assets/renditions/sprites/725ba924fa38544a7d708a9df230642c.webp",
+            "cell": [
+              0,
+              0
+            ],
+            "cells": [
+              3,
+              3
+            ],
+            "dx": 633.89,
+            "dy": 794.96,
+            "dw": 220,
+            "dh": 220,
+            "opacity": 1
+          },
+          {
+            "op": "shadow",
+            "slug": "acorn",
+            "cx": 488.72,
+            "cy": 1014.32,
+            "rx": 21.6,
+            "ry": 4.32,
+            "opacity": 0.34
+          },
+          {
+            "op": "prop",
+            "slug": "acorn",
+            "url": "fairytale-assets/objects/biology_plants_and_geology/acorn.svg",
+            "dx": 452.72,
+            "dy": 942.32,
+            "dw": 72,
+            "dh": 72,
+            "opacity": 1
+          },
+          {
+            "op": "shadow",
+            "slug": "pinecone",
+            "cx": 686.63,
+            "cy": 1014.81,
+            "rx": 30,
+            "ry": 6,
+            "opacity": 0.34
+          },
+          {
+            "op": "prop",
+            "slug": "pinecone",
+            "url": "fairytale-assets/objects/biology_plants_and_geology/pinecone.svg",
+            "dx": 636.63,
+            "dy": 914.81,
+            "dw": 100,
+            "dh": 100,
+            "opacity": 1
+          },
+          {
+            "op": "shadow",
+            "slug": "numeral_2",
+            "cx": 1082.46,
+            "cy": 1015.81,
+            "rx": 137.14,
+            "ry": 27.43,
+            "opacity": 0.34
+          },
+          {
+            "op": "prop",
+            "slug": "numeral_2",
+            "url": "fairytale-assets/objects/placeholders/numeral_2.svg",
+            "dx": 853.89,
+            "dy": 558.67,
+            "dw": 457.14,
+            "dh": 457.14,
+            "opacity": 1
+          },
+          {
+            "op": "slate",
+            "hud": true,
+            "mode": "count",
+            "count": 2,
+            "groups": [
+              2
+            ],
+            "progress": 0.5,
+            "panel": {
+              "x": 86.4,
+              "y": 91.8,
+              "w": 1747.2,
+              "h": 912.6,
+              "r": 54,
+              "sheenH": 146.02
+            },
+            "counters": [
+              {
+                "n": 1,
+                "group": 0,
+                "cx": 814.2,
+                "cy": 424.9,
+                "r": 99.14,
+                "scale": 1,
+                "alpha": 1,
+                "cross": 0,
+                "ring": false
+              },
+              {
+                "n": 2,
+                "group": 0,
+                "cx": 1105.8,
+                "cy": 424.9,
+                "r": 99.14,
+                "scale": 1.0999,
+                "alpha": 1,
+                "cross": 0,
+                "ring": true
+              }
+            ],
+            "badge": {
+              "cx": 1740.94,
+              "cy": 165.46,
+              "size": 118.8,
+              "n": 2
+            },
+            "equation": null
           }
         ]
       }
@@ -430,36 +635,234 @@
           {
             "op": "slate",
             "hud": true,
+            "mode": "count",
             "count": 3,
-            "cells": [
+            "groups": [
+              3
+            ],
+            "progress": 0.0009,
+            "panel": {
+              "x": 86.4,
+              "y": 91.8,
+              "w": 1747.2,
+              "h": 912.6,
+              "r": 54,
+              "sheenH": 146.02
+            },
+            "counters": [
               {
                 "n": 1,
-                "dx": 833.64,
-                "dy": 32.4,
-                "dw": 75.6,
-                "dh": 75.6,
-                "ring": false,
-                "pop": 1
+                "group": 0,
+                "cx": 668.4,
+                "cy": 424.9,
+                "r": 99.14,
+                "scale": 0.0134,
+                "alpha": 1,
+                "cross": 0,
+                "ring": false
               },
               {
                 "n": 2,
-                "dx": 922.2,
-                "dy": 32.4,
-                "dw": 75.6,
-                "dh": 75.6,
-                "ring": false,
-                "pop": 1
+                "group": 0,
+                "cx": 960,
+                "cy": 424.9,
+                "r": 99.14,
+                "scale": 0,
+                "alpha": 1,
+                "cross": 0,
+                "ring": false
               },
               {
                 "n": 3,
-                "dx": 1010.76,
-                "dy": 32.4,
-                "dw": 75.6,
-                "dh": 75.6,
-                "ring": true,
-                "pop": 0.0134
+                "group": 0,
+                "cx": 1251.6,
+                "cy": 424.9,
+                "r": 99.14,
+                "scale": 0,
+                "alpha": 1,
+                "cross": 0,
+                "ring": false
               }
-            ]
+            ],
+            "badge": null,
+            "equation": null
+          }
+        ]
+      }
+    },
+    {
+      "t_ms": 14459,
+      "list": {
+        "width": 1920,
+        "height": 1080,
+        "camera": {
+          "scale": 1,
+          "x": 0,
+          "y": 0
+        },
+        "commands": [
+          {
+            "op": "shadow",
+            "slug": "squirrel",
+            "cx": 743.89,
+            "cy": 1014.96,
+            "rx": 66,
+            "ry": 13.2,
+            "opacity": 0.34
+          },
+          {
+            "op": "sprite",
+            "slug": "squirrel",
+            "url": "fairytale-assets/renditions/sprites/3cf00bad8cbee58d541b67ec8cdc999e.webp",
+            "cell": [
+              2,
+              0
+            ],
+            "cells": [
+              3,
+              3
+            ],
+            "dx": 633.89,
+            "dy": 794.96,
+            "dw": 220,
+            "dh": 220,
+            "opacity": 1
+          },
+          {
+            "op": "shadow",
+            "slug": "acorn",
+            "cx": 488.72,
+            "cy": 1014.32,
+            "rx": 21.6,
+            "ry": 4.32,
+            "opacity": 0.34
+          },
+          {
+            "op": "prop",
+            "slug": "acorn",
+            "url": "fairytale-assets/objects/biology_plants_and_geology/acorn.svg",
+            "dx": 452.72,
+            "dy": 942.32,
+            "dw": 72,
+            "dh": 72,
+            "opacity": 1
+          },
+          {
+            "op": "shadow",
+            "slug": "pinecone",
+            "cx": 686.63,
+            "cy": 1014.81,
+            "rx": 30,
+            "ry": 6,
+            "opacity": 0.34
+          },
+          {
+            "op": "prop",
+            "slug": "pinecone",
+            "url": "fairytale-assets/objects/biology_plants_and_geology/pinecone.svg",
+            "dx": 636.63,
+            "dy": 914.81,
+            "dw": 100,
+            "dh": 100,
+            "opacity": 1
+          },
+          {
+            "op": "shadow",
+            "slug": "mushroom",
+            "cx": 1280.37,
+            "cy": 1016.31,
+            "rx": 45,
+            "ry": 9,
+            "opacity": 0.34
+          },
+          {
+            "op": "prop",
+            "slug": "mushroom",
+            "url": "fairytale-assets/objects/nature_and_city/mushroom.svg",
+            "dx": 1205.37,
+            "dy": 866.31,
+            "dw": 150,
+            "dh": 150,
+            "opacity": 1
+          },
+          {
+            "op": "shadow",
+            "slug": "numeral_3",
+            "cx": 1082.46,
+            "cy": 1015.81,
+            "rx": 137.14,
+            "ry": 27.43,
+            "opacity": 0.34
+          },
+          {
+            "op": "prop",
+            "slug": "numeral_3",
+            "url": "fairytale-assets/objects/placeholders/numeral_3.svg",
+            "dx": 853.89,
+            "dy": 558.67,
+            "dw": 457.14,
+            "dh": 457.14,
+            "opacity": 1
+          },
+          {
+            "op": "slate",
+            "hud": true,
+            "mode": "count",
+            "count": 3,
+            "groups": [
+              3
+            ],
+            "progress": 0.5,
+            "panel": {
+              "x": 86.4,
+              "y": 91.8,
+              "w": 1747.2,
+              "h": 912.6,
+              "r": 54,
+              "sheenH": 146.02
+            },
+            "counters": [
+              {
+                "n": 1,
+                "group": 0,
+                "cx": 668.4,
+                "cy": 424.9,
+                "r": 99.14,
+                "scale": 1,
+                "alpha": 1,
+                "cross": 0,
+                "ring": false
+              },
+              {
+                "n": 2,
+                "group": 0,
+                "cx": 960,
+                "cy": 424.9,
+                "r": 99.14,
+                "scale": 1.0077,
+                "alpha": 1,
+                "cross": 0,
+                "ring": false
+              },
+              {
+                "n": 3,
+                "group": 0,
+                "cx": 1251.6,
+                "cy": 424.9,
+                "r": 99.14,
+                "scale": 0.74,
+                "alpha": 1,
+                "cross": 0,
+                "ring": true
+              }
+            ],
+            "badge": {
+              "cx": 1740.94,
+              "cy": 165.46,
+              "size": 118.8,
+              "n": 3
+            },
+            "equation": null
           }
         ]
       }
@@ -591,36 +994,72 @@
           {
             "op": "slate",
             "hud": true,
+            "mode": "count",
             "count": 3,
-            "cells": [
+            "groups": [
+              3
+            ],
+            "progress": 1,
+            "panel": {
+              "x": 86.4,
+              "y": 91.8,
+              "w": 1747.2,
+              "h": 912.6,
+              "r": 54,
+              "sheenH": 146.02
+            },
+            "counters": [
               {
                 "n": 1,
-                "dx": 833.64,
-                "dy": 32.4,
-                "dw": 75.6,
-                "dh": 75.6,
-                "ring": false,
-                "pop": 1
+                "group": 0,
+                "cx": 668.4,
+                "cy": 424.9,
+                "r": 99.14,
+                "scale": 1,
+                "alpha": 1,
+                "cross": 0,
+                "ring": false
               },
               {
                 "n": 2,
-                "dx": 922.2,
-                "dy": 32.4,
-                "dw": 75.6,
-                "dh": 75.6,
-                "ring": false,
-                "pop": 1
+                "group": 0,
+                "cx": 960,
+                "cy": 424.9,
+                "r": 99.14,
+                "scale": 1,
+                "alpha": 1,
+                "cross": 0,
+                "ring": false
               },
               {
                 "n": 3,
-                "dx": 1010.76,
-                "dy": 32.4,
-                "dw": 75.6,
-                "dh": 75.6,
-                "ring": true,
-                "pop": 1
+                "group": 0,
+                "cx": 1251.6,
+                "cy": 424.9,
+                "r": 99.14,
+                "scale": 1,
+                "alpha": 1,
+                "cross": 0,
+                "ring": true
               }
-            ]
+            ],
+            "badge": {
+              "cx": 1740.94,
+              "cy": 165.46,
+              "size": 118.8,
+              "n": 3
+            },
+            "equation": {
+              "y": 674.95,
+              "h": 283.82,
+              "tokens": [
+                {
+                  "text": "3",
+                  "role": "result",
+                  "alpha": 1
+                }
+              ]
+            }
           }
         ]
       }

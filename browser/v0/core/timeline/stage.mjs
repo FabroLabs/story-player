@@ -162,8 +162,12 @@ export class TimelineStage {
   // story never carries a slate event it did not ask for. A client folding the
   // stream itself has to clear it at those two ops — mirroring the subtitle's
   // explicit reset instead leaves a lesson's board standing into the next scene.
-  setSlate(count, origin = {}) {
-    this.#record('slate', origin, { count });
+  // The payload is the whole claim, always all three fields: the answer, the
+  // kind of arithmetic that reached it, and the groups it was reached from. A
+  // client that only knows how to draw a row of counters still has `count` and
+  // draws the right total; one that knows the rest draws the lesson.
+  setSlate({ count, mode, groups }, origin = {}) {
+    this.#record('slate', origin, { count, mode, groups: [...groups] });
   }
 
   // One subject per event. A step naming three things is three rings, each of

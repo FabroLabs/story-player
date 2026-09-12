@@ -17,7 +17,7 @@
  */
 
 import { DPR_CAP, chunkAt } from '../assets/rendition-picker.mjs';
-import { DEFAULT_STAGE_RESOLUTION, HIGHLIGHT } from '../../policy.mjs';
+import { DEFAULT_STAGE_RESOLUTION, HIGHLIGHT, SLATE } from '../../policy.mjs';
 import { buildDrawList } from './draw-list.mjs';
 
 // The ink of the shadow and of the placeholder, kept here rather than in the
@@ -27,17 +27,54 @@ const SHADOW_INK = '2, 3, 12';
 const MISSING_INK = ['rgba(245, 220, 163, 0.28)', 'rgba(27, 31, 67, 0.88)'];
 const TAU = Math.PI * 2;
 
-// The lesson's ink. The board is a dark pane with pale cards on it so the
-// numerals read over a bright plate and a dark one alike, and the gold is the
-// one accent both the ringed card and the highlight ring are drawn in — a child
-// is being shown two halves of one answer, and they should look like it.
-const SLATE_PANEL_INK = 'rgba(10, 12, 30, 0.42)';
-const SLATE_CARD_INK = 'rgba(250, 247, 236, 0.94)';
-const SLATE_NUMERAL_INK = '#1b1f43';
+// The lesson's ink.
+//
+// The board is frosted glass over a blurred scene, and everything on it is the
+// palette the lessons were designed in (`procgraphics/math_board.py`): warm,
+// high-contrast, and carrying meaning rather than decoration. The addends are
+// told apart by COLOUR — two reds and three greens make five, and a child can
+// see the joining without being told it — so the group inks and the pad tints
+// under them are one list, indexed by the group the draw list names.
+//
+// None of this is in the draw list: a client with its own palette is still
+// drawing this board, and the list carries the geometry it must agree on.
+const SLATE_PANEL_INK = 'rgba(255, 255, 255, 0.59)';
+const SLATE_PANEL_EDGE = 'rgba(255, 255, 255, 0.84)';
+const SLATE_SHEEN_INK = 'rgba(255, 255, 255, 0.22)';
+const SLATE_GROUP_INKS = ['236, 92, 86', '96, 184, 120', '94, 158, 224', '196, 132, 224'];
+const SLATE_PAD_TINTS = ['255, 186, 166', '170, 226, 184', '176, 206, 248', '224, 192, 248'];
+// A plain count is not two groups of anything, so its counters are one calm
+// hue on one calm pad — colour would be claiming a difference that is not there.
+const SLATE_COUNT_INK = '120, 150, 210';
+const SLATE_PAD_NEUTRAL = '226, 232, 240';
+const SLATE_STEM_INK = 'rgb(120, 84, 52)';
+const SLATE_LEAF_INK = 'rgb(110, 186, 110)';
+const SLATE_SHINE_INK = 'rgba(255, 255, 255, 0.35)';
+const SLATE_CROSS_INK = 'rgb(228, 64, 60)';
+const SLATE_BADGE_INK = 'rgb(255, 213, 92)';
+const SLATE_BADGE_NUMERAL_INK = 'rgb(74, 58, 18)';
+const SLATE_EQUATION_INKS = {
+  term: '60, 70, 80',
+  operator: '60, 70, 80',
+  equals: '236, 92, 86',
+  result: '54, 150, 96',
+};
+// The gold is the one accent both the ringed counter and the highlight ring are
+// drawn in — a child is being shown two halves of one answer, and they should
+// look like it.
 const GOLD_INK = '245, 197, 66';
-// Rounded first, then the ordinary stacks: a counting card wants the shape of a
-// nursery numeral, and every platform that has one names it differently.
-const NUMERAL_FONT = '"SF Pro Rounded", ui-rounded, Nunito, Quicksand, system-ui, sans-serif';
+// The pad under a counter: the old board drew it at 96% of the CELL, and what
+// the draw list carries is the counter's radius — `SLATE.counterRadius` of that
+// same cell. Derived rather than written out, so a counter drawn at a different
+// fraction of its cell keeps the pad the same fraction of the cell it always was.
+const SLATE_PAD_CELL_SHARE = 0.96;
+const padShare = () => SLATE_PAD_CELL_SHARE / (2 * SLATE.counterRadius);
+// Rounded first, then the ordinary stacks: a counting board wants the shape of
+// a nursery numeral, and every platform that has one names it differently. It
+// is set HEAVY, as the lessons were drawn: a numeral a child is reading across
+// a room at bedtime is a shape before it is a glyph.
+const NUMERAL_FONT = '700 {size}px "SF Pro Rounded", ui-rounded, Nunito, Quicksand, system-ui, sans-serif';
+const numeralFont = (size) => NUMERAL_FONT.replace('{size}', String(Math.round(size)));
 
 // How long a character may be missing before the placeholder is shown.
 //
@@ -364,26 +401,32 @@ export function paintDrawList(context, list, {
   context.imageSmoothingQuality = 'high';
 
   for (const command of list.commands) {
+    // `hud` is the list's word for "the camera was left out of this one". The
+    // transform drops to the viewport alone for the length of such a command
+    // and is put straight back, so nothing after it has to know. The board is
+    // the reason the word exists — a board that doubled under a push-in would
+    // take the number a child is counting with it — and the companion kept in
+    // the corner over that board is drawn the same way.
+    if (command.hud) context.setTransform(scale, 0, 0, scale, 0, 0);
     if (command.op === 'shadow') {
       // The low tier draws no shadows: a radial gradient per character per
       // frame is the most expensive thing on the list and the least of what a
       // viewer is looking at.
       if (shadows) paintShadow(context, command);
+      if (command.hud) underCamera();
       continue;
     }
     if (command.op === 'ring') {
       paintRing(context, command);
+      if (command.hud) underCamera();
       continue;
     }
-    // The one command drawn outside the camera. The transform drops to the
-    // viewport alone for the length of it and is put straight back, so nothing
-    // after this line has to know the slate was ever painted. Both it and the
-    // ring survive the low tier — they carry the lesson, and a device too weak
-    // for a drop shadow is not too weak for a rectangle.
+    // The board survives the low tier along with the ring — they carry the
+    // lesson, and a device too weak for a drop shadow is not too weak for a
+    // rounded rectangle.
     if (command.op === 'slate') {
-      context.setTransform(scale, 0, 0, scale, 0, 0);
-      paintSlate(context, command);
-      underCamera();
+      paintSlate(context, command, list.width);
+      if (command.hud) underCamera();
       continue;
     }
     const drawable = command.url ? lookup(command.url) : null;
@@ -394,12 +437,14 @@ export function paintDrawList(context, list, {
     // bury the log.
     if (!drawable) {
       if (!onMissing(context, command)) paintMissing(context, command);
+      if (command.hud) underCamera();
       continue;
     }
     context.globalAlpha = command.opacity;
     if (command.op === 'prop') paintProp(context, command, drawable);
     else paintSprite(context, command, drawable);
     context.globalAlpha = 1;
+    if (command.hud) underCamera();
     onPainted(command, drawable);
   }
 }
@@ -462,49 +507,175 @@ function paintProp(context, command, drawable) {
 }
 
 /**
- * The counting board: one pane, and a card per numeral standing on it.
+ * The counting board: frosted glass, a counter per thing counted, the running
+ * total, and the equation under them.
  *
- * The newest card is drawn at `pop` about its own centre, so it overshoots and
- * settles without shifting the cards beside it — the pane is sized for where it
- * will land, not for where it is now, which is why the board does not jump as
- * the last card arrives.
+ * Every number is the draw list's; every colour is here. A counter grows about
+ * its own centre, so the ones already standing do not shift as the next one
+ * lands — the board is sized for where the counters WILL be, which is why it
+ * does not jump as the last one arrives.
  */
-function paintSlate(context, { cells }) {
-  if (!cells?.length) return;
-  const pad = cells[0].dw * 0.18;
-  const left = Math.min(...cells.map((cell) => cell.dx));
-  const top = Math.min(...cells.map((cell) => cell.dy));
-  const right = Math.max(...cells.map((cell) => cell.dx + cell.dw));
-  const bottom = Math.max(...cells.map((cell) => cell.dy + cell.dh));
-
+function paintSlate(context, {
+  mode, panel, counters, badge, equation,
+}, plateWidth) {
   context.save();
-  context.fillStyle = SLATE_PANEL_INK;
-  roundedRect(context, left - pad, top - pad, (right - left) + (pad * 2), (bottom - top) + (pad * 2), pad);
-  context.fill();
-
-  for (const cell of cells) {
-    const width = cell.dw * cell.pop;
-    const height = cell.dh * cell.pop;
-    // A card at the very start of its pop has no size at all, and a zero-radius
-    // rounded rect is a path nothing sensible comes out of.
-    if (!(width > 0) || !(height > 0)) continue;
-    const x = cell.dx + ((cell.dw - width) / 2);
-    const y = cell.dy + ((cell.dh - height) / 2);
-    context.fillStyle = SLATE_CARD_INK;
-    roundedRect(context, x, y, width, height, width * 0.22);
-    context.fill();
-    if (cell.ring) {
-      context.strokeStyle = `rgba(${GOLD_INK}, 1)`;
-      context.lineWidth = Math.max(2, width * 0.07);
-      context.stroke();
-    }
-    context.fillStyle = SLATE_NUMERAL_INK;
-    context.font = `${Math.round(height * 0.62)}px ${NUMERAL_FONT}`;
-    context.textAlign = 'center';
-    context.textBaseline = 'middle';
-    context.fillText(String(cell.n), x + (width / 2), y + (height / 2));
-  }
+  paintPanel(context, panel);
+  for (const counter of counters) paintCounter(context, counter, mode);
+  if (badge) paintBadge(context, badge);
+  if (equation) paintEquation(context, equation, plateWidth);
   context.restore();
+}
+
+function paintPanel(context, panel) {
+  roundedRect(context, panel.x, panel.y, panel.w, panel.h, panel.r);
+  context.fillStyle = SLATE_PANEL_INK;
+  context.fill();
+  context.strokeStyle = SLATE_PANEL_EDGE;
+  // The old board drew a 3px edge on a 720-high frame; a plate is measured in
+  // its own pixels, so the edge is measured in them too.
+  context.lineWidth = Math.max(2, panel.h * 0.005);
+  context.stroke();
+  // The sheen is what makes the panel read as glass rather than as paper: a
+  // brighter band along its top, sharing the panel's own corners.
+  roundedRect(context, panel.x, panel.y, panel.w, panel.sheenH, panel.r);
+  context.fillStyle = SLATE_SHEEN_INK;
+  context.fill();
+}
+
+/**
+ * One counter: a tinted pad, the gold ring if it is the one the count has
+ * reached, an apple on top, and the red X if it is being taken away.
+ *
+ * The order is the z-order and every step of it is load-bearing. The pad is the
+ * ground, so it goes down first — drawn after the ring it would BURY it, since
+ * the pad is wider than the ring is (the ring is a mark on the counter, the pad
+ * is the counter's own base). The apple sits inside the ring rather than over
+ * it, and the X goes last so it reads as a mark ON the apple — the order the
+ * old board drew them in, and the order a child would draw them in.
+ */
+function paintCounter(context, {
+  group, cx, cy, r, scale, alpha, cross, ring,
+}, mode) {
+  // A counter at the very start of its pop has no size at all, and one already
+  // taken away has nothing left to draw.
+  if (!(scale > 0.01) || !(alpha > 0.01)) return;
+  const radius = r * scale;
+  context.save();
+  context.globalAlpha = alpha;
+  context.fillStyle = `rgba(${padTint(mode, group)}, 0.8)`;
+  circle(context, cx, cy, radius * padShare());
+  context.fill();
+  if (ring) {
+    context.strokeStyle = `rgba(${GOLD_INK}, 1)`;
+    context.lineWidth = Math.max(2, r * SLATE.ringWidth);
+    circle(context, cx, cy, radius + (r * SLATE.ringGap));
+    context.stroke();
+  }
+  paintApple(context, cx, cy, radius, counterInk(mode, group));
+  if (cross > 0.01) paintCross(context, cx, cy, radius, r, cross);
+  context.restore();
+}
+
+/**
+ * An apple, because the lessons count apples: two overlapping lobes, a stem, a
+ * leaf and a highlight. It is drawn rather than fetched so the board needs no
+ * asset of its own and a counter can be any size the layout gives it.
+ */
+function paintApple(context, cx, cy, r, ink) {
+  const lobe = r * 0.62;
+  context.fillStyle = `rgb(${ink})`;
+  oval(context, cx - r, cy - (r * 0.85), (lobe * 0.2) + r, r + (r * 0.85));
+  context.fill();
+  oval(context, cx - (lobe * 0.2), cy - (r * 0.85), r + (lobe * 0.2), r + (r * 0.85));
+  context.fill();
+  context.strokeStyle = SLATE_STEM_INK;
+  context.lineWidth = Math.max(2, r * 0.14);
+  context.beginPath();
+  context.moveTo(cx, cy - (r * 0.78));
+  context.lineTo(cx + (r * 0.1), cy - (r * 1.18));
+  context.stroke();
+  context.fillStyle = SLATE_LEAF_INK;
+  oval(context, cx + (r * 0.16), cy - (r * 1.24), r * 0.5, r * 0.36);
+  context.fill();
+  context.fillStyle = SLATE_SHINE_INK;
+  oval(context, cx - (r * 0.5), cy - (r * 0.5), r * 0.4, r * 0.45);
+  context.fill();
+}
+
+// The X over a counter being taken away: it grows as the counter fades, so the
+// two read as one gesture rather than as a disappearance and a mark.
+function paintCross(context, cx, cy, radius, r, cross) {
+  const reach = radius * (0.55 + (0.45 * cross));
+  context.strokeStyle = SLATE_CROSS_INK;
+  context.lineWidth = Math.max(2, r * SLATE.crossWidth);
+  context.beginPath();
+  context.moveTo(cx - reach, cy - reach);
+  context.lineTo(cx + reach, cy + reach);
+  context.moveTo(cx - reach, cy + reach);
+  context.lineTo(cx + reach, cy - reach);
+  context.stroke();
+}
+
+// The running total, in the panel's top corner: the cardinality cue, and the
+// only place on the board where the answer is a numeral before the equation.
+function paintBadge(context, { cx, cy, size, n }) {
+  roundedRect(context, cx - (size / 2), cy - (size / 2), size, size, size * SLATE.badgeRadius);
+  context.fillStyle = SLATE_BADGE_INK;
+  context.fill();
+  context.fillStyle = SLATE_BADGE_NUMERAL_INK;
+  context.font = numeralFont(size * SLATE.badgeFont);
+  context.textAlign = 'center';
+  context.textBaseline = 'middle';
+  context.fillText(String(n), cx, cy);
+}
+
+/**
+ * The equation, centred in the band the list left for it.
+ *
+ * The tokens arrive with an alpha each and no x: how wide a glyph is belongs to
+ * the font this device actually has, so the line is measured here and centred
+ * on the plate. Operands in slate ink, the `=` in red, the answer in green —
+ * the colour says which numeral is the one the child was working towards.
+ */
+function paintEquation(context, { y, h, tokens }, plateWidth) {
+  const [bandShare, plateShare] = SLATE.equationFont;
+  const size = Math.round(Math.min(h * bandShare, plateWidth * plateShare));
+  context.font = numeralFont(size);
+  context.textAlign = 'left';
+  context.textBaseline = 'middle';
+  const gap = size * SLATE.tokenGap;
+  const widths = tokens.map(({ text }) => context.measureText(text).width);
+  const line = widths.reduce((total, width) => total + width, 0) + (gap * (tokens.length - 1));
+  let x = (plateWidth - line) / 2;
+  for (const [index, token] of tokens.entries()) {
+    if (token.alpha > 0.01) {
+      context.globalAlpha = token.alpha;
+      context.fillStyle = `rgba(${SLATE_EQUATION_INKS[token.role] ?? SLATE_EQUATION_INKS.term}, 1)`;
+      context.fillText(token.text, x, y + (h / 2));
+    }
+    x += widths[index] + gap;
+  }
+  context.globalAlpha = 1;
+}
+
+function counterInk(mode, group) {
+  return mode === 'count' ? SLATE_COUNT_INK : SLATE_GROUP_INKS[group % SLATE_GROUP_INKS.length];
+}
+
+function padTint(mode, group) {
+  return mode === 'add' ? SLATE_PAD_TINTS[group % SLATE_PAD_TINTS.length] : SLATE_PAD_NEUTRAL;
+}
+
+function circle(context, cx, cy, radius) {
+  context.beginPath();
+  context.ellipse(cx, cy, Math.max(0, radius), Math.max(0, radius), 0, 0, TAU);
+}
+
+// An ellipse from the box it fits in, which is how the old board's shapes were
+// written — two corners rather than a centre and two radii.
+function oval(context, x, y, width, height) {
+  context.beginPath();
+  context.ellipse(x + (width / 2), y + (height / 2), width / 2, height / 2, 0, 0, TAU);
 }
 
 /**

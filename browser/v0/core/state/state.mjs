@@ -4,7 +4,7 @@ import { NO_FLOOR_STAND_Y, floorYAtX, zoneDepthOrder, zoneNamed } from '../geome
 // compiler already inherited; phase 7 deletes the DOM stage and is the cheap
 // moment to move the module. The policy itself is pure.
 import { drawnSpriteHeightPx } from '../../app/stage/presentation-policy.mjs';
-import { SLATE } from '../../policy.mjs';
+import { normaliseSlate } from '../slate.mjs';
 import { BandBook } from './bands.mjs';
 import { WIDE_FRAMING, framingBetween, framingForOp } from './camera.mjs';
 import { paintOrder, spreadBand } from './layout.mjs';
@@ -96,6 +96,20 @@ export function requireMatchingPair(timeline, bundle) {
   }
 }
 
+// No board: what a story with no lesson in it shows, and what a cut and the
+// ending go back to. `from` is 0 because nothing was standing.
+const EMPTY_SLATE = Object.freeze({ count: 0, mode: 'count', groups: Object.freeze([]), sinceMs: 0, from: 0 });
+
+// Two boards are the same board when they claim the same arithmetic — not when
+// they merely land on the same number. Five counted and two-and-three are the
+// same total and different pictures, so the second one is raised.
+function sameBoard(board, shown) {
+  return board.count === shown.count
+    && board.mode === shown.mode
+    && board.groups.length === shown.groups.length
+    && board.groups.every((size, index) => size === shown.groups[index]);
+}
+
 /**
  * The fold itself: every event applied in order, and the picture read off it.
  *
@@ -112,9 +126,11 @@ export class World {
   #place = null;
   #plate = null;
   #subtitle = '';
-  // The counting board, and the instant its newest card landed — the pop is a
-  // function of that instant and t, so the same t always draws the same board.
-  #slate = { count: 0, sinceMs: 0 };
+  // The counting board, and the instant it was raised — every counter's pop,
+  // every cross and every token of the equation is a function of that instant
+  // and t, so the same t always draws the same board. `from` is how much of it
+  // was already standing when it was raised (see `#showSlate`).
+  #slate = EMPTY_SLATE;
   #ended = false;
   #warnings = [];
   #camera = { from: WIDE_FRAMING, held: WIDE_FRAMING, startMs: 0, durationMs: 0 };
@@ -160,7 +176,7 @@ export class World {
       plate: this.#plate,
       actors,
       camera: this.#framingAt(tMs),
-      slate: { ...this.#slate },
+      slate: { ...this.#slate, groups: [...this.#slate.groups] },
       subtitle: this.#subtitle,
       ended: this.#ended,
       warnings: this.#warnings,
@@ -177,7 +193,7 @@ export class World {
     this.#actors.clear();
     this.#bands.openScene(this.#plate);
     this.#subtitle = '';
-    this.#slate = { count: 0, sinceMs: event.t_ms };
+    this.#slate = { ...EMPTY_SLATE, sinceMs: event.t_ms };
     this.#ended = false;
     this.#camera = { from: WIDE_FRAMING, held: WIDE_FRAMING, startMs: event.t_ms, durationMs: 0 };
   }
@@ -274,26 +290,43 @@ export class World {
     this.#bands.forget(event.slug);
   }
 
-  // A count that is not a whole number of cards is refused rather than rounded:
-  // the board is the answer a child is being shown, and half a card is not one.
+  // A board whose arithmetic does not add up is refused rather than mended: it
+  // is the answer a child is being shown, and a player that quietly drew what
+  // it guessed was meant would disagree with the story's own numerals.
   //
-  // The ceiling is checked HERE and not only at the drawer, because the drawer's
-  // answer to a count of 25 is a board of 20 — five of the story's own cards
-  // gone, `slate.count` still saying 25, and nobody told. The compiler refuses
-  // the same count out loud; a timeline from anywhere else gets the same
-  // refusal rather than a quietly shortened answer.
+  // It is refused HERE and not only at the compiler, because a timeline is read
+  // from wherever it came from — and the drawer's answer to a board it cannot
+  // draw is nothing at all, with nobody told. `normaliseSlate` is the same rule
+  // the compiler applied, so a refusal here is never a second opinion.
   #showSlate(event) {
-    const { count } = event;
-    if (!Number.isInteger(count) || count < 0 || count > SLATE.max) {
-      this.#warn(event, { type: 'policy', policy: 'slate-count-unusable', count: count ?? null });
+    const board = normaliseSlate(event);
+    if (!board) {
+      this.#warn(event, {
+        type: 'policy',
+        policy: 'slate-count-unusable',
+        count: event.count ?? null,
+        mode: event.mode ?? null,
+        groups: event.groups ?? null,
+      });
       return;
     }
-    // Asking for the count already showing is not a new card. Re-stamping
-    // `sinceMs` would replay the pop on a cell that has been sitting there,
-    // which is what a story repeating a total between two chunks would look
-    // like — the board twitching on a number nobody changed.
-    if (count === this.#slate.count) return;
-    this.#slate = { count, sinceMs: event.t_ms };
+    // Asking for the board already showing is not a new board. Re-stamping
+    // `sinceMs` would replay the whole build on a board that has been sitting
+    // there, which is what a story repeating a total between two chunks would
+    // look like — the counters popping again on a number nobody changed.
+    if (sameBoard(board, this.#slate)) return;
+    // A plain count raised over a smaller plain count in the same scene is the
+    // story counting ON: four is three and one more, and re-popping the three
+    // that never left would be the board arriving twice. They are drawn settled
+    // instead — though they do MOVE, because the row is centred on the count it
+    // now holds, exactly as the board this one reproduces did. Anything else —
+    // a new kind of arithmetic, a count that shrank — is a new board and builds
+    // from nothing.
+    const from = board.mode === 'count' && this.#slate.mode === 'count'
+      && board.count > this.#slate.count
+      ? this.#slate.count
+      : 0;
+    this.#slate = { ...board, sinceMs: event.t_ms, from };
   }
 
   // Unreachable from this repository's compiler, which refuses a highlight of
@@ -314,7 +347,7 @@ export class World {
   // final answer still ringed, over a story that has otherwise finished.
   #end(event) {
     this.#subtitle = '';
-    this.#slate = { count: 0, sinceMs: event.t_ms };
+    this.#slate = { ...EMPTY_SLATE, sinceMs: event.t_ms };
     // One actor at a time because `end` leaves the cast standing, unlike
     // `scene`, which takes the rings with the actors it clears.
     for (const actor of this.#actors.values()) actor.highlightMs = null;

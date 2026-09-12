@@ -1,6 +1,7 @@
 import { PlayerBoard } from '../board.mjs';
 import { desiredFacing, selectFacingClip, selectLocomotion } from '../clips.mjs';
 import { alongFloor, floorSpan, isSide, sideX, zoneNamed } from '../geometry.mjs';
+import { normaliseSlate } from '../slate.mjs';
 import { cameraPoint, cameraSpeed, resolveShot } from './camera.mjs';
 import { Recorder, stepDetail } from './events.mjs';
 import { TimelineStage } from './stage.mjs';
@@ -12,7 +13,6 @@ import {
   MINIMUM_DEPARTURE_SECONDS,
   MINIMUM_MOVE_SECONDS,
   MOVE_X_PCT_PER_SECOND,
-  SLATE,
 } from '../../policy.mjs';
 
 /**
@@ -329,16 +329,24 @@ class Director {
     }
   }
 
-  // The count is the story's, and it is checked here because a slate is drawn
-  // straight from it: a count that is not a whole number of cards would leave
-  // every client to invent its own board, and they would not agree.
+  // The arithmetic is the story's, and it is checked here because a board is
+  // drawn straight from it: a claim whose own groups do not make its count
+  // would leave every client to invent the board it thought was meant, and they
+  // would not agree. What reaches the stage is the NORMALISED shape, so a v1
+  // step that names only a count is the same op as one that names all three.
   #slate(step, origin) {
-    const { count } = step;
-    if (!Number.isInteger(count) || count < 0 || count > SLATE.max) {
-      this.warning({ type: 'policy', policy: 'slate-count-unusable', count: count ?? null });
+    const board = normaliseSlate(step);
+    if (!board) {
+      this.warning({
+        type: 'policy',
+        policy: 'slate-count-unusable',
+        count: step.count ?? null,
+        mode: step.mode ?? null,
+        groups: step.groups ?? null,
+      });
       return;
     }
-    this.#stage.setSlate(count, origin);
+    this.#stage.setSlate(board, origin);
   }
 
   // Read off the LIVE board rather than the `together` snapshot every other

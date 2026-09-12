@@ -210,15 +210,32 @@ export function fakeContext() {
     lineTo: record('lineTo'),
     arcTo: record('arcTo'),
     closePath: record('closePath'),
-    fill: record('fill'),
-    stroke: (...args) => calls.push([
-      'stroke', ...args, { alpha: context.globalAlpha, transform: [...transform] },
+    // The colour in force, like the alpha on a stroke and for the same reason:
+    // on the lesson's board the colour IS the claim — two reds and three greens
+    // are why the addends read as two groups, the answer is green because it is
+    // the answer — and a recorder that only said "something was filled" lets a
+    // board drawn in one flat hue pass every test in the suite.
+    fill: (...args) => calls.push([
+      'fill', ...args, { alpha: context.globalAlpha, ink: context.fillStyle },
     ]),
+    stroke: (...args) => calls.push([
+      'stroke', ...args, { alpha: context.globalAlpha, transform: [...transform], ink: context.strokeStyle },
+    ]),
+    // A glyph's width belongs to the font the device actually has, and this
+    // harness has none. It answers a width that is proportional to the text and
+    // to the font size in force, which is everything a layout test can honestly
+    // ask about: that the line was measured, and that it was centred on what
+    // came back.
+    measureText: (text) => {
+      const size = Number.parseInt(/(\d+)px/.exec(context.font ?? '')?.[1] ?? '', 10);
+      calls.push(['measureText', text]);
+      return { width: String(text).length * (Number.isFinite(size) ? size : 10) * 0.6 };
+    },
     // Recorded like `drawImage` and for the same reason: a numeral is only
     // right if it landed where the transform in force would have put it, and
     // the slate's whole point is that that transform is NOT the camera's.
     fillText: (...args) => calls.push([
-      'fillText', ...args, { alpha: context.globalAlpha, transform: [...transform] },
+      'fillText', ...args, { alpha: context.globalAlpha, transform: [...transform], ink: context.fillStyle },
     ]),
     setTransform(a, b, c, d, e, f) {
       calls.push(['setTransform', a, b, c, d, e, f]);

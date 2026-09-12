@@ -639,7 +639,9 @@ test('a verb the character has no clip for falls back, and the fallback is named
 
 // --- the lesson commands ---------------------------------------------------
 
-const slate = (line, count) => ({ kind: 'cmd', line, cmd: 'slate', count });
+const slate = (line, count, mode, groups) => ({
+  kind: 'cmd', line, cmd: 'slate', count, mode, groups,
+});
 const highlight = (line, ...subjects) => ({ kind: 'cmd', line, cmd: 'highlight', subjects });
 
 function lessonStory(steps) {
@@ -648,25 +650,63 @@ function lessonStory(steps) {
   return story;
 }
 
-test('a slate is recorded at the count the story asked for, and 0 takes it away', () => {
+test('a slate is recorded as the whole claim, and 0 takes the board away', () => {
   // `SLATE.max` is the published maximum, so it is a count that WORKS — pinned
   // beside the refusal, which otherwise leaves `>` and `>=` indistinguishable.
-  const events = compile(lessonStory([slate(1, 3), slate(2, SLATE.max), slate(3, 0)]));
+  const events = compile(lessonStory([
+    slate(1, 3),
+    slate(2, 5, 'add', [2, 3]),
+    slate(3, 3, 'subtract', [5, 2]),
+    slate(4, SLATE.max),
+    slate(5, 0),
+  ]));
 
+  // Every op carries all three fields, whatever the step named: a step that
+  // names only a count is the plain count every bundle meant before modes
+  // existed, and one client draws one board from either producer.
   assert.deepEqual(
-    ops(events, 'slate').map((event) => [event.count, event.line]),
-    [[3, 1], [SLATE.max, 2], [0, 3]],
+    ops(events, 'slate').map((event) => [event.count, event.mode, event.groups, event.line]),
+    [
+      [3, 'count', [3], 1],
+      [5, 'add', [2, 3], 2],
+      [3, 'subtract', [5, 2], 3],
+      [SLATE.max, 'count', [SLATE.max], 4],
+      [0, 'count', [], 5],
+    ],
   );
   assert.deepEqual(warnings(events), []);
 });
 
-test('a count that is not a whole number of cards is refused, not rounded', () => {
+test('a count that is not a whole number of counters is refused, not rounded', () => {
   for (const count of [2.5, '3', -1, null, undefined, SLATE.max + 1]) {
     const events = compile(lessonStory([{ kind: 'cmd', line: 7, cmd: 'slate', count }]));
 
     assert.deepEqual(ops(events, 'slate'), [], `${JSON.stringify(count)} reached the stage`);
     assert.deepEqual(warnings(events), [
-      { type: 'policy', policy: 'slate-count-unusable', count: count ?? null },
+      { type: 'policy', policy: 'slate-count-unusable', count: count ?? null, mode: null, groups: null },
+    ]);
+  }
+});
+
+test('a board whose own groups do not make its count never reaches a client', () => {
+  // The compiler is where the arithmetic is checked, because it is the one
+  // place that can name the STORY LINE the wrong claim was written on. A
+  // player fed the same claim refuses it too, but by then nobody knows where
+  // it came from.
+  const wrong = [
+    [6, 'add', [2, 3]],
+    [3, 'add', [3, 0]],
+    [2, 'subtract', [5, 2]],
+    [0, 'subtract', [3, 3]],
+    [6, 'multiply', [2, 3]],
+    [6, 'add', [1, 2, 3]],
+  ];
+  for (const [count, mode, groups] of wrong) {
+    const events = compile(lessonStory([slate(7, count, mode, groups)]));
+
+    assert.deepEqual(ops(events, 'slate'), [], `${count} ${mode} ${groups} reached the stage`);
+    assert.deepEqual(warnings(events), [
+      { type: 'policy', policy: 'slate-count-unusable', count, mode, groups },
     ]);
   }
 });
