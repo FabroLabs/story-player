@@ -35,7 +35,7 @@
  */
 
 import { frameCell } from '../../core/clips.mjs';
-import { counterCount, equationTokens, normaliseSlate } from '../../core/slate.mjs';
+import { counterCount, normaliseSlate, slateSchedule } from '../../core/slate.mjs';
 import { DEFAULT_STAGE_RESOLUTION, HIGHLIGHT, SLATE } from '../../policy.mjs';
 
 // The shadow, as fractions of the sprite's drawn height. The DOM stage traced
@@ -167,10 +167,10 @@ function slateFor(slate, tMs, width, height) {
   // `from` is how many counters were already standing when this board was
   // raised - a plain count growing over a plain count. They are drawn settled,
   // and the build starts at the first new one.
-  const from = Number.isInteger(slate?.from) ? Math.min(Math.max(slate.from, 0), drawn - 1) : 0;
   const sinceMs = Number.isFinite(slate?.sinceMs) ? slate.sinceMs : 0;
   const elapsed = (Number.isFinite(tMs) ? tMs : 0) - sinceMs;
-  const schedule = slateSchedule(board, drawn, from);
+  const schedule = slateSchedule(board, Number.isInteger(slate?.from) ? slate.from : 0);
+  const { from } = schedule;
   const panel = panelBox(width, height);
   const { places, cell, band } = counterPlaces(panel, width, height, drawn);
 
@@ -233,27 +233,6 @@ function slateFor(slate, tMs, width, height) {
   };
 }
 
-/**
- * When each part of the build happens, in milliseconds from the board's own
- * instant. Everything downstream is read off this, so the pacing of a board is
- * one function rather than an arithmetic spread through the drawer.
- */
-function slateSchedule(board, drawn, from) {
-  const countersEnd = ((drawn - 1 - from) * SLATE.staggerMs) + SLATE.popMs;
-  const taken = board.mode === 'subtract' ? board.groups[1] : 0;
-  const revealEnd = taken > 0
-    ? countersEnd + ((taken - 1) * SLATE.takeStaggerMs) + SLATE.takeMs
-    : countersEnd;
-  const tokens = equationTokens(board);
-  return {
-    countersEnd,
-    taken,
-    revealEnd,
-    tokens,
-    endMs: revealEnd + (tokens.length * SLATE.tokenMs),
-  };
-}
-
 /** How far through being taken away a counter is; 0 for every counter that stays. */
 function takeProgress({ countersEnd, taken }, drawn, index, elapsed) {
   const first = drawn - taken;
@@ -307,7 +286,7 @@ function panelBox(width, height) {
  * rows' shared height and the plate itself allow.
  */
 function counterPlaces(panel, width, height, n) {
-  const rows = n < SLATE.twoRowsFrom ? [n] : [Math.ceil(n / 2), Math.floor(n / 2)];
+  const rows = n <= SLATE.perRow ? [n] : [Math.ceil(n / 2), Math.floor(n / 2)];
   const top = panel.y + (panel.h * (SLATE.countersTopPct / 100));
   const bottom = panel.y + (panel.h * (SLATE.countersBottomPct / 100));
   const cell = Math.min(
@@ -334,18 +313,6 @@ function counterPlaces(panel, width, height, n) {
 // first group; a plain count has no groups to tell apart at all.
 function groupOf(board, index) {
   return board.mode === 'add' && index >= board.groups[0] ? 1 : 0;
-}
-
-/**
- * How long the whole build lasts, for a caller that has to know whether the
- * board is still moving without drawing it - the player's repaint check.
- */
-export function slateBuildMs(slate) {
-  const board = normaliseSlate(slate);
-  if (!board || board.count < 1) return 0;
-  const drawn = counterCount(board);
-  const from = Number.isInteger(slate?.from) ? Math.min(Math.max(slate.from, 0), drawn - 1) : 0;
-  return slateSchedule(board, drawn, from).endMs;
 }
 
 // The standard back-out: the counter overshoots its size and settles. `c1` is

@@ -1,7 +1,7 @@
 import { PlayerBoard } from '../board.mjs';
 import { desiredFacing, selectFacingClip, selectLocomotion } from '../clips.mjs';
 import { alongFloor, floorSpan, isSide, sideX, zoneNamed } from '../geometry.mjs';
-import { normaliseSlate } from '../slate.mjs';
+import { carriedFrom, normaliseSlate, slateBuildMs } from '../slate.mjs';
 import { cameraPoint, cameraSpeed, resolveShot } from './camera.mjs';
 import { Recorder, stepDetail } from './events.mjs';
 import { TimelineStage } from './stage.mjs';
@@ -66,6 +66,11 @@ export function compileTimeline(bundle, options) {
   const director = new Director(bundle, schedule, recorder, plates);
 
   runToEnd(schedule, walkStory(director));
+  // Said after the walk because it is a question about what came NEXT: a board
+  // is only cut short by the thing that takes it away.
+  for (const cut of boardsCutShort(recorder.events(), schedule.now())) {
+    director.warning(cut.detail, cut.line, cut.scene_index);
+  }
 
   return {
     timeline_version: TIMELINE_VERSION,
@@ -665,6 +670,75 @@ class Director {
   #origin(line) {
     return { scene_index: this.#sceneIndex, line: line ?? this.#scene?.line ?? null };
   }
+}
+
+/**
+ * Boards the story takes away before they have finished arriving.
+ *
+ * A board is no longer a card that pops in 350 ms: it counts itself in one
+ * counter at a time, crosses out what a take-away took, and only then writes
+ * the equation — `2 + 3 = 5` takes 2.85 s from the instant it is raised. So a
+ * scene that cuts a second later shows a child five apples and never the
+ * sentence they were for, and nothing about the bundle looks wrong.
+ *
+ * Only a board that is TAKEN AWAY is measured: by a cut, by the ending, by
+ * `slate(off)`, or by the story simply running out. A board replaced by another
+ * board is a lesson counting on, which is the one case where not finishing is
+ * the point — "one, two, three" would otherwise warn three times for working
+ * exactly as written.
+ *
+ * The compiler is the only place this can be said: it is the one that knows
+ * both the schedule and the line of the story the board was raised on.
+ */
+function boardsCutShort(events, durationMs) {
+  const cuts = [];
+  let shown = null;
+  let raised = null;
+  const measure = (endsAt) => {
+    if (!raised) return;
+    const needs = slateBuildMs({ ...raised.board, from: raised.from });
+    const held = endsAt - raised.event.t_ms;
+    if (held < needs) {
+      cuts.push({
+        line: raised.event.line,
+        scene_index: raised.event.scene_index,
+        detail: {
+          type: 'policy',
+          policy: 'slate-cut-short',
+          count: raised.board.count,
+          mode: raised.board.mode,
+          groups: [...raised.board.groups],
+          needs_ms: needs,
+          held_ms: held,
+        },
+      });
+    }
+    raised = null;
+  };
+
+  for (const event of events) {
+    if (event.source !== 'stage') continue;
+    if (event.op === 'scene' || event.op === 'end') {
+      measure(event.t_ms);
+      shown = null;
+      continue;
+    }
+    if (event.op !== 'slate') continue;
+    const board = normaliseSlate(event);
+    // Already refused out loud where it was written; a second complaint about
+    // the same step would say nothing new.
+    if (!board) continue;
+    if (board.count === 0) {
+      measure(event.t_ms);
+      shown = null;
+      continue;
+    }
+    const from = carriedFrom(shown, board);
+    raised = { event, board, from };
+    shown = board;
+  }
+  measure(durationMs);
+  return cuts;
 }
 
 function compareTogetherSteps(left, right) {

@@ -674,7 +674,52 @@ test('a slate is recorded as the whole claim, and 0 takes the board away', () =>
       [0, 'count', [], 5],
     ],
   );
-  assert.deepEqual(warnings(events), []);
+  // This story spends no time at all, so every board it raises is taken away
+  // before it has arrived — which is the next test's subject, and said here
+  // only so that "no OTHER warning" keeps its meaning.
+  assert.deepEqual(
+    new Set(warnings(events).map((warning) => warning.policy)),
+    new Set(['slate-cut-short']),
+  );
+});
+
+test('a board taken away before it has arrived is said, not silently lost', () => {
+  // A board is not a card that pops in a third of a second any more: `2 + 3`
+  // counts itself in, then writes its equation, and a scene that cuts a second
+  // later shows a child five apples and never the sentence they were for.
+  const pause = (line, seconds) => ({ kind: 'cmd', line, cmd: 'pause', seconds });
+  const cut = compile(lessonStory([slate(1, 5, 'add', [2, 3]), pause(2, 1), slate(3, 0)]));
+
+  assert.deepEqual(warnings(cut), [{
+    type: 'policy',
+    policy: 'slate-cut-short',
+    count: 5,
+    mode: 'add',
+    groups: [2, 3],
+    needs_ms: 2_850,
+    held_ms: 1_000,
+  }]);
+
+  // Given the time it needs, nothing is said.
+  const held = compile(lessonStory([slate(1, 5, 'add', [2, 3]), pause(2, 3), slate(3, 0)]));
+  assert.deepEqual(warnings(held), []);
+});
+
+test('a lesson counting on is not a board cut short, however fast it counts', () => {
+  // "One, two, three" raises three boards half a second apart and none of them
+  // finishes. That is the one case where not finishing is the POINT — each
+  // board carries the one before it — so warning three times would teach a
+  // writer to stop writing the thing the board is for.
+  const pause = (line, seconds) => ({ kind: 'cmd', line, cmd: 'pause', seconds });
+  const counted = compile(lessonStory([
+    slate(1, 1), pause(2, 0.5), slate(3, 2), pause(4, 0.5), slate(5, 3), pause(6, 2),
+  ]));
+
+  assert.deepEqual(warnings(counted), []);
+  // The last of them IS measured — against the end of the story — so a lesson
+  // that counts to three and stops dead still hears about it.
+  const stopped = compile(lessonStory([slate(1, 1), pause(2, 0.5), slate(3, 2), slate(5, 3)]));
+  assert.deepEqual(warnings(stopped).map((warning) => warning.policy), ['slate-cut-short']);
 });
 
 test('a count that is not a whole number of counters is refused, not rounded', () => {

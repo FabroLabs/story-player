@@ -96,7 +96,6 @@ test('v0 tooling keeps the exact semantics every client consumes', () => {
     },
     slate: {
       perRow: 5,
-      twoRowsFrom: 6,
       panelPct: { left: 4.5, top: 8.5, right: 95.5, bottom: 93 },
       radiusPct: 5,
       sheenPct: 16,
@@ -122,8 +121,6 @@ test('v0 tooling keeps the exact semantics every client consumes', () => {
       tokenMs: 300,
       overshoot: 1.1,
       max: 20,
-      frost: { pct: 2.2, ms: 250 },
-      companion: { heightPct: 27, centreXPct: 90, feetPct: 99 },
     },
     highlight: { durationMs: 1500, pulses: 2, ringPct: 12 },
     audio: {

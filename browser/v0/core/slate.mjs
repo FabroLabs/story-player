@@ -94,6 +94,59 @@ export function equationTokens({ mode, count, groups } = {}) {
   ];
 }
 
+/**
+ * How many counters were already standing when this board was raised.
+ *
+ * A plain count raised over a smaller plain count in the same scene is the
+ * story counting ON — four is three and one more — and those three do not
+ * arrive again. Anything else (a new kind of arithmetic, a count that shrank)
+ * is a new board and builds from nothing.
+ *
+ * It lives beside the rule rather than inside the fold because the compiler has
+ * to work out the same number to know how long a board takes; two copies of
+ * this is two answers to "is this board still arriving?".
+ */
+export function carriedFrom(shown, board) {
+  return board.mode === 'count' && shown?.mode === 'count' && board.count > shown.count
+    ? shown.count
+    : 0;
+}
+
+/**
+ * When each part of a board's build happens, in milliseconds from the instant
+ * it was raised. Everything downstream is read off this, so the pacing of a
+ * board is one function rather than an arithmetic spread through the drawer.
+ */
+export function slateSchedule(board, from = 0) {
+  const drawn = counterCount(board);
+  const first = Math.min(Math.max(from, 0), Math.max(drawn - 1, 0));
+  const countersEnd = ((drawn - 1 - first) * SLATE.staggerMs) + SLATE.popMs;
+  const taken = board.mode === 'subtract' ? board.groups[1] : 0;
+  const revealEnd = taken > 0
+    ? countersEnd + ((taken - 1) * SLATE.takeStaggerMs) + SLATE.takeMs
+    : countersEnd;
+  const tokens = equationTokens(board);
+  return {
+    from: first,
+    countersEnd,
+    taken,
+    revealEnd,
+    tokens,
+    endMs: revealEnd + (tokens.length * SLATE.tokenMs),
+  };
+}
+
+/**
+ * How long the whole build lasts — for a caller that has to know whether the
+ * board is still moving without drawing it: the player's repaint check, and the
+ * compiler asking whether the story leaves the board time to finish.
+ */
+export function slateBuildMs(slate) {
+  const board = normaliseSlate(slate);
+  if (!board || board.count < 1) return 0;
+  return slateSchedule(board, Number.isInteger(slate?.from) ? slate.from : 0).endMs;
+}
+
 function defaultGroups(mode, count) {
   if (mode !== 'count') return [];
   return count > 0 ? [count] : [];

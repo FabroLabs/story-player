@@ -33,13 +33,12 @@ export const DEPARTURE_DEADLINE_MS = 5_000;
 // every `staggerMs`, each popping over `popMs`, then the taken ones crossed out
 // over `takeMs` apiece, then the equation a token every `tokenMs`.
 export const SLATE = Object.freeze({
-  // How the counters are arranged: one row while there are at most `perRow` of
-  // them, and from `twoRowsFrom` the board splits into two BALANCED rows —
-  // eleven lands as six and five, twenty as ten and ten. `perRow` is the
-  // single-row ceiling, NOT a cap on a row: a client that wraps every five
-  // draws four rows where this board draws two.
+  // The most counters a board keeps in ONE row. Past it the board splits into
+  // two BALANCED rows rather than wrapping — eleven lands as six and five,
+  // twenty as ten and ten — so a row may hold more than this; what this number
+  // decides is whether there is a second row at all. A client that wraps every
+  // five draws four rows where this board draws two.
   perRow: 5,
-  twoRowsFrom: 6,
   // The frosted panel, as percentages of the plate's own width and height.
   panelPct: Object.freeze({ left: 4.5, top: 8.5, right: 95.5, bottom: 93 }),
   radiusPct: 5,
@@ -83,13 +82,6 @@ export const SLATE = Object.freeze({
   // holds the curve to it.
   overshoot: 1.1,
   max: 20,
-  // What happens BEHIND the board: the plate blurred by this percentage of the
-  // stage's height, over this long. The board is glass, and glass with a sharp
-  // forest behind it is a rectangle rather than a surface to count on.
-  frost: Object.freeze({ pct: 2.2, ms: 250 }),
-  // The character kept in the corner while the board is up, as percentages of
-  // the plate: their height, the x their centre stands on, the y their feet do.
-  companion: Object.freeze({ heightPct: 27, centreXPct: 90, feetPct: 99 }),
 });
 
 // `pulses` is how many times the ring brightens across `durationMs`, and

@@ -27,8 +27,8 @@ import {
   SHADOW_RADIUS_X,
   SHADOW_RADIUS_Y,
   buildDrawList,
-  slateBuildMs,
 } from '../browser/v0/app/stage/draw-list.mjs';
+import { slateBuildMs } from '../browser/v0/core/slate.mjs';
 import { stateAt } from '../browser/v0/core/state/state.mjs';
 import { HIGHLIGHT, SLATE } from '../browser/v0/policy.mjs';
 import { STEMS, read } from './_parity.mjs';

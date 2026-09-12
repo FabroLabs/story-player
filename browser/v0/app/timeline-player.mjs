@@ -17,6 +17,7 @@
  */
 
 import { createStateCursor } from '../core/state/cursor.mjs';
+import { slateBuildMs } from '../core/slate.mjs';
 import { HIGHLIGHT } from '../policy.mjs';
 import { KEEP_CADENCE_MS } from './assets/scene-loader.mjs';
 import { DEFAULT_DRAW_HZ, tierSettings } from './capability.mjs';
@@ -24,7 +25,6 @@ import { createControls } from './controls.mjs';
 import { createMediaScheduler } from './media-scheduler.mjs';
 import { createPerfRecorder } from './perf.mjs';
 import { createCanvasStage, sceneSheets } from './stage/canvas-stage.mjs';
-import { slateBuildMs } from './stage/draw-list.mjs';
 import { createVideoPlate } from './stage/video-plate.mjs';
 
 const SKIP_MS = 10_000;

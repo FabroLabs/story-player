@@ -4,7 +4,7 @@ import { NO_FLOOR_STAND_Y, floorYAtX, zoneDepthOrder, zoneNamed } from '../geome
 // compiler already inherited; phase 7 deletes the DOM stage and is the cheap
 // moment to move the module. The policy itself is pure.
 import { drawnSpriteHeightPx } from '../../app/stage/presentation-policy.mjs';
-import { normaliseSlate } from '../slate.mjs';
+import { carriedFrom, normaliseSlate } from '../slate.mjs';
 import { BandBook } from './bands.mjs';
 import { WIDE_FRAMING, framingBetween, framingForOp } from './camera.mjs';
 import { paintOrder, spreadBand } from './layout.mjs';
@@ -322,11 +322,7 @@ export class World {
     // now holds, exactly as the board this one reproduces did. Anything else —
     // a new kind of arithmetic, a count that shrank — is a new board and builds
     // from nothing.
-    const from = board.mode === 'count' && this.#slate.mode === 'count'
-      && board.count > this.#slate.count
-      ? this.#slate.count
-      : 0;
-    this.#slate = { ...board, sinceMs: event.t_ms, from };
+    this.#slate = { ...board, sinceMs: event.t_ms, from: carriedFrom(this.#slate, board) };
   }
 
   // Unreachable from this repository's compiler, which refuses a highlight of

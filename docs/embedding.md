@@ -98,7 +98,13 @@ plain-count shape, so a bundle built before modes existed draws the same board.
 and a claim whose own groups do not make its count—or that runs past the
 ceiling—is refused with `slate-count-unusable` rather than mended, at the
 compiler and again at `stateAt`, so no client is left drawing a board the story
-did not ask for without being told. The whole build is a function of the
+did not ask for without being told. A board the story TAKES AWAY before it has
+finished arriving—a cut, the ending, or `slate(off)` less than a build later—is
+said too, as `slate-cut-short` carrying the milliseconds it needed and the
+milliseconds it got: a board raised at the seam of a scene shows a child the
+counters and never the equation, and nothing else about the bundle looks wrong.
+A board replaced by another board is not cut short; that is a lesson counting
+on. The whole build is a function of the
 instant the board was raised (`sinceMs`) and of `from`: a counter every
 `staggerMs`, each popping over `popMs`, then a take-away crossing out one
 counter every `takeStaggerMs`, each cross taking `takeMs`, then the equation a
