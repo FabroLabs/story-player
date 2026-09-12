@@ -263,6 +263,23 @@ test('a board that names no mode is the plain count every older bundle means', (
   assert.equal(board.counters.length, 3);
 });
 
+// The empty board a lesson opens on: the same count of nothing, standing.
+const opening = { count: 0, mode: 'count', groups: [], sinceMs: 0, from: 0, standing: true };
+
+test('the empty board a lesson opens on is the panel alone: nothing counted, nothing said', () => {
+  const board = boardAt(opening, 5_000);
+  const counted = boardAt(counting(1), settled(1));
+
+  assert.deepEqual(board.panel, counted.panel);
+  assert.deepEqual(
+    [board.count, board.mode, board.groups, board.counters, board.badge, board.equation, board.progress],
+    [0, 'count', [], [], null, null, 1],
+  );
+  // It is the fold's `standing` that makes it a board: the same count of
+  // nothing from a producer with no such word is still no board at all.
+  assert.deepEqual(only(slateList({ ...opening, standing: false }), 'slate'), []);
+});
+
 test('the panel is the old board own rectangle, in this plate own pixels', () => {
   // The ratios the lessons were drawn against: 4.5% in from the left, 8.5% down
   // from the top, 91% by 84.5%, cornered at 5% of the height. On a 1920x1080
@@ -534,6 +551,16 @@ test('the same cast without a board is the ordinary picture again', () => {
     ['shadow', 'sprite', 'shadow', 'missing'],
   );
   assert.equal(list.commands.some((command) => command.hud), false);
+});
+
+test('the empty board takes the floor like any other: the companion in the corner, nobody else', () => {
+  const list = lesson(opening, [RUBY, ACORN]);
+
+  assert.deepEqual(list.commands.map((command) => command.op), ['slate', 'sprite']);
+  assert.equal(list.commands.at(-1).slug, 'ruby');
+  // And outside the camera like any board: a push-in before the first count
+  // must not scale the opening panel and then snap it flat at the count.
+  assert.equal(list.commands.every((command) => command.hud === true), true);
 });
 
 test('the companion stands small in the corner, feet on the line', () => {

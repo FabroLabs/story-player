@@ -162,8 +162,9 @@ export class TimelineStage {
   }
 
   // The counting board belongs to the STORY, not to a scene and not to anybody
-  // standing in one: it goes up at the first count and comes down when the story
-  // ends. A count of 0 is no board at all and is refused.
+  // standing in one: it goes up where the scene of its first count opens and
+  // comes down when the story ends. A count of 0 is the EMPTY board that
+  // opening stands (`raiseEmptyBoard`); an authored count of 0 never gets here.
   //
   // Unlike the subtitle, nothing records a reset for it, because nothing resets
   // it: a board is replaced by another board or it is the picture the story
@@ -177,6 +178,13 @@ export class TimelineStage {
   // draws the right total; one that knows the rest draws the lesson.
   setSlate({ count, mode, groups }, origin = {}) {
     this.#record('slate', origin, { count, mode, groups: [...groups] });
+  }
+
+  // The panel with nothing on it, standing from the first frame of the scene
+  // that first counts. The same op as every other board — a client folding the
+  // stream meets one shape — with the one payload no story can write.
+  raiseEmptyBoard(origin = {}) {
+    this.#record('slate', origin, { count: 0, mode: 'count', groups: [] });
   }
 
   // One subject per event. A step naming three things is three rings, each of

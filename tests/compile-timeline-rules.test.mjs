@@ -671,6 +671,9 @@ test('a slate is recorded as the whole claim, and 0 is not one', () => {
   assert.deepEqual(
     ops(events, 'slate').map((event) => [event.count, event.mode, event.groups, event.line]),
     [
+      // The empty board the scene opens on — on the scene's own line, not a
+      // step's — is the one count of nothing a timeline carries.
+      [0, 'count', [], 1],
       [3, 'count', [3], 1],
       [5, 'add', [2, 3], 2],
       [3, 'subtract', [5, 2], 3],
@@ -770,7 +773,9 @@ test('a board raised again on the same claim is not a second board', () => {
   ]));
 
   assert.deepEqual(warnings(events), []);
-  assert.equal(ops(events, 'slate').length, 2, 'the op itself is still recorded, as written');
+  // The op itself is still recorded, as written — twice, after the empty board
+  // the scene opened on.
+  assert.deepEqual(ops(events, 'slate').map((event) => event.count), [0, 5, 5]);
 });
 
 test('a scene cut ends no board, and the board after it is measured counting on', () => {
@@ -852,7 +857,66 @@ test('the compiler records no slate at a scene boundary — the cut is the state
   story.scenes.push({ ...story.scenes[0], line: 20, steps: [] });
   const events = compile(story);
 
-  assert.equal(ops(events, 'slate').length, 1);
+  // The empty board the first scene opens on and the count itself, both in
+  // scene 0; the cut into scene 1 records nothing.
+  assert.deepEqual(ops(events, 'slate').map((event) => [event.count, event.scene_index]), [[0, 0], [2, 0]]);
+});
+
+test('a lesson opens on its board: the scene that first counts stands an empty panel from its first frame', () => {
+  const events = compile(lessonStory([put(1, 'ruby', 'center'), slate(2, 1)]));
+  const stage = events.filter((event) => event.source === 'stage');
+
+  // Right after the cut, on the same millisecond, before anybody is placed: the
+  // floor is never shown without the panel that is about to cover it.
+  assert.deepEqual(
+    stage.slice(0, 2).map((event) => [event.op, event.t_ms, event.count ?? null, event.mode ?? null, event.groups ?? null, event.line]),
+    [['scene', 0, null, null, null, 1], ['slate', 0, 0, 'count', [], 1]],
+  );
+});
+
+test('a story that never counts stands no board', () => {
+  assert.deepEqual(ops(compile(baseStory([put(1, 'ruby', 'center')])), 'slate'), []);
+});
+
+test('the empty board stands where the FIRST counting scene opens, and nowhere else', () => {
+  const story = lessonStory([put(1, 'ruby', 'center')]);
+  story.scenes.push({ ...story.scenes[0], line: 20, steps: [slate(21, 2)] });
+  story.scenes.push({ ...story.scenes[0], line: 30, steps: [slate(31, 3)] });
+  const events = compile(story);
+  const cuts = ops(events, 'scene');
+
+  // Scene 1 has nothing to count, so it opens on the floor; the panel goes up
+  // with scene 2's cut, and scene 3 — a board already standing — adds none.
+  assert.deepEqual(
+    ops(events, 'slate').map((event) => [event.count, event.scene_index, event.t_ms]),
+    [[0, 1, cuts[1].t_ms], [2, 1, cuts[1].t_ms], [3, 2, cuts[2].t_ms]],
+  );
+});
+
+test('a count inside a together: block is still the scene counting', () => {
+  const story = lessonStory([{ kind: 'together', line: 2, steps: [slate(2, 1), put(2, 'ruby', 'center')] }]);
+
+  assert.deepEqual(ops(compile(story), 'slate').map((event) => event.count), [0, 1]);
+});
+
+test('a count the compiler cannot reach opens no panel either', () => {
+  // A `together:` inside a `together:` is not storylang, and `performTogether`
+  // does not look inside one; a board the scene will never land must not
+  // stand an empty panel for the rest of the story.
+  const nested = { kind: 'together', line: 2, steps: [{ kind: 'together', line: 2, steps: [slate(2, 3)] }] };
+
+  assert.deepEqual(ops(compile(lessonStory([nested])), 'slate'), []);
+});
+
+test('the empty board is never cut short: there is nothing on it to arrive', () => {
+  // A story that spends no time at all cuts short every board it raises —
+  // every board but the empty one, which has no build to lose.
+  const events = compile(lessonStory([slate(1, 3)]));
+
+  assert.deepEqual(
+    warnings(events).filter((warning) => warning.policy === 'slate-cut-short').map((warning) => warning.count),
+    [3],
+  );
 });
 
 test('a highlight names one subject per event, so a client knows which one it lost', () => {

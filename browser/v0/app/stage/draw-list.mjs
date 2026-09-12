@@ -43,7 +43,7 @@
  */
 
 import { frameCell } from '../../core/clips.mjs';
-import { counterCount, normaliseSlate, slateSchedule } from '../../core/slate.mjs';
+import { counterCount, isEmptyBoard, normaliseSlate, slateSchedule } from '../../core/slate.mjs';
 import { DEFAULT_STAGE_RESOLUTION, HIGHLIGHT, SLATE } from '../../policy.mjs';
 
 // The shadow, as fractions of the sprite's drawn height. The DOM stage traced
@@ -315,6 +315,11 @@ function ringProgress(actor, tMs) {
  * it is remembered anywhere.
  */
 function slateFor(slate, tMs, width, height) {
+  // The empty board a scene opens on: the panel, the frost behind it and the
+  // companion in the corner, and nothing yet to count. Only a STANDING one —
+  // the fold's own word for it — a bare `count: 0` from an older producer is
+  // still no board at all.
+  if (slate?.standing && isEmptyBoard(slate)) return emptyBoard(width, height);
   const board = normaliseSlate(slate);
   if (!board) return null;
   const drawn = counterCount(board);
@@ -366,14 +371,7 @@ function slateFor(slate, tMs, width, height) {
     count: board.count,
     groups: [...board.groups],
     progress: round(clamped(elapsed / schedule.endMs), 4),
-    panel: {
-      x: round(panel.x),
-      y: round(panel.y),
-      w: round(panel.w),
-      h: round(panel.h),
-      r: round(panel.r),
-      sheenH: round(panel.h * (SLATE.sheenPct / 100)),
-    },
+    panel: panelCommand(panel),
     counters,
     // A badge over an empty board is a lesson insisting the answer is zero
     // while the first counter is still on its way in.
@@ -386,6 +384,38 @@ function slateFor(slate, tMs, width, height) {
       }
       : null,
     equation: equationFor(board, schedule, elapsed, band),
+  };
+}
+
+/**
+ * The panel with nothing on it: what a lesson's first frame shows, before the
+ * first count arrives. Settled from the start (`progress` 1) — there is no
+ * build to run — with no badge, because a badge over nothing is a lesson
+ * insisting the answer is zero, and no equation, because nothing has been said.
+ */
+function emptyBoard(width, height) {
+  return {
+    op: 'slate',
+    hud: true,
+    mode: 'count',
+    count: 0,
+    groups: [],
+    progress: 1,
+    panel: panelCommand(panelBox(width, height)),
+    counters: [],
+    badge: null,
+    equation: null,
+  };
+}
+
+function panelCommand(panel) {
+  return {
+    x: round(panel.x),
+    y: round(panel.y),
+    w: round(panel.w),
+    h: round(panel.h),
+    r: round(panel.r),
+    sheenH: round(panel.h * (SLATE.sheenPct / 100)),
   };
 }
 

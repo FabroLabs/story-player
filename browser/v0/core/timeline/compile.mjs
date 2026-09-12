@@ -192,6 +192,10 @@ class Director {
   // next scene in the same place — so the one thing that does need to know a
   // prop is standing here keeps its own scene-scoped note.
   #propsHere = new Set();
+  // Whether a board has been raised anywhere in this story yet. A board never
+  // comes down, so the first scene that counts is the only one that has to
+  // stand the empty panel it counts on (`beginScene`).
+  #boardStanding = false;
   #scene = null;
   #sceneIndex = null;
   #currentLine = null;
@@ -215,6 +219,15 @@ class Director {
     this.#propsHere.clear();
     const origin = this.#origin(scene.line);
     this.#stage.showScene(scene, origin);
+    // A lesson opens on its board. The scene that first counts stands an empty
+    // panel from its first frame — the floor it would otherwise show is the
+    // floor the board is about to cover, with a numeral card lying on it and
+    // the pile the child is not yet counting — and every count after that lands
+    // on the panel already there. Once per story: a later scene has one standing.
+    if (!this.#boardStanding && sceneCounts(scene)) {
+      this.#stage.raiseEmptyBoard(origin);
+      this.#boardStanding = true;
+    }
     const arrivals = this.#board.beginScene(scene.place, this.#floorSpanFor(scene.place));
 
     // Arrivals are staged before the scene's first authored step.
@@ -353,6 +366,7 @@ class Director {
       });
       return;
     }
+    this.#boardStanding = true;
     this.#stage.setSlate(board, origin);
   }
 
@@ -797,8 +811,10 @@ function boardsCutShort(events, durationMs) {
     if (event.op !== 'slate') continue;
     const board = normaliseSlate(event);
     // Already refused out loud where it was written; a second complaint about
-    // the same step would say nothing new. `slate 0` — v1's `off` — is one of
-    // those refusals now, so no step here can end a board's life either.
+    // the same step would say nothing new. `slate 0` is the empty board a
+    // scene opens on: nothing arrives on it, so there is nothing to measure —
+    // and an authored `off` was refused where it was written, so no step here
+    // can end a board's life either.
     if (!board) continue;
     // The same board again is not a new board — the fold keeps the first
     // instant and lets it go on building — so neither the measurement nor the
@@ -814,6 +830,17 @@ function boardsCutShort(events, durationMs) {
   }
   measure(durationMs);
   return cuts;
+}
+
+// Whether a scene raises a board the player can draw anywhere in it — inside
+// a `together:` too, one level down, which is as far as `performTogether`
+// reaches. A step the compiler is about to refuse does not count: a panel
+// standing for a board that never arrives is a board the story did not get,
+// and the refusal it gets instead is the whole answer.
+function sceneCounts(scene) {
+  const drawable = (step) => step?.cmd === 'slate' && normaliseSlate(step) !== null;
+  return (scene?.steps ?? []).some((step) => drawable(step)
+    || (step?.kind === 'together' && (step.steps ?? []).some(drawable)));
 }
 
 function compareTogetherSteps(left, right) {

@@ -79,7 +79,7 @@ play one schedule rather than two implementations of it.
 `stateAt` is one frame: a pure function of that timeline, the bundle and an
 instant in milliseconds, answering with the actors on stage, their clips and
 frame cells, the camera framing, the subtitle showing, the counting board
-(`slate: {count, mode, groups, sinceMs, from}`, and `highlightMs` on each
+(`slate: {count, mode, groups, sinceMs, from, standing}`, and `highlightMs` on each
 actor—see below), and the warnings crossed on the way. It interprets the timeline and never re-decides it.
 
 The picture is a single canvas 2D stage drawn over the hardware-decoded
@@ -99,9 +99,15 @@ many counters that is follows the mode: a count or a join draws `count` of
 them, and a SUBTRACTION draws `groups[0]`—everything it started with—then takes
 `groups[1]` away. A step that names only a count is normalised into the
 plain-count shape, so a bundle built before modes existed draws the same board.
-`count: 0`—what v1's `slate(off)` compiled to—is refused like any other board
-that cannot be drawn: a board goes up at a story's first count and comes down
-only at its ending, so no step of the story lowers one.
+`count: 0` with `mode` `count` and nothing in `groups` is the EMPTY board: the compiler raises one
+at the opening of the scene that first counts—right after that scene's `scene`
+op, once per story—so a lesson begins on its panel rather than on the floor the
+panel is about to cover, and `stateAt` answers it with `standing: true` and
+nothing to draw on it. A client folding the stream stands the panel there,
+frost and all, and draws the first count onto it. An AUTHORED count of
+nothing—what v1's `slate(off)` compiled to—is still refused with
+`slate-count-unusable`, and so is an empty board over a standing one: nothing
+lowers a board, and a board comes down only with the story.
 `V0_POLICY.slate.max` is the largest count there is,
 and a claim whose own groups do not make its count—or that runs past the
 ceiling—is refused with `slate-count-unusable` rather than mended, at the

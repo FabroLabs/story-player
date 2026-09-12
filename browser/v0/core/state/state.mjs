@@ -4,7 +4,7 @@ import { NO_FLOOR_STAND_Y, floorYAtX, zoneDepthOrder, zoneNamed } from '../geome
 // compiler already inherited; phase 7 deletes the DOM stage and is the cheap
 // moment to move the module. The policy itself is pure.
 import { drawnSpriteHeightPx } from '../../app/stage/presentation-policy.mjs';
-import { carriedFrom, normaliseSlate } from '../slate.mjs';
+import { carriedFrom, isEmptyBoard, normaliseSlate } from '../slate.mjs';
 import { BandBook } from './bands.mjs';
 import { WIDE_FRAMING, framingBetween, framingForOp } from './camera.mjs';
 import { paintOrder, spreadBand } from './layout.mjs';
@@ -96,9 +96,13 @@ export function requireMatchingPair(timeline, bundle) {
   }
 }
 
-// No board: what a story with no lesson in it shows, and what a cut and the
-// ending go back to. `from` is 0 because nothing was standing.
-const EMPTY_SLATE = Object.freeze({ count: 0, mode: 'count', groups: Object.freeze([]), sinceMs: 0, from: 0 });
+// No board: what a story with no lesson in it shows. `standing` is what tells
+// it from the EMPTY board a lesson opens on — the same count of nothing, but a
+// panel on screen with the frost behind it, waiting for its first counter.
+// `from` is 0 because nothing was standing.
+const EMPTY_SLATE = Object.freeze({
+  count: 0, mode: 'count', groups: Object.freeze([]), sinceMs: 0, from: 0, standing: false,
+});
 
 // Two boards are the same board when they claim the same arithmetic — not when
 // they merely land on the same number. Five counted and two-and-three are the
@@ -189,8 +193,8 @@ export class World {
   //
   // The board is the one thing a cut leaves alone. A lesson is one uninterrupted
   // surface — watched on the mounted player, a board that closed and reopened at
-  // every seam was the fault, not the feature — so it goes up at the story's
-  // first `slate` and is never taken down. Nothing here resets `from` either:
+  // every seam was the fault, not the feature — so it goes up where the scene
+  // of the story's first `slate` opens and is never taken down. Nothing here resets `from` either:
   // it is how the board ON SCREEN is drawn, not what the next one counts from,
   // and clearing it would take counters off a board still building through this
   // cut. A board raised after the cut asks `carriedFrom` the same question it
@@ -330,6 +334,20 @@ export class World {
   // draw is nothing at all, with nobody told. `normaliseSlate` is the same rule
   // the compiler applied, so a refusal here is never a second opinion.
   #showSlate(event) {
+    // The empty board: the panel the scene of the first count opens on. It
+    // stands where nothing stood, and leaves a board already standing alone —
+    // an empty board over counters would be the counters going away, which is
+    // the one thing no op does, so it is refused there like any count of nothing.
+    if (isEmptyBoard(event)) {
+      if (this.#slate.standing) {
+        this.#warn(event, {
+          type: 'policy', policy: 'slate-count-unusable', count: 0, mode: event.mode ?? null, groups: event.groups ?? null,
+        });
+        return;
+      }
+      this.#slate = { ...EMPTY_SLATE, sinceMs: event.t_ms, standing: true };
+      return;
+    }
     const board = normaliseSlate(event);
     if (!board) {
       this.#warn(event, {
@@ -353,7 +371,7 @@ export class World {
     // now holds, exactly as the board this one reproduces did. Anything else —
     // a new kind of arithmetic, a count that shrank — is a new board and builds
     // from nothing.
-    this.#slate = { ...board, sinceMs: event.t_ms, from: carriedFrom(this.#slate, board) };
+    this.#slate = { ...board, sinceMs: event.t_ms, from: carriedFrom(this.#slate, board), standing: true };
   }
 
   // Unreachable from this repository's compiler, which refuses a highlight of

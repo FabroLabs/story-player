@@ -462,7 +462,7 @@ export function createTimelinePlayer({
     // about the picture is a draw-list answer, but the plate is a `<video>` on
     // its own compositor layer that the canvas never touches, so the blur has
     // to be asked for here — from the same instant, on the same clock.
-    plate.frost((state.slate?.count ?? 0) > 0, state.plate?.resolution?.[1]);
+    plate.frost(boardStanding(state.slate), state.plate?.resolution?.[1]);
     paint(state, force);
     say(state.subtitle);
     // The wait owns the transport while it is up: the button says what happens
@@ -892,12 +892,22 @@ function signatureOf(state) {
   // writing itself, and a signature that settled after the first counter would
   // freeze the rest of the lesson on a still scene.
   parts.push(
+    boardStanding(state.slate) ? 1 : 0,
     state.slate?.count ?? 0,
     state.slate?.mode ?? 'count',
     (state.slate?.groups ?? []).join(','),
     overlayPhase(state.tMs, state.slate?.sinceMs, slateBuildMs(state.slate)),
   );
   return parts.join('|');
+}
+
+/**
+ * Whether a board is on screen at all — the empty one a lesson opens on
+ * included. The fold says so in its own word; a picture from an older producer
+ * that has no word for it is read by its count, as it always was.
+ */
+function boardStanding(slate) {
+  return slate?.standing ?? ((slate?.count ?? 0) > 0);
 }
 
 /**

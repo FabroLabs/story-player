@@ -62,10 +62,12 @@ const slateAt = (events, tMs) => stateAt(timeline(events), BUNDLE, tMs).slate;
 const actorAt = (events, slug, tMs) => stateAt(timeline(events), BUNDLE, tMs)
   .actors.find((actor) => actor.slug === slug);
 
-const NO_BOARD = { count: 0, mode: 'count', groups: [], sinceMs: 0, from: 0 };
+const NO_BOARD = { count: 0, mode: 'count', groups: [], sinceMs: 0, from: 0, standing: false };
 const board = (count, mode, groups, sinceMs, from = 0) => ({
-  count, mode, groups, sinceMs, from,
+  count, mode, groups, sinceMs, from, standing: true,
 });
+// The empty board a lesson opens on: the same count of nothing, standing.
+const opening = (tMs) => stage(tMs, 'slate', { count: 0, mode: 'count', groups: [] });
 
 test('a story with no lesson in it has an empty board, not a missing one', () => {
   assert.deepEqual(slateAt([], 5_000), NO_BOARD);
@@ -139,16 +141,56 @@ test('a take-away after a count is its own build, not a continuation of one', ()
   assert.deepEqual(slateAt(events, 9_000), board(3, 'subtract', [5, 2], 6_000));
 });
 
-test('a count of nothing is refused, and the board it was aimed at stays up', () => {
+test('a count of nothing over a standing board is refused, and the board stays up', () => {
   // `slate(off)` compiled to this, and lowering a board is no longer something
   // a story does: the panel is one surface from the first count to the ending.
   // Refused out loud rather than ignored, because a step that draws nothing and
-  // says nothing is how a board goes missing with every checker green.
+  // says nothing is how a board goes missing with every checker green. (Where
+  // NO board stands it is the empty board a scene opens on — the next test.)
   const events = [stage(1_000, 'slate', { count: 3 }), stage(6_000, 'slate', { count: 0 })];
   const state = stateAt(timeline(events), BUNDLE, 9_000);
 
   assert.deepEqual(state.slate, board(3, 'count', [3], 1_000));
   assert.equal(state.warnings.at(0)?.policy, 'slate-count-unusable');
+});
+
+test('the empty board a scene opens on stands, with nothing on it and the instant it went up', () => {
+  assert.deepEqual(
+    slateAt([opening(4_000)], 4_500),
+    { count: 0, mode: 'count', groups: [], sinceMs: 4_000, from: 0, standing: true },
+  );
+  // Not the same thing as no board at all: that one is not standing.
+  assert.deepEqual(slateAt([], 500), NO_BOARD);
+  assert.deepEqual(stateAt(timeline([opening(0)]), BUNDLE, 500).warnings, []);
+});
+
+test('a bare count of nothing is still a refusal, standing board or none', () => {
+  // A v1 producer's `slate(off)` — `{count: 0}` and nothing else — is not the
+  // empty board a scene opens on, whatever is standing: a panel raised where
+  // a story meant "board away" would be the opposite of what it asked for.
+  for (const off of [{ count: 0 }, { count: 0, mode: 'count' }, { count: 0, groups: [] }, { count: 0, mode: 'count', groups: 'x' }]) {
+    const state = stateAt(timeline([stage(1_000, 'slate', off)]), BUNDLE, 2_000);
+    assert.deepEqual(state.slate, NO_BOARD, JSON.stringify(off));
+    assert.equal(state.warnings.at(0)?.policy, 'slate-count-unusable', JSON.stringify(off));
+  }
+});
+
+test('an empty board over an empty board is refused, and the first one keeps its instant', () => {
+  // The compiler raises one per story; a timeline from elsewhere that raises
+  // two is told, and the panel does not re-stand on the second.
+  const state = stateAt(timeline([opening(0), opening(1_000)]), BUNDLE, 2_000);
+
+  assert.equal(state.slate.sinceMs, 0);
+  assert.deepEqual(state.warnings.map((warning) => warning.policy), ['slate-count-unusable']);
+});
+
+test('the first count lands on the empty panel and builds from nothing', () => {
+  const events = [opening(0), stage(1_000, 'slate', { count: 3 })];
+
+  assert.deepEqual(slateAt(events, 2_000), board(3, 'count', [3], 1_000));
+  assert.deepEqual(stateAt(timeline(events), BUNDLE, 2_000).warnings, []);
+  // And before the count, the panel was already there.
+  assert.equal(slateAt(events, 500).standing, true);
 });
 
 test('a scene cut leaves the board standing, unlike the subtitle', () => {
@@ -224,6 +266,10 @@ test('every shape a board cannot be drawn from is refused', () => {
     { count: 6, mode: 'add', groups: [1, 2, 3] },
     // A plain count with somebody else's groups.
     { count: 3, mode: 'count', groups: [1, 2] },
+    // A count of nothing in any other mode is not the empty board a scene
+    // opens on — that one is a plain count of nothing, exactly.
+    { count: 0, mode: 'add', groups: [] },
+    { count: 0, mode: 'subtract', groups: [] },
   ];
 
   for (const payload of refused) {
