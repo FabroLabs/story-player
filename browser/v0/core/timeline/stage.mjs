@@ -54,6 +54,13 @@ export class TimelineStage {
     this.#record('place_object', origin, { slug, x, zone });
   }
 
+  // The other end of `placeObject`, and the only one a prop has: a character
+  // walks off by `travel`, a prop is taken. Nothing is cancelled because
+  // nothing was ever started for it.
+  removeObject(slug, origin = {}) {
+    this.#record('remove_object', origin, { slug });
+  }
+
   setCharacterClip(slug, clipKey, origin = {}) {
     this.#cancel(slug);
     this.#record('clip', origin, { slug, clip: clipKey ?? null });

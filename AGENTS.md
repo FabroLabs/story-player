@@ -52,7 +52,7 @@
 - The timeline op schema is the contract between the compiler and every
   interpreter — this player's `stateAt`, the engine's tools, the phone client.
   `tooling.v0` publishes exactly `compileTimeline`, `TIMELINE_OPS`, `stateAt`,
-  the pure render rules, and `V0_POLICY`; the eight parity timelines are its
+  the pure render rules, and `V0_POLICY`; the nine parity timelines are its
   goldens and stay byte-identical unless a rule change is documented.
 - Keep package metadata private at `0.0.0-development`. `dist/` is generated,
   ignored, and never committed.
