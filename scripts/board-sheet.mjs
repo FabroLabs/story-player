@@ -171,17 +171,26 @@ function unusable(jobs, painted) {
   return problems;
 }
 
-// `null` is what a NaN becomes on the way back from the page, so both count.
+// `null` is what a NaN becomes on the way back from the page, so both count —
+// except where the contract SAYS null: a board draws no running total until its
+// first counter is half there, and no equation at all until the counters have
+// finished, and both say so with `null`. Those two are the whole early half of
+// every build, so reading them as broken numbers condemns the cells that show
+// the board arriving — which is what this sheet exists to show.
 function notFinite(command) {
+  // Declared here rather than beside the module's other constants: the script
+  // does its work at the top, before a `const` further down has been initialised.
+  const nullable = new Set(['badge', 'equation']);
   const bad = [];
-  const walk = (value, trail) => {
-    if (value === null) bad.push(trail);
-    else if (Array.isArray(value)) value.forEach((item, index) => walk(item, `${trail}[${index}]`));
+  const walk = (value, trail, key) => {
+    if (value === null) {
+      if (!nullable.has(key)) bad.push(trail);
+    } else if (Array.isArray(value)) value.forEach((item, index) => walk(item, `${trail}[${index}]`, key));
     else if (typeof value === 'object') {
-      for (const [key, item] of Object.entries(value)) walk(item, trail ? `${trail}.${key}` : key);
+      for (const [name, item] of Object.entries(value)) walk(item, trail ? `${trail}.${name}` : name, name);
     } else if (typeof value === 'number' && !Number.isFinite(value)) bad.push(trail);
   };
-  walk(command, '');
+  walk(command, '', '');
   return bad;
 }
 
