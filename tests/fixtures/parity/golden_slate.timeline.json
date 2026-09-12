@@ -2,7 +2,7 @@
   "duration_ms": 20008,
   "events": [
     {
-      "line": 14,
+      "line": 16,
       "op": "scene",
       "place": "forest_clearing",
       "scene_index": 0,
@@ -22,7 +22,7 @@
         "zone": null
       },
       "kind": "cmd",
-      "line": 15,
+      "line": 17,
       "scene_index": 0,
       "source": "step",
       "t_ms": 0
@@ -36,14 +36,14 @@
         "verb": "idle"
       },
       "kind": "warning",
-      "line": 15,
+      "line": 17,
       "scene_index": 0,
       "source": "step",
       "t_ms": 0
     },
     {
       "clip": "idle_right",
-      "line": 15,
+      "line": 17,
       "op": "place",
       "scene_index": 0,
       "slug": "squirrel",
@@ -58,7 +58,7 @@
         "text": "Nutmeg is counting treasures today."
       },
       "kind": "chunk",
-      "line": 17,
+      "line": 19,
       "scene_index": 0,
       "source": "step",
       "t_ms": 0
@@ -89,13 +89,13 @@
         "zone": null
       },
       "kind": "cmd",
-      "line": 18,
+      "line": 20,
       "scene_index": 0,
       "source": "step",
       "t_ms": 2013
     },
     {
-      "line": 18,
+      "line": 20,
       "op": "place_object",
       "scene_index": 0,
       "slug": "acorn",
@@ -122,13 +122,13 @@
         "zone": null
       },
       "kind": "cmd",
-      "line": 19,
+      "line": 21,
       "scene_index": 0,
       "source": "step",
       "t_ms": 2013
     },
     {
-      "line": 19,
+      "line": 21,
       "op": "place_object",
       "scene_index": 0,
       "slug": "numeral_1",
@@ -141,10 +141,14 @@
       "cmd": "slate",
       "detail": {
         "count": 1,
+        "groups": [
+          1
+        ],
+        "mode": "count",
         "subjects": []
       },
       "kind": "cmd",
-      "line": 20,
+      "line": 22,
       "scene_index": 0,
       "source": "step",
       "t_ms": 2013
@@ -154,7 +158,7 @@
       "groups": [
         1
       ],
-      "line": 20,
+      "line": 22,
       "mode": "count",
       "op": "slate",
       "scene_index": 0,
@@ -168,7 +172,7 @@
         "subjects": []
       },
       "kind": "cmd",
-      "line": 21,
+      "line": 23,
       "scene_index": 0,
       "source": "step",
       "t_ms": 2013
@@ -180,7 +184,7 @@
         "subjects": []
       },
       "kind": "cmd",
-      "line": 22,
+      "line": 24,
       "scene_index": 0,
       "source": "step",
       "t_ms": 2013
@@ -192,7 +196,7 @@
         "text": "Nutmeg found an acorn. One."
       },
       "kind": "chunk",
-      "line": 22,
+      "line": 24,
       "scene_index": 0,
       "source": "step",
       "t_ms": 2513
@@ -215,7 +219,7 @@
         ]
       },
       "kind": "cmd",
-      "line": 23,
+      "line": 25,
       "scene_index": 0,
       "source": "step",
       "t_ms": 4526
@@ -229,14 +233,14 @@
         "verb": "happy"
       },
       "kind": "warning",
-      "line": 23,
+      "line": 25,
       "scene_index": 0,
       "source": "step",
       "t_ms": 4526
     },
     {
       "clip": "happy_right_jumping",
-      "line": 23,
+      "line": 25,
       "op": "clip",
       "scene_index": 0,
       "slug": "squirrel",
@@ -259,7 +263,7 @@
       "t_ms": 4526
     },
     {
-      "line": 25,
+      "line": 27,
       "op": "scene",
       "place": "forest_clearing",
       "scene_index": 1,
@@ -275,14 +279,14 @@
         "verb": "idle"
       },
       "kind": "warning",
-      "line": 25,
+      "line": 27,
       "scene_index": 1,
       "source": "step",
       "t_ms": 4526
     },
     {
       "clip": "idle_right",
-      "line": 25,
+      "line": 27,
       "op": "place",
       "scene_index": 1,
       "slug": "squirrel",
@@ -303,7 +307,7 @@
         "zone": null
       },
       "kind": "cmd",
-      "line": 26,
+      "line": 28,
       "scene_index": 1,
       "source": "step",
       "t_ms": 4526
@@ -317,14 +321,14 @@
         "verb": "idle"
       },
       "kind": "warning",
-      "line": 26,
+      "line": 28,
       "scene_index": 1,
       "source": "step",
       "t_ms": 4526
     },
     {
       "clip": "idle_right",
-      "line": 26,
+      "line": 28,
       "op": "place",
       "scene_index": 1,
       "slug": "squirrel",
@@ -350,13 +354,13 @@
         "zone": null
       },
       "kind": "cmd",
-      "line": 27,
+      "line": 29,
       "scene_index": 1,
       "source": "step",
       "t_ms": 4526
     },
     {
-      "line": 27,
+      "line": 29,
       "op": "place_object",
       "scene_index": 1,
       "slug": "acorn",
@@ -372,7 +376,7 @@
         "text": "Then a pinecone, right beside it."
       },
       "kind": "chunk",
-      "line": 29,
+      "line": 31,
       "scene_index": 1,
       "source": "step",
       "t_ms": 4526
@@ -403,13 +407,13 @@
         "zone": null
       },
       "kind": "cmd",
-      "line": 30,
+      "line": 32,
       "scene_index": 1,
       "source": "step",
       "t_ms": 6942
     },
     {
-      "line": 30,
+      "line": 32,
       "op": "place_object",
       "scene_index": 1,
       "slug": "pinecone",
@@ -436,13 +440,13 @@
         "zone": null
       },
       "kind": "cmd",
-      "line": 31,
+      "line": 33,
       "scene_index": 1,
       "source": "step",
       "t_ms": 6942
     },
     {
-      "line": 31,
+      "line": 33,
       "op": "place_object",
       "scene_index": 1,
       "slug": "numeral_2",
@@ -455,10 +459,14 @@
       "cmd": "slate",
       "detail": {
         "count": 2,
+        "groups": [
+          2
+        ],
+        "mode": "count",
         "subjects": []
       },
       "kind": "cmd",
-      "line": 32,
+      "line": 34,
       "scene_index": 1,
       "source": "step",
       "t_ms": 6942
@@ -468,7 +476,7 @@
       "groups": [
         2
       ],
-      "line": 32,
+      "line": 34,
       "mode": "count",
       "op": "slate",
       "scene_index": 1,
@@ -482,7 +490,7 @@
         "subjects": []
       },
       "kind": "cmd",
-      "line": 33,
+      "line": 35,
       "scene_index": 1,
       "source": "step",
       "t_ms": 6942
@@ -494,7 +502,7 @@
         "subjects": []
       },
       "kind": "cmd",
-      "line": 34,
+      "line": 36,
       "scene_index": 1,
       "source": "step",
       "t_ms": 6942
@@ -506,7 +514,7 @@
         "text": "An acorn and a pinecone. That is two."
       },
       "kind": "chunk",
-      "line": 34,
+      "line": 36,
       "scene_index": 1,
       "source": "step",
       "t_ms": 7442
@@ -529,7 +537,7 @@
         ]
       },
       "kind": "cmd",
-      "line": 35,
+      "line": 37,
       "scene_index": 1,
       "source": "step",
       "t_ms": 10663
@@ -543,14 +551,14 @@
         "verb": "happy"
       },
       "kind": "warning",
-      "line": 35,
+      "line": 37,
       "scene_index": 1,
       "source": "step",
       "t_ms": 10663
     },
     {
       "clip": "happy_right_jumping",
-      "line": 35,
+      "line": 37,
       "op": "clip",
       "scene_index": 1,
       "slug": "squirrel",
@@ -573,7 +581,7 @@
       "t_ms": 10663
     },
     {
-      "line": 37,
+      "line": 39,
       "op": "scene",
       "place": "forest_clearing",
       "scene_index": 2,
@@ -589,14 +597,14 @@
         "verb": "idle"
       },
       "kind": "warning",
-      "line": 37,
+      "line": 39,
       "scene_index": 2,
       "source": "step",
       "t_ms": 10663
     },
     {
       "clip": "idle_right",
-      "line": 37,
+      "line": 39,
       "op": "place",
       "scene_index": 2,
       "slug": "squirrel",
@@ -617,7 +625,7 @@
         "zone": null
       },
       "kind": "cmd",
-      "line": 38,
+      "line": 40,
       "scene_index": 2,
       "source": "step",
       "t_ms": 10663
@@ -631,14 +639,14 @@
         "verb": "idle"
       },
       "kind": "warning",
-      "line": 38,
+      "line": 40,
       "scene_index": 2,
       "source": "step",
       "t_ms": 10663
     },
     {
       "clip": "idle_right",
-      "line": 38,
+      "line": 40,
       "op": "place",
       "scene_index": 2,
       "slug": "squirrel",
@@ -664,13 +672,13 @@
         "zone": null
       },
       "kind": "cmd",
-      "line": 39,
+      "line": 41,
       "scene_index": 2,
       "source": "step",
       "t_ms": 10663
     },
     {
-      "line": 39,
+      "line": 41,
       "op": "place_object",
       "scene_index": 2,
       "slug": "acorn",
@@ -697,13 +705,13 @@
         "zone": null
       },
       "kind": "cmd",
-      "line": 40,
+      "line": 42,
       "scene_index": 2,
       "source": "step",
       "t_ms": 10663
     },
     {
-      "line": 40,
+      "line": 42,
       "op": "place_object",
       "scene_index": 2,
       "slug": "pinecone",
@@ -719,7 +727,7 @@
         "text": "Last of all, a mushroom under the ferns."
       },
       "kind": "chunk",
-      "line": 42,
+      "line": 44,
       "scene_index": 2,
       "source": "step",
       "t_ms": 10663
@@ -750,13 +758,13 @@
         "zone": null
       },
       "kind": "cmd",
-      "line": 43,
+      "line": 45,
       "scene_index": 2,
       "source": "step",
       "t_ms": 13884
     },
     {
-      "line": 43,
+      "line": 45,
       "op": "place_object",
       "scene_index": 2,
       "slug": "mushroom",
@@ -783,13 +791,13 @@
         "zone": null
       },
       "kind": "cmd",
-      "line": 44,
+      "line": 46,
       "scene_index": 2,
       "source": "step",
       "t_ms": 13884
     },
     {
-      "line": 44,
+      "line": 46,
       "op": "place_object",
       "scene_index": 2,
       "slug": "numeral_3",
@@ -802,10 +810,14 @@
       "cmd": "slate",
       "detail": {
         "count": 3,
+        "groups": [
+          3
+        ],
+        "mode": "count",
         "subjects": []
       },
       "kind": "cmd",
-      "line": 45,
+      "line": 47,
       "scene_index": 2,
       "source": "step",
       "t_ms": 13884
@@ -815,7 +827,7 @@
       "groups": [
         3
       ],
-      "line": 45,
+      "line": 47,
       "mode": "count",
       "op": "slate",
       "scene_index": 2,
@@ -829,7 +841,7 @@
         "subjects": []
       },
       "kind": "cmd",
-      "line": 46,
+      "line": 48,
       "scene_index": 2,
       "source": "step",
       "t_ms": 13884
@@ -841,7 +853,7 @@
         "text": "How many treasures now?"
       },
       "kind": "chunk",
-      "line": 46,
+      "line": 48,
       "scene_index": 2,
       "source": "step",
       "t_ms": 14384
@@ -861,7 +873,7 @@
         "subjects": []
       },
       "kind": "cmd",
-      "line": 47,
+      "line": 49,
       "scene_index": 2,
       "source": "step",
       "t_ms": 15995
@@ -874,13 +886,13 @@
         ]
       },
       "kind": "cmd",
-      "line": 48,
+      "line": 50,
       "scene_index": 2,
       "source": "step",
       "t_ms": 17995
     },
     {
-      "line": 48,
+      "line": 50,
       "op": "highlight",
       "scene_index": 2,
       "slug": "numeral_3",
@@ -894,7 +906,7 @@
         "text": "One. Two. Three. Three treasures!"
       },
       "kind": "chunk",
-      "line": 49,
+      "line": 51,
       "scene_index": 2,
       "source": "step",
       "t_ms": 17995
@@ -917,7 +929,7 @@
         ]
       },
       "kind": "cmd",
-      "line": 50,
+      "line": 52,
       "scene_index": 2,
       "source": "step",
       "t_ms": 20008
@@ -931,39 +943,17 @@
         "verb": "happy"
       },
       "kind": "warning",
-      "line": 50,
+      "line": 52,
       "scene_index": 2,
       "source": "step",
       "t_ms": 20008
     },
     {
       "clip": "happy_right_jumping",
-      "line": 50,
+      "line": 52,
       "op": "clip",
       "scene_index": 2,
       "slug": "squirrel",
-      "source": "stage",
-      "t_ms": 20008
-    },
-    {
-      "cmd": "slate",
-      "detail": {
-        "count": 0,
-        "subjects": []
-      },
-      "kind": "cmd",
-      "line": 51,
-      "scene_index": 2,
-      "source": "step",
-      "t_ms": 20008
-    },
-    {
-      "count": 0,
-      "groups": [],
-      "line": 51,
-      "mode": "count",
-      "op": "slate",
-      "scene_index": 2,
       "source": "stage",
       "t_ms": 20008
     },

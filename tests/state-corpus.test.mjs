@@ -86,8 +86,8 @@ const WARNINGS = new Map([
   // a few percent short of the room they all want. Everybody is still drawn and
   // still separated; this is the plate saying so at the instant it was measured.
   ['golden_slate', [
-    { t_ms: 6_942, scene_index: 1, line: 31, type: 'policy', policy: 'band-overcrowded', zone: 'foreground', occupants: 4, short_pct: 5.4 },
-    { t_ms: 13_884, scene_index: 2, line: 44, type: 'policy', policy: 'band-overcrowded', zone: 'foreground', occupants: 5, short_pct: 5.5 },
+    { t_ms: 6_942, scene_index: 1, line: 33, type: 'policy', policy: 'band-overcrowded', zone: 'foreground', occupants: 4, short_pct: 5.4 },
+    { t_ms: 13_884, scene_index: 2, line: 46, type: 'policy', policy: 'band-overcrowded', zone: 'foreground', occupants: 5, short_pct: 5.5 },
   ]],
   ['the_owls_quiet_friend', [
     { t_ms: 65_564, scene_index: 2, line: 52, type: 'policy', policy: 'band-overcrowded', zone: 'foreground', occupants: 3, short_pct: 1.5 },

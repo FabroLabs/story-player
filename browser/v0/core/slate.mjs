@@ -17,7 +17,8 @@
  * It is also where a v1 step is met: `{count: 3}` — every lesson bundle built
  * before this board existed — means "count three", and it is normalised into
  * the three-field shape rather than refused, so one client draws one board
- * from either producer.
+ * from either producer. The one v1 step it does NOT take is `{count: 0}`,
+ * which was `slate(off)`: nothing lowers a board now, the ending included.
  */
 
 import { SLATE } from '../policy.mjs';
@@ -28,10 +29,17 @@ export const SLATE_MODES = Object.freeze(['count', 'add', 'subtract']);
  * `payload` is a bundle step, a timeline op or a folded board — all three carry
  * the same three fields. Returns `{count, mode, groups}` with `groups` frozen,
  * or `null` for anything a board cannot be drawn from.
+ *
+ * Zero is one of those things. It used to be a board: the number `slate(off)`
+ * compiled to, and the way a story put its own board away. A board now goes up
+ * at the story's first count and is never taken down — the end card is drawn
+ * over it — so a step counting nothing is a step asking for something the player
+ * no longer does: refused here, out loud at both callers, rather than quietly
+ * emptying a panel the rest of the lesson is still drawing on.
  */
 export function normaliseSlate(payload) {
   const count = payload?.count;
-  if (!Number.isInteger(count) || count < 0 || count > SLATE.max) return null;
+  if (!Number.isInteger(count) || count < 1 || count > SLATE.max) return null;
 
   // A producer that names no mode is naming the one board that existed before
   // modes did. `groups` follows from the count, so the shape is complete from
@@ -43,17 +51,15 @@ export function normaliseSlate(payload) {
     : defaultGroups(mode, count);
   if (!groups.every((size) => Number.isInteger(size) && size >= 0)) return null;
 
+  // Every plain count is one group holding its own total.
   if (mode === 'count') {
-    // Zero IS the board going away, and it is the only count drawn by no
-    // counters at all — every other board has one group holding its own total.
-    if (count === 0) return groups.length === 0 ? board(0, mode, []) : null;
     return groups.length === 1 && groups[0] === count ? board(count, mode, groups) : null;
   }
 
   // Two operands, both of them a real quantity: a lesson that joins nothing to
   // three, or takes nothing away from three, is a board a child watches nothing
-  // happen on. `0` is also how `off` is spelled, and a board that lands on it
-  // by arithmetic would go away instead of answering.
+  // happen on. A take-away that lands on zero is refused by the count check
+  // above — an answer of nothing is not an answer a board can show.
   if (groups.length !== 2) return null;
   const [left, right] = groups;
   if (left < 1 || right < 1) return null;
@@ -97,10 +103,12 @@ export function equationTokens({ mode, count, groups } = {}) {
 /**
  * How many counters were already standing when this board was raised.
  *
- * A plain count raised over a smaller plain count in the same scene is the
- * story counting ON — four is three and one more — and those three do not
- * arrive again. Anything else (a new kind of arithmetic, a count that shrank)
- * is a new board and builds from nothing.
+ * A plain count raised over a smaller plain count is the story counting ON —
+ * four is three and one more — and those three do not arrive again. The scene
+ * they were raised in does not come into it: a board outlives every cut but the
+ * ending either, so counters standing before a cut are still standing after.
+ * Anything else (a new kind of arithmetic, a count that shrank) is a new board
+ * and builds from nothing.
  *
  * It lives beside the rule rather than inside the fold because the compiler has
  * to work out the same number to know how long a board takes; two copies of
@@ -143,13 +151,12 @@ export function slateSchedule(board, from = 0) {
  */
 export function slateBuildMs(slate) {
   const board = normaliseSlate(slate);
-  if (!board || board.count < 1) return 0;
+  if (!board) return 0;
   return slateSchedule(board, Number.isInteger(slate?.from) ? slate.from : 0).endMs;
 }
 
 function defaultGroups(mode, count) {
-  if (mode !== 'count') return [];
-  return count > 0 ? [count] : [];
+  return mode === 'count' ? [count] : [];
 }
 
 function board(count, mode, groups) {

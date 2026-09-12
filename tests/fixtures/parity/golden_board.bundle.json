@@ -32395,21 +32395,12 @@
           "subjects": [
             "squirrel"
           ]
-        },
-        {
-          "cmd": "slate",
-          "count": 0,
-          "groups": [],
-          "kind": "cmd",
-          "line": 26,
-          "mode": "count",
-          "subjects": []
         }
       ],
       "time": "day"
     },
     {
-      "line": 28,
+      "line": 27,
       "place": "forest_clearing",
       "plate": {
         "default_zone": "foreground",
@@ -32511,7 +32502,7 @@
           "cmd": "put",
           "facing": null,
           "kind": "cmd",
-          "line": 29,
+          "line": 28,
           "objects": [],
           "position": "center",
           "subjects": [
@@ -32524,7 +32515,7 @@
           "cmd": "put",
           "facing": null,
           "kind": "cmd",
-          "line": 30,
+          "line": 29,
           "object_zones": {
             "acorn": "foreground"
           },
@@ -32541,7 +32532,7 @@
           "audio": "parity-jobs/parity/audio/1ed26c23d2c907ee9b81654078ce5824168ddcf780855ec3c0dbdd3a0514a8d5.m4a",
           "duration_s": 2.819,
           "kind": "chunk",
-          "line": 32,
+          "line": 31,
           "text": "Five treasures in the pile, all counted."
         },
         {
@@ -32549,7 +32540,7 @@
           "cmd": "put",
           "facing": null,
           "kind": "cmd",
-          "line": 33,
+          "line": 32,
           "object_zones": {
             "numeral_5": "foreground"
           },
@@ -32569,14 +32560,14 @@
             5
           ],
           "kind": "cmd",
-          "line": 34,
+          "line": 33,
           "mode": "count",
           "subjects": []
         },
         {
           "cmd": "pause",
           "kind": "cmd",
-          "line": 35,
+          "line": 34,
           "seconds": 0.5,
           "subjects": []
         },
@@ -32584,12 +32575,12 @@
           "audio": "parity-jobs/parity/audio/1dc54f926d5f6667c94ac349aab3b7a17edf0388e6f3472b27a868300db166e2.m4a",
           "duration_s": 3.221,
           "kind": "chunk",
-          "line": 35,
+          "line": 34,
           "text": "Two of them go home with the badger."
         },
         {
           "kind": "together",
-          "line": 36,
+          "line": 35,
           "steps": [
             {
               "cmd": "slate",
@@ -32599,14 +32590,14 @@
                 2
               ],
               "kind": "cmd",
-              "line": 37,
+              "line": 36,
               "mode": "subtract",
               "subjects": []
             },
             {
               "cmd": "take",
               "kind": "cmd",
-              "line": 38,
+              "line": 37,
               "subjects": [
                 "numeral_5"
               ]
@@ -32616,7 +32607,7 @@
         {
           "cmd": "pause",
           "kind": "cmd",
-          "line": 39,
+          "line": 38,
           "seconds": 2.0,
           "subjects": []
         },
@@ -32624,7 +32615,7 @@
           "audio": "parity-jobs/parity/audio/b09dbb65946ca7256de771fa77a1d51add0d6da46711ca9cdce8270367643110.m4a",
           "duration_s": 2.819,
           "kind": "chunk",
-          "line": 40,
+          "line": 39,
           "text": "Five, take away two. Three are left."
         },
         {
@@ -32632,7 +32623,7 @@
           "cmd": "put",
           "facing": null,
           "kind": "cmd",
-          "line": 41,
+          "line": 40,
           "object_zones": {
             "mushroom": "foreground"
           },
@@ -32648,7 +32639,7 @@
         {
           "cmd": "highlight",
           "kind": "cmd",
-          "line": 42,
+          "line": 41,
           "subjects": [
             "mushroom"
           ]
@@ -32658,19 +32649,10 @@
           "emotion": "happy",
           "facing": null,
           "kind": "cmd",
-          "line": 43,
+          "line": 42,
           "subjects": [
             "squirrel"
           ]
-        },
-        {
-          "cmd": "slate",
-          "count": 0,
-          "groups": [],
-          "kind": "cmd",
-          "line": 44,
-          "mode": "count",
-          "subjects": []
         }
       ],
       "time": "day"

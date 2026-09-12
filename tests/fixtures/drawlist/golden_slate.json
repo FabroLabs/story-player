@@ -156,7 +156,7 @@
             "groups": [
               2
             ],
-            "progress": 0.0011,
+            "progress": 0.0015,
             "panel": {
               "x": 86.4,
               "y": 91.8,
@@ -172,10 +172,10 @@
                 "cx": 814.2,
                 "cy": 424.9,
                 "r": 99.14,
-                "scale": 0.0134,
+                "scale": 1,
                 "alpha": 1,
                 "cross": 0,
-                "ring": false
+                "ring": true
               },
               {
                 "n": 2,
@@ -183,13 +183,18 @@
                 "cx": 1105.8,
                 "cy": 424.9,
                 "r": 99.14,
-                "scale": 0,
+                "scale": 0.0134,
                 "alpha": 1,
                 "cross": 0,
                 "ring": false
               }
             ],
-            "badge": null,
+            "badge": {
+              "cx": 1740.94,
+              "cy": 165.46,
+              "size": 118.8,
+              "n": 1
+            },
             "equation": null
           },
           {
@@ -233,7 +238,7 @@
             "groups": [
               2
             ],
-            "progress": 0.5,
+            "progress": 0.6923,
             "panel": {
               "x": 86.4,
               "y": 91.8,
@@ -260,7 +265,7 @@
                 "cx": 1105.8,
                 "cy": 424.9,
                 "r": 99.14,
-                "scale": 1.0999,
+                "scale": 1,
                 "alpha": 1,
                 "cross": 0,
                 "ring": true
@@ -272,7 +277,17 @@
               "size": 118.8,
               "n": 2
             },
-            "equation": null
+            "equation": {
+              "y": 674.95,
+              "h": 283.82,
+              "tokens": [
+                {
+                  "text": "2",
+                  "role": "result",
+                  "alpha": 0.2593
+                }
+              ]
+            }
           },
           {
             "op": "sprite",
@@ -315,7 +330,7 @@
             "groups": [
               3
             ],
-            "progress": 0.0009,
+            "progress": 0.0015,
             "panel": {
               "x": 86.4,
               "y": 91.8,
@@ -331,7 +346,7 @@
                 "cx": 668.4,
                 "cy": 424.9,
                 "r": 99.14,
-                "scale": 0.0134,
+                "scale": 1,
                 "alpha": 1,
                 "cross": 0,
                 "ring": false
@@ -342,10 +357,10 @@
                 "cx": 960,
                 "cy": 424.9,
                 "r": 99.14,
-                "scale": 0,
+                "scale": 1,
                 "alpha": 1,
                 "cross": 0,
-                "ring": false
+                "ring": true
               },
               {
                 "n": 3,
@@ -353,13 +368,18 @@
                 "cx": 1251.6,
                 "cy": 424.9,
                 "r": 99.14,
-                "scale": 0,
+                "scale": 0.0134,
                 "alpha": 1,
                 "cross": 0,
                 "ring": false
               }
             ],
-            "badge": null,
+            "badge": {
+              "cx": 1740.94,
+              "cy": 165.46,
+              "size": 118.8,
+              "n": 2
+            },
             "equation": null
           },
           {
@@ -403,7 +423,7 @@
             "groups": [
               3
             ],
-            "progress": 0.5,
+            "progress": 0.8846,
             "panel": {
               "x": 86.4,
               "y": 91.8,
@@ -430,7 +450,7 @@
                 "cx": 960,
                 "cy": 424.9,
                 "r": 99.14,
-                "scale": 1.0077,
+                "scale": 1,
                 "alpha": 1,
                 "cross": 0,
                 "ring": false
@@ -441,7 +461,7 @@
                 "cx": 1251.6,
                 "cy": 424.9,
                 "r": 99.14,
-                "scale": 0.74,
+                "scale": 1,
                 "alpha": 1,
                 "cross": 0,
                 "ring": true
@@ -453,7 +473,17 @@
               "size": 118.8,
               "n": 3
             },
-            "equation": null
+            "equation": {
+              "y": 674.95,
+              "h": 283.82,
+              "tokens": [
+                {
+                  "text": "3",
+                  "role": "result",
+                  "alpha": 0.8438
+                }
+              ]
+            }
           },
           {
             "op": "sprite",
@@ -603,13 +633,74 @@
         },
         "commands": [
           {
-            "op": "shadow",
-            "slug": "squirrel",
-            "cx": 743.89,
-            "cy": 1014.96,
-            "rx": 66,
-            "ry": 13.2,
-            "opacity": 0.34
+            "op": "slate",
+            "hud": true,
+            "mode": "count",
+            "count": 3,
+            "groups": [
+              3
+            ],
+            "progress": 1,
+            "panel": {
+              "x": 86.4,
+              "y": 91.8,
+              "w": 1747.2,
+              "h": 912.6,
+              "r": 54,
+              "sheenH": 146.02
+            },
+            "counters": [
+              {
+                "n": 1,
+                "group": 0,
+                "cx": 668.4,
+                "cy": 424.9,
+                "r": 99.14,
+                "scale": 1,
+                "alpha": 1,
+                "cross": 0,
+                "ring": false
+              },
+              {
+                "n": 2,
+                "group": 0,
+                "cx": 960,
+                "cy": 424.9,
+                "r": 99.14,
+                "scale": 1,
+                "alpha": 1,
+                "cross": 0,
+                "ring": false
+              },
+              {
+                "n": 3,
+                "group": 0,
+                "cx": 1251.6,
+                "cy": 424.9,
+                "r": 99.14,
+                "scale": 1,
+                "alpha": 1,
+                "cross": 0,
+                "ring": true
+              }
+            ],
+            "badge": {
+              "cx": 1740.94,
+              "cy": 165.46,
+              "size": 118.8,
+              "n": 3
+            },
+            "equation": {
+              "y": 674.95,
+              "h": 283.82,
+              "tokens": [
+                {
+                  "text": "3",
+                  "role": "result",
+                  "alpha": 1
+                }
+              ]
+            }
           },
           {
             "op": "sprite",
@@ -623,87 +714,12 @@
               3,
               3
             ],
-            "dx": 633.89,
-            "dy": 794.96,
-            "dw": 220,
-            "dh": 220,
-            "opacity": 1
-          },
-          {
-            "op": "shadow",
-            "slug": "acorn",
-            "cx": 488.72,
-            "cy": 1014.32,
-            "rx": 21.6,
-            "ry": 4.32,
-            "opacity": 0.34
-          },
-          {
-            "op": "prop",
-            "slug": "acorn",
-            "url": "fairytale-assets/objects/biology_plants_and_geology/acorn.svg",
-            "dx": 452.72,
-            "dy": 942.32,
-            "dw": 72,
-            "dh": 72,
-            "opacity": 1
-          },
-          {
-            "op": "shadow",
-            "slug": "pinecone",
-            "cx": 686.63,
-            "cy": 1014.81,
-            "rx": 30,
-            "ry": 6,
-            "opacity": 0.34
-          },
-          {
-            "op": "prop",
-            "slug": "pinecone",
-            "url": "fairytale-assets/objects/biology_plants_and_geology/pinecone.svg",
-            "dx": 636.63,
-            "dy": 914.81,
-            "dw": 100,
-            "dh": 100,
-            "opacity": 1
-          },
-          {
-            "op": "shadow",
-            "slug": "mushroom",
-            "cx": 1280.37,
-            "cy": 1016.31,
-            "rx": 45,
-            "ry": 9,
-            "opacity": 0.34
-          },
-          {
-            "op": "prop",
-            "slug": "mushroom",
-            "url": "fairytale-assets/objects/nature_and_city/mushroom.svg",
-            "dx": 1205.37,
-            "dy": 866.31,
-            "dw": 150,
-            "dh": 150,
-            "opacity": 1
-          },
-          {
-            "op": "shadow",
-            "slug": "numeral_3",
-            "cx": 1082.46,
-            "cy": 1015.81,
-            "rx": 137.14,
-            "ry": 27.43,
-            "opacity": 0.34
-          },
-          {
-            "op": "prop",
-            "slug": "numeral_3",
-            "url": "fairytale-assets/objects/placeholders/numeral_3.svg",
-            "dx": 853.89,
-            "dy": 558.67,
-            "dw": 457.14,
-            "dh": 457.14,
-            "opacity": 1
+            "dx": 1582.2,
+            "dy": 777.6,
+            "dw": 291.6,
+            "dh": 291.6,
+            "opacity": 1,
+            "hud": true
           }
         ]
       }

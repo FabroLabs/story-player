@@ -732,9 +732,14 @@ function sameBoard(board, shown) {
  *
  * A board is no longer a card that pops in 350 ms: it counts itself in one
  * counter at a time, crosses out what a take-away took, and only then writes
- * the equation — `2 + 3 = 5` takes 2.85 s from the instant it is raised. So a
- * scene that cuts a second later shows a child five apples and never the
- * sentence they were for, and nothing about the bundle looks wrong.
+ * the equation — `2 + 3 = 5` takes 2.85 s from the instant it is raised. Two
+ * things end one mid-build: the story stopping, and a DIFFERENT board raised
+ * over it. Neither leaves a mark on the bundle, and both show a child five
+ * apples and never the sentence they were for.
+ *
+ * A scene cut is no longer one of them: the board outlives the seam, so a
+ * lesson whose last board is raised a second before a cut finishes counting
+ * itself over the next scene.
  *
  * The one board NOT measured is the one a lesson counts on from: `slate 3`
  * followed by `slate 4` is three counters that stay and a fourth arriving, so
@@ -780,7 +785,11 @@ function boardsCutShort(events, durationMs) {
 
   for (const [index, event] of events.entries()) {
     if (event.source !== 'stage') continue;
-    if (event.op === 'scene' || event.op === 'end') {
+    // Nothing takes a board away any more — `end` leaves it standing under the
+    // end card — but `end` is still where a build RUNS OUT: the story stops
+    // advancing, so counters that had not popped by then never pop. A cut is
+    // not that: the board goes on building over the next scene.
+    if (event.op === 'end') {
       measure(event.t_ms);
       shown = null;
       continue;
@@ -788,13 +797,9 @@ function boardsCutShort(events, durationMs) {
     if (event.op !== 'slate') continue;
     const board = normaliseSlate(event);
     // Already refused out loud where it was written; a second complaint about
-    // the same step would say nothing new.
+    // the same step would say nothing new. `slate 0` — v1's `off` — is one of
+    // those refusals now, so no step here can end a board's life either.
     if (!board) continue;
-    if (board.count === 0) {
-      measure(event.t_ms);
-      shown = null;
-      continue;
-    }
     // The same board again is not a new board — the fold keeps the first
     // instant and lets it go on building — so neither the measurement nor the
     // board being measured moves.

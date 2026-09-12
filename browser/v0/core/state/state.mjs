@@ -186,6 +186,15 @@ export class World {
 
   // A cut is not a background swap: the stage empties, every motion still
   // running is cancelled, the camera goes home and the subtitle clears.
+  //
+  // The board is the one thing a cut leaves alone. A lesson is one uninterrupted
+  // surface — watched on the mounted player, a board that closed and reopened at
+  // every seam was the fault, not the feature — so it goes up at the story's
+  // first `slate` and is never taken down. Nothing here resets `from` either:
+  // it is how the board ON SCREEN is drawn, not what the next one counts from,
+  // and clearing it would take counters off a board still building through this
+  // cut. A board raised after the cut asks `carriedFrom` the same question it
+  // asks inside a scene: three counters that never left are not re-popped.
   #scene(event) {
     this.#sceneIndex = event.scene_index ?? null;
     const scene = this.#bundle?.scenes?.[this.#sceneIndex] ?? null;
@@ -194,7 +203,6 @@ export class World {
     this.#actors.clear();
     this.#bands.openScene(this.#plate);
     this.#subtitle = '';
-    this.#slate = { ...EMPTY_SLATE, sinceMs: event.t_ms };
     this.#ended = false;
     this.#camera = { from: WIDE_FRAMING, held: WIDE_FRAMING, startMs: event.t_ms, durationMs: 0 };
   }
@@ -360,13 +368,13 @@ export class World {
     actor.highlightMs = event.t_ms;
   }
 
-  // The board goes with the subtitle. It is cleared here rather than by an op of
-  // its own so no bedtime story pays a slate event it never asked for — and it
-  // has to be cleared somewhere, or the last frame a lesson freezes on is its
-  // final answer still ringed, over a story that has otherwise finished.
+  // The subtitle and the rings go; the board does not. A lesson is one surface
+  // from its first count to the last frame, and the end card is drawn OVER it —
+  // the child's final picture is the answer they reached, not the floor it was
+  // counted on. Nothing in the language takes a board down: it is replaced by
+  // another board or it is the picture the story finishes on.
   #end(event) {
     this.#subtitle = '';
-    this.#slate = { ...EMPTY_SLATE, sinceMs: event.t_ms };
     // One actor at a time because `end` leaves the cast standing, unlike
     // `scene`, which takes the rings with the actors it clears.
     for (const actor of this.#actors.values()) actor.highlightMs = null;

@@ -32182,7 +32182,7 @@
   },
   "scenes": [
     {
-      "line": 14,
+      "line": 16,
       "place": "forest_clearing",
       "plate": {
         "default_zone": "foreground",
@@ -32284,7 +32284,7 @@
           "cmd": "put",
           "facing": null,
           "kind": "cmd",
-          "line": 15,
+          "line": 17,
           "objects": [],
           "position": "center",
           "subjects": [
@@ -32296,7 +32296,7 @@
           "audio": "parity-jobs/parity/audio/d926d8d3fa382748478a1af4017c70f60677c8e09faf3d97fb59e8e27b60e316.m4a",
           "duration_s": 2.013,
           "kind": "chunk",
-          "line": 17,
+          "line": 19,
           "text": "Nutmeg is counting treasures today."
         },
         {
@@ -32304,7 +32304,7 @@
           "cmd": "put",
           "facing": null,
           "kind": "cmd",
-          "line": 18,
+          "line": 20,
           "object_zones": {
             "acorn": "foreground"
           },
@@ -32322,7 +32322,7 @@
           "cmd": "put",
           "facing": null,
           "kind": "cmd",
-          "line": 19,
+          "line": 21,
           "object_zones": {
             "numeral_1": "foreground"
           },
@@ -32338,21 +32338,25 @@
         {
           "cmd": "slate",
           "count": 1,
+          "groups": [
+            1
+          ],
           "kind": "cmd",
-          "line": 20,
+          "line": 22,
+          "mode": "count",
           "subjects": []
         },
         {
           "cmd": "sound",
           "kind": "cmd",
-          "line": 21,
+          "line": 23,
           "name": "pop",
           "subjects": []
         },
         {
           "cmd": "pause",
           "kind": "cmd",
-          "line": 22,
+          "line": 24,
           "seconds": 0.5,
           "subjects": []
         },
@@ -32360,7 +32364,7 @@
           "audio": "parity-jobs/parity/audio/1729ea5447d1bee60227ed43c9ac1aeef2168549ec3fe910396b03a2aad6215f.m4a",
           "duration_s": 2.013,
           "kind": "chunk",
-          "line": 22,
+          "line": 24,
           "text": "Nutmeg found an acorn. One."
         },
         {
@@ -32368,7 +32372,7 @@
           "emotion": "happy",
           "facing": null,
           "kind": "cmd",
-          "line": 23,
+          "line": 25,
           "subjects": [
             "squirrel"
           ]
@@ -32377,7 +32381,7 @@
       "time": "day"
     },
     {
-      "line": 25,
+      "line": 27,
       "place": "forest_clearing",
       "plate": {
         "default_zone": "foreground",
@@ -32479,7 +32483,7 @@
           "cmd": "put",
           "facing": null,
           "kind": "cmd",
-          "line": 26,
+          "line": 28,
           "objects": [],
           "position": "center",
           "subjects": [
@@ -32492,7 +32496,7 @@
           "cmd": "put",
           "facing": null,
           "kind": "cmd",
-          "line": 27,
+          "line": 29,
           "object_zones": {
             "acorn": "foreground"
           },
@@ -32509,7 +32513,7 @@
           "audio": "parity-jobs/parity/audio/33510f03f45b5655d7d66f3722a050373456dd5c3550d39ea5c3f7fa297c3957.m4a",
           "duration_s": 2.416,
           "kind": "chunk",
-          "line": 29,
+          "line": 31,
           "text": "Then a pinecone, right beside it."
         },
         {
@@ -32517,7 +32521,7 @@
           "cmd": "put",
           "facing": null,
           "kind": "cmd",
-          "line": 30,
+          "line": 32,
           "object_zones": {
             "pinecone": "foreground"
           },
@@ -32535,7 +32539,7 @@
           "cmd": "put",
           "facing": null,
           "kind": "cmd",
-          "line": 31,
+          "line": 33,
           "object_zones": {
             "numeral_2": "foreground"
           },
@@ -32551,21 +32555,25 @@
         {
           "cmd": "slate",
           "count": 2,
+          "groups": [
+            2
+          ],
           "kind": "cmd",
-          "line": 32,
+          "line": 34,
+          "mode": "count",
           "subjects": []
         },
         {
           "cmd": "sound",
           "kind": "cmd",
-          "line": 33,
+          "line": 35,
           "name": "pop",
           "subjects": []
         },
         {
           "cmd": "pause",
           "kind": "cmd",
-          "line": 34,
+          "line": 36,
           "seconds": 0.5,
           "subjects": []
         },
@@ -32573,7 +32581,7 @@
           "audio": "parity-jobs/parity/audio/bc2311c98e742c543226978311b57fa1dc5c186317f347b586a0aeb550b86559.m4a",
           "duration_s": 3.221,
           "kind": "chunk",
-          "line": 34,
+          "line": 36,
           "text": "An acorn and a pinecone. That is two."
         },
         {
@@ -32581,7 +32589,7 @@
           "emotion": "happy",
           "facing": null,
           "kind": "cmd",
-          "line": 35,
+          "line": 37,
           "subjects": [
             "squirrel"
           ]
@@ -32590,7 +32598,7 @@
       "time": "day"
     },
     {
-      "line": 37,
+      "line": 39,
       "place": "forest_clearing",
       "plate": {
         "default_zone": "foreground",
@@ -32692,7 +32700,7 @@
           "cmd": "put",
           "facing": null,
           "kind": "cmd",
-          "line": 38,
+          "line": 40,
           "objects": [],
           "position": "center",
           "subjects": [
@@ -32705,7 +32713,7 @@
           "cmd": "put",
           "facing": null,
           "kind": "cmd",
-          "line": 39,
+          "line": 41,
           "object_zones": {
             "acorn": "foreground"
           },
@@ -32723,7 +32731,7 @@
           "cmd": "put",
           "facing": null,
           "kind": "cmd",
-          "line": 40,
+          "line": 42,
           "object_zones": {
             "pinecone": "foreground"
           },
@@ -32740,7 +32748,7 @@
           "audio": "parity-jobs/parity/audio/6618c3db054253cb6becc49fe016852b97f9037165e3dff3be9229ffa1401876.m4a",
           "duration_s": 3.221,
           "kind": "chunk",
-          "line": 42,
+          "line": 44,
           "text": "Last of all, a mushroom under the ferns."
         },
         {
@@ -32748,7 +32756,7 @@
           "cmd": "put",
           "facing": null,
           "kind": "cmd",
-          "line": 43,
+          "line": 45,
           "object_zones": {
             "mushroom": "foreground"
           },
@@ -32766,7 +32774,7 @@
           "cmd": "put",
           "facing": null,
           "kind": "cmd",
-          "line": 44,
+          "line": 46,
           "object_zones": {
             "numeral_3": "foreground"
           },
@@ -32782,14 +32790,18 @@
         {
           "cmd": "slate",
           "count": 3,
+          "groups": [
+            3
+          ],
           "kind": "cmd",
-          "line": 45,
+          "line": 47,
+          "mode": "count",
           "subjects": []
         },
         {
           "cmd": "pause",
           "kind": "cmd",
-          "line": 46,
+          "line": 48,
           "seconds": 0.5,
           "subjects": []
         },
@@ -32797,20 +32809,20 @@
           "audio": "parity-jobs/parity/audio/02977099558a85acdafad24ac4a5d916316be1ef9585dd863735db7f9e2c4f9e.m4a",
           "duration_s": 1.611,
           "kind": "chunk",
-          "line": 46,
+          "line": 48,
           "text": "How many treasures now?"
         },
         {
           "cmd": "pause",
           "kind": "cmd",
-          "line": 47,
+          "line": 49,
           "seconds": 2.0,
           "subjects": []
         },
         {
           "cmd": "highlight",
           "kind": "cmd",
-          "line": 48,
+          "line": 50,
           "subjects": [
             "numeral_3"
           ]
@@ -32819,7 +32831,7 @@
           "audio": "parity-jobs/parity/audio/0753fe46926a975d4b1f3224a5b669036f4ee18b82aaa0e8b6d328e7923f3c3d.m4a",
           "duration_s": 2.013,
           "kind": "chunk",
-          "line": 49,
+          "line": 51,
           "text": "One. Two. Three. Three treasures!"
         },
         {
@@ -32827,17 +32839,10 @@
           "emotion": "happy",
           "facing": null,
           "kind": "cmd",
-          "line": 50,
+          "line": 52,
           "subjects": [
             "squirrel"
           ]
-        },
-        {
-          "cmd": "slate",
-          "count": 0,
-          "kind": "cmd",
-          "line": 51,
-          "subjects": []
         }
       ],
       "time": "day"
