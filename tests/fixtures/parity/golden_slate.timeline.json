@@ -151,7 +151,11 @@
     },
     {
       "count": 1,
+      "groups": [
+        1
+      ],
       "line": 20,
+      "mode": "count",
       "op": "slate",
       "scene_index": 0,
       "source": "stage",
@@ -461,7 +465,11 @@
     },
     {
       "count": 2,
+      "groups": [
+        2
+      ],
       "line": 32,
+      "mode": "count",
       "op": "slate",
       "scene_index": 1,
       "source": "stage",
@@ -804,7 +812,11 @@
     },
     {
       "count": 3,
+      "groups": [
+        3
+      ],
       "line": 45,
+      "mode": "count",
       "op": "slate",
       "scene_index": 2,
       "source": "stage",
@@ -947,7 +959,9 @@
     },
     {
       "count": 0,
+      "groups": [],
       "line": 51,
+      "mode": "count",
       "op": "slate",
       "scene_index": 2,
       "source": "stage",

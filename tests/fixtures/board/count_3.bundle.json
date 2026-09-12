@@ -1,0 +1,164 @@
+{
+  "audio": {
+    "bgm": {},
+    "sfx": {}
+  },
+  "cast": {
+    "nutmeg": {
+      "clips": {
+        "idle_right": {
+          "fps": 4,
+          "frames": 2,
+          "grid": [
+            2,
+            1
+          ],
+          "spritesheet": "board-fixtures/nutmeg_idle.png"
+        }
+      },
+      "height_cm": 24
+    }
+  },
+  "objects": {
+    "numeral_3": {
+      "height_cm": 40,
+      "svg": "board-fixtures/numeral_3.svg"
+    }
+  },
+  "scenes": [
+    {
+      "line": 1,
+      "place": "forest_clearing",
+      "plate": {
+        "default_zone": "floor",
+        "poster": "board-fixtures/clearing.jpg",
+        "resolution": [
+          1920,
+          1080
+        ],
+        "video": "board-fixtures/clearing.mp4",
+        "zones": [
+          {
+            "depth": 1,
+            "description": "the open grass the lesson is taught on",
+            "name": "floor",
+            "polygon": [
+              [
+                8,
+                76
+              ],
+              [
+                92,
+                76
+              ],
+              [
+                92,
+                99
+              ],
+              [
+                8,
+                99
+              ]
+            ],
+            "scale": 1,
+            "surface": "floor"
+          },
+          {
+            "depth": null,
+            "description": "the upper air, where nothing stands",
+            "name": "sky",
+            "polygon": [
+              [
+                0,
+                0
+              ],
+              [
+                100,
+                0
+              ],
+              [
+                100,
+                58
+              ],
+              [
+                0,
+                58
+              ]
+            ],
+            "scale": null,
+            "surface": "sky"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "beside": null,
+          "cmd": "put",
+          "facing": null,
+          "kind": "cmd",
+          "line": 2,
+          "objects": [],
+          "position": "center",
+          "subjects": [
+            "nutmeg"
+          ],
+          "zone": null
+        },
+        {
+          "beside": null,
+          "cmd": "put",
+          "facing": null,
+          "kind": "cmd",
+          "line": 3,
+          "object_zones": {
+            "numeral_3": "floor"
+          },
+          "objects": [
+            "numeral_3"
+          ],
+          "position": "right_third",
+          "subjects": [
+            "numeral_3"
+          ],
+          "zone": null
+        },
+        {
+          "cmd": "pause",
+          "kind": "cmd",
+          "line": 4,
+          "seconds": 1.0,
+          "subjects": []
+        },
+        {
+          "cmd": "slate",
+          "count": 3,
+          "groups": [
+            3
+          ],
+          "kind": "cmd",
+          "line": 5,
+          "mode": "count",
+          "subjects": []
+        },
+        {
+          "cmd": "highlight",
+          "kind": "cmd",
+          "line": 6,
+          "subjects": [
+            "numeral_3"
+          ]
+        },
+        {
+          "cmd": "pause",
+          "kind": "cmd",
+          "line": 7,
+          "seconds": 6.0,
+          "subjects": []
+        }
+      ]
+    }
+  ],
+  "storylang_version": 0,
+  "title": "board — count 3",
+  "world": "forest"
+}

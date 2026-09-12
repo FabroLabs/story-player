@@ -2,5 +2,6 @@ node_modules/
 *.tgz
 coverage/
 dist/
+ignored/
 .idea/
 .DS_Store

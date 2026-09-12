@@ -1,6 +1,7 @@
 import { PlayerBoard } from '../board.mjs';
 import { desiredFacing, selectFacingClip, selectLocomotion } from '../clips.mjs';
 import { alongFloor, floorSpan, isSide, sideX, zoneNamed } from '../geometry.mjs';
+import { carriedFrom, normaliseSlate, slateBuildMs } from '../slate.mjs';
 import { cameraPoint, cameraSpeed, resolveShot } from './camera.mjs';
 import { Recorder, stepDetail } from './events.mjs';
 import { TimelineStage } from './stage.mjs';
@@ -12,7 +13,6 @@ import {
   MINIMUM_DEPARTURE_SECONDS,
   MINIMUM_MOVE_SECONDS,
   MOVE_X_PCT_PER_SECOND,
-  SLATE,
 } from '../../policy.mjs';
 
 /**
@@ -66,13 +66,19 @@ export function compileTimeline(bundle, options) {
   const director = new Director(bundle, schedule, recorder, plates);
 
   runToEnd(schedule, walkStory(director));
+  // Worked out after the walk, because it is a question about what came NEXT:
+  // a board is only cut short by the thing that takes it away. It is put back
+  // beside the board it is about, at that instant — a warning appended at the
+  // end would land AFTER the `end` op, and a prefix whose last event is not
+  // `end` is a prefix no player can close.
+  const events = withCutShort(recorder.events(), schedule.now());
 
   return {
     timeline_version: TIMELINE_VERSION,
     storylang_version: bundle.storylang_version,
     title: bundle.title ?? null,
     duration_ms: schedule.now(),
-    events: recorder.events(),
+    events,
   };
 }
 
@@ -329,16 +335,24 @@ class Director {
     }
   }
 
-  // The count is the story's, and it is checked here because a slate is drawn
-  // straight from it: a count that is not a whole number of cards would leave
-  // every client to invent its own board, and they would not agree.
+  // The arithmetic is the story's, and it is checked here because a board is
+  // drawn straight from it: a claim whose own groups do not make its count
+  // would leave every client to invent the board it thought was meant, and they
+  // would not agree. What reaches the stage is the NORMALISED shape, so a v1
+  // step that names only a count is the same op as one that names all three.
   #slate(step, origin) {
-    const { count } = step;
-    if (!Number.isInteger(count) || count < 0 || count > SLATE.max) {
-      this.warning({ type: 'policy', policy: 'slate-count-unusable', count: count ?? null });
+    const board = normaliseSlate(step);
+    if (!board) {
+      this.warning({
+        type: 'policy',
+        policy: 'slate-count-unusable',
+        count: step.count ?? null,
+        mode: step.mode ?? null,
+        groups: step.groups ?? null,
+      });
       return;
     }
-    this.#stage.setSlate(count, origin);
+    this.#stage.setSlate(board, origin);
   }
 
   // Read off the LIVE board rather than the `together` snapshot every other
@@ -657,6 +671,125 @@ class Director {
   #origin(line) {
     return { scene_index: this.#sceneIndex, line: line ?? this.#scene?.line ?? null };
   }
+}
+
+/**
+ * The timeline with each cut-short warning spliced in beside its own board.
+ *
+ * The events array stays in time order and the warning carries the instant the
+ * board was raised, so a reader scrubbing the log meets the complaint where the
+ * mistake is rather than at the end of the story.
+ */
+function withCutShort(events, durationMs) {
+  const cuts = boardsCutShort(events, durationMs);
+  if (cuts.length === 0) return events;
+  const out = [...events];
+  // Back to front, so an earlier splice cannot move a later index.
+  for (const cut of [...cuts].reverse()) {
+    out.splice(cut.at + 1, 0, {
+      t_ms: cut.t_ms,
+      scene_index: cut.scene_index,
+      line: cut.line,
+      kind: 'warning',
+      detail: cut.detail,
+      source: 'step',
+    });
+  }
+  return out;
+}
+
+// The fold's own comparison (`state.mjs`), which is the one that decides
+// whether a board is raised again at all: the same total reached another way is
+// a different picture, and a different picture is a new board.
+function sameBoard(board, shown) {
+  return board.count === shown.count
+    && board.mode === shown.mode
+    && board.groups.length === shown.groups.length
+    && board.groups.every((size, index) => size === shown.groups[index]);
+}
+
+/**
+ * Boards the story takes away before they have finished arriving.
+ *
+ * A board is no longer a card that pops in 350 ms: it counts itself in one
+ * counter at a time, crosses out what a take-away took, and only then writes
+ * the equation — `2 + 3 = 5` takes 2.85 s from the instant it is raised. So a
+ * scene that cuts a second later shows a child five apples and never the
+ * sentence they were for, and nothing about the bundle looks wrong.
+ *
+ * The one board NOT measured is the one a lesson counts on from: `slate 3`
+ * followed by `slate 4` is three counters that stay and a fourth arriving, so
+ * the first board was never interrupted — it is still on screen. That is the
+ * state core's own rule (`carriedFrom`), asked here rather than guessed, so
+ * "one, two, three" stays quiet while `slate 3` wiped by `slate(2+3)` — a
+ * different board, built from nothing — is the loss it looks like.
+ *
+ * It also reads the fold's other rule: a board repeated verbatim is not raised
+ * again (the state core keeps the first instant), so the repeat must not reset
+ * what is being measured either.
+ *
+ * The compiler is the only place this can be said: it is the one that knows
+ * both the schedule and the line of the story the board was raised on.
+ */
+function boardsCutShort(events, durationMs) {
+  const cuts = [];
+  let shown = null;
+  let raised = null;
+  const measure = (endsAt) => {
+    if (!raised) return;
+    const needs = slateBuildMs({ ...raised.board, from: raised.from });
+    const held = endsAt - raised.event.t_ms;
+    if (held < needs) {
+      cuts.push({
+        at: raised.at,
+        line: raised.event.line,
+        scene_index: raised.event.scene_index,
+        t_ms: raised.event.t_ms,
+        detail: {
+          type: 'policy',
+          policy: 'slate-cut-short',
+          count: raised.board.count,
+          mode: raised.board.mode,
+          groups: [...raised.board.groups],
+          needs_ms: needs,
+          held_ms: held,
+        },
+      });
+    }
+    raised = null;
+  };
+
+  for (const [index, event] of events.entries()) {
+    if (event.source !== 'stage') continue;
+    if (event.op === 'scene' || event.op === 'end') {
+      measure(event.t_ms);
+      shown = null;
+      continue;
+    }
+    if (event.op !== 'slate') continue;
+    const board = normaliseSlate(event);
+    // Already refused out loud where it was written; a second complaint about
+    // the same step would say nothing new.
+    if (!board) continue;
+    if (board.count === 0) {
+      measure(event.t_ms);
+      shown = null;
+      continue;
+    }
+    // The same board again is not a new board — the fold keeps the first
+    // instant and lets it go on building — so neither the measurement nor the
+    // board being measured moves.
+    if (shown && sameBoard(board, shown)) continue;
+    const from = carriedFrom(shown, board);
+    // Counting on leaves the board it counts from standing; anything else
+    // replaces it, and a board replaced mid-build is a board the child never
+    // saw finish.
+    if (from === 0) measure(event.t_ms);
+    raised = { at: index, event, board, from };
+    shown = board;
+  }
+  measure(durationMs);
+  return cuts;
 }
 
 function compareTogetherSteps(left, right) {

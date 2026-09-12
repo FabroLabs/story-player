@@ -639,7 +639,9 @@ test('a verb the character has no clip for falls back, and the fallback is named
 
 // --- the lesson commands ---------------------------------------------------
 
-const slate = (line, count) => ({ kind: 'cmd', line, cmd: 'slate', count });
+const slate = (line, count, mode, groups) => ({
+  kind: 'cmd', line, cmd: 'slate', count, mode, groups,
+});
 const highlight = (line, ...subjects) => ({ kind: 'cmd', line, cmd: 'highlight', subjects });
 
 function lessonStory(steps) {
@@ -648,27 +650,159 @@ function lessonStory(steps) {
   return story;
 }
 
-test('a slate is recorded at the count the story asked for, and 0 takes it away', () => {
+test('a slate is recorded as the whole claim, and 0 takes the board away', () => {
   // `SLATE.max` is the published maximum, so it is a count that WORKS — pinned
   // beside the refusal, which otherwise leaves `>` and `>=` indistinguishable.
-  const events = compile(lessonStory([slate(1, 3), slate(2, SLATE.max), slate(3, 0)]));
+  const events = compile(lessonStory([
+    slate(1, 3),
+    slate(2, 5, 'add', [2, 3]),
+    slate(3, 3, 'subtract', [5, 2]),
+    slate(4, SLATE.max),
+    slate(5, 0),
+  ]));
 
+  // Every op carries all three fields, whatever the step named: a step that
+  // names only a count is the plain count every bundle meant before modes
+  // existed, and one client draws one board from either producer.
   assert.deepEqual(
-    ops(events, 'slate').map((event) => [event.count, event.line]),
-    [[3, 1], [SLATE.max, 2], [0, 3]],
+    ops(events, 'slate').map((event) => [event.count, event.mode, event.groups, event.line]),
+    [
+      [3, 'count', [3], 1],
+      [5, 'add', [2, 3], 2],
+      [3, 'subtract', [5, 2], 3],
+      [SLATE.max, 'count', [SLATE.max], 4],
+      [0, 'count', [], 5],
+    ],
   );
-  assert.deepEqual(warnings(events), []);
+  // This story spends no time at all, so every board it raises is taken away
+  // before it has arrived — which is the next test's subject, and said here
+  // only so that "no OTHER warning" keeps its meaning.
+  assert.deepEqual(
+    new Set(warnings(events).map((warning) => warning.policy)),
+    new Set(['slate-cut-short']),
+  );
 });
 
-test('a count that is not a whole number of cards is refused, not rounded', () => {
+test('a board taken away before it has arrived is said, not silently lost', () => {
+  // A board is not a card that pops in a third of a second any more: `2 + 3`
+  // counts itself in, then writes its equation, and a scene that cuts a second
+  // later shows a child five apples and never the sentence they were for.
+  const pause = (line, seconds) => ({ kind: 'cmd', line, cmd: 'pause', seconds });
+  const cut = compile(lessonStory([slate(1, 5, 'add', [2, 3]), pause(2, 1), slate(3, 0)]));
+
+  assert.deepEqual(warnings(cut), [{
+    type: 'policy',
+    policy: 'slate-cut-short',
+    count: 5,
+    mode: 'add',
+    groups: [2, 3],
+    needs_ms: 2_850,
+    held_ms: 1_000,
+  }]);
+
+  // Given the time it needs, nothing is said.
+  const held = compile(lessonStory([slate(1, 5, 'add', [2, 3]), pause(2, 3), slate(3, 0)]));
+  assert.deepEqual(warnings(held), []);
+});
+
+test('a lesson counting on is not a board cut short, however fast it counts', () => {
+  // "One, two, three" raises three boards half a second apart and none of them
+  // finishes. That is the one case where not finishing is the POINT — each
+  // board carries the one before it — so warning three times would teach a
+  // writer to stop writing the thing the board is for.
+  const pause = (line, seconds) => ({ kind: 'cmd', line, cmd: 'pause', seconds });
+  const counted = compile(lessonStory([
+    slate(1, 1), pause(2, 0.5), slate(3, 2), pause(4, 0.5), slate(5, 3), pause(6, 2),
+  ]));
+
+  assert.deepEqual(warnings(counted), []);
+  // The last of them IS measured — against the end of the story — so a lesson
+  // that counts to three and stops dead still hears about it.
+  const stopped = compile(lessonStory([slate(1, 1), pause(2, 0.5), slate(3, 2), slate(5, 3)]));
+  assert.deepEqual(warnings(stopped).map((warning) => warning.policy), ['slate-cut-short']);
+});
+
+test('a count that is not a whole number of counters is refused, not rounded', () => {
   for (const count of [2.5, '3', -1, null, undefined, SLATE.max + 1]) {
     const events = compile(lessonStory([{ kind: 'cmd', line: 7, cmd: 'slate', count }]));
 
     assert.deepEqual(ops(events, 'slate'), [], `${JSON.stringify(count)} reached the stage`);
     assert.deepEqual(warnings(events), [
-      { type: 'policy', policy: 'slate-count-unusable', count: count ?? null },
+      { type: 'policy', policy: 'slate-count-unusable', count: count ?? null, mode: null, groups: null },
     ]);
   }
+});
+
+test('a board whose own groups do not make its count never reaches a client', () => {
+  // The compiler is where the arithmetic is checked, because it is the one
+  // place that can name the STORY LINE the wrong claim was written on. A
+  // player fed the same claim refuses it too, but by then nobody knows where
+  // it came from.
+  const wrong = [
+    [6, 'add', [2, 3]],
+    [3, 'add', [3, 0]],
+    [2, 'subtract', [5, 2]],
+    [0, 'subtract', [3, 3]],
+    [6, 'multiply', [2, 3]],
+    [6, 'add', [1, 2, 3]],
+  ];
+  for (const [count, mode, groups] of wrong) {
+    const events = compile(lessonStory([slate(7, count, mode, groups)]));
+
+    assert.deepEqual(ops(events, 'slate'), [], `${count} ${mode} ${groups} reached the stage`);
+    assert.deepEqual(warnings(events), [
+      { type: 'policy', policy: 'slate-count-unusable', count, mode, groups },
+    ]);
+  }
+});
+
+test('a board raised again on the same claim is not a second board', () => {
+  // The fold keeps the first instant and lets the build run on (a story
+  // repeating a total between two chunks), so the scan must not restart its
+  // measurement either — or a board that stood four seconds is reported as
+  // having had one.
+  const pause = (line, seconds) => ({ kind: 'cmd', line, cmd: 'pause', seconds });
+  const events = compile(lessonStory([
+    slate(1, 5, 'add', [2, 3]), pause(2, 3), slate(3, 5, 'add', [2, 3]), pause(4, 1), slate(5, 0),
+  ]));
+
+  assert.deepEqual(warnings(events), []);
+  assert.equal(ops(events, 'slate').length, 3, 'the op itself is still recorded, as written');
+});
+
+test('a board wiped by a DIFFERENT board is cut short, counting on or not', () => {
+  // "Replaced by another board" is not the same as "counted on from". Three
+  // counters wiped by a join 200 ms later is exactly the loss this warning
+  // exists for; three counters that become four are the lesson working.
+  const pause = (line, seconds) => ({ kind: 'cmd', line, cmd: 'pause', seconds });
+  const wiped = compile(lessonStory([
+    slate(1, 3), pause(2, 0.2), slate(3, 5, 'add', [2, 3]), pause(4, 4),
+  ]));
+  const shrunk = compile(lessonStory([slate(1, 5), pause(2, 0.1), slate(3, 3), pause(4, 3)]));
+  const countedOn = compile(lessonStory([
+    slate(1, 1), pause(2, 0.5), slate(3, 2), pause(4, 0.5), slate(5, 3), pause(6, 2),
+  ]));
+
+  assert.deepEqual(warnings(wiped).map((warning) => warning.held_ms), [200]);
+  assert.deepEqual(warnings(shrunk).map((warning) => warning.held_ms), [100]);
+  assert.deepEqual(warnings(countedOn), []);
+});
+
+test('the complaint is filed beside the board, not after the story', () => {
+  // A warning appended at the end lands AFTER the `end` op, and a prefix whose
+  // last event is not `end` is a prefix no player can close
+  // (`compile-prefix.test.mjs`). It also reads as a fault at the ending rather
+  // than at the line that raised the board.
+  const pause = (line, seconds) => ({ kind: 'cmd', line, cmd: 'pause', seconds });
+  const events = compile(lessonStory([slate(1, 5, 'add', [2, 3]), pause(2, 1)]));
+  const raised = events.find((event) => event.op === 'slate');
+  const complaint = events.find((event) => event.kind === 'warning');
+
+  assert.equal(events.at(-1).op, 'end');
+  assert.ok(events.indexOf(complaint) > events.indexOf(raised));
+  assert.ok(events.indexOf(complaint) < events.length - 1);
+  assert.equal(complaint.t_ms, raised.t_ms);
+  assert.equal(complaint.line, 1);
 });
 
 test('the compiler records no slate at a scene boundary — the cut is the state core job', () => {

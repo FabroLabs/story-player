@@ -35,6 +35,7 @@
  */
 
 import { frameCell } from '../../core/clips.mjs';
+import { counterCount, normaliseSlate, slateSchedule } from '../../core/slate.mjs';
 import { DEFAULT_STAGE_RESOLUTION, HIGHLIGHT, SLATE } from '../../policy.mjs';
 
 // The shadow, as fractions of the sprite's drawn height. The DOM stage traced
@@ -141,57 +142,196 @@ function ringFor(actor, box, tMs) {
 }
 
 /**
- * The counting board: `count` cards in rows of five, each row centred, the
- * newest ringed and still growing into place.
+ * The counting board: a frosted panel over the scene, a counter per thing
+ * counted, the running total, and the equation that names what happened.
  *
  * `hud` is the one word that matters to whoever executes this list. Everything
- * else here is under the camera, so a push-in magnifies it; the slate is not,
+ * else here is under the camera, so a push-in magnifies it; the board is not,
  * because a board that doubled in size and slid off the top of the frame when
  * the story leaned in on somebody would take the number a child is counting
  * with it. It is measured against the plate all the same, so it is still the
  * same list on every device.
+ *
+ * The whole build is a function of `tMs - sinceMs` and nothing else: the
+ * counters pop in one at a time, a subtraction then crosses out the ones taken,
+ * and only after that does the equation write itself token by token. A seek
+ * backwards is the same arithmetic asked at a smaller t, which is why none of
+ * it is remembered anywhere.
  */
 function slateFor(slate, tMs, width, height) {
-  const count = slate?.count;
-  if (!Number.isInteger(count) || count < 1) return null;
-  const shown = Math.min(count, SLATE.max);
-  const cell = (SLATE.cellPct / 100) * height;
-  const gap = (SLATE.gapPct / 100) * height;
-  const pop = popScale((tMs - slate.sinceMs) / SLATE.popMs);
-  const cells = [];
+  const board = normaliseSlate(slate);
+  if (!board || board.count < 1) return null;
+  const drawn = counterCount(board);
+  if (drawn < 1) return null;
 
-  for (let n = 1; n <= shown; n += 1) {
-    const row = Math.floor((n - 1) / SLATE.perRow);
-    const column = (n - 1) % SLATE.perRow;
-    const inRow = Math.min(shown - (row * SLATE.perRow), SLATE.perRow);
-    const rowWidth = (inRow * cell) + ((inRow - 1) * gap);
-    cells.push({
-      n,
-      dx: round(((width - rowWidth) / 2) + (column * (cell + gap))),
-      dy: round(((SLATE.topPct / 100) * height) + (row * (cell + gap))),
-      dw: round(cell),
-      dh: round(cell),
-      // Only the newest card is new: the ring marks the total the story just
-      // said, and the pop is that card arriving. Everything before it is
-      // furniture and must not move, or the whole board breathes on every count.
-      ring: n === shown,
-      pop: n === shown ? round(pop, 4) : 1,
+  // `from` is how many counters were already standing when this board was
+  // raised - a plain count growing over a plain count. They are drawn settled,
+  // and the build starts at the first new one.
+  const sinceMs = Number.isFinite(slate?.sinceMs) ? slate.sinceMs : 0;
+  const elapsed = (Number.isFinite(tMs) ? tMs : 0) - sinceMs;
+  const schedule = slateSchedule(board, Number.isInteger(slate?.from) ? slate.from : 0);
+  const { from } = schedule;
+  const panel = panelBox(width, height);
+  const { places, cell, band } = counterPlaces(panel, width, height, drawn);
+
+  const counters = [];
+  let present = 0;
+  let ringed = -1;
+  for (let index = 0; index < drawn; index += 1) {
+    const scale = index < from
+      ? 1
+      : popScale((elapsed - ((index - from) * SLATE.staggerMs)) / SLATE.popMs);
+    const cross = takeProgress(schedule, drawn, index, elapsed);
+    const alpha = 1 - cross;
+    if (scale > 0.5 && alpha > 0.5) present += 1;
+    // The ring marks where the count has got to: the newest counter that has
+    // begun to arrive and has not been taken away again.
+    if (scale > 0.2 && alpha > 0.5) ringed = index;
+    counters.push({
+      n: index + 1,
+      group: groupOf(board, index),
+      cx: round(places[index][0]),
+      cy: round(places[index][1]),
+      r: round(cell * SLATE.counterRadius),
+      scale: round(scale, 4),
+      alpha: round(alpha, 4),
+      cross: round(cross, 4),
+      ring: false,
     });
   }
+  if (ringed >= 0) counters[ringed].ring = true;
 
-  return { op: 'slate', hud: true, count: shown, cells };
+  const badgeSize = (SLATE.badgePct / 100) * height;
+  const [badgeInX, badgeDownY] = SLATE.badgeOffset;
+  return {
+    op: 'slate',
+    hud: true,
+    mode: board.mode,
+    count: board.count,
+    groups: [...board.groups],
+    progress: round(clamped(elapsed / schedule.endMs), 4),
+    panel: {
+      x: round(panel.x),
+      y: round(panel.y),
+      w: round(panel.w),
+      h: round(panel.h),
+      r: round(panel.r),
+      sheenH: round(panel.h * (SLATE.sheenPct / 100)),
+    },
+    counters,
+    // A badge over an empty board is a lesson insisting the answer is zero
+    // while the first counter is still on its way in.
+    badge: present > 0
+      ? {
+        cx: round((panel.x + panel.w) - (badgeInX * badgeSize)),
+        cy: round(panel.y + (badgeDownY * badgeSize)),
+        size: round(badgeSize),
+        n: present,
+      }
+      : null,
+    equation: equationFor(board, schedule, elapsed, band),
+  };
 }
 
-// The standard back-out: the card overshoots its size and settles. `c1` is the
-// curve's own constant and not a second number to tune — its peak is exactly
-// `SLATE.overshoot`, which is the number that IS published, and a test holds
-// the two together.
+/** How far through being taken away a counter is; 0 for every counter that stays. */
+function takeProgress({ countersEnd, taken }, drawn, index, elapsed) {
+  const first = drawn - taken;
+  if (taken < 1 || index < first) return 0;
+  const at = countersEnd + ((index - first) * SLATE.takeStaggerMs);
+  return smoothstep((elapsed - at) / SLATE.takeMs);
+}
+
+/**
+ * The equation, once the counters have finished doing what they do.
+ *
+ * `null` until then, and deliberately: the numerals are the abstraction of what
+ * the child has just watched happen, and one that appeared alongside the
+ * counters would be the answer arriving before the question. The tokens carry
+ * no x of their own - they are glyphs, and only the painter knows how wide a
+ * glyph is in the font it has.
+ */
+function equationFor(board, { revealEnd, tokens }, elapsed, band) {
+  if (elapsed < revealEnd || tokens.length === 0) return null;
+  return {
+    y: round(band.y),
+    h: round(band.h),
+    tokens: tokens.map(({ text, role }, index) => ({
+      text,
+      role,
+      alpha: round(smoothstep((elapsed - (revealEnd + (index * SLATE.tokenMs))) / SLATE.tokenMs), 4),
+    })),
+  };
+}
+
+/** The frosted panel, in plate pixels: percentages of the plate, both ways. */
+function panelBox(width, height) {
+  const { left, top, right, bottom } = SLATE.panelPct;
+  return {
+    x: (left / 100) * width,
+    y: (top / 100) * height,
+    w: ((right - left) / 100) * width,
+    h: ((bottom - top) / 100) * height,
+    r: (SLATE.radiusPct / 100) * height,
+  };
+}
+
+/**
+ * Where the counters stand, how big they are, and what is left below them for
+ * the equation.
+ *
+ * There is no ten-frame and no empty slot: the rows are sized to the count
+ * actually being drawn and centred on the plate, so three counters are three
+ * counters rather than three in a grid of ten. Six and over split into two
+ * balanced rows, and the cell is the smallest of what the panel's width, the
+ * rows' shared height and the plate itself allow.
+ */
+function counterPlaces(panel, width, height, n) {
+  const rows = n <= SLATE.perRow ? [n] : [Math.ceil(n / 2), Math.floor(n / 2)];
+  const top = panel.y + (panel.h * (SLATE.countersTopPct / 100));
+  const bottom = panel.y + (panel.h * (SLATE.countersBottomPct / 100));
+  const cell = Math.min(
+    (panel.w * SLATE.cellShare) / Math.max(...rows),
+    (bottom - top) / rows.length,
+    (SLATE.cellMaxPct / 100) * height,
+  );
+  const firstY = top + (((bottom - top) - (rows.length * cell)) / 2) + (cell / 2);
+  const places = [];
+  for (const [row, inRow] of rows.entries()) {
+    const firstX = ((width - (inRow * cell)) / 2) + (cell / 2);
+    for (let column = 0; column < inRow; column += 1) {
+      places.push([firstX + (column * cell), firstY + (row * cell)]);
+    }
+  }
+  const bandGap = SLATE.bandGapPct / 100;
+  const panelBottom = panel.y + panel.h;
+  const bandY = bottom + ((panelBottom - bottom) * bandGap);
+  return { places, cell, band: { y: bandY, h: panelBottom - bandY - (panel.h * bandGap) } };
+}
+
+// Which addend a counter belongs to - the colour a painter tells the groups
+// apart by. A subtraction is one group being taken from, so all of it is the
+// first group; a plain count has no groups to tell apart at all.
+function groupOf(board, index) {
+  return board.mode === 'add' && index >= board.groups[0] ? 1 : 0;
+}
+
+// The standard back-out: the counter overshoots its size and settles. `c1` is
+// the curve's own constant and not a second number to tune - its peak is
+// exactly `SLATE.overshoot`, which is the number that IS published, and a test
+// holds the two together.
 const BACK_C1 = 1.70158;
 
 function popScale(progress) {
   if (!Number.isFinite(progress) || progress >= 1) return 1;
   const past = Math.max(0, progress) - 1;
   return 1 + ((BACK_C1 + 1) * past * past * past) + (BACK_C1 * past * past);
+}
+
+// The ease a counter fades on and a numeral arrives on: out of rest and into
+// it, so nothing in the lesson snaps.
+function smoothstep(progress) {
+  const u = clamped(progress);
+  return u * u * (3 - (2 * u));
 }
 
 function figure(actor, box, sheets) {

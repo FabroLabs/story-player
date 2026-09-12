@@ -982,15 +982,25 @@ test('the lesson repaints on its own clock, and stops when it has landed', async
   };
   const numerals = (calls) => calls.filter(([name]) => name === 'fillText').map(([, text]) => text);
 
-  // The first line: somebody standing still, and no board.
-  assert.deepEqual(numerals(frame(1_000)), []);
+  const marks = (calls) => calls.filter(([name]) => name === 'ellipse' || name === 'fillText');
 
-  // The board arrives with the second line and grows into place across `popMs`.
+  // The first line: somebody standing still, and no board.
+  assert.deepEqual(marks(frame(1_000)), []);
+
+  // The board arrives with the second line and BUILDS: a counter at a time,
+  // and only then the numeral under them. Two frames 80 ms apart draw
+  // different pictures because the build is still running.
   const arriving = frame(2_040);
   const settling = frame(2_120);
-  assert.deepEqual(numerals(arriving), ['1', '2', '3']);
-  assert.deepEqual(numerals(settling), ['1', '2', '3']);
-  assert.notDeepEqual(arriving, settling, 'the pop did not move between two frames');
+  assert.ok(marks(arriving).length > 0, 'the board never arrived');
+  assert.deepEqual(numerals(arriving), [], 'the answer was written before the counters');
+  assert.notDeepEqual(arriving, settling, 'the build did not move between two frames');
+  // Still moving well past the first counter's pop: the ceiling is the WHOLE
+  // build — every counter, every cross and every token — and one that settled
+  // after the first pop would freeze the rest of the lesson on a still scene.
+  assert.notDeepEqual(frame(2_500), frame(2_600), 'the build stopped at the first pop');
+  // The running total, and then the equation: the last things to land.
+  assert.deepEqual(numerals(frame(2_900)), ['3', '3']);
 
   // And once it has landed, a still scene is free again — the overlay's own
   // progress reaches its ceiling and stops making every instant different.
@@ -999,8 +1009,8 @@ test('the lesson repaints on its own clock, and stops when it has landed', async
   // ms), or the empty result is the cadence gate turning the second frame away
   // before it ever reached the picture — an assertion that passes with the
   // ceiling deleted.
-  frame(3_000);
-  assert.deepEqual(frame(3_080), [], 'the loop kept repainting a picture nothing was changing');
+  frame(3_400);
+  assert.deepEqual(frame(3_480), [], 'the loop kept repainting a picture nothing was changing');
 
   // The ring runs on the same clock.
   frame(4_040);

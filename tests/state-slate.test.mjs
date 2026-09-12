@@ -62,34 +62,87 @@ const slateAt = (events, tMs) => stateAt(timeline(events), BUNDLE, tMs).slate;
 const actorAt = (events, slug, tMs) => stateAt(timeline(events), BUNDLE, tMs)
   .actors.find((actor) => actor.slug === slug);
 
-test('a story with no lesson in it has an empty board, not a missing one', () => {
-  assert.deepEqual(slateAt([], 5_000), { count: 0, sinceMs: 0 });
+const NO_BOARD = { count: 0, mode: 'count', groups: [], sinceMs: 0, from: 0 };
+const board = (count, mode, groups, sinceMs, from = 0) => ({
+  count, mode, groups, sinceMs, from,
 });
 
-test('the board holds the count it was last given, and the instant it landed', () => {
+test('a story with no lesson in it has an empty board, not a missing one', () => {
+  assert.deepEqual(slateAt([], 5_000), NO_BOARD);
+});
+
+test('the board holds the arithmetic it was last given, and the instant it landed', () => {
   const events = [stage(1_000, 'slate', { count: 1 }), stage(4_000, 'slate', { count: 2 })];
 
-  assert.deepEqual(slateAt(events, 500), { count: 0, sinceMs: 0 });
-  assert.deepEqual(slateAt(events, 2_000), { count: 1, sinceMs: 1_000 });
-  assert.deepEqual(slateAt(events, 9_000), { count: 2, sinceMs: 4_000 });
+  assert.deepEqual(slateAt(events, 500), NO_BOARD);
+  assert.deepEqual(slateAt(events, 2_000), board(1, 'count', [1], 1_000));
+  assert.deepEqual(slateAt(events, 9_000), board(2, 'count', [2], 4_000, 1));
 });
 
-test('a count that repeats does not land again, so the card already there does not re-pop', () => {
-  const events = [stage(1_000, 'slate', { count: 2 }), stage(6_000, 'slate', { count: 2 })];
-
-  assert.deepEqual(slateAt(events, 9_000), { count: 2, sinceMs: 1_000 });
+test('a step that names only a count is the board that existed before modes did', () => {
+  // Every lesson bundle built before this board carries `{count}` and nothing
+  // else. It is normalised rather than refused, so one client draws one board
+  // from either producer.
+  assert.deepEqual(slateAt([stage(1_000, 'slate', { count: 3 })], 5_000), board(3, 'count', [3], 1_000));
 });
 
-test('taking away lands the new top card, because it is the answer now', () => {
+test('a board carries the groups it was reached from, not just the answer it lands on', () => {
+  const joined = [stage(1_000, 'slate', { count: 5, mode: 'add', groups: [2, 3] })];
+  const taken = [stage(1_000, 'slate', { count: 3, mode: 'subtract', groups: [5, 2] })];
+
+  assert.deepEqual(slateAt(joined, 5_000), board(5, 'add', [2, 3], 1_000));
+  assert.deepEqual(slateAt(taken, 5_000), board(3, 'subtract', [5, 2], 1_000));
+});
+
+test('the same arithmetic twice does not land again, so the board does not re-build', () => {
+  const events = [
+    stage(1_000, 'slate', { count: 5, mode: 'add', groups: [2, 3] }),
+    stage(6_000, 'slate', { count: 5, mode: 'add', groups: [2, 3] }),
+  ];
+
+  assert.deepEqual(slateAt(events, 9_000), board(5, 'add', [2, 3], 1_000));
+});
+
+test('the same total reached a different way IS a new board', () => {
+  // Five counted and two-and-three are the same number and different pictures:
+  // one is five apples, the other is two red and three green. A fold that
+  // compared totals alone would leave the first picture standing.
+  const events = [
+    stage(1_000, 'slate', { count: 5 }),
+    stage(6_000, 'slate', { count: 5, mode: 'add', groups: [2, 3] }),
+  ];
+
+  assert.deepEqual(slateAt(events, 9_000), board(5, 'add', [2, 3], 6_000));
+});
+
+test('counting on from a smaller count keeps the counters already standing', () => {
+  // Four is three and one more. `from` is how many were already there, and the
+  // drawer pops only what is new — without it the whole board breathes on every
+  // number a lesson counts.
+  const events = [stage(1_000, 'slate', { count: 3 }), stage(6_000, 'slate', { count: 4 })];
+
+  assert.deepEqual(slateAt(events, 9_000), board(4, 'count', [4], 6_000, 3));
+});
+
+test('a count that shrank builds from nothing, because nothing of it was standing', () => {
   const events = [stage(1_000, 'slate', { count: 5 }), stage(6_000, 'slate', { count: 3 })];
 
-  assert.deepEqual(slateAt(events, 9_000), { count: 3, sinceMs: 6_000 });
+  assert.deepEqual(slateAt(events, 9_000), board(3, 'count', [3], 6_000));
+});
+
+test('a take-away after a count is its own build, not a continuation of one', () => {
+  const events = [
+    stage(1_000, 'slate', { count: 5 }),
+    stage(6_000, 'slate', { count: 3, mode: 'subtract', groups: [5, 2] }),
+  ];
+
+  assert.deepEqual(slateAt(events, 9_000), board(3, 'subtract', [5, 2], 6_000));
 });
 
 test('slate(off) is a count of nothing, and it stays off', () => {
   const events = [stage(1_000, 'slate', { count: 3 }), stage(6_000, 'slate', { count: 0 })];
 
-  assert.deepEqual(slateAt(events, 9_000), { count: 0, sinceMs: 6_000 });
+  assert.deepEqual(slateAt(events, 9_000), { ...NO_BOARD, sinceMs: 6_000 });
 });
 
 test('a scene cut clears the board the way it clears the subtitle', () => {
@@ -98,19 +151,67 @@ test('a scene cut clears the board the way it clears the subtitle', () => {
     stage(6_000, 'scene', { place: 'dell' }, 1),
   ];
 
-  assert.deepEqual(slateAt(events, 9_000), { count: 0, sinceMs: 6_000 });
+  assert.deepEqual(slateAt(events, 9_000), { ...NO_BOARD, sinceMs: 6_000 });
   // And seeking back is the same answer as never having left.
-  assert.deepEqual(slateAt(events, 3_000), { count: 3, sinceMs: 1_000 });
+  assert.deepEqual(slateAt(events, 3_000), board(3, 'count', [3], 1_000));
 });
 
-test('a count that is not a whole number of cards is refused and said out loud', () => {
+test('a count that is not a whole number of counters is refused and said out loud', () => {
   for (const count of [2.5, -1, '3', null]) {
     const state = stateAt(timeline([stage(1_000, 'slate', { count })]), BUNDLE, 5_000);
 
-    assert.deepEqual(state.slate, { count: 0, sinceMs: 0 }, JSON.stringify(count));
+    assert.deepEqual(state.slate, NO_BOARD, JSON.stringify(count));
     assert.deepEqual(state.warnings, [{
-      t_ms: 1_000, scene_index: 0, line: null, type: 'policy', policy: 'slate-count-unusable', count,
+      t_ms: 1_000,
+      scene_index: 0,
+      line: null,
+      type: 'policy',
+      policy: 'slate-count-unusable',
+      count,
+      mode: null,
+      groups: null,
     }]);
+  }
+});
+
+test('a board whose own groups do not make its count is refused, not mended', () => {
+  // The board is the answer a child is being shown. A player that quietly drew
+  // the five it thought was meant would disagree with the story's own numerals,
+  // and nobody would ever say which of the two was wrong.
+  const wrong = { count: 6, mode: 'add', groups: [2, 3] };
+  const state = stateAt(timeline([stage(1_000, 'slate', wrong)]), BUNDLE, 5_000);
+
+  assert.deepEqual(state.slate, NO_BOARD);
+  assert.deepEqual(state.warnings, [{
+    t_ms: 1_000, scene_index: 0, line: null, type: 'policy', policy: 'slate-count-unusable', ...wrong,
+  }]);
+});
+
+test('every shape a board cannot be drawn from is refused', () => {
+  const refused = [
+    // An arithmetic nobody drew a board for.
+    { count: 6, mode: 'multiply', groups: [2, 3] },
+    // A join with nothing to join, and a take-away that takes nothing: both are
+    // a child watching nothing happen.
+    { count: 3, mode: 'add', groups: [3, 0] },
+    { count: 3, mode: 'subtract', groups: [3, 0] },
+    // Taking everything away lands on 0, and 0 is how `off` is spelled — the
+    // board would go away instead of answering.
+    { count: 0, mode: 'subtract', groups: [3, 3] },
+    // Taking more than there is.
+    { count: -1, mode: 'subtract', groups: [2, 3] },
+    // Three addends: the board draws two groups, and a third would be a group
+    // with no colour of its own.
+    { count: 6, mode: 'add', groups: [1, 2, 3] },
+    // A plain count with somebody else's groups.
+    { count: 3, mode: 'count', groups: [1, 2] },
+  ];
+
+  for (const payload of refused) {
+    const state = stateAt(timeline([stage(1_000, 'slate', payload)]), BUNDLE, 5_000);
+
+    assert.deepEqual(state.slate, NO_BOARD, JSON.stringify(payload));
+    assert.equal(state.warnings.at(0)?.policy, 'slate-count-unusable', JSON.stringify(payload));
   }
 });
 
@@ -119,17 +220,29 @@ test('a count past the board own ceiling is refused, not quietly shortened', () 
   // `slate.count` saying 25 over a picture showing 20, with nothing said.
   const state = stateAt(timeline([stage(1_000, 'slate', { count: SLATE.max + 1 })]), BUNDLE, 5_000);
 
-  assert.deepEqual(state.slate, { count: 0, sinceMs: 0 });
-  assert.deepEqual(state.warnings, [{
-    t_ms: 1_000,
-    scene_index: 0,
-    line: null,
-    type: 'policy',
-    policy: 'slate-count-unusable',
-    count: SLATE.max + 1,
-  }]);
-  // And the ceiling itself is a legal count.
+  assert.deepEqual(state.slate, NO_BOARD);
+  assert.equal(state.warnings.at(0)?.policy, 'slate-count-unusable');
+  // And the ceiling itself is a legal count, however it is reached.
   assert.equal(slateAt([stage(1_000, 'slate', { count: SLATE.max })], 5_000).count, SLATE.max);
+  assert.equal(
+    slateAt([stage(1_000, 'slate', { count: SLATE.max, mode: 'add', groups: [10, 10] })], 5_000).count,
+    SLATE.max,
+  );
+  // A subtraction is bounded by what it STARTS with, which is what gets drawn.
+  const tooMany = [stage(1_000, 'slate', { count: 1, mode: 'subtract', groups: [SLATE.max + 1, SLATE.max] })];
+  assert.deepEqual(slateAt(tooMany, 5_000), NO_BOARD);
+});
+
+test('the board a fold hands out cannot be written back into the fold', () => {
+  // `groups` is one array living inside the World; a caller keeping the picture
+  // and pushing a number into it would change what every later instant answers.
+  const held = slateAt([stage(1_000, 'slate', { count: 5, mode: 'add', groups: [2, 3] })], 5_000);
+  held.groups.push(9);
+
+  assert.deepEqual(
+    slateAt([stage(1_000, 'slate', { count: 5, mode: 'add', groups: [2, 3] })], 5_000).groups,
+    [2, 3],
+  );
 });
 
 test('the ending takes the board away, the way it takes the subtitle', () => {
@@ -137,11 +250,11 @@ test('the ending takes the board away, the way it takes the subtitle', () => {
   const ended = stateAt(timeline(events), BUNDLE, 9_000);
 
   assert.equal(ended.ended, true);
-  assert.deepEqual(ended.slate, { count: 0, sinceMs: 8_000 });
+  assert.deepEqual(ended.slate, { ...NO_BOARD, sinceMs: 8_000 });
   assert.equal(ended.subtitle, '');
   // The frame before it is still the lesson's answer — the board is cleared at
   // the ending, not retroactively.
-  assert.deepEqual(slateAt(events, 7_000), { count: 3, sinceMs: 1_000 });
+  assert.deepEqual(slateAt(events, 7_000), board(3, 'count', [3], 1_000));
 });
 
 test('a highlight stamps the actor it names, and nobody else', () => {

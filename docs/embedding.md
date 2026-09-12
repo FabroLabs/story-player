@@ -74,8 +74,8 @@ play one schedule rather than two implementations of it.
 `stateAt` is one frame: a pure function of that timeline, the bundle and an
 instant in milliseconds, answering with the actors on stage, their clips and
 frame cells, the camera framing, the subtitle showing, the counting board
-(`slate: {count, sinceMs}`, and `highlightMs` on each actor—see below), and the
-warnings crossed on the way. It interprets the timeline and never re-decides it.
+(`slate: {count, mode, groups, sinceMs, from}`, and `highlightMs` on each
+actor—see below), and the warnings crossed on the way. It interprets the timeline and never re-decides it.
 
 The picture is a single canvas 2D stage drawn over the hardware-decoded
 `<video>` plate, both inside the player's open Shadow DOM. Camera framing is a
@@ -84,22 +84,48 @@ written only when the framing moves. Subtitles, the media note and the controls
 stay ordinary DOM.
 
 A lesson draws two things a bedtime story never asks for, and both come through
-the same path. `slate` is the counting board: `count` cards, numerals 1..count in
-rows of five across the top of the frame, the newest ringed and popping into
-place, and `count: 0` takes it away. `V0_POLICY.slate.max` is the largest count
-there is—a timeline carrying more is refused with `slate-count-unusable` rather
-than shortened, at the compiler and again at `stateAt`, so no client is left
-drawing a smaller board than the story asked for without being told. It is a HUD—painted in plate coordinates
-with the camera left out, so a push-in magnifies the cast underneath while the
-numbers keep their size and their corner. `highlight` is a gold ring around one
+the same path. `slate` is the counting board: a translucent panel over the
+scene carrying one counter per thing counted, a running-count badge, and the
+equation written under them. It is the whole claim rather than a total—`mode`
+is `count`, `add` or `subtract`, `groups` is what it was reached from (`[n]`,
+`[a, b]` addends, or `[start, taken]`), and `count` is the answer—so a client
+can draw two addends in two colours and cross out what a take-away took. How
+many counters that is follows the mode: a count or a join draws `count` of
+them, and a SUBTRACTION draws `groups[0]`—everything it started with—then takes
+`groups[1]` away. A step that names only a count is normalised into the
+plain-count shape, so a bundle built before modes existed draws the same board.
+`count: 0` takes it away. `V0_POLICY.slate.max` is the largest count there is,
+and a claim whose own groups do not make its count—or that runs past the
+ceiling—is refused with `slate-count-unusable` rather than mended, at the
+compiler and again at `stateAt`, so no client is left drawing a board the story
+did not ask for without being told. A board the story TAKES AWAY before it has
+finished arriving—a cut, the ending, or `slate(off)` less than a build later—is
+said too, as `slate-cut-short` carrying the milliseconds it needed and the
+milliseconds it got: a board raised at the seam of a scene shows a child the
+counters and never the equation, and nothing else about the bundle looks wrong.
+A board replaced by another board is not cut short; that is a lesson counting
+on. The whole build is a function of the
+instant the board was raised (`sinceMs`) and of `from`: a counter every
+`staggerMs`, each popping over `popMs`, then a take-away crossing out one
+counter every `takeStaggerMs`, each cross taking `takeMs`, then the equation a
+token every `tokenMs`. `from` is how many counters were ALREADY standing—a
+plain count raised over a smaller plain count in the same scene carries the
+previous count, and those counters are drawn settled while the build starts at
+the first new one, so a lesson counting on to four does not re-pop the three
+that never left. A client folding the stream itself has to work `from` out the
+same way, or its board breathes on every number. It is a HUD—painted in plate
+coordinates with the camera left out, so a push-in magnifies the cast
+underneath while the arithmetic keeps its size and its place; any command the
+list marks `hud` is drawn that way, not the board alone. `highlight` is a gold ring around one
 subject, pulsing twice over `V0_POLICY.highlight.durationMs` and riding its
 actor under the camera. A scene cut clears both, and so does the ending—but
 watch where that happens: the subtitle is reset by an event of its own, while
 the board and the ring are cleared by the `scene` and `end` ops themselves, so
 a client folding the stream must clear them at those two ops rather than wait
-for a reset that never arrives. Every rectangle either one draws is measured from `V0_POLICY.slate`
-and `V0_POLICY.highlight`; the numeral inside a card is drawn with the
-platform's own rounded font and is deliberately not part of that contract.
+for a reset that never arrives. Every rectangle, counter and band either one draws is measured
+from `V0_POLICY.slate` and `V0_POLICY.highlight`; the COLOURS are the painter's
+own—a client with its own palette is still drawing this board—and the numerals
+are set in the platform's rounded font, deliberately not part of that contract.
 
 The story clock is pausable and seekable, and audio follows it: each cue starts
 at its own `t_ms` and is aligned by `currentTime`, so blocked or late audio
@@ -512,6 +538,30 @@ With `perf: true`, frames that stay slow for five seconds demote the tier while
 the story runs; the tier never climbs back inside one session. A browser that
 gives no 2D context at all is not a failure to mount: the canvas draws nothing,
 one warning names the reason, and the poster, subtitles and audio still play.
+
+## The counting board, as a contact sheet
+
+`npm run sheet:board` paints a lesson's board at five instants of each build
+into a single PNG. It is dev tooling, not a test: it asserts nothing, it is
+never run by CI, and it exists because the board ARRIVES rather than appears,
+and no one screenshot shows that.
+
+A row is the life of ONE board, and its instants are clamped to that life rather
+than simply offset from it. A counting lesson raises `slate 1`, `slate 2` and
+`slate 3` about half a second apart, so a blind `+3.2 s` would paint the third
+board under the first one's caption; instead the row holds at its own last
+moment, its header says how long the board was held, and its final cell is
+whatever ended it — the next board, the scene's cut, or the story.
+
+`--bundle <path>` (repeatable) takes real built bundles instead of the fixtures
+in `tests/fixtures/board/`; `--out` moves the PNG and `--scale` resizes it.
+`--dump` writes each instant's `slate` and `ring` draw-list commands to stdout
+as JSON lines — the pure answer, and the part worth diffing; progress and page
+errors go to stderr, so the stream pipes clean into `jq` or a differ.
+
+The plate is a DOM `<video>`, so it is never in these pixels: a flat ground
+stands in for it, and anything to be judged against a real plate — the frost,
+above all — needs a mounted player.
 
 ## Stable and immutable URLs
 

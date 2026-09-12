@@ -17,7 +17,8 @@
  */
 
 import { createStateCursor } from '../core/state/cursor.mjs';
-import { HIGHLIGHT, SLATE } from '../policy.mjs';
+import { slateBuildMs } from '../core/slate.mjs';
+import { HIGHLIGHT } from '../policy.mjs';
 import { KEEP_CADENCE_MS } from './assets/scene-loader.mjs';
 import { DEFAULT_DRAW_HZ, tierSettings } from './capability.mjs';
 import { createControls } from './controls.mjs';
@@ -879,9 +880,17 @@ function signatureOf(state) {
       overlayPhase(state.tMs, actor.highlightMs, HIGHLIGHT.durationMs),
     );
   }
+  // The board's own identity — five counted and two-and-three are the same
+  // total and different pictures — and how far through BUILDING it is. The
+  // build, not the first pop: a board goes on moving for as long as its
+  // counters are arriving, its taken ones crossing out and its equation
+  // writing itself, and a signature that settled after the first counter would
+  // freeze the rest of the lesson on a still scene.
   parts.push(
     state.slate?.count ?? 0,
-    overlayPhase(state.tMs, state.slate?.sinceMs, SLATE.popMs),
+    state.slate?.mode ?? 'count',
+    (state.slate?.groups ?? []).join(','),
+    overlayPhase(state.tMs, state.slate?.sinceMs, slateBuildMs(state.slate)),
   );
   return parts.join('|');
 }
