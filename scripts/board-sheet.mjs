@@ -118,7 +118,10 @@ async function writeSheet({ bundles, out, scale, dump }) {
 
   // Judged BEFORE the screenshot, so a run that would have lied leaves no
   // picture behind to be found and believed later.
-  broke.push(...unusable(jobs, painted));
+  const noted = new Set();
+  broke.push(...unusable(jobs, painted, noted));
+  for (const note of noted) process.stderr.write(`beside the board — ${note}
+`);
   if (broke.length > 0) {
     await browser.close();
     throw new Error(`the sheet would have lied — ${broke.length} problem(s):\n  ${broke.join('\n  ')}`);
@@ -144,13 +147,23 @@ async function writeSheet({ bundles, out, scale, dump }) {
  * exited 0. Nothing but the human eye caught it, and only because the emptiness
  * was total. These raise it as the failure it is.
  */
-function unusable(jobs, painted) {
+function unusable(jobs, painted, noted) {
   const problems = [];
   for (const [row, job] of jobs.entries()) {
     for (const [column, cell] of painted[row].entries()) {
       const where = `${job.stem} slate@${job.op.t_ms} cell ${job.captions[column]}`;
       for (const warning of cell.warnings) {
-        problems.push(`${where}: the state core warns ${JSON.stringify(warning)}`);
+        // Only what the BOARD is drawn from. `picture.warnings` is cumulative
+        // — everything the fold has said since t=0 — so a missing idle pose or
+        // a crowded band, which the state core itself calls a fact about the
+        // plate rather than a failure, would refuse a sheet whose boards are
+        // all perfect. Anything else is printed as a note instead, because the
+        // reader should still know it was there.
+        if (String(warning.policy ?? '').startsWith('slate')) {
+          problems.push(`${where}: the state core warns ${JSON.stringify(warning)}`);
+        } else {
+          noted.add(`${job.stem}: the state core warns ${JSON.stringify(warning)}`);
+        }
       }
       for (const command of cell.commands) {
         const broken = notFinite(command);
@@ -217,6 +230,11 @@ function jobsFor(file, skipped) {
 
   for (const [index, event] of timeline.events.entries()) {
     if (event.source !== 'stage' || event.op !== 'slate') continue;
+    // `slate(off)` is a board going away, not a board: it draws nothing, by
+    // design, and a row for it is five empty stages under a caption — which
+    // then fails the "no board in any build cell" check and takes the whole
+    // sheet down with it. Every real lesson ends with one.
+    if (!(event.count > 0)) continue;
     const closing = closingAfter(timeline, index);
     // Replaced or cut on its own millisecond. `stateAt` has already folded
     // whatever took its place by then, so every instant this row could ask for

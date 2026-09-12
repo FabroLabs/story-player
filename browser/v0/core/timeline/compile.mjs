@@ -66,18 +66,19 @@ export function compileTimeline(bundle, options) {
   const director = new Director(bundle, schedule, recorder, plates);
 
   runToEnd(schedule, walkStory(director));
-  // Said after the walk because it is a question about what came NEXT: a board
-  // is only cut short by the thing that takes it away.
-  for (const cut of boardsCutShort(recorder.events(), schedule.now())) {
-    director.warning(cut.detail, cut.line, cut.scene_index);
-  }
+  // Worked out after the walk, because it is a question about what came NEXT:
+  // a board is only cut short by the thing that takes it away. It is put back
+  // beside the board it is about, at that instant — a warning appended at the
+  // end would land AFTER the `end` op, and a prefix whose last event is not
+  // `end` is a prefix no player can close.
+  const events = withCutShort(recorder.events(), schedule.now());
 
   return {
     timeline_version: TIMELINE_VERSION,
     storylang_version: bundle.storylang_version,
     title: bundle.title ?? null,
     duration_ms: schedule.now(),
-    events: recorder.events(),
+    events,
   };
 }
 
@@ -673,6 +674,41 @@ class Director {
 }
 
 /**
+ * The timeline with each cut-short warning spliced in beside its own board.
+ *
+ * The events array stays in time order and the warning carries the instant the
+ * board was raised, so a reader scrubbing the log meets the complaint where the
+ * mistake is rather than at the end of the story.
+ */
+function withCutShort(events, durationMs) {
+  const cuts = boardsCutShort(events, durationMs);
+  if (cuts.length === 0) return events;
+  const out = [...events];
+  // Back to front, so an earlier splice cannot move a later index.
+  for (const cut of [...cuts].reverse()) {
+    out.splice(cut.at + 1, 0, {
+      t_ms: cut.t_ms,
+      scene_index: cut.scene_index,
+      line: cut.line,
+      kind: 'warning',
+      detail: cut.detail,
+      source: 'step',
+    });
+  }
+  return out;
+}
+
+// The fold's own comparison (`state.mjs`), which is the one that decides
+// whether a board is raised again at all: the same total reached another way is
+// a different picture, and a different picture is a new board.
+function sameBoard(board, shown) {
+  return board.count === shown.count
+    && board.mode === shown.mode
+    && board.groups.length === shown.groups.length
+    && board.groups.every((size, index) => size === shown.groups[index]);
+}
+
+/**
  * Boards the story takes away before they have finished arriving.
  *
  * A board is no longer a card that pops in 350 ms: it counts itself in one
@@ -681,11 +717,16 @@ class Director {
  * scene that cuts a second later shows a child five apples and never the
  * sentence they were for, and nothing about the bundle looks wrong.
  *
- * Only a board that is TAKEN AWAY is measured: by a cut, by the ending, by
- * `slate(off)`, or by the story simply running out. A board replaced by another
- * board is a lesson counting on, which is the one case where not finishing is
- * the point — "one, two, three" would otherwise warn three times for working
- * exactly as written.
+ * The one board NOT measured is the one a lesson counts on from: `slate 3`
+ * followed by `slate 4` is three counters that stay and a fourth arriving, so
+ * the first board was never interrupted — it is still on screen. That is the
+ * state core's own rule (`carriedFrom`), asked here rather than guessed, so
+ * "one, two, three" stays quiet while `slate 3` wiped by `slate(2+3)` — a
+ * different board, built from nothing — is the loss it looks like.
+ *
+ * It also reads the fold's other rule: a board repeated verbatim is not raised
+ * again (the state core keeps the first instant), so the repeat must not reset
+ * what is being measured either.
  *
  * The compiler is the only place this can be said: it is the one that knows
  * both the schedule and the line of the story the board was raised on.
@@ -700,8 +741,10 @@ function boardsCutShort(events, durationMs) {
     const held = endsAt - raised.event.t_ms;
     if (held < needs) {
       cuts.push({
+        at: raised.at,
         line: raised.event.line,
         scene_index: raised.event.scene_index,
+        t_ms: raised.event.t_ms,
         detail: {
           type: 'policy',
           policy: 'slate-cut-short',
@@ -716,7 +759,7 @@ function boardsCutShort(events, durationMs) {
     raised = null;
   };
 
-  for (const event of events) {
+  for (const [index, event] of events.entries()) {
     if (event.source !== 'stage') continue;
     if (event.op === 'scene' || event.op === 'end') {
       measure(event.t_ms);
@@ -733,8 +776,16 @@ function boardsCutShort(events, durationMs) {
       shown = null;
       continue;
     }
+    // The same board again is not a new board — the fold keeps the first
+    // instant and lets it go on building — so neither the measurement nor the
+    // board being measured moves.
+    if (shown && sameBoard(board, shown)) continue;
     const from = carriedFrom(shown, board);
-    raised = { event, board, from };
+    // Counting on leaves the board it counts from standing; anything else
+    // replaces it, and a board replaced mid-build is a board the child never
+    // saw finish.
+    if (from === 0) measure(event.t_ms);
+    raised = { at: index, event, board, from };
     shown = board;
   }
   measure(durationMs);

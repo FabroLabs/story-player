@@ -756,6 +756,55 @@ test('a board whose own groups do not make its count never reaches a client', ()
   }
 });
 
+test('a board raised again on the same claim is not a second board', () => {
+  // The fold keeps the first instant and lets the build run on (a story
+  // repeating a total between two chunks), so the scan must not restart its
+  // measurement either — or a board that stood four seconds is reported as
+  // having had one.
+  const pause = (line, seconds) => ({ kind: 'cmd', line, cmd: 'pause', seconds });
+  const events = compile(lessonStory([
+    slate(1, 5, 'add', [2, 3]), pause(2, 3), slate(3, 5, 'add', [2, 3]), pause(4, 1), slate(5, 0),
+  ]));
+
+  assert.deepEqual(warnings(events), []);
+  assert.equal(ops(events, 'slate').length, 3, 'the op itself is still recorded, as written');
+});
+
+test('a board wiped by a DIFFERENT board is cut short, counting on or not', () => {
+  // "Replaced by another board" is not the same as "counted on from". Three
+  // counters wiped by a join 200 ms later is exactly the loss this warning
+  // exists for; three counters that become four are the lesson working.
+  const pause = (line, seconds) => ({ kind: 'cmd', line, cmd: 'pause', seconds });
+  const wiped = compile(lessonStory([
+    slate(1, 3), pause(2, 0.2), slate(3, 5, 'add', [2, 3]), pause(4, 4),
+  ]));
+  const shrunk = compile(lessonStory([slate(1, 5), pause(2, 0.1), slate(3, 3), pause(4, 3)]));
+  const countedOn = compile(lessonStory([
+    slate(1, 1), pause(2, 0.5), slate(3, 2), pause(4, 0.5), slate(5, 3), pause(6, 2),
+  ]));
+
+  assert.deepEqual(warnings(wiped).map((warning) => warning.held_ms), [200]);
+  assert.deepEqual(warnings(shrunk).map((warning) => warning.held_ms), [100]);
+  assert.deepEqual(warnings(countedOn), []);
+});
+
+test('the complaint is filed beside the board, not after the story', () => {
+  // A warning appended at the end lands AFTER the `end` op, and a prefix whose
+  // last event is not `end` is a prefix no player can close
+  // (`compile-prefix.test.mjs`). It also reads as a fault at the ending rather
+  // than at the line that raised the board.
+  const pause = (line, seconds) => ({ kind: 'cmd', line, cmd: 'pause', seconds });
+  const events = compile(lessonStory([slate(1, 5, 'add', [2, 3]), pause(2, 1)]));
+  const raised = events.find((event) => event.op === 'slate');
+  const complaint = events.find((event) => event.kind === 'warning');
+
+  assert.equal(events.at(-1).op, 'end');
+  assert.ok(events.indexOf(complaint) > events.indexOf(raised));
+  assert.ok(events.indexOf(complaint) < events.length - 1);
+  assert.equal(complaint.t_ms, raised.t_ms);
+  assert.equal(complaint.line, 1);
+});
+
 test('the compiler records no slate at a scene boundary — the cut is the state core job', () => {
   // The compiler records no reset — the state core clears it on the cut — so
   // what this pins is the ABSENCE of a second slate op at the scene boundary.
