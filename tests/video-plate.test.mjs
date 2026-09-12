@@ -12,6 +12,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { PLATE_READY_TIMEOUT_MS, createVideoPlate } from '../browser/v0/app/stage/video-plate.mjs';
+import { DEFAULT_STAGE_RESOLUTION, SLATE } from '../browser/v0/policy.mjs';
 import { fakeStageElements, installDom } from './_dom.mjs';
 
 const SCENE = {
@@ -19,7 +20,7 @@ const SCENE = {
   video: 'https://storage.example/fairytale-assets/plates/dell.mp4',
 };
 
-function harness(t, { play } = {}) {
+function harness(t, { play, watchProperties } = {}) {
   const dom = installDom();
   t.after(dom.restore);
   const timers = new Map();
@@ -38,6 +39,11 @@ function harness(t, { play } = {}) {
   });
 
   const elements = fakeStageElements();
+  if (watchProperties) {
+    const bag = elements.plate.style;
+    const original = bag.setProperty.bind(bag);
+    bag.setProperty = (name, value) => { watchProperties(name, value); original(name, value); };
+  }
   const plays = [];
   if (play) {
     elements.video.play = () => {
@@ -189,6 +195,51 @@ test('the camera is written once per framing, not once per frame', (t) => {
     'translate(0%, 0%) scale(1)',
   ]);
   assert.equal(elements.plate.style.transformOrigin, '0 0');
+});
+
+test('the counting board blurs the plate, and only for as long as it is up', (t) => {
+  const properties = [];
+  const { elements, plate } = harness(t, {
+    // Recorded through `setProperty`, which is how a custom property has to be
+    // written: assigning `style['--frost-ms']` is a no-op in a real browser and
+    // would leave the transition on the stylesheet's fallback with every test
+    // still green.
+    watchProperties: (name, value) => properties.push([name, value]),
+  });
+  const written = [];
+  Object.defineProperty(elements.plate.style, 'filter', {
+    get: () => written.at(-1),
+    set: (value) => written.push(value),
+  });
+
+  plate.frost(true, 1080);
+  plate.frost(true, 1080);
+  plate.frost(false, 1080);
+
+  // 2.2% of the plate's height, and written once each way: a filter re-assigned
+  // every frame is a compositor update per frame for a value that moves twice
+  // in a lesson.
+  assert.deepEqual(written, ['blur(23.76px)', '']);
+  // The easing is the stylesheet's; how long it lasts is the published number,
+  // handed to it rather than typed there a second time.
+  assert.deepEqual(properties, [['--frost-ms', `${SLATE.frost.ms}ms`]]);
+});
+
+test('the blur is measured against the plate, so a smaller stage blurs less', (t) => {
+  const { elements, plate } = harness(t);
+
+  plate.frost(true, 540);
+  assert.equal(elements.plate.style.filter, 'blur(11.88px)');
+
+  // A stage that has not said how big it is is the default one, not a plate
+  // blurred by NaN — which is a filter the browser drops entirely, leaving a
+  // sharp scene under the glass and nothing anywhere saying why.
+  plate.frost(false);
+  plate.frost(true);
+  assert.equal(
+    elements.plate.style.filter,
+    `blur(${(SLATE.frost.pct / 100) * DEFAULT_STAGE_RESOLUTION[1]}px)`,
+  );
 });
 
 test('a blocked autoplay is a postponement: the next touch tries again', (t) => {

@@ -19,6 +19,7 @@
 // One definition of "no camera at all", shared with the canvas above so that
 // the two planes cannot disagree about what an unusable framing means.
 import { WIDE_CAMERA } from './draw-list.mjs';
+import { DEFAULT_STAGE_RESOLUTION, SLATE } from '../../policy.mjs';
 
 // Long enough that a slow link is not called a failure, short enough that a
 // viewer is told something rather than watching a still poster forever. The
@@ -37,10 +38,15 @@ export function createVideoPlate(elements, { onWarning = () => {}, gestureTarget
   let running = false;
   let wanted = false;
   let destroyed = false;
+  let frosted = null;
 
   plate.style.transformOrigin = CAMERA_ORIGIN;
+  // The stylesheet owns WHEN the blur eases; how long it takes is a published
+  // number, so it reaches the stylesheet as a property rather than being typed
+  // a second time in CSS where nothing would ever notice the two disagreeing.
+  plate.style.setProperty('--frost-ms', `${SLATE.frost.ms}ms`);
 
-  return { showScene, aim, play, pause, quality, destroy };
+  return { showScene, aim, frost, play, pause, quality, destroy };
 
   /**
    * What the decoder has managed, for whoever is measuring.
@@ -135,6 +141,37 @@ export function createVideoPlate(elements, { onWarning = () => {}, gestureTarget
     plate.style.transform = next;
   }
 
+  /**
+   * Push the plate back while the counting board is up.
+   *
+   * A blur rather than a dim: the scene is still the place the lesson is
+   * happening in, and a child looking past the board should find the forest
+   * where they left it — just not sharp enough to count the leaves while they
+   * are counting apples.
+   *
+   * The radius is written in the STAGE's own pixels, which is why it takes the
+   * plate's height rather than measuring anything: the stage element is sized
+   * to the plate's resolution and the whole of it is scaled to fit the frame,
+   * so a radius fixed against the plate blurs the same fraction of the picture
+   * on a phone and on a television, and no layout is read to find out.
+   *
+   * Written only when it really changed, like `aim` and for the same reason: a
+   * filter re-assigned every frame is a compositor update per frame for a value
+   * that moves twice in a lesson. The easing lives in the stylesheet, and only
+   * `filter` is transitioned there — the camera reaches this same element on
+   * the story's clock, and a transition over THAT would slide the ground.
+   */
+  function frost(on, plateHeight) {
+    if (destroyed) return;
+    const height = Number.isFinite(plateHeight) && plateHeight > 0
+      ? plateHeight
+      : DEFAULT_STAGE_RESOLUTION[1];
+    const next = on ? `blur(${round((SLATE.frost.pct / 100) * height, 2)}px)` : '';
+    if (next === frosted) return;
+    frosted = next;
+    plate.style.filter = next;
+  }
+
   function play() {
     wanted = true;
     if (!destroyed) start();
@@ -152,6 +189,12 @@ export function createVideoPlate(elements, { onWarning = () => {}, gestureTarget
 
   function destroy() {
     if (destroyed) return;
+    // Before the gate closes: the canvas over this element is cleared on its
+    // own destroy, so a plate left frosted is a blurred picture with no board
+    // over it, on any host that keeps the stage on screen after the player has
+    // gone. `frost` refuses once `destroyed` is set, so it cannot be undone
+    // afterwards.
+    frost(false);
     destroyed = true;
     token += 1;
     releaseScene();

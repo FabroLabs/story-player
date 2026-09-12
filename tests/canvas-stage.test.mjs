@@ -450,11 +450,23 @@ test('the canvas is stretched to the logical stage by the stylesheet', () => {
   assert.match(rule, /height:\s*100%/);
 });
 
-test('nothing on the stage filters', () => {
+test('nothing on the stage filters, and the plate only eases the one it is given', () => {
   // A `filter` or a `backdrop-filter` on a stage element is a full-frame blur
   // over a playing video and a canvas, on every paint. The DOM stage carried
   // one per sprite and one over the whole picture at the start and the end;
   // both are what this rewrite is for.
+  //
+  // The counting board's frost is the one carve-out, and it is NOT in here: it
+  // is written onto the plate from JS (`video-plate.mjs::frost`) twice in a
+  // lesson, not stood up in the stylesheet for the whole story. What the
+  // stylesheet owns is how it eases — `filter` by name, never `all`, because
+  // the camera reaches the same element on the story's clock and a transition
+  // over THAT slides the ground under a frozen cast.
+  const plate = ruleFor(stylesheet(), '.plate-layer');
+  assert.ok(plate, 'no .plate-layer rule in styles.css — this reader is stale');
+  assert.match(plate, /transition:\s*filter\s+var\(--frost-ms/);
+  assert.doesNotMatch(plate, /transition:\s*all/);
+
   const css = stylesheet().replace(/\/\*[\s\S]*?\*\//g, '');
   const offenders = [];
   for (const [, selectors, body] of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
@@ -549,12 +561,13 @@ test('the board is painted outside the camera, and the picture is handed back un
   // board off the top of the frame.
   paintDrawList(context, list, { lookup: () => bitmap(512, 512), scale: 0.5 });
 
-  // A push-in doubles the cast under it; the board is drawn at the viewport
-  // alone, at the plate coordinates the list gave it.
-  assert.deepEqual(context.of('drawImage')[0].at(-1).transform, [1, 1, -240, -135]);
+  // A push-in doubles what is under it; the board — and the companion kept in
+  // the corner OVER the board — are drawn at the viewport alone, at the plate
+  // coordinates the list gave them.
   const numerals = context.of('fillText');
   assert.deepEqual(numerals.map((call) => call[0]), ['2', '2'], 'the badge and the equation');
   for (const call of numerals) assert.deepEqual(call.at(-1).transform, [0.5, 0.5, 0, 0]);
+  assert.deepEqual(context.of('drawImage')[0].at(-1).transform, [0.5, 0.5, 0, 0], 'the companion');
   // And put back, so a second frame painted from the same list starts where the
   // first one did rather than one camera behind it.
   assert.deepEqual(context.matrix(), [1, 1, -240, -135]);
@@ -710,8 +723,8 @@ test('the weak tier still draws the lesson, shadows or no shadows', () => {
   // The badge, then the whole equation.
   assert.deepEqual(context.of('fillText').map((call) => call[0]), ['3', '1', '+', '2', '=', '3']);
   // The panel's edge, a stem per apple, the gold ring on the newest counter and
-  // the highlight on the actor: the lesson survives a device too weak for a
-  // drop shadow, because it is what the story is for.
+  // the lesson's own highlight moved onto that counter: the lesson survives a
+  // device too weak for a drop shadow, because it is what the story is for.
   assert.equal(context.of('stroke').length, 6);
 });
 

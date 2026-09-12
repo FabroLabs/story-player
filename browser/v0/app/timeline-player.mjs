@@ -458,6 +458,11 @@ export function createTimelinePlayer({
       media.tick(t);
     }
     plate.aim(state.camera);
+    // The other half of "behind the board". Everything else the board changes
+    // about the picture is a draw-list answer, but the plate is a `<video>` on
+    // its own compositor layer that the canvas never touches, so the blur has
+    // to be asked for here — from the same instant, on the same clock.
+    plate.frost((state.slate?.count ?? 0) > 0, state.plate?.resolution?.[1]);
     paint(state, force);
     say(state.subtitle);
     // The wait owns the transport while it is up: the button says what happens

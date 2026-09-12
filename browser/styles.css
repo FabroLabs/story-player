@@ -121,6 +121,12 @@ button:focus-visible {
   z-index: 0;
   transform-origin: 0 0;
   transform: translate(0%, 0%) scale(1);
+  /* The counting board's blur, and ONLY it: named rather than `all`, because
+     the transform above shares this element and a transition over that is the
+     sliding ground the comment warns about. The duration is the player's
+     published number, set on the element by the same file that writes the
+     blur; the fallback is that number, for a stylesheet loaded on its own. */
+  transition: filter var(--frost-ms, 250ms) ease-out;
 }
 
 .plate-poster {

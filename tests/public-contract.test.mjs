@@ -121,6 +121,8 @@ test('v0 tooling keeps the exact semantics every client consumes', () => {
       tokenMs: 300,
       overshoot: 1.1,
       max: 20,
+      frost: { pct: 2.2, ms: 250 },
+      companion: { heightPct: 27, centreXPct: 90, feetPct: 99 },
     },
     highlight: { durationMs: 1500, pulses: 2, ringPct: 12 },
     audio: {

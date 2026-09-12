@@ -82,6 +82,17 @@ export const SLATE = Object.freeze({
   // holds the curve to it.
   overshoot: 1.1,
   max: 20,
+  // What happens BEHIND the board while it is up: the plate is blurred so the
+  // scene reads as a backdrop rather than as something still worth watching,
+  // by this fraction of the plate's own height (the old renderer's 16px at
+  // 720), eased over this many milliseconds. The blur is CSS on the plate
+  // layer, not a draw-list number - the plate is a `<video>` and never enters
+  // the canvas - so `ms` reaches the stylesheet as a custom property.
+  frost: Object.freeze({ pct: 2.2, ms: 250 }),
+  // Where the one character left visible stands while the board is up: small,
+  // in the corner, over the panel. Percentages of the plate, feet on the line
+  // rather than centred, because a companion is stood on the floor.
+  companion: Object.freeze({ heightPct: 27, centreXPct: 90, feetPct: 99 }),
 });
 
 // `pulses` is how many times the ring brightens across `durationMs`, and
