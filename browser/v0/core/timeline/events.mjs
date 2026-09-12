@@ -26,6 +26,7 @@ export const TIMELINE_OPS = Object.freeze([
   'settle',
   'depart',
   'exit',
+  'remove_object',
   'push_in',
   'pull_out',
   'shot',

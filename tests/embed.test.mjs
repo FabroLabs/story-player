@@ -62,6 +62,46 @@ test('mounts one self-contained Shadow DOM player from parsed JSON', async (t) =
   assert.equal(typeof player.destroy, 'function');
 });
 
+test('the ceremony opens with the kicker it was mounted with, or the bedtime line', async (t) => {
+  const dom = installDom();
+  t.after(dom.restore);
+  const mounted = [];
+  const eyebrowOf = (options) => {
+    const host = document.createElement('div');
+    mounted.push(createStoryPlayer(host, {
+      story: VALID_STORY, assetBase: 'https://storage.example/', ...options,
+    }));
+    // Scoped to the ceremony: the debug drawer's header wears the same class.
+    return findByClass(findByClass(host.shadowRoot, 'start-ceremony'), 'eyebrow').textContent;
+  };
+
+  assert.equal(eyebrowOf({ kicker: 'a counting lesson' }), 'a counting lesson');
+  assert.equal(eyebrowOf({ kicker: '  a counting lesson  ' }), 'a counting lesson');
+  assert.equal(eyebrowOf({}), 'a bedtime story');
+  // A host's mistake still reads as a sentence. An empty eyebrow over the
+  // story's name is a hole in the opening screen that nobody asked for, and
+  // the bedtime line is true of every story this player can be handed.
+  for (const kicker of [null, 42, '   ', {}, ['a counting lesson']]) {
+    assert.equal(eyebrowOf({ kicker }), 'a bedtime story', JSON.stringify(kicker));
+  }
+
+  // Mounted players are opening their assets; torn down only once each has
+  // settled, or the aborts land after this test has ended.
+  await Promise.allSettled(mounted.map((player) => player.ready));
+  for (const player of mounted) player.destroy();
+});
+
+// The mount is behind a ShadowRoot and this file's DOM is the hand-written one,
+// which carries children and classes but no selector engine.
+function findByClass(node, className) {
+  if (node?.className === className) return node;
+  for (const child of node?.children ?? []) {
+    const found = findByClass(child, className);
+    if (found) return found;
+  }
+  return null;
+}
+
 test('two players own independent roots and lifecycle state', async (t) => {
   const dom = installDom();
   t.after(dom.restore);
@@ -109,38 +149,42 @@ test('refuses unresolved cast references during ready instead of after the begin
   player.destroy();
 });
 
-test('opens a lesson that rings a prop, and still refuses a ring around nobody', async (t) => {
+test('opens a lesson that rings and takes a prop, and still refuses either around nobody', async (t) => {
   const dom = installDom();
   t.after(dom.restore);
   // The mount door used to hold every subject to the cast, so the numeral card a
   // maths lesson rings — a prop, never cast — turned the whole lesson into "this
-  // story could not be opened". The compiler resolves a ring against the props
-  // standing in the scene as well as the cast; this is the same rule at the door.
-  const lesson = (slug) => ({
+  // story could not be opened". `take` carries its prop the same way a ring
+  // does, in `subjects` with no `objects` beside it, and the compiler resolves
+  // both against the props standing in the scene as well as the cast; this is
+  // that same rule at the door, for both of them.
+  const lesson = (cmd, slug) => ({
     ...VALID_STORY,
     objects: { numeral_3: { height_cm: 40, svg: 'assets/three.svg' } },
     scenes: [{
       ...VALID_STORY.scenes[0],
       steps: [
         { kind: 'cmd', cmd: 'place_object', objects: ['numeral_3'], line: 6 },
-        { kind: 'cmd', cmd: 'highlight', subjects: [slug], line: 7 },
+        { kind: 'cmd', cmd, subjects: [slug], line: 7 },
       ],
     }],
   });
 
-  const player = createStoryPlayer(document.createElement('div'), {
-    story: lesson('numeral_3'),
-    assetBase: 'https://storage.example/',
-  });
-  await player.ready;
-  player.destroy();
+  for (const cmd of ['highlight', 'take']) {
+    const player = createStoryPlayer(document.createElement('div'), {
+      story: lesson(cmd, 'numeral_3'),
+      assetBase: 'https://storage.example/',
+    });
+    await player.ready;
+    player.destroy();
 
-  const wrong = createStoryPlayer(document.createElement('div'), {
-    story: lesson('fox'),
-    assetBase: 'https://storage.example/',
-  });
-  await assert.rejects(wrong.ready, /fox.*absent from cast and objects/);
-  wrong.destroy();
+    const wrong = createStoryPlayer(document.createElement('div'), {
+      story: lesson(cmd, 'fox'),
+      assetBase: 'https://storage.example/',
+    });
+    await assert.rejects(wrong.ready, /fox.*absent from cast and objects/, cmd);
+    wrong.destroy();
+  }
 });
 
 test('refuses a second live owner and preserves foreign ShadowRoot content', async (t) => {

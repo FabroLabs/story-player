@@ -1,6 +1,11 @@
 const STYLESHEET = new URL('./styles.css', import.meta.url).href;
+// The line over the story's name in the opening ceremony. A host that mounts
+// something other than a bedtime story — a counting lesson, say — says so with
+// `kicker`; anything that is not a string with words in it is a host's mistake,
+// and the bedtime line is the one every story in this player can honestly wear.
+const KICKER = 'a bedtime story';
 
-export function createPlayerTemplate(root, { stylesheet = STYLESHEET } = {}) {
+export function createPlayerTemplate(root, { stylesheet = STYLESHEET, kicker } = {}) {
   const document = root.ownerDocument ?? globalThis.document;
   const link = element(document, 'link', { rel: 'stylesheet', href: stylesheet });
   // No chrome of our own above the picture: what a site embeds is a rectangle
@@ -41,7 +46,7 @@ export function createPlayerTemplate(root, { stylesheet = STYLESHEET } = {}) {
   const status = element(document, 'p', { className: 'load-status', role: 'status', text: 'loading the story bundle' });
   const ceremony = element(document, 'div', { className: 'start-ceremony' }, [
     element(document, 'div', { className: 'ceremony-glow', 'aria-hidden': 'true' }),
-    element(document, 'p', { className: 'eyebrow', text: 'a bedtime story' }), title, start, status,
+    element(document, 'p', { className: 'eyebrow', text: eyebrowText(kicker) }), title, start, status,
   ]);
   const subtitle = element(document, 'p', { className: 'subtitle' });
   const mediaNote = element(document, 'p', { className: 'media-note' });
@@ -237,6 +242,10 @@ function createControlBar(document) {
   ]);
   root.hidden = true;
   return { root, scrub, fill, handle, at, total, remaining, back, forward, toggle };
+}
+
+function eyebrowText(kicker) {
+  return typeof kicker === 'string' && kicker.trim() ? kicker.trim() : KICKER;
 }
 
 function element(document, tag, attributes = {}, children = []) {

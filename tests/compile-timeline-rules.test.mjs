@@ -883,6 +883,73 @@ test('a highlight sharing a together with the put it rings is applied after it',
   assert.deepEqual(warnings(events), []);
 });
 
+// --- take ------------------------------------------------------------------
+
+const take = (line, ...subjects) => ({ kind: 'cmd', line, cmd: 'take', subjects });
+const putProp = (line, slug) => ({
+  kind: 'cmd', line, cmd: 'put', subjects: [slug], objects: [slug], position: 'center', facing: null,
+});
+
+test('a take removes the prop that was put down, and says which', () => {
+  const events = compile(lessonStory([putProp(1, 'acorn'), take(2, 'acorn')]));
+
+  assert.deepEqual(
+    ops(events, 'remove_object').map((event) => [event.slug, event.line]),
+    [['acorn', 2]],
+  );
+  assert.deepEqual(warnings(events), []);
+});
+
+test('a take of a prop nothing put down is refused and named', () => {
+  const events = compile(lessonStory([take(2, 'acorn')]));
+
+  assert.deepEqual(ops(events, 'remove_object'), []);
+  assert.deepEqual(warnings(events), [{ type: 'policy', policy: 'take-missing', slug: 'acorn' }]);
+});
+
+test('the same prop cannot be taken twice', () => {
+  const events = compile(lessonStory([putProp(1, 'acorn'), take(2, 'acorn'), take(3, 'acorn')]));
+
+  assert.deepEqual(ops(events, 'remove_object').map((event) => event.slug), ['acorn']);
+  assert.deepEqual(warnings(events), [{ type: 'policy', policy: 'take-missing', slug: 'acorn' }]);
+});
+
+test('a take reaches only the props ITS scene put down', () => {
+  const story = lessonStory([putProp(1, 'acorn')]);
+  story.scenes.push({ ...story.scenes[0], line: 20, steps: [take(21, 'acorn')] });
+  const events = compile(story);
+
+  assert.deepEqual(ops(events, 'remove_object'), []);
+  assert.deepEqual(warnings(events), [{ type: 'policy', policy: 'take-missing', slug: 'acorn' }]);
+});
+
+test('a take aimed at a character leaves them standing, and says so', () => {
+  // Props are taken; characters leave by `travel`. The refusal is the prop
+  // rule's own — no prop of that name was put down in this scene — and it is
+  // the whole guard: a `remove_object` on a character would vanish somebody
+  // mid-scene with no walk and no fade.
+  const events = compile(lessonStory([put(1, 'ruby', 'center'), take(2, 'ruby')]));
+
+  assert.deepEqual(ops(events, 'remove_object'), []);
+  assert.deepEqual(warnings(events), [{ type: 'policy', policy: 'take-missing', slug: 'ruby' }]);
+});
+
+test('a ring finds nothing where a take has been', () => {
+  const events = compile(lessonStory([putProp(1, 'acorn'), take(2, 'acorn'), highlight(3, 'acorn')]));
+
+  assert.deepEqual(ops(events, 'highlight'), []);
+  assert.deepEqual(warnings(events), [{ type: 'policy', policy: 'highlight-missing', slug: 'acorn' }]);
+});
+
+test('a take that names nobody is a step that did nothing, and it says so', () => {
+  for (const subjects of [undefined, [], null]) {
+    const events = compile(lessonStory([{ kind: 'cmd', line: 5, cmd: 'take', subjects }]));
+
+    assert.deepEqual(ops(events, 'remove_object'), [], JSON.stringify(subjects));
+    assert.deepEqual(warnings(events), [{ type: 'policy', policy: 'take-unaimed' }]);
+  }
+});
+
 test('a command this player does not perform keeps its own line', () => {
   const events = compile(baseStory([{ kind: 'cmd', line: 44, cmd: 'not_real' }]));
   const warning = events.find((event) => event.kind === 'warning');

@@ -1,0 +1,841 @@
+{
+  "duration_ms": 20815,
+  "events": [
+    {
+      "line": 13,
+      "op": "scene",
+      "place": "forest_clearing",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 0
+    },
+    {
+      "cmd": "put",
+      "detail": {
+        "beside": null,
+        "facing": null,
+        "objects": [],
+        "position": "center",
+        "subjects": [
+          "squirrel"
+        ],
+        "zone": null
+      },
+      "kind": "cmd",
+      "line": 14,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 0
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "right",
+        "slug": "squirrel",
+        "verb": "idle"
+      },
+      "kind": "warning",
+      "line": 14,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 0
+    },
+    {
+      "clip": "idle_right",
+      "line": 14,
+      "op": "place",
+      "scene_index": 0,
+      "slug": "squirrel",
+      "source": "stage",
+      "t_ms": 0,
+      "x": 46.07000000000001
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/a0f0acf8b92b7b387b487e43aee06dc9d8471c845daa5269bda6933a31c53df8.m4a",
+        "duration_s": 2.819,
+        "text": "Nutmeg found two acorns by the stump."
+      },
+      "kind": "chunk",
+      "line": 16,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 0
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 0,
+      "text": "Nutmeg found two acorns by the stump."
+    },
+    {
+      "cmd": "put",
+      "detail": {
+        "beside": null,
+        "facing": null,
+        "object_zones": {
+          "acorn": "foreground"
+        },
+        "objects": [
+          "acorn"
+        ],
+        "position": "left_edge",
+        "subjects": [
+          "acorn"
+        ],
+        "zone": null
+      },
+      "kind": "cmd",
+      "line": 17,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 2819
+    },
+    {
+      "line": 17,
+      "op": "place_object",
+      "scene_index": 0,
+      "slug": "acorn",
+      "source": "stage",
+      "t_ms": 2819,
+      "x": 25.454,
+      "zone": "foreground"
+    },
+    {
+      "cmd": "slate",
+      "detail": {
+        "count": 2,
+        "groups": [
+          2
+        ],
+        "mode": "count",
+        "subjects": []
+      },
+      "kind": "cmd",
+      "line": 18,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 2819
+    },
+    {
+      "count": 2,
+      "groups": [
+        2
+      ],
+      "line": 18,
+      "mode": "count",
+      "op": "slate",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 2819
+    },
+    {
+      "cmd": "sound",
+      "detail": {
+        "name": "pop",
+        "subjects": []
+      },
+      "kind": "cmd",
+      "line": 19,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 2819
+    },
+    {
+      "cmd": "pause",
+      "detail": {
+        "seconds": 0.5,
+        "subjects": []
+      },
+      "kind": "cmd",
+      "line": 20,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 2819
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/bc180ab97280eb371dbd6b18e7caf33fb02d20207815e2e6792ce6dd23931eae.m4a",
+        "duration_s": 2.416,
+        "text": "Then three pinecones under the ferns."
+      },
+      "kind": "chunk",
+      "line": 20,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 3319
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 3319,
+      "text": "Then three pinecones under the ferns."
+    },
+    {
+      "cmd": "put",
+      "detail": {
+        "beside": null,
+        "facing": null,
+        "object_zones": {
+          "pinecone": "foreground"
+        },
+        "objects": [
+          "pinecone"
+        ],
+        "position": "left_third",
+        "subjects": [
+          "pinecone"
+        ],
+        "zone": null
+      },
+      "kind": "cmd",
+      "line": 21,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 5735
+    },
+    {
+      "line": 21,
+      "op": "place_object",
+      "scene_index": 0,
+      "slug": "pinecone",
+      "source": "stage",
+      "t_ms": 5735,
+      "x": 35.762,
+      "zone": "foreground"
+    },
+    {
+      "cmd": "slate",
+      "detail": {
+        "count": 5,
+        "groups": [
+          2,
+          3
+        ],
+        "mode": "add",
+        "subjects": []
+      },
+      "kind": "cmd",
+      "line": 22,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 5735
+    },
+    {
+      "count": 5,
+      "groups": [
+        2,
+        3
+      ],
+      "line": 22,
+      "mode": "add",
+      "op": "slate",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 5735
+    },
+    {
+      "cmd": "sound",
+      "detail": {
+        "name": "pop",
+        "subjects": []
+      },
+      "kind": "cmd",
+      "line": 23,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 5735
+    },
+    {
+      "cmd": "pause",
+      "detail": {
+        "seconds": 0.5,
+        "subjects": []
+      },
+      "kind": "cmd",
+      "line": 24,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 5735
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/5a8d6f2a163eb0ca11a92c3d5f29503a7da4378d7947e96e903baa896a06289e.m4a",
+        "duration_s": 3.221,
+        "text": "Two acorns and three pinecones. That makes five."
+      },
+      "kind": "chunk",
+      "line": 24,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 6235
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 6235,
+      "text": "Two acorns and three pinecones. That makes five."
+    },
+    {
+      "cmd": "emote",
+      "detail": {
+        "emotion": "happy",
+        "facing": null,
+        "subjects": [
+          "squirrel"
+        ]
+      },
+      "kind": "cmd",
+      "line": 25,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 9456
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "right",
+        "slug": "squirrel",
+        "verb": "happy"
+      },
+      "kind": "warning",
+      "line": 25,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 9456
+    },
+    {
+      "clip": "happy_right_jumping",
+      "line": 25,
+      "op": "clip",
+      "scene_index": 0,
+      "slug": "squirrel",
+      "source": "stage",
+      "t_ms": 9456
+    },
+    {
+      "cmd": "slate",
+      "detail": {
+        "count": 0,
+        "groups": [],
+        "mode": "count",
+        "subjects": []
+      },
+      "kind": "cmd",
+      "line": 26,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 9456
+    },
+    {
+      "count": 0,
+      "groups": [],
+      "line": 26,
+      "mode": "count",
+      "op": "slate",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 9456
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 9456,
+      "text": ""
+    },
+    {
+      "line": null,
+      "op": "camera_reset",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 9456
+    },
+    {
+      "line": 28,
+      "op": "scene",
+      "place": "forest_clearing",
+      "scene_index": 1,
+      "source": "stage",
+      "t_ms": 9456
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "right",
+        "slug": "squirrel",
+        "verb": "idle"
+      },
+      "kind": "warning",
+      "line": 28,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 9456
+    },
+    {
+      "clip": "idle_right",
+      "line": 28,
+      "op": "place",
+      "scene_index": 1,
+      "slug": "squirrel",
+      "source": "stage",
+      "t_ms": 9456,
+      "x": 46.07000000000001
+    },
+    {
+      "cmd": "put",
+      "detail": {
+        "beside": null,
+        "facing": null,
+        "objects": [],
+        "position": "center",
+        "subjects": [
+          "squirrel"
+        ],
+        "zone": null
+      },
+      "kind": "cmd",
+      "line": 29,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 9456
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "right",
+        "slug": "squirrel",
+        "verb": "idle"
+      },
+      "kind": "warning",
+      "line": 29,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 9456
+    },
+    {
+      "clip": "idle_right",
+      "line": 29,
+      "op": "place",
+      "scene_index": 1,
+      "slug": "squirrel",
+      "source": "stage",
+      "t_ms": 9456,
+      "x": 46.07000000000001
+    },
+    {
+      "cmd": "put",
+      "detail": {
+        "beside": null,
+        "facing": null,
+        "object_zones": {
+          "acorn": "foreground"
+        },
+        "objects": [
+          "acorn"
+        ],
+        "position": "left_edge",
+        "subjects": [
+          "acorn"
+        ],
+        "zone": null
+      },
+      "kind": "cmd",
+      "line": 30,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 9456
+    },
+    {
+      "line": 30,
+      "op": "place_object",
+      "scene_index": 1,
+      "slug": "acorn",
+      "source": "stage",
+      "t_ms": 9456,
+      "x": 25.454,
+      "zone": "foreground"
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/1ed26c23d2c907ee9b81654078ce5824168ddcf780855ec3c0dbdd3a0514a8d5.m4a",
+        "duration_s": 2.819,
+        "text": "Five treasures in the pile, all counted."
+      },
+      "kind": "chunk",
+      "line": 32,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 9456
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 1,
+      "source": "stage",
+      "t_ms": 9456,
+      "text": "Five treasures in the pile, all counted."
+    },
+    {
+      "cmd": "put",
+      "detail": {
+        "beside": null,
+        "facing": null,
+        "object_zones": {
+          "numeral_5": "foreground"
+        },
+        "objects": [
+          "numeral_5"
+        ],
+        "position": "right_third",
+        "subjects": [
+          "numeral_5"
+        ],
+        "zone": null
+      },
+      "kind": "cmd",
+      "line": 33,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 12275
+    },
+    {
+      "line": 33,
+      "op": "place_object",
+      "scene_index": 1,
+      "slug": "numeral_5",
+      "source": "stage",
+      "t_ms": 12275,
+      "x": 56.378,
+      "zone": "foreground"
+    },
+    {
+      "cmd": "slate",
+      "detail": {
+        "count": 5,
+        "groups": [
+          5
+        ],
+        "mode": "count",
+        "subjects": []
+      },
+      "kind": "cmd",
+      "line": 34,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 12275
+    },
+    {
+      "count": 5,
+      "groups": [
+        5
+      ],
+      "line": 34,
+      "mode": "count",
+      "op": "slate",
+      "scene_index": 1,
+      "source": "stage",
+      "t_ms": 12275
+    },
+    {
+      "cmd": "pause",
+      "detail": {
+        "seconds": 0.5,
+        "subjects": []
+      },
+      "kind": "cmd",
+      "line": 35,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 12275
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/1dc54f926d5f6667c94ac349aab3b7a17edf0388e6f3472b27a868300db166e2.m4a",
+        "duration_s": 3.221,
+        "text": "Two of them go home with the badger."
+      },
+      "kind": "chunk",
+      "line": 35,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 12775
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 1,
+      "source": "stage",
+      "t_ms": 12775,
+      "text": "Two of them go home with the badger."
+    },
+    {
+      "detail": {
+        "steps": [
+          {
+            "cmd": "slate",
+            "count": 3,
+            "groups": [
+              5,
+              2
+            ],
+            "kind": "cmd",
+            "line": 37,
+            "mode": "subtract",
+            "subjects": []
+          },
+          {
+            "cmd": "take",
+            "kind": "cmd",
+            "line": 38,
+            "subjects": [
+              "numeral_5"
+            ]
+          }
+        ]
+      },
+      "kind": "together",
+      "line": 36,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 15996
+    },
+    {
+      "cmd": "slate",
+      "detail": {
+        "count": 3,
+        "groups": [
+          5,
+          2
+        ],
+        "mode": "subtract",
+        "subjects": [],
+        "together_line": 36
+      },
+      "kind": "cmd",
+      "line": 37,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 15996
+    },
+    {
+      "cmd": "take",
+      "detail": {
+        "subjects": [
+          "numeral_5"
+        ],
+        "together_line": 36
+      },
+      "kind": "cmd",
+      "line": 38,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 15996
+    },
+    {
+      "count": 3,
+      "groups": [
+        5,
+        2
+      ],
+      "line": 37,
+      "mode": "subtract",
+      "op": "slate",
+      "scene_index": 1,
+      "source": "stage",
+      "t_ms": 15996
+    },
+    {
+      "line": 38,
+      "op": "remove_object",
+      "scene_index": 1,
+      "slug": "numeral_5",
+      "source": "stage",
+      "t_ms": 15996
+    },
+    {
+      "cmd": "pause",
+      "detail": {
+        "seconds": 2,
+        "subjects": []
+      },
+      "kind": "cmd",
+      "line": 39,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 15996
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/b09dbb65946ca7256de771fa77a1d51add0d6da46711ca9cdce8270367643110.m4a",
+        "duration_s": 2.819,
+        "text": "Five, take away two. Three are left."
+      },
+      "kind": "chunk",
+      "line": 40,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 17996
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 1,
+      "source": "stage",
+      "t_ms": 17996,
+      "text": "Five, take away two. Three are left."
+    },
+    {
+      "cmd": "put",
+      "detail": {
+        "beside": null,
+        "facing": null,
+        "object_zones": {
+          "mushroom": "foreground"
+        },
+        "objects": [
+          "mushroom"
+        ],
+        "position": "right_edge",
+        "subjects": [
+          "mushroom"
+        ],
+        "zone": null
+      },
+      "kind": "cmd",
+      "line": 41,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 20815
+    },
+    {
+      "line": 41,
+      "op": "place_object",
+      "scene_index": 1,
+      "slug": "mushroom",
+      "source": "stage",
+      "t_ms": 20815,
+      "x": 66.686,
+      "zone": "foreground"
+    },
+    {
+      "cmd": "highlight",
+      "detail": {
+        "subjects": [
+          "mushroom"
+        ]
+      },
+      "kind": "cmd",
+      "line": 42,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 20815
+    },
+    {
+      "line": 42,
+      "op": "highlight",
+      "scene_index": 1,
+      "slug": "mushroom",
+      "source": "stage",
+      "t_ms": 20815
+    },
+    {
+      "cmd": "emote",
+      "detail": {
+        "emotion": "happy",
+        "facing": null,
+        "subjects": [
+          "squirrel"
+        ]
+      },
+      "kind": "cmd",
+      "line": 43,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 20815
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "right",
+        "slug": "squirrel",
+        "verb": "happy"
+      },
+      "kind": "warning",
+      "line": 43,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 20815
+    },
+    {
+      "clip": "happy_right_jumping",
+      "line": 43,
+      "op": "clip",
+      "scene_index": 1,
+      "slug": "squirrel",
+      "source": "stage",
+      "t_ms": 20815
+    },
+    {
+      "cmd": "slate",
+      "detail": {
+        "count": 0,
+        "groups": [],
+        "mode": "count",
+        "subjects": []
+      },
+      "kind": "cmd",
+      "line": 44,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 20815
+    },
+    {
+      "count": 0,
+      "groups": [],
+      "line": 44,
+      "mode": "count",
+      "op": "slate",
+      "scene_index": 1,
+      "source": "stage",
+      "t_ms": 20815
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 1,
+      "source": "stage",
+      "t_ms": 20815,
+      "text": ""
+    },
+    {
+      "line": null,
+      "op": "camera_reset",
+      "scene_index": 1,
+      "source": "stage",
+      "t_ms": 20815
+    },
+    {
+      "line": null,
+      "op": "end",
+      "scene_index": 1,
+      "source": "stage",
+      "t_ms": 20815
+    }
+  ],
+  "storylang_version": 0,
+  "timeline_version": 1,
+  "title": "Golden: the board adds and takes away"
+}

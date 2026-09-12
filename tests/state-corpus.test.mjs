@@ -9,7 +9,7 @@ import { compileTimeline } from '../browser/v0/core/timeline/compile.mjs';
 import { STEMS, read } from './_parity.mjs';
 
 /**
- * `stateAt` against the seven published timelines.
+ * `stateAt` against the nine published timelines.
  *
  * The compiler is pinned to these byte for byte, so they are also the only
  * corpus in the repository where "what the story asked for" is known
@@ -31,6 +31,7 @@ const STORIES = STEMS.map((stem) => ({
 // to one point are recorded on one point. Measured, so a rule change moves the
 // number rather than passing quietly.
 const SEPARATING = new Map([
+  ['golden_board', 2],
   ['golden_camera_moves', 4],
   ['golden_heal_travel', 1],
   ['golden_push_dusk', 0],
@@ -41,10 +42,11 @@ const SEPARATING = new Map([
   ['thud_in_the_forest_scene1', 0],
 ]);
 
-// Walks that run to their end untouched. Only two of the seven stories walk
+// Walks that run to their end untouched. Only two of the nine stories walk
 // anybody across a stage at all — the rest place, emote and travel — so the
 // count is here to say which, and to notice if a rule ever stops one landing.
 const WALKS = new Map([
+  ['golden_board', 0],
   ['golden_camera_moves', 1],
   ['golden_heal_travel', 0],
   ['golden_push_dusk', 0],
@@ -58,10 +60,11 @@ const WALKS = new Map([
 // Placements onto a band with nobody else on it. That is the exact condition
 // under which the spread cannot have touched the character — `spreadAlongBand`
 // is not even called for a band of one — so it is the only case where the
-// picture owes the published x to the digit. Five in the whole corpus: these
+// picture owes the published x to the digit. Seven in the whole corpus: these
 // stories are crowded, which is the point of them. Counted so that a change
 // which quietly makes the number zero has to say so.
 const EXACT_PLACEMENTS = new Map([
+  ['golden_board', 1],
   ['golden_camera_moves', 1],
   ['golden_heal_travel', 0],
   ['golden_push_dusk', 3],
@@ -633,7 +636,7 @@ function recordedAt(timeline, tMs) {
     if (event.source !== 'stage') continue;
     if (event.op === 'scene') x.clear();
     if (['place', 'place_object', 'move', 'depart'].includes(event.op)) x.set(event.slug, event.x);
-    if (event.op === 'exit') x.delete(event.slug);
+    if (event.op === 'exit' || event.op === 'remove_object') x.delete(event.slug);
   }
   return x;
 }

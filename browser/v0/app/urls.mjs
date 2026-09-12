@@ -344,12 +344,12 @@ function validateSteps(steps, story, where) {
         throw new Error(`${stepWhere} object ${JSON.stringify(slug)} is absent from objects`);
       }
     }
-    // `highlight` is the one command whose subject may be a prop: a maths lesson
-    // rings the numeral card it just spoke, and a shapes lesson rings a shape
-    // card. The compiler resolves a ring against the props standing in the scene
+    // `highlight` and `take` are the commands whose subject may be a prop: a
+    // maths lesson rings the numeral card it just spoke, and takes it away
+    // again. The compiler resolves both against the props standing in the scene
     // as well as the cast, so refusing the same slug at the door would turn every
     // such lesson into "this story could not be opened" — which is what it did.
-    const named = step.cmd === 'highlight' ? story.objects : null;
+    const named = step.cmd === 'highlight' || step.cmd === 'take' ? story.objects : null;
     for (const slug of step.subjects ?? []) {
       if (objectSlugs.has(slug)) continue;
       if (named && Object.hasOwn(named, slug)) continue;

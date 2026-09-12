@@ -5,7 +5,7 @@ export function createReactStoryPlayer(React) {
   const { createElement, useEffect, useRef } = React;
 
   function StoryPlayer({
-    story, assetBase, plates = null, stream = null, cards = null,
+    story, assetBase, plates = null, stream = null, cards = null, kicker = null,
     debug = false, perf = false, children: _children, ref: _ref, ...host
   }) {
     // A story still being written is grown through `appendScene` on the handle,
@@ -19,13 +19,13 @@ export function createReactStoryPlayer(React) {
     const hostRef = useRef(null);
     useEffect(() => {
       const player = createStoryPlayer(hostRef.current, {
-        story, assetBase, plates, cards, debug, perf,
+        story, assetBase, plates, cards, kicker, debug, perf,
       });
       void player.ready.catch(() => {
         // The plain player owns and renders its initialization error surface.
       });
       return () => player.destroy();
-    }, [story, assetBase, plates, cards, debug, perf]);
+    }, [story, assetBase, plates, cards, kicker, debug, perf]);
     return createElement('div', { ...host, ref: hostRef });
   }
 
