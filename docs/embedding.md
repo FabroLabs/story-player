@@ -533,6 +533,30 @@ the story runs; the tier never climbs back inside one session. A browser that
 gives no 2D context at all is not a failure to mount: the canvas draws nothing,
 one warning names the reason, and the poster, subtitles and audio still play.
 
+## The counting board, as a contact sheet
+
+`npm run sheet:board` paints a lesson's board at five instants of each build
+into a single PNG. It is dev tooling, not a test: it asserts nothing, it is
+never run by CI, and it exists because the board ARRIVES rather than appears,
+and no one screenshot shows that.
+
+A row is the life of ONE board, and its instants are clamped to that life rather
+than simply offset from it. A counting lesson raises `slate 1`, `slate 2` and
+`slate 3` about half a second apart, so a blind `+3.2 s` would paint the third
+board under the first one's caption; instead the row holds at its own last
+moment, its header says how long the board was held, and its final cell is
+whatever ended it — the next board, the scene's cut, or the story.
+
+`--bundle <path>` (repeatable) takes real built bundles instead of the fixtures
+in `tests/fixtures/board/`; `--out` moves the PNG and `--scale` resizes it.
+`--dump` writes each instant's `slate` and `ring` draw-list commands to stdout
+as JSON lines — the pure answer, and the part worth diffing; progress and page
+errors go to stderr, so the stream pipes clean into `jq` or a differ.
+
+The plate is a DOM `<video>`, so it is never in these pixels: a flat ground
+stands in for it, and anything to be judged against a real plate — the frost,
+above all — needs a mounted player.
+
 ## Stable and immutable URLs
 
 Use stable when applications should receive a repaired player after reloading:
