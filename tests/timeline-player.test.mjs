@@ -1056,8 +1056,8 @@ test('the lesson repaints on its own clock, and stops when it has landed', async
   // build — every counter, every cross and every token — and one that settled
   // after the first pop would freeze the rest of the lesson on a still scene.
   assert.notDeepEqual(frame(2_500), frame(2_600), 'the build stopped at the first pop');
-  // The running total, and then the equation: the last things to land.
-  assert.deepEqual(numerals(frame(2_900)), ['3', '3']);
+  // The equation: the last thing to land.
+  assert.deepEqual(numerals(frame(2_900)), ['3']);
 
   // And once it has landed, a still scene is free again — the overlay's own
   // progress reaches its ceiling and stops making every instant different.

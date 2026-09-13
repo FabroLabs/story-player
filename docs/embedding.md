@@ -90,8 +90,8 @@ stay ordinary DOM.
 
 A lesson draws two things a bedtime story never asks for, and both come through
 the same path. `slate` is the counting board: a translucent panel over the
-scene carrying one counter per thing counted, a running-count badge, and the
-equation written under them. It is the whole claim rather than a total—`mode`
+scene carrying one counter per thing counted and the equation written under
+them. It is the whole claim rather than a total—`mode`
 is `count`, `add` or `subtract`, `groups` is what it was reached from (`[n]`,
 `[a, b]` addends, or `[start, taken]`), and `count` is the answer—so a client
 can draw two addends in two colours and cross out what a take-away took. How

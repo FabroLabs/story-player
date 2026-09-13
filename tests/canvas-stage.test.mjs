@@ -565,7 +565,7 @@ test('the board is painted outside the camera, and the picture is handed back un
   // the corner OVER the board — are drawn at the viewport alone, at the plate
   // coordinates the list gave them.
   const numerals = context.of('fillText');
-  assert.deepEqual(numerals.map((call) => call[0]), ['2', '2'], 'the badge and the equation');
+  assert.deepEqual(numerals.map((call) => call[0]), ['2'], 'the equation');
   for (const call of numerals) assert.deepEqual(call.at(-1).transform, [0.5, 0.5, 0, 0]);
   assert.deepEqual(context.of('drawImage')[0].at(-1).transform, [0.5, 0.5, 0, 0], 'the companion');
   // And put back, so a second frame painted from the same list starts where the
@@ -609,8 +609,8 @@ test('the counters stand on the panel, each on a pad of its own', () => {
     assert.ok(pad, `nothing was drawn at counter ${counter.n}`);
     assert.ok(pad[2] > counter.r, 'the pad is smaller than the apple it holds');
   }
-  // The badge's numeral, and the equation's, are the only text on the board.
-  assert.deepEqual(context.of('fillText').map((call) => call[0]), ['2', '2']);
+  // The equation's numeral is the only text on the board.
+  assert.deepEqual(context.of('fillText').map((call) => call[0]), ['2']);
   assert.equal(context.textBaseline, 'middle');
 });
 
@@ -720,8 +720,8 @@ test('the weak tier still draws the lesson, shadows or no shadows', () => {
   paintDrawList(context, list, { lookup: () => bitmap(512, 512), scale: 1, shadows: false });
 
   assert.equal(context.of('createRadialGradient').length, 0, 'the low tier painted a shadow');
-  // The badge, then the whole equation.
-  assert.deepEqual(context.of('fillText').map((call) => call[0]), ['3', '1', '+', '2', '=', '3']);
+  // The whole equation.
+  assert.deepEqual(context.of('fillText').map((call) => call[0]), ['1', '+', '2', '=', '3']);
   // The panel's edge, a stem per apple, the gold ring on the newest counter and
   // the lesson's own highlight moved onto that counter: the lesson survives a
   // device too weak for a drop shadow, because it is what the story is for.
@@ -734,9 +734,8 @@ test('a counter still at the very start of its pop is not drawn at all', () => {
   paintDrawList(context, list, { lookup: () => bitmap(512, 512), scale: 1, shadows: false });
 
   // The panel is there — it is sized for where the counters will land, so the
-  // board does not jump — and the counters wait until they have a size. So does
-  // the badge: a running total over an empty board is a lesson insisting the
-  // answer is zero while the first apple is still on its way in.
+  // board does not jump — and the counters wait until they have a size. Nothing
+  // is written either: the equation waits for the counters.
   assert.ok(context.of('fill').length > 0, 'the panel was not drawn');
   assert.deepEqual(ovals(context), []);
   assert.deepEqual(context.of('fillText'), []);
@@ -755,9 +754,8 @@ test('the addends are drawn in two colours, because that IS the lesson', () => {
   assert.equal(count('rgb(96, 184, 120)'), 6);
   assert.equal(count('rgba(255, 186, 166, 0.8)'), 2);
   assert.equal(count('rgba(170, 226, 184, 0.8)'), 3);
-  // The glass they stand on: a white panel and the brighter sheen along its top.
+  // The glass they stand on: one white panel.
   assert.equal(count('rgba(255, 255, 255, 0.59)'), 1);
-  assert.equal(count('rgba(255, 255, 255, 0.22)'), 1);
 });
 
 test('a plain count is one calm hue, because there is no difference to claim', () => {
@@ -772,24 +770,19 @@ test('a plain count is one calm hue, because there is no difference to claim', (
   assert.equal(inks.filter((ink) => ink.startsWith('rgb(236')).length, 0, 'a group colour on a plain count');
 });
 
-test('the answer is green, the equals is red, and the badge is its own chip', () => {
+test('the answer is green and the equals is red', () => {
   const context = fakeContext();
   const list = lessonList({ slate: joining(2, 3), tMs: 8_000 });
-  const { badge } = boardOf(list);
   paintDrawList(context, list, { lookup: () => bitmap(512, 512), scale: 1, shadows: false });
-  const written = context.of('fillText').map((call) => [call[0], call[1], call[2], call.at(-1).ink]);
+  const written = context.of('fillText').map((call) => [call[0], call.at(-1).ink]);
 
-  assert.deepEqual(written.map(([text, , , ink]) => [text, ink]), [
-    ['5', 'rgb(74, 58, 18)'],
+  assert.deepEqual(written, [
     ['2', 'rgba(60, 70, 80, 1)'],
     ['+', 'rgba(60, 70, 80, 1)'],
     ['3', 'rgba(60, 70, 80, 1)'],
     ['=', 'rgba(236, 92, 86, 1)'],
     ['5', 'rgba(54, 150, 96, 1)'],
   ]);
-  // The running total stands in the middle of its own chip, not beside it.
-  assert.deepEqual(written[0].slice(1, 3), [badge.cx, badge.cy]);
-  assert.ok(context.of('fill').some((call) => call.at(-1).ink === 'rgb(255, 213, 92)'), 'the chip');
 });
 
 test('the gold is the ring and the take-away is red, and neither is the other', () => {
@@ -838,8 +831,7 @@ test('the equation is measured in the font the device has, and centred on the pl
   // Every token is measured before any of it is placed: the tokens carry no x,
   // because how wide a glyph is belongs to the font this device actually has.
   assert.deepEqual(context.of('measureText').map((call) => call[0]), ['2', '+', '3', '=', '5']);
-  const written = context.of('fillText').filter((call) => call[0] !== '5' || call[1] > 0);
-  const tokens = written.slice(1);
+  const tokens = context.of('fillText');
   assert.deepEqual(tokens.map((call) => call[0]), ['2', '+', '3', '=', '5']);
   // Centred: the line's own middle is the plate's middle, and it sits in the
   // band the list left for it.

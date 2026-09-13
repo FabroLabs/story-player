@@ -42,8 +42,6 @@ export const SLATE = Object.freeze({
   // The frosted panel, as percentages of the plate's own width and height.
   panelPct: Object.freeze({ left: 4.5, top: 8.5, right: 95.5, bottom: 93 }),
   radiusPct: 5,
-  // The bright sheen along the panel's top, as a fraction of the panel's HEIGHT.
-  sheenPct: 16,
   // The band the counters live in, between these two fractions of the panel's
   // height; the equation gets what is left below them.
   countersTopPct: 11,
@@ -60,12 +58,6 @@ export const SLATE = Object.freeze({
   ringWidth: 0.16,
   // The red X over a counter being taken away.
   crossWidth: 0.18,
-  // The running-count badge: a square of the plate's height, its centre offset
-  // in from the panel's top-right corner by these fractions of its own side.
-  badgePct: 11,
-  badgeOffset: Object.freeze([0.78, 0.62]),
-  badgeRadius: 0.3,
-  badgeFont: 0.6,
   // The gap above the equation band, and the one below it.
   bandGapPct: 5,
   // The equation's numerals: the smaller of this fraction of the band's height
