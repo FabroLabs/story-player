@@ -18,11 +18,13 @@ import {
 import {
   BESIDE_NUDGE_PCT,
   CAMERA_DURATIONS_MS,
+  CUE,
   DEFAULT_EXIT_X_PCT,
   DEFAULT_STAGE_RESOLUTION,
   DEPARTURE_DEADLINE_MS,
   DUCKED_MUSIC_VOLUME,
   DUCK_FADE_MS,
+  FLASH,
   HIGHLIGHT,
   MINIMUM_DEPARTURE_SECONDS,
   MINIMUM_MOVE_SECONDS,
@@ -71,6 +73,8 @@ test('V0_POLICY is composed from the constants the player implementation consume
   });
   assert.equal(V0_POLICY.slate, SLATE);
   assert.equal(V0_POLICY.highlight, HIGHLIGHT);
+  assert.equal(V0_POLICY.cue, CUE);
+  assert.equal(V0_POLICY.flash, FLASH);
   assert.deepEqual(V0_POLICY.audio, {
     musicVolume: MUSIC_VOLUME,
     duckedMusicVolume: DUCKED_MUSIC_VOLUME,

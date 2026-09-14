@@ -91,6 +91,20 @@ export const SLATE = Object.freeze({
 // `ringPct` is how far outside the subject's own box it is drawn.
 export const HIGHLIGHT = Object.freeze({ durationMs: 1_500, pulses: 2, ringPct: 12 });
 
+// A cue: a command written under a spoken line, fired when a spoken word is
+// reached. Nothing in a bundle yet says when a word is spoken, so the first
+// version estimates it from the word's character position over the chunk's
+// measured duration — and adds `leadMs`, because synthesised speech opens on a
+// breath of silence before the first word and a cue on the character's own
+// share of the clock lands ahead of the voice. Published because a client
+// timing its own cues has to land them where this one does.
+export const CUE = Object.freeze({ leadMs: 80 });
+
+// The pulse every lit ring on the board gives when a `flash` cue fires: once,
+// over `pulseMs`, the stroke swelling to `gain` times its width at the peak
+// under a halo of the same ink at `halo` of the counter's own alpha.
+export const FLASH = Object.freeze({ pulseMs: 500, gain: 1.8, halo: 0.35 });
+
 export const MUSIC_VOLUME = 0.38;
 export const DUCKED_MUSIC_VOLUME = 0.14;
 export const MUSIC_FADE_MS = 850;

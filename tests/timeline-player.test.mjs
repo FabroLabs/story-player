@@ -1075,6 +1075,65 @@ test('the lesson repaints on its own clock, and stops when it has landed', async
   player.destroy();
 });
 
+// The still lesson with a cued line after it: "One, two, three." spoken over
+// two seconds from 6000, ringing a counter on each word and flashing on the
+// last — rings at 6080, 6705 and 7330, the flash 7330 to 7830, the clear at
+// the chunk's end, 8000.
+function cuedLesson(bundle) {
+  stillLesson(bundle);
+  const [scene] = bundle.scenes;
+  const spoken = scene.steps.find((step) => step.kind === 'chunk');
+  const cue = (line, char, step) => ({
+    line, word: 'x', occurrence: 1, at: { word: 0, of: 3, char, chars: 16 }, step: { kind: 'cmd', line, subjects: [], ...step },
+  });
+  scene.steps.push({
+    ...spoken,
+    line: 7,
+    text: 'One, two, three.',
+    duration_s: 2,
+    cues: [
+      cue(8, 0, { cmd: 'ring', counter: 1 }),
+      cue(9, 5, { cmd: 'ring', counter: 2 }),
+      cue(10, 10, { cmd: 'ring', counter: 3 }),
+      cue(11, 10, { cmd: 'flash' }),
+    ],
+  });
+}
+
+test('a sweep repaints as each ring lands and while the flash runs, long after the board has landed', async (t) => {
+  const player = await mount(t, { doctor: cuedLesson });
+  const context = player.canvas.context;
+  player.start();
+  const frame = (at) => {
+    const from = context.calls.length;
+    player.frames.advanceTo(at);
+    return context.calls.slice(from);
+  };
+
+  // The board landed at 2850 and the highlight at 5500: by the cued line the
+  // scene is still, and stays still until the first ring.
+  frame(5_900);
+  assert.deepEqual(frame(5_980), [], 'a still scene was repainted before any cue');
+  // Each ring is a new picture, and then nothing until the next one.
+  assert.ok(frame(6_100).length > 0, 'the first ring did not repaint');
+  assert.deepEqual(frame(6_180), [], 'a ring already lit kept repainting');
+  assert.ok(frame(6_800).length > 0, 'the second ring did not repaint');
+  // The flash runs on the clock: two frames inside it are two pictures. This
+  // is the frame the build's own ceiling cannot reach — the board landed
+  // seconds ago — so it is the flash's own phase in the signature, or nothing.
+  const rising = frame(7_400);
+  const wider = frame(7_480);
+  assert.ok(rising.length > 0 && wider.length > 0, 'the flash did not repaint');
+  assert.notDeepEqual(rising, wider, 'the flash did not move between two frames');
+  // Landed: one last repaint, then still again with the rings lit.
+  frame(7_900);
+  assert.deepEqual(frame(7_980), [], 'the loop kept repainting after the pulse landed');
+  // The chunk's end takes the rings: one more picture, then nothing.
+  assert.ok(frame(8_100).length > 0, 'the clear did not repaint');
+  assert.deepEqual(frame(8_180), [], 'a cleared board kept repainting');
+  player.destroy();
+});
+
 async function mount(t, {
   doctor = () => {}, options = {}, machine = null, assets, story = null,
 } = {}) {

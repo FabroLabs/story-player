@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { cuesBetween } from '../browser/v0/core/state/cues.mjs';
 import { compileTimeline } from '../browser/v0/core/timeline/compile.mjs';
-import { SLATE } from '../browser/v0/policy.mjs';
+import { CUE, FLASH, SLATE } from '../browser/v0/policy.mjs';
 
 /**
  * The rules the parity corpus cannot reach.
@@ -1060,4 +1061,188 @@ test('a command this player does not perform keeps its own line', () => {
 
   assert.equal(warning.line, 44);
   assert.deepEqual(warning.detail, { type: 'policy', policy: 'unknown-command', cmd: 'not_real' });
+});
+
+// --- cues: commands fired while a line is spoken ---------------------------
+
+// The plan's own example line: "One, two, three." — sixteen characters, the
+// words at 0, 5 and 10. Every expected instant below is worked from those by
+// hand, so the arithmetic is pinned rather than reflected.
+const CUED_TEXT = 'One, two, three.';
+const cue = (line, char, step) => ({
+  line, word: 'x', occurrence: 1, at: { word: 0, of: 3, char, chars: CUED_TEXT.length }, step: { ...step, line },
+});
+const ringCue = (line, char, counter) => cue(line, char, { kind: 'cmd', cmd: 'ring', subjects: [], counter });
+const flashCue = (line, char) => cue(line, char, { kind: 'cmd', cmd: 'flash', subjects: [] });
+const spoken = (line, cues, seconds = 1.208) => ({
+  kind: 'chunk', line, text: CUED_TEXT, audio: null, duration_s: seconds, ...(cues ? { cues } : {}),
+});
+const rest = (line, seconds) => ({ kind: 'cmd', line, cmd: 'pause', seconds });
+const at = (events, op) => ops(events, op).map((event) => [event.t_ms, event.line, event.scene_index]);
+
+test('a cue fires at its word\'s share of the chunk plus the lead, and rings its counter', () => {
+  // The chunk starts at 1000. 1208 ms long: "two" at 5/16 is 377.5 → 378, "three"
+  // at 10/16 is 755, each plus the 80 ms lead.
+  const events = compile(lessonStory([
+    slate(1, 3),
+    rest(2, 1),
+    spoken(3, [ringCue(4, 0, 1), ringCue(5, 5, 2), ringCue(6, 10, 3), flashCue(7, 10)]),
+    rest(8, 2),
+  ]));
+
+  assert.deepEqual(
+    ops(events, 'ring').map((event) => [event.t_ms, event.counter, event.line, event.scene_index]),
+    [[1_080, 1, 4, 0], [1_458, 2, 5, 0], [1_835, 3, 6, 0], [2_335, 0, 3, 0]],
+  );
+  assert.deepEqual(at(events, 'flash'), [[1_835, 7, 0]]);
+  assert.deepEqual(warnings(events), []);
+  // Each cue's own step is in the step stream at the cue's instant, on the
+  // cue's line — what a debug drawer and the writer's repair loop point at.
+  assert.deepEqual(
+    events.filter((event) => event.source === 'step' && (event.cmd === 'ring' || event.cmd === 'flash'))
+      .map((event) => [event.t_ms, event.line, event.cmd, event.detail]),
+    [
+      [1_080, 4, 'ring', { counter: 1, subjects: [] }],
+      [1_458, 5, 'ring', { counter: 2, subjects: [] }],
+      [1_835, 6, 'ring', { counter: 3, subjects: [] }],
+      [1_835, 7, 'flash', { subjects: [] }],
+    ],
+  );
+  // And the whole stream is still in time order — the clear lands after the
+  // walk has moved on to the pause, and the schedule only ever moves forward.
+  let last = -Infinity;
+  for (const event of events) {
+    assert.ok(event.t_ms >= last, `${event.op ?? event.kind} at ${event.t_ms} after ${last}`);
+    last = event.t_ms;
+  }
+});
+
+test('the clear waits for a flash still pulsing at the chunk\'s end, and no longer', () => {
+  // 1208 ms of chunk, the flash at 835: the pulse runs to 1335, and a clear at
+  // the chunk's end would cut it off. A chunk long enough to outlast its own
+  // flash clears where it ends.
+  const short = compile(lessonStory([slate(1, 3), rest(2, 1), spoken(3, [flashCue(4, 10)]), rest(5, 2)]));
+  const long = compile(lessonStory([slate(1, 3), rest(2, 1), spoken(3, [flashCue(4, 10)], 3), rest(5, 2)]));
+
+  assert.deepEqual(at(short, 'flash'), [[1_835, 4, 0]]);
+  assert.deepEqual(ops(short, 'ring').map((event) => [event.t_ms, event.counter]), [[1_835 + FLASH.pulseMs, 0]]);
+  assert.deepEqual(at(long, 'flash'), [[1_000 + 1_875 + CUE.leadMs, 4, 0]]);
+  assert.deepEqual(ops(long, 'ring').map((event) => [event.t_ms, event.counter]), [[4_000, 0]]);
+});
+
+test('cues on one word fire in the order they were written, before the walk resumes', () => {
+  // Two cues at one instant: the order is the author's, not the op's. And a
+  // cue clamped onto the chunk's last millisecond fires before the step after
+  // the chunk is even logged — the timers were parked before the chunk's gate.
+  const ordered = (cues) => compile(lessonStory([slate(1, 3), rest(2, 1), spoken(3, cues, 1), rest(9, 1)]));
+  const flashFirst = ordered([flashCue(4, 15), ringCue(5, 15, 3)]);
+  const ringFirst = ordered([ringCue(5, 15, 3), flashCue(4, 15)]);
+  const stage = (events) => events.filter((event) => event.source === 'stage' && ['ring', 'flash'].includes(event.op));
+
+  assert.deepEqual(stage(flashFirst).map((event) => [event.op, event.t_ms]), [['flash', 1_999], ['ring', 1_999], ['ring', 2_499]]);
+  assert.deepEqual(stage(ringFirst).map((event) => [event.op, event.t_ms]), [['ring', 1_999], ['flash', 1_999], ['ring', 2_499]]);
+  const pauseLogged = ringFirst.findIndex((event) => event.source === 'step' && event.line === 9);
+  const lastCue = ringFirst.findIndex((event) => event.op === 'flash');
+  assert.ok(lastCue < pauseLogged, 'a cue on the last millisecond fired after the walk had moved on');
+
+  // The clear on the chunk's own end, with no flash to wait for, lands before
+  // the next step too: same millisecond, lower sequence.
+  const ringsOnly = ordered([ringCue(4, 0, 1)]);
+  const clear = ringsOnly.findIndex((event) => event.op === 'ring' && event.counter === 0);
+  const after = ringsOnly.findIndex((event) => event.source === 'step' && event.line === 9);
+  assert.equal(ringsOnly[clear].t_ms, ringsOnly[after].t_ms);
+  assert.ok(clear < after, 'the clear fired after the step that follows the chunk');
+});
+
+test('an ordinary command cued mid-line fires through the same path, at the cue\'s instant and on its line', () => {
+  const events = compile(lessonStory([
+    put(1, 'ruby', 'center'),
+    slate(2, 3),
+    rest(3, 1),
+    spoken(4, [
+      cue(5, 5, { kind: 'cmd', cmd: 'emote', subjects: ['ruby'], emotion: 'happy', facing: null }),
+      cue(6, 10, { kind: 'cmd', cmd: 'highlight', subjects: ['ruby'] }),
+    ]),
+    rest(7, 2),
+  ]));
+
+  assert.deepEqual(ops(events, 'clip').map((event) => [event.t_ms, event.slug, event.clip, event.line]), [[1_458, 'ruby', 'happy', 5]]);
+  assert.deepEqual(at(events, 'highlight'), [[1_835, 6, 0]]);
+  assert.deepEqual(warnings(events), []);
+  // Neither is a board cue, so nothing is parked to clear.
+  assert.deepEqual(ops(events, 'ring'), []);
+});
+
+test('a cued sound is a step at its instant, so it is heard', () => {
+  const story = lessonStory([
+    slate(1, 3),
+    rest(2, 1),
+    spoken(3, [cue(4, 5, { kind: 'cmd', cmd: 'sound', subjects: [], name: 'pop' })]),
+    rest(5, 2),
+  ]);
+  story.audio.sfx.pop = 'bucket/pop.m4a';
+  const timeline = compileTimeline(story);
+
+  const logged = timeline.events.find((event) => event.source === 'step' && event.cmd === 'sound');
+  assert.deepEqual([logged.t_ms, logged.line, logged.detail], [1_458, 4, { name: 'pop', subjects: [] }]);
+  // The audio director reads the step stream and nothing else: the cue is a
+  // sound effect that starts inside the line, not at its end.
+  assert.deepEqual(
+    cuesBetween(timeline, story, 1_000, 2_208).filter((heard) => heard.kind === 'sound').map((heard) => [heard.tMs, heard.name, heard.media]),
+    [[1_458, 'pop', 'bucket/pop.m4a']],
+  );
+});
+
+test('a cue never lands on or after the chunk\'s end', () => {
+  // A 50 ms chunk: the last word plus the lead would land at 127, past the
+  // gate, and is held to the last millisecond instead. A chunk of no length
+  // fires its cues at 0 — still inside, because the gate is parked after them.
+  const tiny = compile(lessonStory([slate(1, 3), rest(2, 1), spoken(3, [ringCue(4, 15, 1)], 0.05), rest(5, 2)]));
+  const none = compile(lessonStory([slate(1, 3), rest(2, 1), spoken(3, [ringCue(4, 15, 1)], 0), rest(5, 2)]));
+
+  assert.deepEqual(ops(tiny, 'ring').map((event) => [event.t_ms, event.counter]), [[1_049, 1], [1_050, 0]]);
+  assert.deepEqual(ops(none, 'ring').map((event) => [event.t_ms, event.counter]), [[1_000, 1], [1_000, 0]]);
+});
+
+test('the clear carries the chunk\'s origin, captured when it was parked, even into the next scene', () => {
+  // A flash on the chunk's last millisecond keeps pulsing 500 ms past the end
+  // of the scene it was spoken in. By the time the clear fires the walk is in
+  // scene 1; the op still says scene 0, line 3.
+  const story = lessonStory([slate(1, 3), rest(2, 1), spoken(3, [flashCue(4, 15)], 1)]);
+  story.scenes.push({ ...story.scenes[0], line: 20, steps: [rest(21, 2)] });
+  const events = compile(story);
+
+  assert.deepEqual(at(events, 'flash'), [[1_999, 4, 0]]);
+  assert.deepEqual(ops(events, 'ring').map((event) => [event.t_ms, event.counter, event.scene_index, event.line]), [[2_499, 0, 0, 3]]);
+  assert.equal(ops(events, 'scene')[1].t_ms, 2_000);
+});
+
+test('a chunk with no cues is the chunk it always was', () => {
+  // Nothing parked, nothing recorded: the nine parity timelines pin this byte
+  // for byte, and this is the same claim on a story small enough to read.
+  const events = compile(lessonStory([slate(1, 3), rest(2, 1), spoken(3, null), rest(4, 2)]));
+
+  assert.deepEqual(events.filter((event) => event.source === 'stage').map((event) => event.op), [
+    'scene', 'slate', 'slate', 'subtitle', 'subtitle', 'camera_reset', 'end',
+  ]);
+  assert.equal(events.find((event) => event.kind === 'chunk').detail.cues, undefined);
+});
+
+test('a ring cue whose counter is not a whole number is refused and named on its line', () => {
+  for (const counter of [1.5, 0, -1, '2', null, undefined]) {
+    const events = compile(lessonStory([slate(1, 3), rest(2, 1), spoken(3, [ringCue(4, 0, counter)]), rest(5, 2)]));
+
+    assert.deepEqual(ops(events, 'ring').filter((event) => event.counter !== 0), [], JSON.stringify(counter));
+    const refusal = events.find((event) => event.kind === 'warning');
+    assert.deepEqual([refusal.line, refusal.t_ms, refusal.detail], [
+      4, 1_080, { type: 'policy', policy: 'ring-counter-unusable', counter: counter ?? null },
+    ], JSON.stringify(counter));
+  }
+});
+
+test('a cue that fires anything but a command is refused at the door', () => {
+  const chunkCue = { line: 4, at: { char: 0, chars: 16 }, step: { kind: 'chunk', line: 4, text: 'no', duration_s: 1 } };
+  assert.throws(() => compile(lessonStory([spoken(3, [chunkCue])])), /line 4: cue "chunk"/);
+  assert.throws(() => compile(lessonStory([spoken(3, [{ line: 4 }])])), /line 4: cue undefined/);
+  assert.throws(() => compile(lessonStory([{ ...spoken(3, null), cues: 'x' }])), /line 3: cues "x" \(not a list\)/);
 });

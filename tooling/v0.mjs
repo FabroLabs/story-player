@@ -15,11 +15,13 @@ import {
 import {
   BESIDE_NUDGE_PCT,
   CAMERA_DURATIONS_MS,
+  CUE,
   DEFAULT_EXIT_X_PCT,
   DEFAULT_STAGE_RESOLUTION,
   DEPARTURE_DEADLINE_MS,
   DUCKED_MUSIC_VOLUME,
   DUCK_FADE_MS,
+  FLASH,
   HIGHLIGHT,
   MINIMUM_DEPARTURE_SECONDS,
   MINIMUM_MOVE_SECONDS,
@@ -92,6 +94,8 @@ export const V0_POLICY = deepFreeze({
   },
   slate: SLATE,
   highlight: HIGHLIGHT,
+  cue: CUE,
+  flash: FLASH,
   audio: {
     musicVolume: MUSIC_VOLUME,
     duckedMusicVolume: DUCKED_MUSIC_VOLUME,

@@ -30,7 +30,7 @@ import {
 } from '../browser/v0/app/stage/draw-list.mjs';
 import { slateBuildMs } from '../browser/v0/core/slate.mjs';
 import { stateAt } from '../browser/v0/core/state/state.mjs';
-import { HIGHLIGHT, SLATE } from '../browser/v0/policy.mjs';
+import { FLASH, HIGHLIGHT, SLATE } from '../browser/v0/policy.mjs';
 import { STEMS, read } from './_parity.mjs';
 
 const GOLDENS = new URL('fixtures/drawlist/', import.meta.url);
@@ -718,6 +718,37 @@ test('an actor nobody ever named carries no ring', () => {
   assert.deepEqual(only(list, 'ring'), []);
 });
 
+// --- the cues' marks -------------------------------------------------------
+
+test('a counter a cue swept carries the mark, and one it has not carries nothing', () => {
+  const board = boardAt({ ...counting(3), rings: [1, 2] }, settled(3));
+
+  assert.deepEqual(board.counters.map((counter) => counter.swept), [true, true, undefined]);
+  // The newest counter's own ring is a different mark, and it is still there.
+  assert.deepEqual(board.counters.map((counter) => counter.ring), [false, false, true]);
+  // A ring past the board is a ring nobody sees, and it breaks nothing.
+  assert.deepEqual(boardAt({ ...counting(3), rings: [7] }, settled(3)).counters.some((counter) => counter.swept), false);
+});
+
+test('the flash rides the board as a fraction of its pulse, and only while it runs', () => {
+  const flashing = (tMs) => boardAt({ ...counting(3), sinceMs: 0, flashAt: 1_000 }, tMs).flash;
+
+  assert.equal(flashing(900), undefined, 'a flash that has not fired yet — a seek backward');
+  assert.deepEqual(flashing(1_000), { progress: 0 });
+  assert.deepEqual(flashing(1_000 + (FLASH.pulseMs / 2)), { progress: 0.5 });
+  assert.equal(flashing(1_000 + FLASH.pulseMs), undefined, 'the flash outlived its own pulse');
+});
+
+test('a board no cue ever touched is the list it always was', () => {
+  // Both marks are written only while they are there: the goldens of nine
+  // stories with no cues in them hold this byte for byte, and this is the
+  // same claim on one board.
+  const board = boardAt(counting(3), settled(3));
+
+  assert.equal('flash' in board, false);
+  assert.ok(board.counters.every((counter) => !('swept' in counter)));
+});
+
 /**
  * The instants worth writing down, read off the timeline rather than chosen by
  * hand: a hand-picked millisecond stops meaning anything the moment the corpus
@@ -733,7 +764,8 @@ test('an actor nobody ever named carries no ring', () => {
  * before them lands a millisecond or two after the op that started one — which
  * pins a card at the very beginning of its pop and a ring nowhere at all. So the
  * board is also sampled halfway through its pop, and the ring at the first of
- * its two peaks.
+ * its two peaks. The cues' marks likewise: every sweep ring where it lands,
+ * and the first flash halfway through its pulse, or the sweep is pinned nowhere.
  *
  * The camera instants are where this was quietly empty. A `pan` sometimes
  * carries `duration_ms`; a `push_in` and a `pull_out` never do — their length
@@ -773,6 +805,9 @@ function instantsOf(timeline) {
   }
   const ring = first('highlight');
   if (ring) chosen.add(ring.t_ms + Math.round(HIGHLIGHT.durationMs / 4));
+  for (const swept of stage.filter((event) => event.op === 'ring' && event.counter > 0)) chosen.add(swept.t_ms);
+  const flash = first('flash');
+  if (flash) chosen.add(flash.t_ms + Math.round(FLASH.pulseMs / 2));
   return [...chosen].sort((left, right) => left - right);
 }
 

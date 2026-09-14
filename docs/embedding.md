@@ -79,7 +79,7 @@ play one schedule rather than two implementations of it.
 `stateAt` is one frame: a pure function of that timeline, the bundle and an
 instant in milliseconds, answering with the actors on stage, their clips and
 frame cells, the camera framing, the subtitle showing, the counting board
-(`slate: {count, mode, groups, sinceMs, from, standing}`, and `highlightMs` on each
+(`slate: {count, mode, groups, sinceMs, from, standing, rings, flashAt}`, and `highlightMs` on each
 actor—see below), and the warnings crossed on the way. It interprets the timeline and never re-decides it.
 
 The picture is a single canvas 2D stage drawn over the hardware-decoded
@@ -162,12 +162,43 @@ from `V0_POLICY.slate` and `V0_POLICY.highlight`; the COLOURS are the painter's
 own—a client with its own palette is still drawing this board—and the numerals
 are set in the platform's rounded font, deliberately not part of that contract.
 
+A CUE is a command written under a spoken line, fired when a spoken word is
+reached. The bundle carries it on the chunk step—`cues: [{line, word,
+occurrence, at: {word, of, char, chars}, step}]`, present only on a chunk that
+has any—and the compiler times each one at `clamp(round(duration_ms × at.char /
+at.chars) + V0_POLICY.cue.leadMs, 0, duration_ms − 1)`: the word's character
+position over the chunk's measured length, pushed later by the lead, and never
+on or past the chunk's own end. (Measured word times, once a bundle carries
+them, replace that estimate at the one function that makes it.) At its instant
+the cue's `step` is logged in the step stream—so a cued `sound` or `music`
+plays through the same path every other one does—and its command is performed
+exactly as it would be between chunks: a cued `emote`, `highlight` or `put`
+produces the ops it always produces, stamped with the cue's own line. Cues on
+one word fire in the order they were written. Two commands live only in cues.
+`ring` (`{counter: k}`, k ≥ 1) lights the k-th counter of the standing board
+with the same gold ring the newest counter wears, and it stays lit; `flash`
+(`{}`) makes every lit ring pulse once over `V0_POLICY.flash.pulseMs`, the
+stroke swelling to `gain` times its width under a halo of the same ink at
+`halo` alpha. A chunk that lights any ring also puts them out: the compiler
+records `ring {counter: 0}`, on the chunk's own line, at the chunk's end—or, if
+a flash would still be pulsing then, when the pulse lands—so a sweep never
+outlives its line. `stateAt` carries them on the board as `rings` (the swept
+counters, sorted and unique) and `flashAt` (the instant of the last flash, or
+`null`): `counter: 0` clears both, a new board comes up with neither, and
+`scene` and `end` clear them the way they clear the highlight ring—never the
+board. The draw list marks a swept counter `swept: true` and a pulsing board
+`flash: {progress}`, both absent otherwise, so a board no cue touched is the
+list it always was. A ring whose counter is not a whole number is refused with
+`ring-counter-unusable` at the compiler and again at `stateAt`; whether a board
+stands with k counters on it is the language's own rule, refused where the cue
+is written.
+
 The story clock is pausable and seekable, and audio follows it: each cue starts
 at its own `t_ms` and is aligned by `currentTime`, so blocked or late audio
 never holds up the picture. The loop redraws only when the frame changed—and a
-board still popping or a ring still pulsing IS the frame changing, so a counting
-scene where nobody moves still repaints until its overlay has landed—and never
-faster than 24 Hz. A story that is paused, hidden, ended or destroyed
+board still popping, a ring still pulsing, a sweep ring landing or a flash
+running IS the frame changing, so a counting scene where nobody moves still
+repaints until its overlay has landed—and never faster than 24 Hz. A story that is paused, hidden, ended or destroyed
 schedules nothing.
 
 ## Plain JavaScript

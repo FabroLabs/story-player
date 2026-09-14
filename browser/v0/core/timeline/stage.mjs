@@ -194,6 +194,20 @@ export class TimelineStage {
     this.#record('highlight', origin, { slug });
   }
 
+  // The sweep ring a cue lights on the k-th counter of the standing board, and
+  // the one payload that puts them all out: `counter: 0`, which the compiler
+  // parks where the cued chunk ends. No board travels in the payload — the
+  // ring is on whatever board is standing, which every fold already knows.
+  ring(counter, origin = {}) {
+    this.#record('ring', origin, { counter });
+  }
+
+  // Every lit ring on the board pulses once. Nothing else travels: how long
+  // and how bright are `FLASH`, published policy, so one flash is one shape.
+  flash(origin = {}) {
+    this.#record('flash', origin, {});
+  }
+
   setSubtitle(text) {
     this.#record('subtitle', {}, { text: text ?? '' });
   }
