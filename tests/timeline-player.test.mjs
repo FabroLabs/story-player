@@ -1135,10 +1135,74 @@ test('a sweep repaints as each ring lands and while the flash runs, long after t
   player.destroy();
 });
 
+// The host's picture for the board's counters. Its fetch is answered 1024 by
+// 512 — no sheet is — so the picture can be told from everything else drawn.
+const NUT = 'fairytale-assets/counters/nut.png';
+const nutAssets = (url) => (url.includes('/counters/') ? { width: 1024, height: 512 } : {});
+
+/** The counter pictures of the LAST painted frame. */
+function counterPictures(player) {
+  const { calls } = player.canvas.context;
+  const from = calls.findLastIndex(([name]) => name === 'clearRect');
+  return calls.slice(Math.max(0, from))
+    .filter(([name, source]) => name === 'drawImage' && source?.width === 1024 && source?.height === 512);
+}
+
+test('a mount with a board block draws its counters as the picture, once it has landed', async (t) => {
+  // The picture rides from the mount option through `counter-picture.mjs`, the
+  // runtime's `sceneSheets` and the draw list's `image` mark to the painter.
+  // Drop any one link and the board is apples again — the picture fetched,
+  // decoded and never drawn — so the chain is pinned from the outside.
+  const player = await mount(t, { doctor: stillLesson, options: { board: { counter: NUT } }, assets: nutAssets });
+  await settle();
+  player.start();
+  player.frames.advanceTo(4_000);
+
+  assert.equal(counterPictures(player).length, 3, 'three counters, each drawn as the picture');
+  player.destroy();
+});
+
+test('a counter picture landing on a paused, settled board is painted when it lands', async (t) => {
+  // The stage reads the picture at paint time, so the list needs no rebuilding
+  // — but nothing about the STATE changes when it lands, and a paused board
+  // has no next frame anyway. The landing has to ask for the paint itself, or
+  // the apples stay until somebody presses play.
+  let land = null;
+  const player = await mount(t, {
+    doctor: stillLesson,
+    options: { board: { counter: NUT } },
+    assets: nutAssets,
+    installed: () => {
+      const decode = globalThis.createImageBitmap;
+      globalThis.createImageBitmap = (blob) => (blob?.pixels?.width === 1024
+        ? new Promise((resolve) => { land = () => resolve(decode(blob)); })
+        : decode(blob));
+    },
+  });
+  player.start();
+  player.frames.advanceTo(4_000);
+  player.bar.toggle.dispatch('click');
+  assert.equal(player.frames.pending(), 0, 'the story is still running: this test is about the frame that never comes');
+  assert.equal(counterPictures(player).length, 0, 'the picture was drawn before it had landed');
+  assert.equal(typeof land, 'function', 'the counter picture was never asked for');
+  const painted = paints(player);
+
+  land();
+  await settle();
+
+  assert.equal(paints(player), painted + 1, 'the picture landed on a paused board and was painted no times, or more than once');
+  assert.equal(counterPictures(player).length, 3);
+  player.destroy();
+});
+
 async function mount(t, {
   doctor = () => {}, options = {}, machine = null, assets, story = null,
+  // Runs once the fake DOM is up and before the player is built, for a test
+  // that has to catch a fetch the mount itself makes.
+  installed = () => {},
 } = {}) {
   const dom = installDom(assets ? { assets } : {});
+  installed(dom);
   if (machine) {
     // The probe reads the navigator and the device pixel ratio, so a test that
     // wants a weak machine says so the way a weak machine does.

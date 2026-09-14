@@ -62,6 +62,67 @@ test('mounts one self-contained Shadow DOM player from parsed JSON', async (t) =
   assert.equal(typeof player.destroy, 'function');
 });
 
+test('the board block fetches its counter picture once, at the mount, under the asset base', async (t) => {
+  const dom = installDom();
+  t.after(dom.restore);
+  const host = document.createElement('div');
+  const player = createStoryPlayer(host, {
+    story: VALID_STORY,
+    assetBase: 'https://storage.example/root',
+    board: { counter: 'fairytale-assets/counters/nut.png' },
+  });
+
+  await player.ready;
+  assert.deepEqual(
+    dom.fetched().filter((url) => url.includes('/counters/')),
+    ['https://storage.example/root/fairytale-assets/counters/nut.png'],
+  );
+  player.destroy();
+});
+
+test('destroy closes the counter picture it decoded, so a host remounting does not leak one per mount', async (t) => {
+  // The picture is held for the life of the player rather than put through
+  // the cache, so the cache's eviction never closes it: `destroy` is the one
+  // place it can go, and a React host remounts on every changed prop.
+  const dom = installDom({ assets: (url) => (url.includes('/counters/') ? { width: 1024, height: 512 } : {}) });
+  t.after(dom.restore);
+  const decoded = [];
+  const decode = globalThis.createImageBitmap;
+  globalThis.createImageBitmap = async (blob) => {
+    const bitmap = await decode(blob);
+    decoded.push(bitmap);
+    return bitmap;
+  };
+  const player = createStoryPlayer(document.createElement('div'), {
+    story: VALID_STORY,
+    assetBase: 'https://storage.example/',
+    board: { counter: 'fairytale-assets/counters/nut.png' },
+  });
+  await player.ready;
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  const picture = decoded.find((bitmap) => bitmap.width === 1024);
+  assert.ok(picture, 'the counter picture was never decoded');
+  assert.notEqual(picture.closed, true, 'closed before the player went');
+
+  player.destroy();
+  assert.equal(picture.closed, true, 'the counter picture outlived the player');
+});
+
+test('a board block the player cannot perform is refused at the mount, by name', async (t) => {
+  const dom = installDom();
+  t.after(dom.restore);
+  const host = document.createElement('div');
+  const player = createStoryPlayer(host, {
+    story: VALID_STORY,
+    assetBase: 'https://storage.example/',
+    board: { counter: 'https://elsewhere.example/nut.png' },
+  });
+
+  await assert.rejects(player.ready, /board counter has invalid media path/);
+  assert.deepEqual(dom.fetched(), [], 'a refused mount fetched something');
+  player.destroy();
+});
+
 test('the ceremony opens with the kicker it was mounted with, or the bedtime line', async (t) => {
   const dom = installDom();
   t.after(dom.restore);

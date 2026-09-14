@@ -31,6 +31,9 @@ const SKIP_MS = 10_000;
 
 export function createTimelinePlayer({
   elements, bundle, timeline, clock, loader, cache, log = null,
+  // The board's counter picture, when the host gave one (`counter-picture.mjs`).
+  // It rides with every scene's sheets, because a board can be raised in any.
+  counter = null,
   capability = tierSettings('high'), perf = false, onWarning = () => {}, signal = null,
   publishedComplete = true, expectedScenes = null,
   // The four seams the presentation phases either side of the story hang on.
@@ -130,6 +133,16 @@ export function createTimelinePlayer({
     else if (resumeWhenVisible) play();
   });
   listen(globalThis.window ?? null, 'pagehide', hide);
+
+  // The counter picture lands whenever its fetch does, and its landing changes
+  // nothing the signature reads: a board already settled — paused, or running
+  // with nothing moving — would show it at the next thing that moved. So the
+  // landing is a frame of its own. Not before the first frame has been drawn,
+  // which reads the picture like any other.
+  void counter?.landed?.then((drawable) => {
+    if (!drawable || destroyed || sceneIndex === null) return;
+    render(clock.now(), { force: true });
+  });
 
   return {
     viewport,
@@ -667,7 +680,7 @@ export function createTimelinePlayer({
     const view = viewport();
     sceneView = view;
     const opened = sceneIndex;
-    sheets = sceneSheets(loader.plan(sceneIndex, view), cache);
+    sheets = sceneSheets(loader.plan(sceneIndex, view), cache, counter);
     plate.showScene(story.bundle?.scenes?.[sceneIndex]?.plate ?? null);
     void loader.loadScene(sceneIndex, view, { keep: true })
       // A running story draws the sheets as they land, on its next frame. A

@@ -195,6 +195,35 @@ test('the component hands the cards block over too', async (t) => {
   );
 });
 
+test('the component hands the board block over too', async (t) => {
+  const browser = installBrowser();
+  t.after(browser.restore);
+  const StoryPlayer = createReactStoryPlayer(React);
+  const target = document.querySelector('#root');
+  const root = createRoot(target);
+  t.after(() => root.unmount());
+
+  // The same proof once more: a counter picture the player refuses is the
+  // cheapest evidence that the block arrived rather than landing on the div.
+  await act(async () => {
+    root.render(React.createElement(StoryPlayer, {
+      story: story('Sixth moon'),
+      assetBase: 'https://storage.example/',
+      board: { counter: 'https://elsewhere.example/nut.png' },
+      className: 'story-slot',
+    }));
+    await settle();
+  });
+
+  const host = target.firstElementChild;
+  assert.equal(host.getAttribute('board'), null, 'the board block was spread onto the host element');
+  assert.match(
+    host.shadowRoot.querySelector('.load-status').textContent,
+    /board counter has invalid media path/,
+    'the React adapter did not pass board to the player',
+  );
+});
+
 test('a growing story is refused by the component rather than mounted as a finished one', () => {
   const StoryPlayer = createReactStoryPlayer(React);
   // Called directly: the refusal is the component's own, and React only ever

@@ -2,8 +2,9 @@
  * Storage-root addressing for bucket-qualified v0 media, and the mount-time
  * shape checks for what a host hands over beside the story — `requirePlatesBlock`
  * is where the manifest's `plates` is settled, `requireCardsBlock` where the
- * intro and end cards are, and `appendStoryScene` is where a scene published
- * after the mount is qualified the same way the rest was.
+ * intro and end cards are, `requireBoardBlock` where the counting board's
+ * counter picture is, and `appendStoryScene` is where a scene published after
+ * the mount is qualified the same way the rest was.
  */
 
 const SEGMENT = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
@@ -295,6 +296,28 @@ function requireCardLead(lead, slot) {
     throw new Error(`cards ${slot} lead must be the lead character's cast slug`);
   }
   return lead;
+}
+
+/**
+ * The host's `board` block: what the counting board draws its counters as.
+ *
+ * One key, `counter` — the picture every counter on the board is drawn from, a
+ * bucket-qualified media path like everything else this player fetches. It is
+ * resolved at the door for the reason the cards are: a bad path found when the
+ * first board goes up would be the drawn apple standing in for it with no word
+ * about why, and a refusal here is one the host reads before a frame. A block
+ * naming no counter is the mount every host had before this key existed — the
+ * apple — and is the same nothing as no block at all.
+ */
+export function requireBoardBlock(board, assetBase) {
+  if (board == null) return null;
+  if (!isRecord(board)) throw new Error('board must be an object carrying its counter');
+  const unknown = Object.keys(board).filter((key) => key !== 'counter');
+  if (unknown.length > 0) {
+    throw new Error(`board carries ${unknown.map((key) => JSON.stringify(key)).join(', ')}, which it does not take`);
+  }
+  if (board.counter == null) return null;
+  return deepFreeze({ counter: resolveMediaUrl(board.counter, normalizeAssetBase(assetBase), 'board counter') });
 }
 
 function projectScene(scene, resolve, index) {

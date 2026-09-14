@@ -24,9 +24,10 @@
  *               stands in front
  *   slate       the counting board, marked `hud`, because it sits over the
  *               whole picture and is NOT under the camera — see the note on it
- *               below. A counter a cue has swept carries `swept: true`, and a
- *               board whose rings are pulsing carries `flash: {progress}`;
- *               both are absent otherwise
+ *               below. A counter a cue has swept carries `swept: true`, a
+ *               board whose rings are pulsing carries `flash: {progress}`, and
+ *               a counter the host gave a picture for carries `image: true`;
+ *               all three are absent otherwise
  *
  * A board changes the list rather than joining it: while one is up the floor is
  * not drawn at all. What follows the board is the lesson's ring, moved onto the
@@ -62,19 +63,22 @@ export const WIDE_CAMERA = Object.freeze({ scale: 1, x: 0, y: 0 });
 const NO_SHEETS = Object.freeze({ sheet: () => null, prop: () => null });
 
 /**
- * `state` is `stateAt`'s answer; `sheets` answers two questions about assets:
+ * `state` is `stateAt`'s answer; `sheets` answers three questions about assets:
  *
  *   sheet(slug, clip, frame) -> { url, grid, chunkStart? } | null
  *   prop(slug)               -> { url } | null
+ *   counter()                -> { url, drawable } | null
  *
- * Both may answer `null` at any time — a scene whose sheets are still being
+ * All may answer `null` at any time — a scene whose sheets are still being
  * planned, a clip the bundle never carried — and the answer is a placeholder,
- * never a gap.
+ * never a gap. The third is the picture the host gave the counting board to
+ * draw its counters as (`counter-picture.mjs`), and a sheets object written
+ * before it existed simply does not answer it.
  */
 export function buildDrawList(state, sheets = NO_SHEETS) {
   const [width, height] = plateSize(state?.plate);
   const actors = state?.actors ?? [];
-  const board = slateFor(state?.slate, state?.tMs, width, height);
+  const board = slateFor(state?.slate, state?.tMs, width, height, pictured(sheets));
   // A board is not an overlay on the scene, it IS the scene while it is up:
   // either the floor is drawn or the board is. The two lists are kept apart
   // rather than filtered out of one, because "which actors survive a board" is
@@ -318,9 +322,11 @@ function ringProgress(actor, tMs) {
  *
  * The cues' marks ride on top and are written only while they are there —
  * `swept` on a counter a cue has ringed, `flash` on the board while its rings
- * pulse — so a board no cue ever touched is the same list it always was.
+ * pulse — so a board no cue ever touched is the same list it always was. The
+ * same goes for `image` on a counter: written only for a host that gave the
+ * board a picture, so a board drawn as apples is the list it always was.
  */
-function slateFor(slate, tMs, width, height) {
+function slateFor(slate, tMs, width, height, pictured = false) {
   // The empty board a scene opens on: the panel, the frost behind it and the
   // companion in the corner, and nothing yet to count. Only a STANDING one —
   // the fold's own word for it — a bare `count: 0` from an older producer is
@@ -364,6 +370,7 @@ function slateFor(slate, tMs, width, height) {
       alpha: round(alpha, 4),
       cross: round(cross, 4),
       ring: false,
+      ...(pictured ? { image: true } : {}),
       ...(swept.has(index + 1) ? { swept: true } : {}),
     });
   }
@@ -381,6 +388,18 @@ function slateFor(slate, tMs, width, height) {
     equation: equationFor(board, schedule, elapsed, band),
     ...(flash ? { flash } : {}),
   };
+}
+
+/**
+ * Whether the host gave the board a picture to draw its counters as.
+ *
+ * Asked of the sheets like every other asset question, and answered without
+ * looking at whether the picture has landed: the LIST says what a counter is —
+ * a picture — and the painter decides what to do while the picture is not
+ * there yet, the way a sprite whose sheet is still decoding is still a sprite.
+ */
+function pictured(sheets) {
+  return typeof sheets?.counter === 'function' && Boolean(sheets.counter());
 }
 
 /**

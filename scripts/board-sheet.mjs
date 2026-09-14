@@ -61,22 +61,30 @@ const DEFAULT_SCALE = 0.35;
 const GROUND_INK = '#14213d';
 
 const ENTRY = `
+import { decodeDrawable } from './browser/v0/app/assets/bitmap-cache.mjs';
 import { paintDrawList } from './browser/v0/app/stage/canvas-stage.mjs';
 import { buildDrawList } from './browser/v0/app/stage/draw-list.mjs';
 import { stateAt } from './browser/v0/core/state/state.mjs';
 
-globalThis.renderBoardSheet = (jobs, scale) => jobs.map((job, row) => job.instants.map((tMs, column) => {
-  const canvas = document.getElementById('c' + row + '_' + column);
-  const picture = stateAt(job.timeline, job.bundle, tMs);
-  const list = buildDrawList(picture);
-  paintDrawList(canvas.getContext('2d'), list, { scale });
-  return {
-    commands: list.commands.filter((command) => command.op === 'slate' || command.op === 'ring'),
-    // The state core keeps this array precisely so a client cannot quietly
-    // believe a picture it had to repair. Carried back rather than dropped.
-    warnings: picture.warnings ?? [],
-  };
-}));
+globalThis.renderBoardSheet = async (jobs, scale, counterUrl) => {
+  // The host's counter picture, decoded through the player's own path and
+  // handed over the way the mounted player hands it: the sheets say a picture
+  // was asked for, the painter is given what landed.
+  const counter = counterUrl ? { url: counterUrl, drawable: await decodeDrawable(counterUrl) } : null;
+  const sheets = { sheet: () => null, prop: () => null, counter: () => counter };
+  return jobs.map((job, row) => job.instants.map((tMs, column) => {
+    const canvas = document.getElementById('c' + row + '_' + column);
+    const picture = stateAt(job.timeline, job.bundle, tMs);
+    const list = buildDrawList(picture, sheets);
+    paintDrawList(canvas.getContext('2d'), list, { scale, counter: () => counter?.drawable ?? null });
+    return {
+      commands: list.commands.filter((command) => command.op === 'slate' || command.op === 'ring'),
+      // The state core keeps this array precisely so a client cannot quietly
+      // believe a picture it had to repair. Carried back rather than dropped.
+      warnings: picture.warnings ?? [],
+    };
+  }));
+};
 `;
 
 const options = readArguments(process.argv.slice(2));
@@ -86,10 +94,15 @@ if (options.help) {
   await writeSheet(options);
 }
 
-async function writeSheet({ bundles, out, scale, dump }) {
+async function writeSheet({
+  bundles, out, scale, dump, counter,
+}) {
   const skipped = [];
   const jobs = bundles.flatMap((file) => jobsFor(file, skipped));
   if (jobs.length === 0) throw new Error(nothingToDraw(bundles, skipped));
+  // Carried into the page as a data URL: `setContent` gives the page no origin
+  // to fetch a file from, and the player's decode path wants a URL.
+  const picture = counter ? dataUrl(counter) : null;
 
   const [width, height] = [Math.round(STAGE[0] * scale), Math.round(STAGE[1] * scale)];
   const { outputFiles } = await esbuild.build({
@@ -113,10 +126,10 @@ async function writeSheet({ bundles, out, scale, dump }) {
     else process.stderr.write(`page: ${message.text()}\n`);
   });
 
-  await page.setContent(sheetHtml(jobs, width, height, outputFiles[0].text));
+  await page.setContent(sheetHtml(jobs, width, height, outputFiles[0].text, counter));
   const painted = await page.evaluate(
-    ([handed, factor]) => globalThis.renderBoardSheet(handed, factor),
-    [jobs.map(({ timeline, bundle, instants }) => ({ timeline, bundle, instants })), scale],
+    ([handed, factor, drawnAs]) => globalThis.renderBoardSheet(handed, factor, drawnAs),
+    [jobs.map(({ timeline, bundle, instants }) => ({ timeline, bundle, instants })), scale, picture],
   );
 
   // Judged BEFORE the screenshot, so a run that would have lied leaves no
@@ -371,7 +384,19 @@ function pageWidth(cellWidth, jobs) {
   return (columns * cellWidth) + ((columns - 1) * 12) + 48;
 }
 
-function sheetHtml(jobs, width, height, script) {
+function dataUrl(file) {
+  // The types a `board.counter` can be: what a bucket serves and a canvas
+  // draws. Declared here for the reason `notFinite` gives — the script has
+  // already done its work by the time a `const` down here would initialise.
+  const types = {
+    '.png': 'image/png', '.webp': 'image/webp', '.svg': 'image/svg+xml', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
+  };
+  const type = types[path.extname(file).toLowerCase()];
+  if (!type) throw new Error(`--counter wants a png, webp, svg or jpeg, not ${JSON.stringify(file)}`);
+  return `data:${type};base64,${fs.readFileSync(file).toString('base64')}`;
+}
+
+function sheetHtml(jobs, width, height, script, counter = null) {
   const rows = jobs.map((job, row) => `
     <section>
       <h2>${escapeHtml(job.stem)} — slate at ${job.op.t_ms} ms, held ${job.heldMs} ms — ${escapeHtml(payloadOf(job.op))}</h2>
@@ -402,7 +427,9 @@ function sheetHtml(jobs, width, height, script) {
 </style>
 <h1>the counting board, painted at five instants of each build</h1>
 <p class="note">The flat ground stands in for the plate — it is a DOM video behind the
-canvas, never drawn into it. Actors with no sheet in reach are placeholders.</p>
+canvas, never drawn into it. Actors with no sheet in reach are placeholders.${
+  counter ? ` The counters are drawn as <code>${escapeHtml(path.basename(counter))}</code>, the way a host's <code>board.counter</code> draws them.` : ''
+}</p>
 ${rows}
 <script>${script}</script>
 `;
@@ -419,7 +446,9 @@ function escapeHtml(text) {
 
 function readArguments(argv) {
   const bundles = [];
-  const options = { out: DEFAULT_OUT, scale: DEFAULT_SCALE, dump: false, help: false };
+  const options = {
+    out: DEFAULT_OUT, scale: DEFAULT_SCALE, dump: false, counter: null, help: false,
+  };
 
   for (let index = 0; index < argv.length; index += 1) {
     const flag = argv[index];
@@ -433,6 +462,7 @@ function readArguments(argv) {
     else if (flag === '--out') options.out = value();
     else if (flag === '--scale') options.scale = Number(value());
     else if (flag === '--dump') options.dump = true;
+    else if (flag === '--counter') options.counter = path.resolve(value());
     else if (flag === '--help' || flag === '-h') options.help = true;
     else throw new Error(`unknown argument ${JSON.stringify(flag)}\n${usage()}`);
   }
@@ -454,11 +484,12 @@ function everyFixture() {
 
 function usage() {
   return [
-    'usage: npm run sheet:board -- [--bundle <path>]... [--out <path>] [--scale <0..1>] [--dump]',
+    'usage: npm run sheet:board -- [--bundle <path>]... [--out <path>] [--scale <0..1>] [--counter <picture>] [--dump]',
     '',
     `  --bundle  a built story bundle; repeatable. Default: every ${path.relative(ROOT, FIXTURE_DIRECTORY)}/*.bundle.json`,
     `  --out     where the PNG goes. Default: ${DEFAULT_OUT}`,
     `  --scale   stage 1920x1080 painted at this factor. Default: ${DEFAULT_SCALE}`,
+    '  --counter a png, webp, svg or jpeg the counters are drawn as, the way a host\'s board.counter draws them',
     '  --dump    print each instant\'s slate and ring draw-list commands as JSON lines',
     '',
   ].join('\n');
