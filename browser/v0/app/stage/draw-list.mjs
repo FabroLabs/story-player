@@ -299,7 +299,7 @@ function ringProgress(actor, tMs) {
 
 /**
  * The counting board: a frosted panel over the scene, a counter per thing
- * counted, the running total, and the equation that names what happened.
+ * counted, and the equation that names what happened.
  *
  * `hud` is the one word that matters to whoever executes this list. Everything
  * else here is under the camera, so a push-in magnifies it; the board is not,
@@ -336,7 +336,6 @@ function slateFor(slate, tMs, width, height) {
   const { places, cell, band } = counterPlaces(panel, width, height, drawn);
 
   const counters = [];
-  let present = 0;
   let ringed = -1;
   for (let index = 0; index < drawn; index += 1) {
     const scale = index < from
@@ -344,7 +343,6 @@ function slateFor(slate, tMs, width, height) {
       : popScale((elapsed - ((index - from) * SLATE.staggerMs)) / SLATE.popMs);
     const cross = takeProgress(schedule, drawn, index, elapsed);
     const alpha = 1 - cross;
-    if (scale > 0.5 && alpha > 0.5) present += 1;
     // The ring marks where the count has got to: the newest counter that has
     // begun to arrive and has not been taken away again.
     if (scale > 0.2 && alpha > 0.5) ringed = index;
@@ -362,8 +360,6 @@ function slateFor(slate, tMs, width, height) {
   }
   if (ringed >= 0) counters[ringed].ring = true;
 
-  const badgeSize = (SLATE.badgePct / 100) * height;
-  const [badgeInX, badgeDownY] = SLATE.badgeOffset;
   return {
     op: 'slate',
     hud: true,
@@ -373,16 +369,6 @@ function slateFor(slate, tMs, width, height) {
     progress: round(clamped(elapsed / schedule.endMs), 4),
     panel: panelCommand(panel),
     counters,
-    // A badge over an empty board is a lesson insisting the answer is zero
-    // while the first counter is still on its way in.
-    badge: present > 0
-      ? {
-        cx: round((panel.x + panel.w) - (badgeInX * badgeSize)),
-        cy: round(panel.y + (badgeDownY * badgeSize)),
-        size: round(badgeSize),
-        n: present,
-      }
-      : null,
     equation: equationFor(board, schedule, elapsed, band),
   };
 }
@@ -390,8 +376,7 @@ function slateFor(slate, tMs, width, height) {
 /**
  * The panel with nothing on it: what a lesson's first frame shows, before the
  * first count arrives. Settled from the start (`progress` 1) — there is no
- * build to run — with no badge, because a badge over nothing is a lesson
- * insisting the answer is zero, and no equation, because nothing has been said.
+ * build to run — and with no equation, because nothing has been said.
  */
 function emptyBoard(width, height) {
   return {
@@ -403,7 +388,6 @@ function emptyBoard(width, height) {
     progress: 1,
     panel: panelCommand(panelBox(width, height)),
     counters: [],
-    badge: null,
     equation: null,
   };
 }
@@ -415,7 +399,6 @@ function panelCommand(panel) {
     w: round(panel.w),
     h: round(panel.h),
     r: round(panel.r),
-    sheenH: round(panel.h * (SLATE.sheenPct / 100)),
   };
 }
 

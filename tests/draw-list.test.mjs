@@ -272,8 +272,8 @@ test('the empty board a lesson opens on is the panel alone: nothing counted, not
 
   assert.deepEqual(board.panel, counted.panel);
   assert.deepEqual(
-    [board.count, board.mode, board.groups, board.counters, board.badge, board.equation, board.progress],
-    [0, 'count', [], [], null, null, 1],
+    [board.count, board.mode, board.groups, board.counters, board.equation, board.progress],
+    [0, 'count', [], [], null, 1],
   );
   // It is the fold's `standing` that makes it a board: the same count of
   // nothing from a producer with no such word is still no board at all.
@@ -287,7 +287,7 @@ test('the panel is the old board own rectangle, in this plate own pixels', () =>
   const { panel } = boardAt(counting(3), settled(3));
 
   assert.deepEqual(panel, {
-    x: 86.4, y: 91.8, w: 1747.2, h: 912.6, r: 54, sheenH: 146.02,
+    x: 86.4, y: 91.8, w: 1747.2, h: 912.6, r: 54,
   });
   assert.equal(Math.round((panel.x + panel.w) * 10) / 10, 1833.6);
   assert.equal(Math.round((panel.y + panel.h) * 10) / 10, 1004.4);
@@ -408,27 +408,6 @@ test('a take-away draws what it started with, then crosses out what was taken', 
   assert.deepEqual(gone.counters.map((counter) => counter.ring), [false, false, true, false, false]);
 });
 
-test('the badge counts what is on the board right now, and is not there at nothing', () => {
-  assert.equal(boardAt(counting(3), 0).badge, null, 'the first counter is still on its way');
-  assert.equal(boardAt(counting(3), settled(3)).badge.n, 3);
-  assert.equal(boardAt(joining(2, 3), settled(5)).badge.n, 5);
-  // A take-away's badge counts DOWN as the counters go, which is the whole
-  // cardinality cue: five, then four, then three. A counter is still there
-  // until it is half gone, so the badge changes as the apple does.
-  assert.equal(boardAt(taking(5, 2), settled(5) + SLATE.takeMs).badge.n, 4);
-  const after = settled(5) + SLATE.takeStaggerMs + SLATE.takeMs;
-  assert.equal(boardAt(taking(5, 2), after).badge.n, 3);
-});
-
-test('the badge sits in the panel own top corner, at the old board own offsets', () => {
-  const { panel, badge } = boardAt(counting(3), settled(3));
-  const size = (SLATE.badgePct / 100) * 1080;
-
-  assert.equal(badge.size, size);
-  assert.equal(badge.cx, Math.round(((panel.x + panel.w) - (size * SLATE.badgeOffset[0])) * 100) / 100);
-  assert.equal(badge.cy, Math.round((panel.y + (size * SLATE.badgeOffset[1])) * 100) / 100);
-});
-
 test('the equation waits for the counters, then writes itself one token at a time', () => {
   const tokensAt = (tMs) => boardAt(joining(2, 3), tMs).equation;
 
@@ -496,7 +475,10 @@ test('every board the fold accepts is a board the drawer draws', () => {
     assert.deepEqual(state.warnings, [], JSON.stringify(slate));
     const [board] = only(buildDrawList({ ...actorState({}), slate: state.slate, tMs: state.tMs }), 'slate');
     assert.ok(board, `the fold accepted ${JSON.stringify(slate)} and the drawer drew nothing`);
-    assert.equal(board.badge.n, board.mode === 'subtract' ? board.count : board.counters.length);
+    // Settled, what is left standing is the answer: a take-away's taken
+    // counters have gone, and everything else is still there.
+    const standing = board.counters.filter(({ alpha }) => alpha === 1).length;
+    assert.equal(standing, board.mode === 'subtract' ? board.count : board.counters.length);
   }
 });
 
@@ -678,7 +660,6 @@ test('the board is measured against the plate, so a smaller stage gets a smaller
   assert.equal(small.panel.w, big.panel.w / 2);
   assert.equal(small.panel.h, big.panel.h / 2);
   assert.equal(small.counters[0].r, big.counters[0].r / 2);
-  assert.equal(small.badge.size, big.badge.size / 2);
 });
 
 test('a ring is drawn around its own actor, right after them', () => {

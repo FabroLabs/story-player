@@ -14,12 +14,12 @@ import { compileTimeline } from '../browser/v0/core/timeline/compile.mjs';
  * The counting board, as a contact sheet.
  *
  * The board is the one thing in the player that is a BUILD rather than a
- * picture: counters arrive one by one, the newest wears the ring, the badge
- * climbs, the equation is spelled out a term at a time. A single screenshot
- * says almost nothing about it, and `npm test` — which pins the draw list,
- * rightly — says nothing at all about whether the result is a board a child
- * would understand. So this paints the same build at several instants, side by
- * side, and leaves the judgement to whoever opens the file.
+ * picture: counters arrive one by one, the newest wears the ring, the equation
+ * is spelled out a term at a time. A single screenshot says almost nothing
+ * about it, and `npm test` — which pins the draw list, rightly — says nothing
+ * at all about whether the result is a board a child would understand. So this
+ * paints the same build at several instants, side by side, and leaves the
+ * judgement to whoever opens the file.
  *
  * It is repository tooling, not a test: dev-only like `test:e2e`, run by hand,
  * asserting nothing. What it prints with `--dump` is the part worth diffing —
@@ -185,15 +185,14 @@ function unusable(jobs, painted, noted) {
 }
 
 // `null` is what a NaN becomes on the way back from the page, so both count —
-// except where the contract SAYS null: a board draws no running total until its
-// first counter is half there, and no equation at all until the counters have
-// finished, and both say so with `null`. Those two are the whole early half of
-// every build, so reading them as broken numbers condemns the cells that show
-// the board arriving — which is what this sheet exists to show.
+// except where the contract SAYS null: a board draws no equation at all until
+// the counters have finished, and says so with `null`. That is the whole early
+// half of every build, so reading it as a broken number condemns the cells that
+// show the board arriving — which is what this sheet exists to show.
 function notFinite(command) {
   // Declared here rather than beside the module's other constants: the script
   // does its work at the top, before a `const` further down has been initialised.
-  const nullable = new Set(['badge', 'equation']);
+  const nullable = new Set(['equation']);
   const bad = [];
   const walk = (value, trail, key) => {
     if (value === null) {

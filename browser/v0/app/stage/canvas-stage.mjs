@@ -40,7 +40,6 @@ const TAU = Math.PI * 2;
 // drawing this board, and the list carries the geometry it must agree on.
 const SLATE_PANEL_INK = 'rgba(255, 255, 255, 0.59)';
 const SLATE_PANEL_EDGE = 'rgba(255, 255, 255, 0.84)';
-const SLATE_SHEEN_INK = 'rgba(255, 255, 255, 0.22)';
 const SLATE_GROUP_INKS = ['236, 92, 86', '96, 184, 120', '94, 158, 224', '196, 132, 224'];
 const SLATE_PAD_TINTS = ['255, 186, 166', '170, 226, 184', '176, 206, 248', '224, 192, 248'];
 // A plain count is not two groups of anything, so its counters are one calm
@@ -51,8 +50,6 @@ const SLATE_STEM_INK = 'rgb(120, 84, 52)';
 const SLATE_LEAF_INK = 'rgb(110, 186, 110)';
 const SLATE_SHINE_INK = 'rgba(255, 255, 255, 0.35)';
 const SLATE_CROSS_INK = 'rgb(228, 64, 60)';
-const SLATE_BADGE_INK = 'rgb(255, 213, 92)';
-const SLATE_BADGE_NUMERAL_INK = 'rgb(74, 58, 18)';
 const SLATE_EQUATION_INKS = {
   term: '60, 70, 80',
   operator: '60, 70, 80',
@@ -507,8 +504,8 @@ function paintProp(context, command, drawable) {
 }
 
 /**
- * The counting board: frosted glass, a counter per thing counted, the running
- * total, and the equation under them.
+ * The counting board: frosted glass, a counter per thing counted, and the
+ * equation under them.
  *
  * Every number is the draw list's; every colour is here. A counter grows about
  * its own centre, so the ones already standing do not shift as the next one
@@ -516,12 +513,11 @@ function paintProp(context, command, drawable) {
  * does not jump as the last one arrives.
  */
 function paintSlate(context, {
-  mode, panel, counters, badge, equation,
+  mode, panel, counters, equation,
 }, plateWidth) {
   context.save();
   paintPanel(context, panel);
   for (const counter of counters) paintCounter(context, counter, mode);
-  if (badge) paintBadge(context, badge);
   if (equation) paintEquation(context, equation, plateWidth);
   context.restore();
 }
@@ -535,11 +531,6 @@ function paintPanel(context, panel) {
   // its own pixels, so the edge is measured in them too.
   context.lineWidth = Math.max(2, panel.h * 0.005);
   context.stroke();
-  // The sheen is what makes the panel read as glass rather than as paper: a
-  // brighter band along its top, sharing the panel's own corners.
-  roundedRect(context, panel.x, panel.y, panel.w, panel.sheenH, panel.r);
-  context.fillStyle = SLATE_SHEEN_INK;
-  context.fill();
 }
 
 /**
@@ -614,19 +605,6 @@ function paintCross(context, cx, cy, radius, r, cross) {
   context.moveTo(cx - reach, cy + reach);
   context.lineTo(cx + reach, cy - reach);
   context.stroke();
-}
-
-// The running total, in the panel's top corner: the cardinality cue, and the
-// only place on the board where the answer is a numeral before the equation.
-function paintBadge(context, { cx, cy, size, n }) {
-  roundedRect(context, cx - (size / 2), cy - (size / 2), size, size, size * SLATE.badgeRadius);
-  context.fillStyle = SLATE_BADGE_INK;
-  context.fill();
-  context.fillStyle = SLATE_BADGE_NUMERAL_INK;
-  context.font = numeralFont(size * SLATE.badgeFont);
-  context.textAlign = 'center';
-  context.textBaseline = 'middle';
-  context.fillText(String(n), cx, cy);
 }
 
 /**
