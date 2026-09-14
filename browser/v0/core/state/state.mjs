@@ -4,7 +4,7 @@ import { NO_FLOOR_STAND_Y, floorYAtX, zoneDepthOrder, zoneNamed } from '../geome
 // compiler already inherited; phase 7 deletes the DOM stage and is the cheap
 // moment to move the module. The policy itself is pure.
 import { drawnSpriteHeightPx } from '../../app/stage/presentation-policy.mjs';
-import { carriedFrom, isEmptyBoard, normaliseSlate } from '../slate.mjs';
+import { carriedFrom, counterCount, isEmptyBoard, normaliseSlate } from '../slate.mjs';
 import { BandBook } from './bands.mjs';
 import { WIDE_FRAMING, framingBetween, framingForOp } from './camera.mjs';
 import { paintOrder, spreadBand } from './layout.mjs';
@@ -394,15 +394,23 @@ export class World {
   // with the flash. Kept sorted and unique so the picture is one shape however
   // the cues were ordered, and a counter lit twice is lit once. Which counters
   // the standing board HAS is the language's rule, refused where the cue was
-  // written: a ring past the board is a ring the drawer finds no counter for.
+  // written — but a timeline is read from wherever it came from, and a ring
+  // on no board, or past the counters the board draws, is a mark the picture
+  // is missing: told the way a highlight of nobody is, and kept off the board.
   #ring(event) {
     const counter = event.counter;
     if (!Number.isInteger(counter) || counter < 0) {
       this.#warn(event, { type: 'policy', policy: 'ring-counter-unusable', counter: counter ?? null });
       return;
     }
+    // A clear puts out what there is, nothing included: the compiler leaves
+    // one behind a ring it refused, and that is not a second mistake.
     if (counter === 0) {
       this.#clearSweep();
+      return;
+    }
+    if (!this.#slate.standing || counter > counterCount(this.#slate)) {
+      this.#warn(event, { type: 'policy', policy: 'ring-missing', counter });
       return;
     }
     if (this.#slate.rings.includes(counter)) return;

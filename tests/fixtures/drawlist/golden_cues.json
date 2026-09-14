@@ -526,6 +526,201 @@
       }
     },
     {
+      "t_ms": 5026,
+      "list": {
+        "width": 1920,
+        "height": 1080,
+        "camera": {
+          "scale": 1,
+          "x": 0,
+          "y": 0
+        },
+        "commands": [
+          {
+            "op": "slate",
+            "hud": true,
+            "mode": "count",
+            "count": 3,
+            "groups": [
+              3
+            ],
+            "progress": 1,
+            "panel": {
+              "x": 86.4,
+              "y": 91.8,
+              "w": 1747.2,
+              "h": 912.6,
+              "r": 54
+            },
+            "counters": [
+              {
+                "n": 1,
+                "group": 0,
+                "cx": 668.4,
+                "cy": 424.9,
+                "r": 99.14,
+                "scale": 1,
+                "alpha": 1,
+                "cross": 0,
+                "ring": false,
+                "swept": true
+              },
+              {
+                "n": 2,
+                "group": 0,
+                "cx": 960,
+                "cy": 424.9,
+                "r": 99.14,
+                "scale": 1,
+                "alpha": 1,
+                "cross": 0,
+                "ring": false,
+                "swept": true
+              },
+              {
+                "n": 3,
+                "group": 0,
+                "cx": 1251.6,
+                "cy": 424.9,
+                "r": 99.14,
+                "scale": 1,
+                "alpha": 1,
+                "cross": 0,
+                "ring": true,
+                "swept": true
+              }
+            ],
+            "equation": {
+              "y": 674.95,
+              "h": 283.82,
+              "tokens": [
+                {
+                  "text": "3",
+                  "role": "result",
+                  "alpha": 1
+                }
+              ]
+            }
+          },
+          {
+            "op": "sprite",
+            "slug": "woodpecker",
+            "url": "fairytale-assets/renditions/sprites/665f7e3e629ea59f4848cdf31d0380e3.webp",
+            "cell": [
+              1,
+              0
+            ],
+            "cells": [
+              3,
+              3
+            ],
+            "dx": 1582.2,
+            "dy": 777.6,
+            "dw": 291.6,
+            "dh": 291.6,
+            "opacity": 1,
+            "hud": true
+          }
+        ]
+      }
+    },
+    {
+      "t_ms": 5027,
+      "list": {
+        "width": 1920,
+        "height": 1080,
+        "camera": {
+          "scale": 1,
+          "x": 0,
+          "y": 0
+        },
+        "commands": [
+          {
+            "op": "slate",
+            "hud": true,
+            "mode": "count",
+            "count": 3,
+            "groups": [
+              3
+            ],
+            "progress": 1,
+            "panel": {
+              "x": 86.4,
+              "y": 91.8,
+              "w": 1747.2,
+              "h": 912.6,
+              "r": 54
+            },
+            "counters": [
+              {
+                "n": 1,
+                "group": 0,
+                "cx": 668.4,
+                "cy": 424.9,
+                "r": 99.14,
+                "scale": 1,
+                "alpha": 1,
+                "cross": 0,
+                "ring": false
+              },
+              {
+                "n": 2,
+                "group": 0,
+                "cx": 960,
+                "cy": 424.9,
+                "r": 99.14,
+                "scale": 1,
+                "alpha": 1,
+                "cross": 0,
+                "ring": false
+              },
+              {
+                "n": 3,
+                "group": 0,
+                "cx": 1251.6,
+                "cy": 424.9,
+                "r": 99.14,
+                "scale": 1,
+                "alpha": 1,
+                "cross": 0,
+                "ring": true
+              }
+            ],
+            "equation": {
+              "y": 674.95,
+              "h": 283.82,
+              "tokens": [
+                {
+                  "text": "3",
+                  "role": "result",
+                  "alpha": 1
+                }
+              ]
+            }
+          },
+          {
+            "op": "sprite",
+            "slug": "woodpecker",
+            "url": "fairytale-assets/renditions/sprites/665f7e3e629ea59f4848cdf31d0380e3.webp",
+            "cell": [
+              1,
+              0
+            ],
+            "cells": [
+              3,
+              3
+            ],
+            "dx": 1582.2,
+            "dy": 777.6,
+            "dw": 291.6,
+            "dh": 291.6,
+            "opacity": 1,
+            "hud": true
+          }
+        ]
+      }
+    },
+    {
       "t_ms": 6287,
       "list": {
         "width": 1920,

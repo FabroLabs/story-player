@@ -3,7 +3,7 @@ import { desiredFacing, selectFacingClip, selectLocomotion } from '../clips.mjs'
 import { alongFloor, floorSpan, isSide, sideX, zoneNamed } from '../geometry.mjs';
 import { carriedFrom, normaliseSlate, slateBuildMs } from '../slate.mjs';
 import { cameraPoint, cameraSpeed, resolveShot } from './camera.mjs';
-import { cueOffsetMs } from './cues.mjs';
+import { cueAtUsable, cueOffsetMs } from './cues.mjs';
 import { Recorder, stepDetail } from './events.mjs';
 import { TimelineStage } from './stage.mjs';
 import { Schedule, createGate, runToEnd } from './timing.mjs';
@@ -329,8 +329,15 @@ class Director {
     if (!Array.isArray(step.cues) || step.cues.length === 0) return;
     const sceneIndex = this.#sceneIndex;
     for (const cue of step.cues) {
-      const offset = cueOffsetMs(step, cue);
       const origin = { scene_index: sceneIndex, line: cue.line ?? step.line ?? null };
+      // An `at` the estimate cannot read puts the cue on the lead alone — the
+      // line's first word, whichever word it was written under. It still
+      // fires, since a cue lost is worse than a cue early, but a story whose
+      // ring landed on the wrong word would otherwise ship with a clean report.
+      if (!cueAtUsable(cue.at)) {
+        this.warning({ type: 'policy', policy: 'cue-at-unusable', at: cue.at ?? null }, origin.line, origin.scene_index);
+      }
+      const offset = cueOffsetMs(step, cue);
       this.#schedule.at(offset, () => this.#performCue(cue.step, origin));
       if (cue.step.cmd === 'flash') {
         this.#sweep.pulseUntil = Math.max(this.#sweep.pulseUntil, this.#schedule.now() + offset + FLASH.pulseMs);

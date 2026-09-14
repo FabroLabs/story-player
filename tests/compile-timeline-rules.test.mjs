@@ -1207,6 +1207,32 @@ test('an ordinary command cued mid-line fires through the same path, at the cue\
   assert.deepEqual(ops(events, 'ring'), []);
 });
 
+test('a chunk whose only cues are ordinary commands is where the counting stops', () => {
+  // Counting is judged by the BOARD cues a chunk carries, not by whether it
+  // carries any: an emote fired mid-line is not a ring, so a chunk with only
+  // that ends the sweep the way an un-cued one does — the clear at its start,
+  // before its subtitle, on the line that opened the sweep — and opens none.
+  const events = compile(lessonStory([
+    put(1, 'ruby', 'center'),
+    slate(2, 3),
+    rest(3, 1),
+    spoken(4, [ringCue(5, 0, 1), ringCue(6, 5, 2)]), // 1000 to 2208
+    spoken(7, [cue(8, 5, { kind: 'cmd', cmd: 'emote', subjects: ['ruby'], emotion: 'happy', facing: null })]),
+    rest(9, 1),
+  ]));
+
+  assert.deepEqual(
+    ops(events, 'ring').map((event) => [event.t_ms, event.counter, event.line]),
+    [[1_080, 1, 5], [1_458, 2, 6], [2_208, 0, 4]],
+  );
+  const clear = events.findIndex((event) => event.op === 'ring' && event.counter === 0);
+  const subtitle = events.findIndex((event) => event.op === 'subtitle' && event.t_ms === 2_208);
+  assert.ok(clear < subtitle, 'the clear landed after the subtitle of the chunk that stopped the counting');
+  // The emote still fires on its own word: 378 ms into its line, plus the lead.
+  assert.deepEqual(ops(events, 'clip').map((event) => [event.t_ms, event.slug, event.clip]), [[2_666, 'ruby', 'happy']]);
+  assert.deepEqual(warnings(events), []);
+});
+
 test('a cued sound is a step at its instant, so it is heard', () => {
   const story = lessonStory([
     slate(1, 3),
@@ -1302,6 +1328,30 @@ test('a ring cue whose counter is not a whole number is refused and named on its
     assert.deepEqual([refusal.line, refusal.t_ms, refusal.detail], [
       4, 1_080, { type: 'policy', policy: 'ring-counter-unusable', counter: counter ?? null },
     ], JSON.stringify(counter));
+  }
+});
+
+test('a cue whose `at` cannot place it fires on the lead, and says so', () => {
+  // The estimate is a character position over a length. Without one the cue
+  // is timed at the lead alone — the line's first word, whichever word it was
+  // written under — and it still fires, because a cue lost is worse than a cue
+  // early. Said once per cue, on the cue's line, where the chunk parked it.
+  const unplaced = [
+    undefined,
+    {},
+    { word: 1, of: 3 },
+    { word: 1, of: 3, char: 'five', chars: 16 },
+    { word: 1, of: 3, char: 5, chars: 0 },
+  ];
+  for (const at of unplaced) {
+    const events = compile(lessonStory([slate(1, 3), rest(2, 1), spoken(3, [{ ...ringCue(4, 5, 1), at }]), rest(5, 2)]));
+
+    assert.deepEqual(ops(events, 'ring').map((event) => [event.t_ms, event.counter]), [[1_000 + CUE.leadMs, 1]], JSON.stringify(at));
+    const refusals = events.filter((event) => event.kind === 'warning');
+    assert.equal(refusals.length, 1, JSON.stringify(at));
+    assert.deepEqual([refusals[0].line, refusals[0].t_ms, refusals[0].detail], [
+      4, 1_000, { type: 'policy', policy: 'cue-at-unusable', at: at ?? null },
+    ], JSON.stringify(at));
   }
 });
 

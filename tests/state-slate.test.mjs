@@ -465,3 +465,33 @@ test('the rings a fold hands out cannot be written back into the fold', () => {
 
   assert.deepEqual(slateAt(events, 3_000).rings, [1]);
 });
+
+test('a ring on no board, or past the counters the board draws, is content the picture is missing, and it says so', () => {
+  // Whether a board stands with k counters on it is the language's rule,
+  // refused where the cue is written, so this compiler never records one —
+  // but a timeline is read from wherever it came from. Told the way a
+  // highlight of nobody is, and the ring stays off the board.
+  const missing = (counter) => ({
+    t_ms: 2_000, scene_index: 0, line: null, type: 'policy', policy: 'ring-missing', counter,
+  });
+  const none = stateAt(timeline([ring(2_000, 1)]), BUNDLE, 3_000);
+  assert.deepEqual(none.slate, NO_BOARD);
+  assert.deepEqual(none.warnings, [missing(1)]);
+  // The empty panel a lesson opens on has nothing on it to ring either.
+  const opened = stateAt(timeline([opening(0), ring(2_000, 1)]), BUNDLE, 3_000);
+  assert.deepEqual(opened.slate.rings, []);
+  assert.deepEqual(opened.warnings, [missing(1)]);
+  // The fourth counter of three is refused; the third, in the same instant, lights.
+  const past = stateAt(timeline([stage(1_000, 'slate', { count: 3 }), ring(2_000, 4), ring(2_000, 3)]), BUNDLE, 3_000);
+  assert.deepEqual(past.slate.rings, [3]);
+  assert.deepEqual(past.warnings, [missing(4)]);
+  // A take-away draws what it STARTS with, so its bound is the first group:
+  // the fifth counter of five-take-two is standing (crossed out), the sixth is not.
+  const taken = [stage(1_000, 'slate', { count: 3, mode: 'subtract', groups: [5, 2] }), ring(2_000, 5), ring(2_000, 6)];
+  const took = stateAt(timeline(taken), BUNDLE, 3_000);
+  assert.deepEqual(took.slate.rings, [5]);
+  assert.deepEqual(took.warnings, [missing(6)]);
+  // A clear with nothing to put out is nothing, said nowhere: the compiler
+  // leaves one behind a ring it refused.
+  assert.deepEqual(stateAt(timeline([ring(2_000, 0)]), BUNDLE, 3_000).warnings, []);
+});

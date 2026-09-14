@@ -169,7 +169,10 @@ has any—and the compiler times each one at `clamp(round(duration_ms × at.char
 at.chars) + V0_POLICY.cue.leadMs, 0, duration_ms − 1)`: the word's character
 position over the chunk's measured length, pushed later by the lead, and never
 on or past the chunk's own end. (Measured word times, once a bundle carries
-them, replace that estimate at the one function that makes it.) At its instant
+them, replace that estimate at the one function that makes it.) A cue whose
+`at` cannot place it—missing, or without a finite `char` over a `chars` above
+zero—is timed at the lead alone, the line's first word, and said with
+`cue-at-unusable` on its line; it still fires. At its instant
 the cue's `step` is logged in the step stream—so a cued `sound` or `music`
 plays through the same path every other one does—and its command is performed
 exactly as it would be between chunks: a cued `emote`, `highlight` or `put`
@@ -184,7 +187,10 @@ pauses and through further chunks with ring or flash cues, and the compiler
 records `ring {counter: 0}` where the next chunk with neither begins—before
 that chunk's subtitle, or, if a flash is still pulsing then, when the pulse
 lands—on the line of the chunk that opened the sweep, the way a settle carries
-its move's line. A scene cut and the ending put the rings out themselves, so a
+its move's line. A cued chunk that begins while such a clear is still waiting
+on its pulse takes the clear first—fired at that chunk's own start, on the old
+sweep's line, before the first ring of the sweep it opens—so no clear lands
+mid-count. A scene cut and the ending put the rings out themselves, so a
 sweep that reaches either gets no clear from the compiler. `stateAt` carries them on the board as `rings` (the swept
 counters, sorted and unique) and `flashAt` (the instant of the last flash, or
 `null`): `counter: 0` clears both, a new board comes up with neither, and
@@ -194,7 +200,10 @@ board. The draw list marks a swept counter `swept: true` and a pulsing board
 list it always was. A ring whose counter is not a whole number is refused with
 `ring-counter-unusable` at the compiler and again at `stateAt`; whether a board
 stands with k counters on it is the language's own rule, refused where the cue
-is written.
+is written—and a timeline from elsewhere that rings with no board standing, or
+past the counters the board draws (a take-away draws what it starts with), is
+told `ring-missing` at `stateAt`, the way a highlight of nobody is told
+`highlight-missing`, and the ring stays off the board.
 
 The story clock is pausable and seekable, and audio follows it: each cue starts
 at its own `t_ms` and is aligned by `currentTime`, so blocked or late audio
