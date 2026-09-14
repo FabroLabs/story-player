@@ -15,7 +15,7 @@ import test from 'node:test';
 
 import { createCanvasStage, paintDrawList, sceneSheets } from '../browser/v0/app/stage/canvas-stage.mjs';
 import { buildDrawList } from '../browser/v0/app/stage/draw-list.mjs';
-import { SLATE } from '../browser/v0/policy.mjs';
+import { FLASH, SLATE } from '../browser/v0/policy.mjs';
 import { fakeContext, fakeElement, fakeStageElements, installDom } from './_dom.mjs';
 
 function stageState({ actors = [], camera } = {}) {
@@ -783,6 +783,53 @@ test('the answer is green and the equals is red', () => {
     ['=', 'rgba(236, 92, 86, 1)'],
     ['5', 'rgba(54, 150, 96, 1)'],
   ]);
+});
+
+const GOLD = 'rgba(245, 197, 66, 1)';
+const goldStrokes = (context) => context.of('stroke').map((call) => call.at(-1)).filter((mark) => mark.ink === GOLD);
+
+test('a swept counter wears the same gold ring as the newest one', () => {
+  const context = fakeContext();
+  const list = lessonList({ slate: { ...counting(3), rings: [1] }, tMs: 4_000 });
+  const [first, , newest] = boardOf(list).counters;
+  paintDrawList(context, list, { lookup: () => bitmap(512, 512), scale: 1, shadows: false });
+
+  // Two gold rings — counter 1's sweep and counter 3's own — the same width,
+  // each at its counter's own centre and at the ring's own radius.
+  const rings = goldStrokes(context);
+  assert.equal(rings.length, 2);
+  assert.ok(rings.every((mark) => mark.width === Math.max(2, first.r * SLATE.ringWidth)));
+  const at = (value) => Math.round(value * 100) / 100;
+  const ringed = ovals(context).filter(([, , rx]) => at(rx) === at(first.r + (first.r * SLATE.ringGap)));
+  assert.deepEqual(ringed.map(([cx, cy]) => [cx, cy]), [[first.cx, first.cy], [newest.cx, newest.cy]]);
+});
+
+test('the flash widens every lit ring and lays a halo under it, for the length of its pulse', () => {
+  const marks = (tMs) => {
+    const context = fakeContext();
+    const list = lessonList({ slate: { ...counting(3), rings: [1, 2], flashAt: 3_000 }, tMs });
+    paintDrawList(context, list, { lookup: () => bitmap(512, 512), scale: 1, shadows: false });
+    return { width: Math.max(2, boardOf(list).counters[0].r * SLATE.ringWidth), gold: goldStrokes(context) };
+  };
+
+  // Before it fires, and at the very start of the pulse: three plain rings.
+  for (const tMs of [2_999, 3_000]) {
+    const { width, gold } = marks(tMs);
+    assert.deepEqual(gold.map((mark) => mark.width), [width, width, width], `at ${tMs}`);
+  }
+  // At the peak: each ring is `gain` times as wide, over a halo twice as wide
+  // again at `halo` alpha — halo first, so the ring stays crisp over it.
+  const peak = marks(3_000 + (FLASH.pulseMs / 2));
+  assert.deepEqual(
+    peak.gold.map((mark) => [Math.round(mark.width * 1000) / 1000, Math.round(mark.alpha * 1000) / 1000]),
+    Array(3).fill([
+      [Math.round(peak.width * FLASH.gain * 2 * 1000) / 1000, FLASH.halo],
+      [Math.round(peak.width * FLASH.gain * 1000) / 1000, 1],
+    ]).flat(),
+  );
+  // Landed: plain rings again, and nothing else left dimmed.
+  const over = marks(3_000 + FLASH.pulseMs);
+  assert.deepEqual(over.gold.map((mark) => mark.width), [over.width, over.width, over.width]);
 });
 
 test('the gold is the ring and the take-away is red, and neither is the other', () => {

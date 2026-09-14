@@ -34,6 +34,8 @@ export const TIMELINE_OPS = Object.freeze([
   'camera_reset',
   'slate',
   'highlight',
+  'ring',
+  'flash',
   'subtitle',
   'end',
 ]);

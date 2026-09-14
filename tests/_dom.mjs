@@ -218,8 +218,13 @@ export function fakeContext() {
     fill: (...args) => calls.push([
       'fill', ...args, { alpha: context.globalAlpha, ink: context.fillStyle },
     ]),
+    // The width too: a flash on the board is a ring drawn WIDER for the length
+    // of its pulse, and a recorder that could not say how wide would let a
+    // pulse that never swelled pass as one that did.
     stroke: (...args) => calls.push([
-      'stroke', ...args, { alpha: context.globalAlpha, transform: [...transform], ink: context.strokeStyle },
+      'stroke', ...args, {
+        alpha: context.globalAlpha, transform: [...transform], ink: context.strokeStyle, width: context.lineWidth,
+      },
     ]),
     // A glyph's width belongs to the font the device actually has, and this
     // harness has none. It answers a width that is proportional to the text and

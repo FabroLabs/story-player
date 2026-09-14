@@ -17,7 +17,7 @@
  */
 
 import { DPR_CAP, chunkAt } from '../assets/rendition-picker.mjs';
-import { DEFAULT_STAGE_RESOLUTION, HIGHLIGHT, SLATE } from '../../policy.mjs';
+import { DEFAULT_STAGE_RESOLUTION, FLASH, HIGHLIGHT, SLATE } from '../../policy.mjs';
 import { buildDrawList } from './draw-list.mjs';
 
 // The ink of the shadow and of the placeholder, kept here rather than in the
@@ -513,11 +513,11 @@ function paintProp(context, command, drawable) {
  * does not jump as the last one arrives.
  */
 function paintSlate(context, {
-  mode, panel, counters, equation,
+  mode, panel, counters, equation, flash = null,
 }, plateWidth) {
   context.save();
   paintPanel(context, panel);
-  for (const counter of counters) paintCounter(context, counter, mode);
+  for (const counter of counters) paintCounter(context, counter, mode, flash);
   if (equation) paintEquation(context, equation, plateWidth);
   context.restore();
 }
@@ -535,18 +535,21 @@ function paintPanel(context, panel) {
 
 /**
  * One counter: a tinted pad, the gold ring if it is the one the count has
- * reached, an apple on top, and the red X if it is being taken away.
+ * reached or a cue has swept it, an apple on top, and the red X if it is being
+ * taken away.
  *
  * The order is the z-order and every step of it is load-bearing. The pad is the
  * ground, so it goes down first — drawn after the ring it would BURY it, since
  * the pad is wider than the ring is (the ring is a mark on the counter, the pad
  * is the counter's own base). The apple sits inside the ring rather than over
  * it, and the X goes last so it reads as a mark ON the apple — the order the
- * old board drew them in, and the order a child would draw them in.
+ * old board drew them in, and the order a child would draw them in. A flash
+ * widens the ring and lays a halo under it; the halo is part of the ring's own
+ * step, so the order stays pad, ring, apple, cross.
  */
 function paintCounter(context, {
-  group, cx, cy, r, scale, alpha, cross, ring,
-}, mode) {
+  group, cx, cy, r, scale, alpha, cross, ring, swept = false,
+}, mode, flash = null) {
   // A counter at the very start of its pop has no size at all, and one already
   // taken away has nothing left to draw.
   if (!(scale > 0.01) || !(alpha > 0.01)) return;
@@ -556,15 +559,38 @@ function paintCounter(context, {
   context.fillStyle = `rgba(${padTint(mode, group)}, 0.8)`;
   circle(context, cx, cy, radius * padShare());
   context.fill();
-  if (ring) {
-    context.strokeStyle = `rgba(${GOLD_INK}, 1)`;
-    context.lineWidth = Math.max(2, r * SLATE.ringWidth);
-    circle(context, cx, cy, radius + (r * SLATE.ringGap));
-    context.stroke();
+  if (ring || swept) {
+    paintGoldRing(context, cx, cy, radius + (r * SLATE.ringGap), Math.max(2, r * SLATE.ringWidth), alpha, flash);
   }
   paintApple(context, cx, cy, radius, counterInk(mode, group));
   if (cross > 0.01) paintCross(context, cx, cy, radius, r, cross);
   context.restore();
+}
+
+/**
+ * The gold ring on a counter, and the flash that swells it.
+ *
+ * The swell is a half sine over the pulse: nothing at either end, `FLASH.gain`
+ * times the width at the peak, so the ring breathes rather than jumps. The
+ * halo is the same ink twice as wide, at `FLASH.halo` of the counter's own
+ * alpha on the same curve — a glow that arrives and leaves with the pulse
+ * rather than a second ring that pops in — and it goes down first, so the ring
+ * stays crisp over it.
+ */
+function paintGoldRing(context, cx, cy, radius, width, alpha, flash) {
+  const pulse = flash ? Math.sin(Math.PI * Math.min(1, Math.max(0, flash.progress))) : 0;
+  const swollen = width * (1 + ((FLASH.gain - 1) * pulse));
+  context.strokeStyle = `rgba(${GOLD_INK}, 1)`;
+  if (pulse > 0) {
+    context.globalAlpha = alpha * FLASH.halo * pulse;
+    context.lineWidth = swollen * 2;
+    circle(context, cx, cy, radius);
+    context.stroke();
+    context.globalAlpha = alpha;
+  }
+  context.lineWidth = swollen;
+  circle(context, cx, cy, radius);
+  context.stroke();
 }
 
 /**

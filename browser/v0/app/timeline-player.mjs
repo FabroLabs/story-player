@@ -18,7 +18,7 @@
 
 import { createStateCursor } from '../core/state/cursor.mjs';
 import { slateBuildMs } from '../core/slate.mjs';
-import { HIGHLIGHT } from '../policy.mjs';
+import { FLASH, HIGHLIGHT } from '../policy.mjs';
 import { KEEP_CADENCE_MS } from './assets/scene-loader.mjs';
 import { DEFAULT_DRAW_HZ, tierSettings } from './capability.mjs';
 import { createControls } from './controls.mjs';
@@ -890,13 +890,17 @@ function signatureOf(state) {
   // build, not the first pop: a board goes on moving for as long as its
   // counters are arriving, its taken ones crossing out and its equation
   // writing itself, and a signature that settled after the first counter would
-  // freeze the rest of the lesson on a still scene.
+  // freeze the rest of the lesson on a still scene. Then the cues' marks, which
+  // land long after the build has: which counters are swept, and how far the
+  // flash is through its pulse.
   parts.push(
     boardStanding(state.slate) ? 1 : 0,
     state.slate?.count ?? 0,
     state.slate?.mode ?? 'count',
     (state.slate?.groups ?? []).join(','),
     overlayPhase(state.tMs, state.slate?.sinceMs, slateBuildMs(state.slate)),
+    (state.slate?.rings ?? []).join(','),
+    overlayPhase(state.tMs, state.slate?.flashAt, FLASH.pulseMs),
   );
   return parts.join('|');
 }

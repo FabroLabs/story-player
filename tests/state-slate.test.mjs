@@ -62,9 +62,11 @@ const slateAt = (events, tMs) => stateAt(timeline(events), BUNDLE, tMs).slate;
 const actorAt = (events, slug, tMs) => stateAt(timeline(events), BUNDLE, tMs)
   .actors.find((actor) => actor.slug === slug);
 
-const NO_BOARD = { count: 0, mode: 'count', groups: [], sinceMs: 0, from: 0, standing: false };
-const board = (count, mode, groups, sinceMs, from = 0) => ({
-  count, mode, groups, sinceMs, from, standing: true,
+const NO_BOARD = {
+  count: 0, mode: 'count', groups: [], sinceMs: 0, from: 0, standing: false, rings: [], flashAt: null,
+};
+const board = (count, mode, groups, sinceMs, from = 0, rings = [], flashAt = null) => ({
+  count, mode, groups, sinceMs, from, standing: true, rings, flashAt,
 });
 // The empty board a lesson opens on: the same count of nothing, standing.
 const opening = (tMs) => stage(tMs, 'slate', { count: 0, mode: 'count', groups: [] });
@@ -157,7 +159,9 @@ test('a count of nothing over a standing board is refused, and the board stays u
 test('the empty board a scene opens on stands, with nothing on it and the instant it went up', () => {
   assert.deepEqual(
     slateAt([opening(4_000)], 4_500),
-    { count: 0, mode: 'count', groups: [], sinceMs: 4_000, from: 0, standing: true },
+    {
+      count: 0, mode: 'count', groups: [], sinceMs: 4_000, from: 0, standing: true, rings: [], flashAt: null,
+    },
   );
   // Not the same thing as no board at all: that one is not standing.
   assert.deepEqual(slateAt([], 500), NO_BOARD);
@@ -383,4 +387,81 @@ test('a ring around nobody is content the picture is missing, and it says so', (
   assert.deepEqual(state.warnings, [{
     t_ms: 1_000, scene_index: 0, line: null, type: 'policy', policy: 'highlight-missing', slug: 'fox',
   }]);
+});
+
+// --- the cues' marks: the sweep rings and the flash ------------------------
+
+const ring = (tMs, counter) => stage(tMs, 'ring', { counter });
+const flash = (tMs) => stage(tMs, 'flash', {});
+
+test('a ring lights its counter and stays lit; the rings accumulate sorted and unique', () => {
+  const events = [
+    stage(1_000, 'slate', { count: 3 }), ring(2_000, 2), ring(2_400, 1), ring(2_400, 2), ring(2_800, 3),
+  ];
+
+  assert.deepEqual(slateAt(events, 2_100).rings, [2]);
+  assert.deepEqual(slateAt(events, 2_500).rings, [1, 2]);
+  assert.deepEqual(slateAt(events, 3_000), board(3, 'count', [3], 1_000, 0, [1, 2, 3]));
+  // A seek back to before the first ring: none lit. That is why it is a fold.
+  assert.deepEqual(slateAt(events, 1_500).rings, []);
+});
+
+test('counter 0 puts every sweep ring out, and the flash with them', () => {
+  const events = [stage(1_000, 'slate', { count: 3 }), ring(2_000, 1), ring(2_400, 2), flash(2_400), ring(3_000, 0)];
+
+  assert.deepEqual(slateAt(events, 2_900), board(3, 'count', [3], 1_000, 0, [1, 2], 2_400));
+  assert.deepEqual(slateAt(events, 3_000), board(3, 'count', [3], 1_000));
+});
+
+test('a flash stamps the board with its instant, and a later flash restarts it', () => {
+  const events = [stage(1_000, 'slate', { count: 3 }), flash(2_000), flash(2_300)];
+
+  assert.equal(slateAt(events, 1_500).flashAt, null);
+  assert.equal(slateAt(events, 2_100).flashAt, 2_000);
+  assert.equal(slateAt(events, 2_400).flashAt, 2_300);
+});
+
+test('a scene cut and the ending take the sweep and the flash, and leave the board', () => {
+  // The same two ops that take the highlight ring, and for the same reason: a
+  // mark that outlived the line it was made on would ring the next scene's
+  // first frame, or the answer the lesson freezes on.
+  const swept = [stage(1_000, 'slate', { count: 3 }), ring(2_000, 1), flash(2_000)];
+  const cut = [...swept, stage(3_000, 'scene', { place: 'dell' }, 1)];
+  const ended = [...swept, stage(3_000, 'end', {})];
+
+  assert.deepEqual(slateAt(cut, 4_000), board(3, 'count', [3], 1_000));
+  assert.deepEqual(slateAt(ended, 4_000), board(3, 'count', [3], 1_000));
+  // The frame before either still carries them: cleared at the op, never before.
+  assert.deepEqual(slateAt(cut, 2_900), board(3, 'count', [3], 1_000, 0, [1], 2_000));
+});
+
+test('a new board comes up with no sweep on it; the same board repeated keeps the sweep', () => {
+  const events = [
+    stage(1_000, 'slate', { count: 3 }),
+    ring(2_000, 1),
+    stage(2_500, 'slate', { count: 3 }),
+    stage(3_000, 'slate', { count: 4 }),
+  ];
+
+  assert.deepEqual(slateAt(events, 2_600).rings, [1]);
+  assert.deepEqual(slateAt(events, 3_000), board(4, 'count', [4], 3_000, 3));
+});
+
+test('a ring whose counter is not a whole number is refused and said', () => {
+  for (const counter of [1.5, -1, '2', null, undefined]) {
+    const events = [stage(1_000, 'slate', { count: 3 }), stage(2_000, 'ring', { counter })];
+    const state = stateAt(timeline(events), BUNDLE, 3_000);
+
+    assert.deepEqual(state.slate.rings, [], JSON.stringify(counter));
+    assert.deepEqual(state.warnings, [{
+      t_ms: 2_000, scene_index: 0, line: null, type: 'policy', policy: 'ring-counter-unusable', counter: counter ?? null,
+    }], JSON.stringify(counter));
+  }
+});
+
+test('the rings a fold hands out cannot be written back into the fold', () => {
+  const events = [stage(1_000, 'slate', { count: 3 }), ring(2_000, 1)];
+  slateAt(events, 3_000).rings.push(9);
+
+  assert.deepEqual(slateAt(events, 3_000).rings, [1]);
 });

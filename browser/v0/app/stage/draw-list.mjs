@@ -24,7 +24,9 @@
  *               stands in front
  *   slate       the counting board, marked `hud`, because it sits over the
  *               whole picture and is NOT under the camera — see the note on it
- *               below
+ *               below. A counter a cue has swept carries `swept: true`, and a
+ *               board whose rings are pulsing carries `flash: {progress}`;
+ *               both are absent otherwise
  *
  * A board changes the list rather than joining it: while one is up the floor is
  * not drawn at all. What follows the board is the lesson's ring, moved onto the
@@ -44,7 +46,7 @@
 
 import { frameCell } from '../../core/clips.mjs';
 import { counterCount, isEmptyBoard, normaliseSlate, slateSchedule } from '../../core/slate.mjs';
-import { DEFAULT_STAGE_RESOLUTION, HIGHLIGHT, SLATE } from '../../policy.mjs';
+import { DEFAULT_STAGE_RESOLUTION, FLASH, HIGHLIGHT, SLATE } from '../../policy.mjs';
 
 // The shadow, as fractions of the sprite's drawn height. The DOM stage traced
 // the artwork's own silhouette with `filter: drop-shadow`, which costs a
@@ -313,6 +315,10 @@ function ringProgress(actor, tMs) {
  * and only after that does the equation write itself token by token. A seek
  * backwards is the same arithmetic asked at a smaller t, which is why none of
  * it is remembered anywhere.
+ *
+ * The cues' marks ride on top and are written only while they are there —
+ * `swept` on a counter a cue has ringed, `flash` on the board while its rings
+ * pulse — so a board no cue ever touched is the same list it always was.
  */
 function slateFor(slate, tMs, width, height) {
   // The empty board a scene opens on: the panel, the frost behind it and the
@@ -334,6 +340,8 @@ function slateFor(slate, tMs, width, height) {
   const { from } = schedule;
   const panel = panelBox(width, height);
   const { places, cell, band } = counterPlaces(panel, width, height, drawn);
+  const swept = new Set(Array.isArray(slate?.rings) ? slate.rings : []);
+  const flash = flashFor(slate, tMs);
 
   const counters = [];
   let ringed = -1;
@@ -356,6 +364,7 @@ function slateFor(slate, tMs, width, height) {
       alpha: round(alpha, 4),
       cross: round(cross, 4),
       ring: false,
+      ...(swept.has(index + 1) ? { swept: true } : {}),
     });
   }
   if (ringed >= 0) counters[ringed].ring = true;
@@ -370,7 +379,21 @@ function slateFor(slate, tMs, width, height) {
     panel: panelCommand(panel),
     counters,
     equation: equationFor(board, schedule, elapsed, band),
+    ...(flash ? { flash } : {}),
   };
+}
+
+/**
+ * How far through its pulse the board's flash is, or `null` when none is
+ * running — before it fired (a seek backwards) and once it has landed alike.
+ * A fraction rather than the instant, for the reason the ring carries one: the
+ * painter has no clock, and a golden should not carry a timestamp.
+ */
+function flashFor(slate, tMs) {
+  const since = slate?.flashAt;
+  if (!Number.isFinite(since) || !Number.isFinite(tMs)) return null;
+  const progress = (tMs - since) / FLASH.pulseMs;
+  return progress >= 0 && progress < 1 ? { progress: round(progress, 4) } : null;
 }
 
 /**

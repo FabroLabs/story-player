@@ -3,13 +3,15 @@ import { desiredFacing, selectFacingClip, selectLocomotion } from '../clips.mjs'
 import { alongFloor, floorSpan, isSide, sideX, zoneNamed } from '../geometry.mjs';
 import { carriedFrom, normaliseSlate, slateBuildMs } from '../slate.mjs';
 import { cameraPoint, cameraSpeed, resolveShot } from './camera.mjs';
+import { cueOffsetMs } from './cues.mjs';
 import { Recorder, stepDetail } from './events.mjs';
 import { TimelineStage } from './stage.mjs';
-import { Schedule, createGate, runToEnd } from './timing.mjs';
+import { Schedule, createGate, runToEnd, toMs } from './timing.mjs';
 import {
   BESIDE_NUDGE_PCT,
   DEFAULT_EXIT_X_PCT,
   DEPARTURE_DEADLINE_MS,
+  FLASH,
   MINIMUM_DEPARTURE_SECONDS,
   MINIMUM_MOVE_SECONDS,
   MOVE_X_PCT_PER_SECOND,
@@ -114,6 +116,19 @@ function requireCompilableBundle(bundle) {
         continue;
       }
       if (step.kind === 'together') walk(step.steps, sceneIndex);
+      // A cue carries the one step it fires, and only a command can be fired
+      // mid-line: a chunk or a block there would be time passing inside time.
+      if (step.kind === 'chunk' && step.cues !== undefined) {
+        if (!Array.isArray(step.cues)) {
+          unknown.push(`scene ${sceneIndex} line ${step.line ?? '?'}: cues ${JSON.stringify(step.cues)} (not a list)`);
+          continue;
+        }
+        for (const cue of step.cues) {
+          if (cue?.step?.kind !== 'cmd') {
+            unknown.push(`scene ${sceneIndex} line ${cue?.line ?? step.line ?? '?'}: cue ${JSON.stringify(cue?.step?.kind)}`);
+          }
+        }
+      }
     }
   };
   bundle.scenes.forEach((scene, index) => walk(scene?.steps, index));
@@ -249,9 +264,9 @@ class Director {
     return this.#stage.pendingDepartures();
   }
 
-  logStep(step, together = null) {
+  logStep(step, together = null, sceneIndex = this.#sceneIndex) {
     this.#recorder.step({
-      scene_index: this.#sceneIndex,
+      scene_index: sceneIndex,
       line: step.line,
       kind: step.kind,
       ...(step.cmd === undefined ? {} : { cmd: step.cmd }),
@@ -278,7 +293,68 @@ class Director {
   narrate(step) {
     this.#currentLine = step.line ?? this.#scene.line ?? null;
     this.#stage.setSubtitle(step.text);
+    // Parked BEFORE the chunk's own gate: a cue on the chunk's last millisecond
+    // then has the lower sequence number and fires before the walk resumes.
+    this.#parkCues(step);
     return this.wait(Math.max(0, Number(step.duration_s) * 1000 || 0));
+  }
+
+  /**
+   * A cue is a command under a spoken line, fired when a spoken word is
+   * reached: `cueOffsetMs` says when, and the timer performs the cue's own step
+   * through the same path a step between chunks takes — logged at its instant,
+   * so a cued `sound` is heard, then performed. Everything about WHERE is
+   * captured now rather than read when the timer fires: the walk is blocked on
+   * this chunk while the cues fire, but the clear parked after them can land
+   * past the chunk's end, when the walk has moved on and `#sceneIndex` is
+   * somebody else's.
+   *
+   * The two board cues live only here. A ring lit by a cue stays until the
+   * chunk ends, so a chunk that lights any is also the chunk that puts them
+   * out — `ring 0`, at the chunk's end or, if a flash would still be pulsing
+   * then, when the pulse lands.
+   */
+  #parkCues(step) {
+    if (!Array.isArray(step.cues) || step.cues.length === 0) return;
+    const sceneIndex = this.#sceneIndex;
+    const durationMs = toMs(step.duration_s);
+    let clearAt = null;
+    for (const cue of step.cues) {
+      const offset = cueOffsetMs(step, cue);
+      const origin = { scene_index: sceneIndex, line: cue.line ?? step.line ?? null };
+      this.#schedule.at(offset, () => this.#performCue(cue.step, origin));
+      if (cue.step.cmd === 'ring') clearAt = Math.max(clearAt ?? 0, durationMs);
+      if (cue.step.cmd === 'flash') clearAt = Math.max(clearAt ?? 0, durationMs, offset + FLASH.pulseMs);
+    }
+    if (clearAt !== null) {
+      const origin = { scene_index: sceneIndex, line: step.line ?? null };
+      this.#schedule.at(clearAt, () => this.#stage.ring(0, origin));
+    }
+  }
+
+  #performCue(step, origin) {
+    this.logStep(step, null, origin.scene_index);
+    switch (step.cmd) {
+      case 'ring': this.#ring(step, origin); break;
+      case 'flash': this.#stage.flash(origin); break;
+      default: this.performCommand(step, this.#board, origin);
+    }
+  }
+
+  // The k-th counter of the standing board, lit until the chunk ends. Whether
+  // a board stands with k counters on it is the language's own rule, refused
+  // where the cue is written; here only the shape of the number is held, so a
+  // client is never handed a counter it cannot count to.
+  #ring(step, origin) {
+    if (!Number.isInteger(step.counter) || step.counter < 1) {
+      this.warning(
+        { type: 'policy', policy: 'ring-counter-unusable', counter: step.counter ?? null },
+        origin.line,
+        origin.scene_index,
+      );
+      return;
+    }
+    this.#stage.ring(step.counter, origin);
   }
 
   /**
@@ -324,9 +400,10 @@ class Director {
     }
   }
 
-  performCommand(step, reference = this.#board) {
+  // `origin` is given by a cue, which captured it when the cue was parked;
+  // every other caller is the walk itself, standing where the step is.
+  performCommand(step, reference = this.#board, origin = this.#origin(step.line)) {
     this.#currentLine = step.line ?? this.#scene.line ?? null;
-    const origin = this.#origin(step.line);
     switch (step.cmd) {
       case 'put': this.#put(step, reference, origin); break;
       case 'take': this.#take(step, origin); break;

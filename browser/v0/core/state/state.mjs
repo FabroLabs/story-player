@@ -99,9 +99,18 @@ export function requireMatchingPair(timeline, bundle) {
 // No board: what a story with no lesson in it shows. `standing` is what tells
 // it from the EMPTY board a lesson opens on — the same count of nothing, but a
 // panel on screen with the frost behind it, waiting for its first counter.
-// `from` is 0 because nothing was standing.
+// `from` is 0 because nothing was standing. `rings` are the counters a cue has
+// swept (sorted, unique) and `flashAt` the instant every lit ring last pulsed:
+// both live only while a cued line is being spoken.
 const EMPTY_SLATE = Object.freeze({
-  count: 0, mode: 'count', groups: Object.freeze([]), sinceMs: 0, from: 0, standing: false,
+  count: 0,
+  mode: 'count',
+  groups: Object.freeze([]),
+  sinceMs: 0,
+  from: 0,
+  standing: false,
+  rings: Object.freeze([]),
+  flashAt: null,
 });
 
 // Two boards are the same board when they claim the same arithmetic — not when
@@ -160,6 +169,8 @@ export class World {
       case 'remove_object': this.#removeObject(event); break;
       case 'slate': this.#showSlate(event); break;
       case 'highlight': this.#highlight(event); break;
+      case 'ring': this.#ring(event); break;
+      case 'flash': this.#slate = { ...this.#slate, flashAt: event.t_ms }; break;
       case 'subtitle': this.#subtitle = event.text ?? ''; break;
       case 'end': this.#end(event); break;
       case 'push_in': case 'pull_out': case 'shot': case 'pan': case 'camera_reset':
@@ -181,7 +192,7 @@ export class World {
       plate: this.#plate,
       actors,
       camera: this.#framingAt(tMs),
-      slate: { ...this.#slate, groups: [...this.#slate.groups] },
+      slate: { ...this.#slate, groups: [...this.#slate.groups], rings: [...this.#slate.rings] },
       subtitle: this.#subtitle,
       ended: this.#ended,
       warnings: this.#warnings,
@@ -208,6 +219,7 @@ export class World {
     this.#bands.openScene(this.#plate);
     this.#subtitle = '';
     this.#ended = false;
+    this.#clearSweep();
     this.#camera = { from: WIDE_FRAMING, held: WIDE_FRAMING, startMs: event.t_ms, durationMs: 0 };
   }
 
@@ -371,7 +383,37 @@ export class World {
     // now holds, exactly as the board this one reproduces did. Anything else —
     // a new kind of arithmetic, a count that shrank — is a new board and builds
     // from nothing.
-    this.#slate = { ...board, sinceMs: event.t_ms, from: carriedFrom(this.#slate, board), standing: true };
+    this.#slate = {
+      ...board, sinceMs: event.t_ms, from: carriedFrom(this.#slate, board), standing: true, rings: [], flashAt: null,
+    };
+  }
+
+  // A cue lit the k-th counter, and it stays lit until `counter: 0` — parked
+  // by the compiler where the cued chunk ends — puts every sweep ring out along
+  // with the flash. Kept sorted and unique so the picture is one shape however
+  // the cues were ordered, and a counter lit twice is lit once. Which counters
+  // the standing board HAS is the language's rule, refused where the cue was
+  // written: a ring past the board is a ring the drawer finds no counter for.
+  #ring(event) {
+    const counter = event.counter;
+    if (!Number.isInteger(counter) || counter < 0) {
+      this.#warn(event, { type: 'policy', policy: 'ring-counter-unusable', counter: counter ?? null });
+      return;
+    }
+    if (counter === 0) {
+      this.#clearSweep();
+      return;
+    }
+    if (this.#slate.rings.includes(counter)) return;
+    this.#slate = { ...this.#slate, rings: [...this.#slate.rings, counter].sort((left, right) => left - right) };
+  }
+
+  // The sweep rings and the flash go the way the highlight ring goes — with
+  // the cut, with the ending, and with the chunk that lit them — and the board
+  // they were on stays.
+  #clearSweep() {
+    if (this.#slate.rings.length === 0 && this.#slate.flashAt === null) return;
+    this.#slate = { ...this.#slate, rings: [], flashAt: null };
   }
 
   // Unreachable from this repository's compiler, which refuses a highlight of
@@ -396,6 +438,7 @@ export class World {
     // One actor at a time because `end` leaves the cast standing, unlike
     // `scene`, which takes the rings with the actors it clears.
     for (const actor of this.#actors.values()) actor.highlightMs = null;
+    this.#clearSweep();
     this.#ended = true;
   }
 

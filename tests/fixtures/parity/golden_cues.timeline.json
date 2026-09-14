@@ -1,0 +1,637 @@
+{
+  "duration_ms": 9554,
+  "events": [
+    {
+      "line": 17,
+      "op": "scene",
+      "place": "forest_clearing",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 0
+    },
+    {
+      "count": 0,
+      "groups": [],
+      "line": 17,
+      "mode": "count",
+      "op": "slate",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 0
+    },
+    {
+      "cmd": "put",
+      "detail": {
+        "beside": null,
+        "facing": null,
+        "objects": [],
+        "position": "center",
+        "subjects": [
+          "woodpecker"
+        ],
+        "zone": null
+      },
+      "kind": "cmd",
+      "line": 18,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 0
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "right",
+        "slug": "woodpecker",
+        "verb": "idle"
+      },
+      "kind": "warning",
+      "line": 18,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 0
+    },
+    {
+      "clip": "idle_right",
+      "line": 18,
+      "op": "place",
+      "scene_index": 0,
+      "slug": "woodpecker",
+      "source": "stage",
+      "t_ms": 0,
+      "x": 46.07000000000001
+    },
+    {
+      "cmd": "put",
+      "detail": {
+        "beside": null,
+        "facing": "woodpecker",
+        "objects": [],
+        "position": "right_edge",
+        "subjects": [
+          "fox"
+        ],
+        "zone": null
+      },
+      "kind": "cmd",
+      "line": 19,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 0
+    },
+    {
+      "clip": "idle_left",
+      "line": 19,
+      "op": "place",
+      "scene_index": 0,
+      "slug": "fox",
+      "source": "stage",
+      "t_ms": 0,
+      "x": 66.686
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/f79fdac9db118b320cda7d73c5075141cd6ab1d485b9b93b692919affd225c3a.m4a",
+        "duration_s": 2.819,
+        "text": "Tapper counts the acorns on the board."
+      },
+      "kind": "chunk",
+      "line": 21,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 0
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 0,
+      "text": "Tapper counts the acorns on the board."
+    },
+    {
+      "cmd": "slate",
+      "detail": {
+        "count": 3,
+        "groups": [
+          3
+        ],
+        "mode": "count",
+        "subjects": []
+      },
+      "kind": "cmd",
+      "line": 22,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 2819
+    },
+    {
+      "count": 3,
+      "groups": [
+        3
+      ],
+      "line": 22,
+      "mode": "count",
+      "op": "slate",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 2819
+    },
+    {
+      "cmd": "emote",
+      "detail": {
+        "emotion": "happy",
+        "facing": null,
+        "subjects": [
+          "woodpecker"
+        ]
+      },
+      "kind": "cmd",
+      "line": 23,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 2819
+    },
+    {
+      "clip": "happy",
+      "line": 23,
+      "op": "clip",
+      "scene_index": 0,
+      "slug": "woodpecker",
+      "source": "stage",
+      "t_ms": 2819
+    },
+    {
+      "cmd": "pause",
+      "detail": {
+        "seconds": 0.5,
+        "subjects": []
+      },
+      "kind": "cmd",
+      "line": 24,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 2819
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/0f0077a6e9db4121bdf3e45fcb97c9773a26a1b296910ef9b58e3ba687582bd0.m4a",
+        "cues": [
+          {
+            "at": {
+              "char": 0,
+              "chars": 16,
+              "of": 3,
+              "word": 0
+            },
+            "line": 25,
+            "occurrence": 1,
+            "step": {
+              "cmd": "ring",
+              "counter": 1,
+              "kind": "cmd",
+              "line": 25,
+              "subjects": []
+            },
+            "word": "one"
+          },
+          {
+            "at": {
+              "char": 5,
+              "chars": 16,
+              "of": 3,
+              "word": 1
+            },
+            "line": 26,
+            "occurrence": 1,
+            "step": {
+              "cmd": "ring",
+              "counter": 2,
+              "kind": "cmd",
+              "line": 26,
+              "subjects": []
+            },
+            "word": "two"
+          },
+          {
+            "at": {
+              "char": 10,
+              "chars": 16,
+              "of": 3,
+              "word": 2
+            },
+            "line": 27,
+            "occurrence": 1,
+            "step": {
+              "cmd": "ring",
+              "counter": 3,
+              "kind": "cmd",
+              "line": 27,
+              "subjects": []
+            },
+            "word": "three"
+          },
+          {
+            "at": {
+              "char": 10,
+              "chars": 16,
+              "of": 3,
+              "word": 2
+            },
+            "line": 28,
+            "occurrence": 1,
+            "step": {
+              "cmd": "flash",
+              "kind": "cmd",
+              "line": 28,
+              "subjects": []
+            },
+            "word": "three"
+          }
+        ],
+        "duration_s": 1.208,
+        "text": "One, two, three."
+      },
+      "kind": "chunk",
+      "line": 24,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 3319
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 3319,
+      "text": "One, two, three."
+    },
+    {
+      "cmd": "ring",
+      "detail": {
+        "counter": 1,
+        "subjects": []
+      },
+      "kind": "cmd",
+      "line": 25,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 3399
+    },
+    {
+      "counter": 1,
+      "line": 25,
+      "op": "ring",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 3399
+    },
+    {
+      "cmd": "ring",
+      "detail": {
+        "counter": 2,
+        "subjects": []
+      },
+      "kind": "cmd",
+      "line": 26,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 3777
+    },
+    {
+      "counter": 2,
+      "line": 26,
+      "op": "ring",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 3777
+    },
+    {
+      "cmd": "ring",
+      "detail": {
+        "counter": 3,
+        "subjects": []
+      },
+      "kind": "cmd",
+      "line": 27,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 4154
+    },
+    {
+      "counter": 3,
+      "line": 27,
+      "op": "ring",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 4154
+    },
+    {
+      "cmd": "flash",
+      "detail": {
+        "subjects": []
+      },
+      "kind": "cmd",
+      "line": 28,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 4154
+    },
+    {
+      "line": 28,
+      "op": "flash",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 4154
+    },
+    {
+      "cmd": "pause",
+      "detail": {
+        "seconds": 0.5,
+        "subjects": []
+      },
+      "kind": "cmd",
+      "line": 29,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 4527
+    },
+    {
+      "counter": 0,
+      "line": 24,
+      "op": "ring",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 4654
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/52d738390119eefa8c292dd0b7f936104e158eb44a8a05d277d23990b54835a1.m4a",
+        "cues": [
+          {
+            "at": {
+              "char": 8,
+              "chars": 12,
+              "of": 3,
+              "word": 2
+            },
+            "line": 30,
+            "occurrence": 1,
+            "step": {
+              "cmd": "highlight",
+              "kind": "cmd",
+              "line": 30,
+              "subjects": [
+                "fox"
+              ]
+            },
+            "word": "fox"
+          },
+          {
+            "at": {
+              "char": 0,
+              "chars": 12,
+              "of": 3,
+              "word": 0
+            },
+            "line": 31,
+            "occurrence": 1,
+            "step": {
+              "cmd": "emote",
+              "emotion": "surprised",
+              "facing": null,
+              "kind": "cmd",
+              "line": 31,
+              "subjects": [
+                "woodpecker"
+              ]
+            },
+            "word": "look"
+          }
+        ],
+        "duration_s": 1.208,
+        "text": "Look, a fox!"
+      },
+      "kind": "chunk",
+      "line": 29,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 5027
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 5027,
+      "text": "Look, a fox!"
+    },
+    {
+      "cmd": "emote",
+      "detail": {
+        "emotion": "surprised",
+        "facing": null,
+        "subjects": [
+          "woodpecker"
+        ]
+      },
+      "kind": "cmd",
+      "line": 31,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 5107
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "right",
+        "slug": "woodpecker",
+        "verb": "surprised"
+      },
+      "kind": "warning",
+      "line": 31,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 5107
+    },
+    {
+      "clip": "surprised_right",
+      "line": 31,
+      "op": "clip",
+      "scene_index": 0,
+      "slug": "woodpecker",
+      "source": "stage",
+      "t_ms": 5107
+    },
+    {
+      "cmd": "highlight",
+      "detail": {
+        "subjects": [
+          "fox"
+        ]
+      },
+      "kind": "cmd",
+      "line": 30,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 5912
+    },
+    {
+      "line": 30,
+      "op": "highlight",
+      "scene_index": 0,
+      "slug": "fox",
+      "source": "stage",
+      "t_ms": 5912
+    },
+    {
+      "cmd": "pause",
+      "detail": {
+        "seconds": 0.5,
+        "subjects": []
+      },
+      "kind": "cmd",
+      "line": 32,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 6235
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/26b82d21d46115020248a33aaa7afffd6c871b01007ed4e49dd61718e04ccb32.m4a",
+        "cues": [
+          {
+            "at": {
+              "char": 0,
+              "chars": 37,
+              "of": 7,
+              "word": 0
+            },
+            "line": 33,
+            "occurrence": 1,
+            "step": {
+              "cmd": "sound",
+              "kind": "cmd",
+              "line": 33,
+              "name": "pop",
+              "subjects": []
+            },
+            "word": "pop"
+          },
+          {
+            "at": {
+              "char": 30,
+              "chars": 37,
+              "of": 7,
+              "word": 6
+            },
+            "line": 34,
+            "occurrence": 1,
+            "step": {
+              "cmd": "emote",
+              "emotion": "surprised",
+              "facing": null,
+              "kind": "cmd",
+              "line": 34,
+              "subjects": [
+                "fox"
+              ]
+            },
+            "word": "jumped"
+          }
+        ],
+        "duration_s": 2.819,
+        "text": "Pop went an acorn, and Russet jumped."
+      },
+      "kind": "chunk",
+      "line": 32,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 6735
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 6735,
+      "text": "Pop went an acorn, and Russet jumped."
+    },
+    {
+      "cmd": "sound",
+      "detail": {
+        "name": "pop",
+        "subjects": []
+      },
+      "kind": "cmd",
+      "line": 33,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 6815
+    },
+    {
+      "cmd": "emote",
+      "detail": {
+        "emotion": "surprised",
+        "facing": null,
+        "subjects": [
+          "fox"
+        ]
+      },
+      "kind": "cmd",
+      "line": 34,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 9101
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "left",
+        "slug": "fox",
+        "verb": "surprised"
+      },
+      "kind": "warning",
+      "line": 34,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 9101
+    },
+    {
+      "clip": "surprised_left",
+      "line": 34,
+      "op": "clip",
+      "scene_index": 0,
+      "slug": "fox",
+      "source": "stage",
+      "t_ms": 9101
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 9554,
+      "text": ""
+    },
+    {
+      "line": null,
+      "op": "camera_reset",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 9554
+    },
+    {
+      "line": null,
+      "op": "end",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 9554
+    }
+  ],
+  "storylang_version": 0,
+  "timeline_version": 1,
+  "title": "Golden: cues on the spoken word"
+}

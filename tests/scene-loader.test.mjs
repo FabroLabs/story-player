@@ -1,7 +1,7 @@
 /**
  * What a scene loads, in what order, and what it says when something is broken.
  *
- * The corpus tests are the ones that matter: nine real stories, 168 sheets,
+ * The corpus tests are the ones that matter: ten real stories, 173 sheets,
  * and the plan is checked against the timeline they were compiled from rather
  * than against a fixture written to agree with the code.
  */
@@ -131,7 +131,7 @@ test('the corpus draws every clip that is ever on screen, and asks for no PNG', 
     }
   }
   // Measured, so a test that quietly stops covering the corpus fails loudly.
-  assert.equal(sheets, 168, 'the corpus draws 168 sheets across its 28 scenes');
+  assert.equal(sheets, 173, 'the corpus draws 173 sheets across its 29 scenes');
   // Three set and re-set at one instant, and three more the scene is cut away
   // from at the very millisecond they are asked for — an emote on a scene's
   // last line, which costs no time, so the cut lands on top of it.

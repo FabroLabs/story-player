@@ -58,7 +58,7 @@ test('v0 tooling keeps the exact semantics every client consumes', () => {
   assert.deepEqual(tooling.TIMELINE_OPS, [
     'scene', 'place', 'place_object', 'clip', 'move', 'settle', 'depart',
     'exit', 'remove_object', 'push_in', 'pull_out', 'shot', 'pan',
-    'camera_reset', 'slate', 'highlight', 'subtitle', 'end',
+    'camera_reset', 'slate', 'highlight', 'ring', 'flash', 'subtitle', 'end',
   ]);
   assert.ok(Object.isFrozen(tooling.TIMELINE_OPS));
   assertDeeplyFrozen(tooling.V0_POLICY);
@@ -120,6 +120,8 @@ test('v0 tooling keeps the exact semantics every client consumes', () => {
       companion: { heightPct: 27, centreXPct: 90, feetPct: 99 },
     },
     highlight: { durationMs: 1500, pulses: 2, ringPct: 12 },
+    cue: { leadMs: 80 },
+    flash: { pulseMs: 500, gain: 1.8, halo: 0.35 },
     audio: {
       musicVolume: 0.38,
       duckedMusicVolume: 0.14,

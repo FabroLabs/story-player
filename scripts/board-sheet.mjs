@@ -9,6 +9,7 @@ import * as esbuild from 'esbuild';
 
 import { isEmptyBoard } from '../browser/v0/core/slate.mjs';
 import { compileTimeline } from '../browser/v0/core/timeline/compile.mjs';
+import { FLASH } from '../browser/v0/policy.mjs';
 
 /**
  * The counting board, as a contact sheet.
@@ -38,7 +39,8 @@ const DEFAULT_OUT = path.join('ignored', 'board-sheet.png');
 // Four instants into the build and then the end of the board's life. They are
 // spaced to straddle the stages rather than to sample evenly: the first lands
 // while the opening counter is still growing, the last after everything the
-// schedule has to say has been said.
+// schedule has to say has been said. A board a cue sweeps gets more: each ring
+// where it lands and the flash at its peak (`jobsFor`).
 const OFFSETS_MS = [150, 600, 1400, 3200];
 // What the last cell of a row is showing, named after whatever ended the board.
 // A scene cut is not on the list: a board outlives every cut but the ending.
@@ -135,7 +137,8 @@ async function writeSheet({ bundles, out, scale, dump }) {
   for (const reason of skipped) process.stderr.write(`not on the sheet — ${reason}\n`);
   // Progress goes to stderr so `--dump` leaves a clean JSON-lines stream on
   // stdout for `jq` and for diffing two runs.
-  process.stderr.write(`${jobs.length} board(s), ${jobs[0].instants.length} instants each → ${out}\n`);
+  const cells = jobs.reduce((total, job) => total + job.instants.length, 0);
+  process.stderr.write(`${jobs.length} board(s), ${cells} instants → ${out}\n`);
 }
 
 /**
@@ -248,7 +251,7 @@ function jobsFor(file, skipped) {
     }
 
     const held = closing.tMs - 1;
-    const instants = [...OFFSETS_MS.map((offset) => Math.min(event.t_ms + offset, held)), closing.tMs];
+    const build = buildInstants(timeline, index, event, held, closing.tMs);
 
     jobs.push({
       stem,
@@ -256,14 +259,8 @@ function jobsFor(file, skipped) {
       timeline,
       op: event,
       heldMs: closing.tMs - event.t_ms,
-      instants,
-      captions: [
-        // Labelled from the instant actually painted, never from the offset
-        // asked for: a clamped cell must not claim to be 3.2 s into a board
-        // that only lasted half of one.
-        ...instants.slice(0, -1).map((tMs) => `+${tMs - event.t_ms} ms`),
-        CLOSING_CAPTION[closing.op],
-      ],
+      instants: [...build.keys(), closing.tMs],
+      captions: [...build.values(), CLOSING_CAPTION[closing.op]],
     });
   }
 
@@ -273,6 +270,31 @@ function jobsFor(file, skipped) {
     skipped.push(`${stem}: no board — ${refusals(timeline) ?? 'this bundle raises no slate'}`);
   }
   return jobs;
+}
+
+/**
+ * The build cells of one board's row: instant → caption, in time order.
+ *
+ * The four offsets, and then whatever the cues did to this board while it
+ * stood — each ring where it lands, the flash halfway through its pulse, where
+ * the swell is widest. A sweep is what a cued row is FOR, and the four offsets
+ * alone would sample around it. Labelled from the instant actually painted,
+ * never from the offset asked for: a clamped cell must not claim to be 3.2 s
+ * into a board that only lasted half of one.
+ */
+function buildInstants(timeline, index, raised, held, closingMs) {
+  const cells = new Map();
+  const sample = (tMs, caption) => {
+    const at = Math.min(tMs, held);
+    cells.set(at, caption(at - raised.t_ms));
+  };
+  for (const offset of OFFSETS_MS) sample(raised.t_ms + offset, (at) => `+${at} ms`);
+  for (const cue of timeline.events.slice(index + 1)) {
+    if (cue.source !== 'stage' || cue.t_ms >= closingMs) continue;
+    if (cue.op === 'ring' && cue.counter > 0) sample(cue.t_ms, (at) => `ring ${cue.counter} · +${at} ms`);
+    if (cue.op === 'flash') sample(cue.t_ms + Math.round(FLASH.pulseMs / 2), (at) => `flash peak · +${at} ms`);
+  }
+  return new Map([...cells.entries()].sort(([left], [right]) => left - right));
 }
 
 /**
