@@ -6,7 +6,7 @@ import { cameraPoint, cameraSpeed, resolveShot } from './camera.mjs';
 import { cueOffsetMs } from './cues.mjs';
 import { Recorder, stepDetail } from './events.mjs';
 import { TimelineStage } from './stage.mjs';
-import { Schedule, createGate, runToEnd, toMs } from './timing.mjs';
+import { Schedule, createGate, runToEnd } from './timing.mjs';
 import {
   BESIDE_NUDGE_PCT,
   DEFAULT_EXIT_X_PCT,
@@ -214,6 +214,12 @@ class Director {
   #scene = null;
   #sceneIndex = null;
   #currentLine = null;
+  // The sweep the board cues have open, or null. `origin` is the chunk that
+  // opened it, which its clear carries the way a settle carries its move's;
+  // `pulseUntil` is the instant its latest flash stops pulsing; `closing` is a
+  // clear parked on that pulse by the chunk that stopped the counting, until
+  // it fires.
+  #sweep = null;
 
   constructor(story, schedule, recorder, plates = null) {
     this.#story = story;
@@ -252,6 +258,7 @@ class Director {
   }
 
   closeScene() {
+    this.#dropSweep();
     this.#stage.setSubtitle('');
     this.#stage.resetCamera();
   }
@@ -292,6 +299,12 @@ class Director {
    */
   narrate(step) {
     this.#currentLine = step.line ?? this.#scene.line ?? null;
+    // A sweep holds while the counting goes on — through pauses and further
+    // cued chunks — and the first chunk spoken with no board cue is where it
+    // stops. Its clear goes before this subtitle, so a fold meeting both on
+    // the one millisecond puts the rings out first.
+    if (sweeps(step)) this.#openSweep(step);
+    else this.#closeSweep();
     this.#stage.setSubtitle(step.text);
     // Parked BEFORE the chunk's own gate: a cue on the chunk's last millisecond
     // then has the lower sequence number and fires before the walk resumes.
@@ -305,31 +318,58 @@ class Director {
    * through the same path a step between chunks takes — logged at its instant,
    * so a cued `sound` is heard, then performed. Everything about WHERE is
    * captured now rather than read when the timer fires: the walk is blocked on
-   * this chunk while the cues fire, but the clear parked after them can land
-   * past the chunk's end, when the walk has moved on and `#sceneIndex` is
-   * somebody else's.
+   * this chunk while the cues fire, but the sweep's clear lands chunks later,
+   * where the counting stops, when `#currentLine` is somebody else's.
    *
    * The two board cues live only here. A ring lit by a cue stays until the
-   * chunk ends, so a chunk that lights any is also the chunk that puts them
-   * out — `ring 0`, at the chunk's end or, if a flash would still be pulsing
-   * then, when the pulse lands.
+   * counting stops (`narrate`); a flash holds the sweep open until its pulse
+   * has landed, so the clear can never cut one short.
    */
   #parkCues(step) {
     if (!Array.isArray(step.cues) || step.cues.length === 0) return;
     const sceneIndex = this.#sceneIndex;
-    const durationMs = toMs(step.duration_s);
-    let clearAt = null;
     for (const cue of step.cues) {
       const offset = cueOffsetMs(step, cue);
       const origin = { scene_index: sceneIndex, line: cue.line ?? step.line ?? null };
       this.#schedule.at(offset, () => this.#performCue(cue.step, origin));
-      if (cue.step.cmd === 'ring') clearAt = Math.max(clearAt ?? 0, durationMs);
-      if (cue.step.cmd === 'flash') clearAt = Math.max(clearAt ?? 0, durationMs, offset + FLASH.pulseMs);
+      if (cue.step.cmd === 'flash') {
+        this.#sweep.pulseUntil = Math.max(this.#sweep.pulseUntil, this.#schedule.now() + offset + FLASH.pulseMs);
+      }
     }
-    if (clearAt !== null) {
-      const origin = { scene_index: sceneIndex, line: step.line ?? null };
-      this.#schedule.at(clearAt, () => this.#stage.ring(0, origin));
-    }
+  }
+
+  // A cued chunk keeps the sweep the last one left open, or opens its own. A
+  // clear still waiting on a pulse is pulled forward to here instead: the
+  // counting DID stop, and a clear landing mid-count would take this chunk's
+  // rings out with the old ones.
+  #openSweep(step) {
+    if (this.#sweep?.closing) this.#clearSweep();
+    this.#sweep ??= { origin: this.#origin(step.line), pulseUntil: 0, closing: null };
+  }
+
+  // The counting stopped: a chunk with no board cue has begun. The rings go
+  // now — or, if a flash is still pulsing, when the pulse lands.
+  #closeSweep() {
+    const sweep = this.#sweep;
+    if (!sweep || sweep.closing) return;
+    const remaining = sweep.pulseUntil - this.#schedule.now();
+    if (remaining <= 0) this.#clearSweep();
+    else sweep.closing = this.#schedule.at(remaining, () => this.#clearSweep());
+  }
+
+  #clearSweep() {
+    const { origin, closing } = this.#sweep;
+    this.#sweep = null;
+    if (closing) this.#schedule.cancel(closing);
+    this.#stage.ring(0, origin);
+  }
+
+  // The cut puts the rings out itself (`stateAt`, at `scene`), so a sweep
+  // still open at the seam — or a clear still waiting on a pulse — records
+  // nothing: no clear of this compiler's crosses a scene.
+  #dropSweep() {
+    if (this.#sweep?.closing) this.#schedule.cancel(this.#sweep.closing);
+    this.#sweep = null;
   }
 
   #performCue(step, origin) {
@@ -341,7 +381,7 @@ class Director {
     }
   }
 
-  // The k-th counter of the standing board, lit until the chunk ends. Whether
+  // The k-th counter of the standing board, lit until the counting stops. Whether
   // a board stands with k counters on it is the language's own rule, refused
   // where the cue is written; here only the shape of the number is held, so a
   // client is never handed a counter it cannot count to.
@@ -918,6 +958,15 @@ function sceneCounts(scene) {
   const drawable = (step) => step?.cmd === 'slate' && normaliseSlate(step) !== null;
   return (scene?.steps ?? []).some((step) => drawable(step)
     || (step?.kind === 'together' && (step.steps ?? []).some(drawable)));
+}
+
+// Whether a chunk carries a board cue — counting, as far as the sweep is
+// concerned. Judged by the cue's name rather than by whether it will be
+// performed: a ring refused when it fires was still written as counting, and
+// the clear it leaves behind finds nothing to put out, which the fold answers
+// with nothing.
+function sweeps(step) {
+  return (step.cues ?? []).some((cue) => cue?.step?.cmd === 'ring' || cue?.step?.cmd === 'flash');
 }
 
 function compareTogetherSteps(left, right) {

@@ -126,7 +126,7 @@
           "cmd": "pause",
           "kind": "cmd",
           "line": 4,
-          "seconds": 1.0,
+          "seconds": 1,
           "subjects": []
         },
         {
@@ -144,7 +144,7 @@
           "cmd": "pause",
           "kind": "cmd",
           "line": 6,
-          "seconds": 1.0,
+          "seconds": 1,
           "subjects": []
         },
         {
@@ -152,10 +152,10 @@
           "cues": [
             {
               "at": {
-                "char": 0,
-                "chars": 16,
-                "of": 3,
-                "word": 0
+                "char": 9,
+                "chars": 18,
+                "of": 4,
+                "word": 2
               },
               "line": 8,
               "occurrence": 1,
@@ -170,10 +170,10 @@
             },
             {
               "at": {
-                "char": 5,
-                "chars": 16,
-                "of": 3,
-                "word": 1
+                "char": 14,
+                "chars": 18,
+                "of": 4,
+                "word": 3
               },
               "line": 9,
               "occurrence": 1,
@@ -185,53 +185,76 @@
                 "subjects": []
               },
               "word": "two"
-            },
+            }
+          ],
+          "duration_s": 1.2,
+          "kind": "chunk",
+          "line": 7,
+          "text": "Now you: one, two,"
+        },
+        {
+          "cmd": "pause",
+          "kind": "cmd",
+          "line": 10,
+          "seconds": 1.5,
+          "subjects": []
+        },
+        {
+          "audio": null,
+          "cues": [
             {
               "at": {
-                "char": 10,
-                "chars": 16,
-                "of": 3,
-                "word": 2
+                "char": 0,
+                "chars": 6,
+                "of": 1,
+                "word": 0
               },
-              "line": 10,
+              "line": 12,
               "occurrence": 1,
               "step": {
                 "cmd": "ring",
                 "counter": 3,
                 "kind": "cmd",
-                "line": 10,
+                "line": 12,
                 "subjects": []
               },
-              "word": "three"
+              "word": "Three"
             },
             {
               "at": {
-                "char": 10,
-                "chars": 16,
-                "of": 3,
-                "word": 2
+                "char": 0,
+                "chars": 6,
+                "of": 1,
+                "word": 0
               },
-              "line": 11,
+              "line": 13,
               "occurrence": 1,
               "step": {
                 "cmd": "flash",
                 "kind": "cmd",
-                "line": 11,
+                "line": 13,
                 "subjects": []
               },
-              "word": "three"
+              "word": "Three"
             }
           ],
-          "duration_s": 1.208,
+          "duration_s": 0.6,
           "kind": "chunk",
-          "line": 7,
-          "text": "One, two, three."
+          "line": 11,
+          "text": "Three!"
+        },
+        {
+          "audio": null,
+          "duration_s": 0.9,
+          "kind": "chunk",
+          "line": 14,
+          "text": "Three nuts!"
         },
         {
           "cmd": "pause",
           "kind": "cmd",
-          "line": 12,
-          "seconds": 2.0,
+          "line": 15,
+          "seconds": 1.5,
           "subjects": []
         }
       ]

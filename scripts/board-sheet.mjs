@@ -9,6 +9,7 @@ import * as esbuild from 'esbuild';
 
 import { isEmptyBoard } from '../browser/v0/core/slate.mjs';
 import { compileTimeline } from '../browser/v0/core/timeline/compile.mjs';
+import { toMs } from '../browser/v0/core/timeline/timing.mjs';
 import { FLASH } from '../browser/v0/policy.mjs';
 
 /**
@@ -277,10 +278,11 @@ function jobsFor(file, skipped) {
  *
  * The four offsets, and then whatever the cues did to this board while it
  * stood — each ring where it lands, the flash halfway through its pulse, where
- * the swell is widest. A sweep is what a cued row is FOR, and the four offsets
- * alone would sample around it. Labelled from the instant actually painted,
- * never from the offset asked for: a clamped cell must not claim to be 3.2 s
- * into a board that only lasted half of one.
+ * the swell is widest, the middle of a pause the rings hold through, and the
+ * clear where the counting stops. A sweep is what a cued row is FOR, and the
+ * four offsets alone would sample around it. Labelled from the instant
+ * actually painted, never from the offset asked for: a clamped cell must not
+ * claim to be 3.2 s into a board that only lasted half of one.
  */
 function buildInstants(timeline, index, raised, held, closingMs) {
   const cells = new Map();
@@ -289,10 +291,23 @@ function buildInstants(timeline, index, raised, held, closingMs) {
     cells.set(at, caption(at - raised.t_ms));
   };
   for (const offset of OFFSETS_MS) sample(raised.t_ms + offset, (at) => `+${at} ms`);
-  for (const cue of timeline.events.slice(index + 1)) {
-    if (cue.source !== 'stage' || cue.t_ms >= closingMs) continue;
-    if (cue.op === 'ring' && cue.counter > 0) sample(cue.t_ms, (at) => `ring ${cue.counter} · +${at} ms`);
-    if (cue.op === 'flash') sample(cue.t_ms + Math.round(FLASH.pulseMs / 2), (at) => `flash peak · +${at} ms`);
+  let lit = false;
+  for (const event of timeline.events.slice(index + 1)) {
+    if (event.t_ms >= closingMs) continue;
+    // An authored pause under lit rings is the hold itself, sampled halfway.
+    if (event.source === 'step' && event.cmd === 'pause' && lit) {
+      sample(event.t_ms + Math.round(toMs(event.detail?.seconds) / 2), (at) => `pause, rings hold · +${at} ms`);
+    }
+    if (event.source !== 'stage') continue;
+    if (event.op === 'ring' && event.counter > 0) {
+      lit = true;
+      sample(event.t_ms, (at) => `ring ${event.counter} · +${at} ms`);
+    }
+    if (event.op === 'ring' && event.counter === 0) {
+      lit = false;
+      sample(event.t_ms, (at) => `rings out · +${at} ms`);
+    }
+    if (event.op === 'flash') sample(event.t_ms + Math.round(FLASH.pulseMs / 2), (at) => `flash peak · +${at} ms`);
   }
   return new Map([...cells.entries()].sort(([left], [right]) => left - right));
 }

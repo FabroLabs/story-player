@@ -196,8 +196,9 @@ export class TimelineStage {
 
   // The sweep ring a cue lights on the k-th counter of the standing board, and
   // the one payload that puts them all out: `counter: 0`, which the compiler
-  // parks where the cued chunk ends. No board travels in the payload — the
-  // ring is on whatever board is standing, which every fold already knows.
+  // records where the counting stops — the first chunk after the cued ones
+  // spoken with no board cue. No board travels in the payload — the ring is
+  // on whatever board is standing, which every fold already knows.
   ring(counter, origin = {}) {
     this.#record('ring', origin, { counter });
   }

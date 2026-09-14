@@ -1077,8 +1077,8 @@ test('the lesson repaints on its own clock, and stops when it has landed', async
 
 // The still lesson with a cued line after it: "One, two, three." spoken over
 // two seconds from 6000, ringing a counter on each word and flashing on the
-// last — rings at 6080, 6705 and 7330, the flash 7330 to 7830, the clear at
-// the chunk's end, 8000.
+// last — rings at 6080, 6705 and 7330, the flash 7330 to 7830 — then a line
+// with no cue from 8000, where the counting stops and the rings go.
 function cuedLesson(bundle) {
   stillLesson(bundle);
   const [scene] = bundle.scenes;
@@ -1098,6 +1098,7 @@ function cuedLesson(bundle) {
       cue(11, 10, { cmd: 'flash' }),
     ],
   });
+  scene.steps.push({ ...spoken, line: 12, text: 'Three nuts.', duration_s: 2 });
 }
 
 test('a sweep repaints as each ring lands and while the flash runs, long after the board has landed', async (t) => {
@@ -1128,7 +1129,7 @@ test('a sweep repaints as each ring lands and while the flash runs, long after t
   // Landed: one last repaint, then still again with the rings lit.
   frame(7_900);
   assert.deepEqual(frame(7_980), [], 'the loop kept repainting after the pulse landed');
-  // The chunk's end takes the rings: one more picture, then nothing.
+  // The un-cued line takes the rings: one more picture, then nothing.
   assert.ok(frame(8_100).length > 0, 'the clear did not repaint');
   assert.deepEqual(frame(8_180), [], 'a cleared board kept repainting');
   player.destroy();

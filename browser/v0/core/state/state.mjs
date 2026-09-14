@@ -101,7 +101,8 @@ export function requireMatchingPair(timeline, bundle) {
 // panel on screen with the frost behind it, waiting for its first counter.
 // `from` is 0 because nothing was standing. `rings` are the counters a cue has
 // swept (sorted, unique) and `flashAt` the instant every lit ring last pulsed:
-// both live only while a cued line is being spoken.
+// both live only while the counting goes on — until the clear the compiler
+// records where it stops, a cut, or the ending.
 const EMPTY_SLATE = Object.freeze({
   count: 0,
   mode: 'count',
@@ -388,8 +389,8 @@ export class World {
     };
   }
 
-  // A cue lit the k-th counter, and it stays lit until `counter: 0` — parked
-  // by the compiler where the cued chunk ends — puts every sweep ring out along
+  // A cue lit the k-th counter, and it stays lit until `counter: 0` — recorded
+  // by the compiler where the counting stops — puts every sweep ring out along
   // with the flash. Kept sorted and unique so the picture is one shape however
   // the cues were ordered, and a counter lit twice is lit once. Which counters
   // the standing board HAS is the language's rule, refused where the cue was
@@ -409,8 +410,8 @@ export class World {
   }
 
   // The sweep rings and the flash go the way the highlight ring goes — with
-  // the cut, with the ending, and with the chunk that lit them — and the board
-  // they were on stays.
+  // the cut, with the ending, and with the clear the compiler records where
+  // the counting stops — and the board they were on stays.
   #clearSweep() {
     if (this.#slate.rings.length === 0 && this.#slate.flashAt === null) return;
     this.#slate = { ...this.#slate, rings: [], flashAt: null };

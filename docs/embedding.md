@@ -179,10 +179,13 @@ one word fire in the order they were written. Two commands live only in cues.
 with the same gold ring the newest counter wears, and it stays lit; `flash`
 (`{}`) makes every lit ring pulse once over `V0_POLICY.flash.pulseMs`, the
 stroke swelling to `gain` times its width under a halo of the same ink at
-`halo` alpha. A chunk that lights any ring also puts them out: the compiler
-records `ring {counter: 0}`, on the chunk's own line, at the chunk's end—or, if
-a flash would still be pulsing then, when the pulse lands—so a sweep never
-outlives its line. `stateAt` carries them on the board as `rings` (the swept
+`halo` alpha. A sweep stays until the counting stops: it holds through authored
+pauses and through further chunks with ring or flash cues, and the compiler
+records `ring {counter: 0}` where the next chunk with neither begins—before
+that chunk's subtitle, or, if a flash is still pulsing then, when the pulse
+lands—on the line of the chunk that opened the sweep, the way a settle carries
+its move's line. A scene cut and the ending put the rings out themselves, so a
+sweep that reaches either gets no clear from the compiler. `stateAt` carries them on the board as `rings` (the swept
 counters, sorted and unique) and `flashAt` (the instant of the last flash, or
 `null`): `counter: 0` clears both, a new board comes up with neither, and
 `scene` and `end` clear them the way they clear the highlight ring—never the
@@ -621,7 +624,9 @@ than simply offset from it. A counting lesson raises `slate 1`, `slate 2` and
 board under the first one's caption; instead the row holds at its own last
 moment, its header says how long the board was held, and its final cell is
 whatever ended it — the next board, or the story. A scene cut ends nothing: the
-board outlives it.
+board outlives it. A board a cue sweeps gets more cells: each ring where it
+lands, the flash at its peak, the middle of a pause the rings hold through, and
+the clear where the counting stops.
 
 `--bundle <path>` (repeatable) takes real built bundles instead of the fixtures
 in `tests/fixtures/board/`; `--out` moves the PNG and `--scale` resizes it.
