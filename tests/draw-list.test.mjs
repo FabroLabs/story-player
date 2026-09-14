@@ -749,6 +749,25 @@ test('a board no cue ever touched is the list it always was', () => {
   assert.ok(board.counters.every((counter) => !('swept' in counter)));
 });
 
+test('a counter is marked as a picture only while the host gave one, landed or not', () => {
+  const asked = (counter) => only(buildDrawList(
+    { ...actorState({}), slate: counting(3), tMs: settled(3) },
+    { sheet: () => null, prop: () => null, counter },
+  ), 'slate')[0].counters;
+
+  // Marked from the moment the picture is asked for, before it has decoded:
+  // the list says what a counter IS, and the painter draws the apple meanwhile.
+  assert.deepEqual(
+    asked(() => ({ url: 'nut.png', drawable: null })).map((counter) => counter.image),
+    [true, true, true],
+  );
+  // A sheets object that answers no picture, and one written before the
+  // question existed, are the list it always was — the goldens hold this byte
+  // for byte, and the mark is absent rather than false.
+  assert.ok(asked(() => null).every((counter) => !('image' in counter)));
+  assert.ok(boardAt(counting(3), settled(3)).counters.every((counter) => !('image' in counter)));
+});
+
 /**
  * The instants worth writing down, read off the timeline rather than chosen by
  * hand: a hand-picked millisecond stops meaning anything the moment the corpus

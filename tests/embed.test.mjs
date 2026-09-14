@@ -62,6 +62,39 @@ test('mounts one self-contained Shadow DOM player from parsed JSON', async (t) =
   assert.equal(typeof player.destroy, 'function');
 });
 
+test('the board block fetches its counter picture once, at the mount, under the asset base', async (t) => {
+  const dom = installDom();
+  t.after(dom.restore);
+  const host = document.createElement('div');
+  const player = createStoryPlayer(host, {
+    story: VALID_STORY,
+    assetBase: 'https://storage.example/root',
+    board: { counter: 'fairytale-assets/counters/nut.png' },
+  });
+
+  await player.ready;
+  assert.deepEqual(
+    dom.fetched().filter((url) => url.includes('/counters/')),
+    ['https://storage.example/root/fairytale-assets/counters/nut.png'],
+  );
+  player.destroy();
+});
+
+test('a board block the player cannot perform is refused at the mount, by name', async (t) => {
+  const dom = installDom();
+  t.after(dom.restore);
+  const host = document.createElement('div');
+  const player = createStoryPlayer(host, {
+    story: VALID_STORY,
+    assetBase: 'https://storage.example/',
+    board: { counter: 'https://elsewhere.example/nut.png' },
+  });
+
+  await assert.rejects(player.ready, /board counter has invalid media path/);
+  assert.deepEqual(dom.fetched(), [], 'a refused mount fetched something');
+  player.destroy();
+});
+
 test('the ceremony opens with the kicker it was mounted with, or the bedtime line', async (t) => {
   const dom = installDom();
   t.after(dom.restore);

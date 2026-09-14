@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import {
   normalizeAssetBase,
+  requireBoardBlock,
   requireCardsBlock,
   resolveMediaUrl,
   resolveStoryAssets,
@@ -355,4 +356,28 @@ test('what the cards block refuses, it refuses before a frame is drawn', () => {
     { intro: { video: 'bucket/intro.mp4', narration: { text: 'A story', audio: '/etc/passwd' } } },
     /cards intro narration audio has invalid media path/,
   );
+});
+
+test('the board block is resolved at the door, and one naming no counter is no block', () => {
+  const board = requireBoardBlock({ counter: 'fairytale-assets/counters/nut.png' }, BASE);
+  assert.deepEqual(board, { counter: `${BASE}/fairytale-assets/counters/nut.png` });
+  assert.ok(Object.isFrozen(board), 'a resolved board can be written to by whoever draws it');
+
+  // No block, an empty one and one whose counter is null are the same nothing:
+  // the apple the board always drew. The one caller asks `if (boardBlock)`.
+  assert.equal(requireBoardBlock(null, BASE), null);
+  assert.equal(requireBoardBlock({}, BASE), null);
+  assert.equal(requireBoardBlock({ counter: null }, BASE), null);
+});
+
+test('what the board block refuses, it refuses before a frame is drawn', () => {
+  const refuses = (board, pattern) => assert.throws(() => requireBoardBlock(board, BASE), pattern);
+
+  refuses('bucket/nut.png', /board must be an object/);
+  // A misspelled key is indistinguishable from a deliberate omission, and both
+  // leave the board counting on apples.
+  refuses({ counters: 'bucket/nut.png' }, /"counters", which it does not take/);
+  refuses({ counter: 'https://elsewhere.example/nut.png' }, /board counter has invalid media path/);
+  refuses({ counter: 'bucket/../nut.png' }, /board counter has invalid media path/);
+  refuses({ counter: 7 }, /board counter has invalid media path/);
 });

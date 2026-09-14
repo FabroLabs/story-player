@@ -66,6 +66,12 @@ const GOLD_INK = '245, 197, 66';
 // fraction of its cell keeps the pad the same fraction of the cell it always was.
 const SLATE_PAD_CELL_SHARE = 0.96;
 const padShare = () => SLATE_PAD_CELL_SHARE / (2 * SLATE.counterRadius);
+// The square a counter PICTURE is fitted in, as a multiple of the counter's
+// radius. The apple is two lobes `2r` wide with a leaf reaching `1.24r` up; a
+// picture drawn with the ordinary margin around its subject stands about as
+// wide as the apple did in a square this size — inside the gold ring, on the
+// pad, where the apple stood.
+const PICTURE_SIDE = 2.5;
 // Rounded first, then the ordinary stacks: a counting board wants the shape of
 // a nursery numeral, and every platform that has one names it differently. It
 // is set HEAVY, as the lessons were drawn: a numeral a child is reading across
@@ -158,7 +164,7 @@ export function createCanvasStage(elements, {
     shadowed = nextShadows !== false;
     if (!last) return;
     sizeStage(last.list.width, last.list.height);
-    paint(last.list, last.lookup);
+    paint(last.list, last.lookup, last.counter);
   }
 
   /**
@@ -177,14 +183,15 @@ export function createCanvasStage(elements, {
     if (!context || destroyed) return null;
     const list = buildDrawList(state, sheets);
     sizeStage(list.width, list.height);
-    last = { list, lookup: lookupOf(sheets) };
-    paint(list, last.lookup);
+    last = { list, lookup: lookupOf(sheets), counter: counterOf(sheets) };
+    paint(list, last.lookup, last.counter);
     return list;
   }
 
-  function paint(list, lookup) {
+  function paint(list, lookup, counter) {
     paintDrawList(context, list, {
       lookup,
+      counter,
       scale: renderScale,
       shadows: shadowed,
       onPainted: remember,
@@ -321,7 +328,7 @@ export function createCanvasStage(elements, {
     // instant is ordinary now the renditions are cut up — every chunk boundary
     // is one — and repainting without the stand-in puts the missing lozenge
     // where a character was for as long as the next chunk takes to arrive.
-    paint(last.list, last.lookup);
+    paint(last.list, last.lookup, last.counter);
   }
 
   function fitStage() {
@@ -352,12 +359,17 @@ export function createCanvasStage(elements, {
  * question in two is what lets a sheet be planned before it is decoded: the
  * list is built from the plan, and a bitmap that has not landed yet paints as
  * the placeholder instead of leaving a hole.
+ *
+ * `counter` is the board's counter picture (`counter-picture.mjs`), the one
+ * asset that is the story's rather than a scene's: it is handed through here
+ * so the list and the painter ask one object about everything they draw.
  */
-export function sceneSheets(plan, cache) {
+export function sceneSheets(plan, cache, counter = null) {
   const sheets = new Map();
   for (const sheet of plan?.sheets ?? []) sheets.set(`${sheet.slug} ${sheet.clip}`, sheet);
   const props = new Map((plan?.props ?? []).map((prop) => [prop.slug, { url: prop.url }]));
   return {
+    counter: () => counter,
     // Per FRAME, not per clip: where the bundle carries a chunk ladder, which
     // object a clip is drawn from changes as it loops, and `chunkAt` answers
     // both halves at once — the chunk, and the frame that chunk starts at.
@@ -381,6 +393,9 @@ export function sceneSheets(plan, cache) {
  */
 export function paintDrawList(context, list, {
   lookup = () => null, scale = 1, shadows = true,
+  // The board's counter picture, as decoded so far: `null` until it lands, and
+  // the apple is drawn meanwhile. Asked once per paint, not once per counter.
+  counter = () => null,
   // The stage's memory of what each character last looked like, and where it is
   // told about it. Defaulted away so the list still paints on its own — the
   // goldens and the draw-list tests execute it with nothing behind them.
@@ -422,7 +437,7 @@ export function paintDrawList(context, list, {
     // lesson, and a device too weak for a drop shadow is not too weak for a
     // rounded rectangle.
     if (command.op === 'slate') {
-      paintSlate(context, command, list.width);
+      paintSlate(context, command, list.width, counter());
       if (command.hud) underCamera();
       continue;
     }
@@ -514,10 +529,10 @@ function paintProp(context, command, drawable) {
  */
 function paintSlate(context, {
   mode, panel, counters, equation, flash = null,
-}, plateWidth) {
+}, plateWidth, picture = null) {
   context.save();
   paintPanel(context, panel);
-  for (const counter of counters) paintCounter(context, counter, mode, flash);
+  for (const counter of counters) paintCounter(context, counter, mode, flash, picture);
   if (equation) paintEquation(context, equation, plateWidth);
   context.restore();
 }
@@ -535,8 +550,8 @@ function paintPanel(context, panel) {
 
 /**
  * One counter: a tinted pad, the gold ring if it is the one the count has
- * reached or a cue has swept it, an apple on top, and the red X if it is being
- * taken away.
+ * reached or a cue has swept it, the counter itself on top — the host's
+ * picture, or the drawn apple — and the red X if it is being taken away.
  *
  * The order is the z-order and every step of it is load-bearing. The pad is the
  * ground, so it goes down first — drawn after the ring it would BURY it, since
@@ -546,10 +561,14 @@ function paintPanel(context, panel) {
  * old board drew them in, and the order a child would draw them in. A flash
  * widens the ring and lays a halo under it; the halo is part of the ring's own
  * step, so the order stays pad, ring, apple, cross.
+ *
+ * A picture takes the apple's step and nothing else: the list says the counter
+ * IS a picture (`image`), and the apple stands in only while that picture has
+ * not landed — a board should never go blank for a fetch that is still coming.
  */
 function paintCounter(context, {
-  group, cx, cy, r, scale, alpha, cross, ring, swept = false,
-}, mode, flash = null) {
+  group, cx, cy, r, scale, alpha, cross, ring, swept = false, image = false,
+}, mode, flash = null, picture = null) {
   // A counter at the very start of its pop has no size at all, and one already
   // taken away has nothing left to draw.
   if (!(scale > 0.01) || !(alpha > 0.01)) return;
@@ -562,9 +581,26 @@ function paintCounter(context, {
   if (ring || swept) {
     paintGoldRing(context, cx, cy, radius + (r * SLATE.ringGap), Math.max(2, r * SLATE.ringWidth), alpha, flash);
   }
-  paintApple(context, cx, cy, radius, counterInk(mode, group));
+  if (image && picture) paintPicture(context, picture, cx, cy, radius);
+  else paintApple(context, cx, cy, radius, counterInk(mode, group));
   if (cross > 0.01) paintCross(context, cx, cy, radius, r, cross);
   context.restore();
+}
+
+/**
+ * The host's counter picture, in the apple's place: fitted whole inside a
+ * square about the counter's centre, the way a prop is fitted inside its box,
+ * so a picture of any shape lands unstretched. A picture that measures nothing
+ * (an SVG carrying only a `viewBox` — see `paintProp`) fills the square.
+ */
+function paintPicture(context, picture, cx, cy, radius) {
+  const side = radius * PICTURE_SIDE;
+  const width = sourceWidth(picture);
+  const height = sourceHeight(picture);
+  const fit = width > 0 && height > 0 ? Math.min(side / width, side / height) : 0;
+  const drawnWidth = fit > 0 ? width * fit : side;
+  const drawnHeight = fit > 0 ? height * fit : side;
+  context.drawImage(picture, cx - (drawnWidth / 2), cy - (drawnHeight / 2), drawnWidth, drawnHeight);
 }
 
 /**
@@ -773,6 +809,13 @@ function paintMissing(context, { dx, dy, dw, dh, opacity }) {
 
 function lookupOf(sheets) {
   return typeof sheets?.drawable === 'function' ? (url) => sheets.drawable(url) : () => null;
+}
+
+// The counter picture as decoded so far, read at paint time rather than at
+// draw time: it lands whenever its fetch does, and the frame after that is the
+// first that should show it.
+function counterOf(sheets) {
+  return typeof sheets?.counter === 'function' ? () => sheets.counter()?.drawable ?? null : () => null;
 }
 
 // An `ImageBitmap` measures in `width`; an `Image` from the decode fallback

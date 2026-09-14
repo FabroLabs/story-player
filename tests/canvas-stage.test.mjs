@@ -503,6 +503,15 @@ test('the sheet book answers per clip, per prop, and per decoded url', () => {
   assert.equal(sheets.drawable('ruby-idle.webp'), null);
 });
 
+test('the scene\'s sheets carry the board\'s counter picture, when the host gave one', () => {
+  const picture = { url: 'nut.png', drawable: null };
+  const plan = { sheets: [], props: [] };
+  // The holder itself, not a copy: its `drawable` fills in when the fetch lands,
+  // and the stage reads it at paint time.
+  assert.equal(sceneSheets(plan, { get: () => null }, picture).counter(), picture);
+  assert.equal(sceneSheets(plan, { get: () => null }).counter(), null);
+});
+
 test('the painter clears the frame before it draws the next one', () => {
   const context = fakeContext();
   const list = buildDrawList(
@@ -525,7 +534,7 @@ test('the painter clears the frame before it draws the next one', () => {
 // --- the lesson's two overlays ---------------------------------------------
 
 function lessonList({
-  camera, slate, highlightMs, tMs = 0, opacity = 1,
+  camera, slate, highlightMs, tMs = 0, opacity = 1, sheets = book(),
 } = {}) {
   return buildDrawList({
     ...stageState({
@@ -536,7 +545,7 @@ function lessonList({
     }),
     slate,
     tMs,
-  }, book());
+  }, sheets);
 }
 
 const counting = (count, sinceMs = 0) => ({
@@ -905,4 +914,89 @@ test('the painter draws each figure at its own opacity and leaves none behind', 
   // A globalAlpha left at a departing character's fade would dim everything
   // drawn after them, including the next frame's first command.
   assert.equal(context.globalAlpha, 1);
+});
+
+// --- the counter drawn as the host's picture -------------------------------
+
+// Twice as wide as it is tall, so a stretched picture would show.
+const NUT = { url: 'nut.png', drawable: bitmap(1024, 512) };
+const pictured = () => ({ ...book(), counter: () => NUT });
+const STEM = 'rgb(120, 84, 52)';
+const stems = (context) => context.of('stroke').filter((call) => call.at(-1).ink === STEM).length;
+const pictures = (context) => context.of('drawImage').filter(([source]) => source === NUT.drawable);
+
+test('a counter the list marks as a picture is drawn from it, in the apple\'s place and order', () => {
+  const context = fakeContext();
+  const list = lessonList({ slate: counting(2), tMs: 4_000, sheets: pictured() });
+  const board = boardOf(list);
+  assert.deepEqual(board.counters.map((counter) => counter.image), [true, true]);
+  paintDrawList(context, list, {
+    lookup: () => bitmap(512, 512), scale: 1, shadows: false, counter: () => NUT.drawable,
+  });
+
+  const drawn = pictures(context);
+  assert.equal(drawn.length, 2, 'one picture per counter');
+  for (const [index, counter] of board.counters.entries()) {
+    const [, x, y, width, height] = drawn[index];
+    const radius = counter.r * counter.scale;
+    // Unstretched, and centred on the counter.
+    assert.equal(width, 2 * height);
+    assert.ok(Math.abs((x + (width / 2)) - counter.cx) < 1e-6, `centred on counter ${counter.n}`);
+    assert.ok(Math.abs((y + (height / 2)) - counter.cy) < 1e-6, `centred on counter ${counter.n}`);
+    // About the apple's size: wider than its two lobes, inside the pad under it.
+    assert.ok(width > 2 * radius, 'smaller than the apple it replaces');
+    assert.ok(width < 2 * radius * (0.96 / (2 * SLATE.counterRadius)), 'wider than the pad under it');
+  }
+  // No apple was drawn for either: the ovals are the two pads and the newest
+  // counter's ring — no lobes, leaf or shine — and there is no stem.
+  assert.equal(ovals(context).length, 3);
+  assert.equal(stems(context), 0);
+  // The apple's step, exactly: pad, then the newest counter's gold ring, then
+  // the picture over both — a picture under the ring would be a picture the
+  // ring crosses out.
+  const at = (predicate) => context.calls.findIndex(predicate);
+  const secondPad = context.calls.findLastIndex(([name, ...args]) => name === 'fill' && args.at(-1).ink === 'rgba(226, 232, 240, 0.8)');
+  const ring = at(([name, ...args]) => name === 'stroke' && args.at(-1).ink === GOLD);
+  const second = context.calls.findLastIndex(([name, source]) => name === 'drawImage' && source === NUT.drawable);
+  assert.ok(secondPad < ring && ring < second, `pad ${secondPad}, ring ${ring}, picture ${second}`);
+});
+
+test('the apple stands in while the picture has not landed, and wherever the list did not ask for one', () => {
+  // Marked as a picture, nothing decoded yet: the apple, exactly as before.
+  const waiting = fakeContext();
+  paintDrawList(waiting, lessonList({ slate: counting(2), tMs: 4_000, sheets: pictured() }), {
+    lookup: () => bitmap(512, 512), scale: 1, shadows: false, counter: () => null,
+  });
+  assert.equal(pictures(waiting).length, 0);
+  assert.equal(stems(waiting), 2, 'an apple per counter');
+
+  // A picture in hand but a list that never asked for one — a host without the
+  // block — is the apple too: the list decides, not whatever the painter holds.
+  const unasked = fakeContext();
+  const plain = lessonList({ slate: counting(2), tMs: 4_000 });
+  assert.ok(boardOf(plain).counters.every((counter) => !('image' in counter)));
+  paintDrawList(unasked, plain, {
+    lookup: () => bitmap(512, 512), scale: 1, shadows: false, counter: () => NUT.drawable,
+  });
+  assert.equal(pictures(unasked).length, 0);
+  assert.equal(stems(unasked), 2);
+});
+
+test('the stage reads the picture off its sheets at paint time, so a late one needs no new list', (t) => {
+  const { stage, context } = mounted(t);
+  const picture = { url: 'nut.png', drawable: null };
+  const state = {
+    ...stageState({ actors: [{ slug: 'ruby', x: 50, feetY: 90, heightPx: 200, clip: 'idle' }] }),
+    slate: counting(1),
+    tMs: 4_000,
+  };
+  const list = stage.draw(state, { ...book(), counter: () => picture });
+  assert.equal(boardOf(list).counters[0].image, true);
+  assert.equal(context.of('drawImage').length, 0, 'nothing has decoded — not the sheet, not the picture');
+
+  // The fetch lands. The next paint — a demotion here, the next frame in the
+  // player — draws it from the same list.
+  picture.drawable = bitmap(256, 256);
+  stage.setTier({ dprCap: 1.5, shadows: false });
+  assert.equal(context.of('drawImage').filter(([source]) => source === picture.drawable).length, 1);
 });

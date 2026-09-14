@@ -20,7 +20,8 @@ base, for example `https://storage.example/`.
 
 Beside `story` and `assetBase`, `options` accepts the manifest's `plates` block,
 the `stream` object that says the story is still being written, the `cards`
-either side of the story, the `kicker` line the ceremony opens with, and two
+either side of the story, the `board` block naming what the counting board's
+counters are drawn as, the `kicker` line the ceremony opens with, and two
 booleans, both off by default:
 
 - `plates` is the manifest block of the same name, `{place: {time: plate}}`,
@@ -45,6 +46,17 @@ booleans, both off by default:
 - `cards` are the manifest's `intro` and `end_card` blocks, passed under those
   two names. See [the cards either side of the
   story](#the-cards-either-side-of-the-story).
+- `board` names what the counting board draws its counters as. Its one key,
+  `counter`, is a bucket-qualified picture—`board: {counter:
+  'fairytale-assets/counters/nut.png'}`—fetched once at the mount and drawn in
+  the apple's place on every board in the story, fitted whole inside the gold
+  ring at the apple's size, in the same order (pad, ring, picture, cross). Until
+  it lands, and for good if it cannot be fetched (named once in the log), the
+  board draws the apple it always drew; a mount without the block is that apple
+  everywhere. A key other than `counter` is refused by name. The draw list
+  marks such a counter `image: true`, so another renderer of the same list
+  knows to draw the picture too; a list built without the block is byte for
+  byte the list it was.
 - `kicker` is the line over the story's name on the opening screen, for a host
   mounting something that is not a bedtime story—`kicker: 'a counting lesson'`.
   Anything that is not a string with words in it leaves the default,
@@ -494,16 +506,18 @@ export function Performance({ story }) {
 }
 ```
 
-Changing `story`, `assetBase`, `plates`, `cards`, `kicker`, `debug`, or `perf`
+Changing `story`, `assetBase`, `plates`, `cards`, `board`, `kicker`, `debug`,
+or `perf`
 destroys the previous instance before mounting the replacement — the eyebrow is
 written once, when the ceremony is built, so a `kicker` that changes mid-story
 sends the viewer back to the opening screen. Hold it still, as you would a
 story. Unmounting destroys the
 instance. React StrictMode is supported.
 
-`plates` and `cards` are props here for the same reason they are options there:
-a component that mounted a finished story without them would stage that story
-differently, and open it without its title card. Hold the `cards` object still
+`plates`, `cards` and `board` are props here for the same reason they are
+options there: a component that mounted a finished story without them would
+stage that story differently, open it without its title card, and count on
+apples. Hold the `cards` and `board` objects still
 between renders — a fresh object literal on every render is a new identity, and
 a new identity remounts the player. `stream` is not a prop—it throws. The component keeps no
 handle to call `appendScene` on, and it remounts whenever `story` changes
@@ -625,6 +639,9 @@ board outlives it.
 
 `--bundle <path>` (repeatable) takes real built bundles instead of the fixtures
 in `tests/fixtures/board/`; `--out` moves the PNG and `--scale` resizes it.
+`--counter <picture>` draws the counters as that png, webp, svg or jpeg, the
+way a host's `board.counter` does, so a picture can be judged on the board
+before it is in any bucket.
 `--dump` writes each instant's `slate` and `ring` draw-list commands to stdout
 as JSON lines — the pure answer, and the part worth diffing; progress and page
 errors go to stderr, so the stream pipes clean into `jq` or a differ.
