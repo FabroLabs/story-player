@@ -52,11 +52,12 @@ booleans, both off by default:
   the apple's place on every board in the story, fitted whole inside the gold
   ring at the apple's size, in the same order (pad, ring, picture, cross). Until
   it lands, and for good if it cannot be fetched (named once in the log), the
-  board draws the apple it always drew; a mount without the block is that apple
-  everywhere. A key other than `counter` is refused by name. The draw list
-  marks such a counter `image: true`, so another renderer of the same list
-  knows to draw the picture too; a list built without the block is byte for
-  byte the list it was.
+  board draws the apple it always drew—a board already standing when the
+  picture lands is repainted with it then, paused or not; a mount without the
+  block is that apple everywhere. A key other than `counter` is refused by name.
+  The draw list marks such a counter `image: true`, so another renderer of the
+  same list knows to draw the picture too; a list built without the block is
+  byte for byte the list it was.
 - `kicker` is the line over the story's name on the opening screen, for a host
   mounting something that is not a bedtime story—`kicker: 'a counting lesson'`.
   Anything that is not a string with words in it leaves the default,

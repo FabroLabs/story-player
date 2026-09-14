@@ -812,8 +812,9 @@ function lookupOf(sheets) {
 }
 
 // The counter picture as decoded so far, read at paint time rather than at
-// draw time: it lands whenever its fetch does, and the frame after that is the
-// first that should show it.
+// draw time: it lands whenever its fetch does, and the next paint — the one
+// its landing asks the runtime for, since a settled board has no frame of its
+// own coming — shows it from the list already in hand.
 function counterOf(sheets) {
   return typeof sheets?.counter === 'function' ? () => sheets.counter()?.drawable ?? null : () => null;
 }

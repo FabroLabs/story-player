@@ -961,6 +961,32 @@ test('a counter the list marks as a picture is drawn from it, in the apple\'s pl
   assert.ok(secondPad < ring && ring < second, `pad ${secondPad}, ring ${ring}, picture ${second}`);
 });
 
+test('a counter picture that measures nothing fills its square instead of vanishing', () => {
+  // The prop rule (`a prop that measures nothing fills its box`), in the
+  // apple's place: an SVG carrying only a `viewBox` decodes to no size, and
+  // fitting nothing into the square would draw it nothing wide — a board of
+  // invisible counters over a clean log. It is given the whole square instead.
+  const shapeless = { width: 0, height: 0 };
+  const list = lessonList({ slate: counting(2), tMs: 4_000, sheets: pictured() });
+  const painted = (picture) => {
+    const context = fakeContext();
+    paintDrawList(context, list, { lookup: () => bitmap(512, 512), scale: 1, shadows: false, counter: () => picture });
+    return context.of('drawImage').filter(([source]) => source === picture).map((call) => call.slice(1, 5));
+  };
+
+  const drawn = painted(shapeless);
+  assert.equal(drawn.length, 2, 'one picture per counter');
+  for (const [index, counter] of boardOf(list).counters.entries()) {
+    const [x, y, width, height] = drawn[index];
+    assert.ok(width > 0 && width === height, `a square, not nothing: ${width} by ${height}`);
+    assert.ok(Math.abs((x + (width / 2)) - counter.cx) < 1e-6, `centred on counter ${counter.n}`);
+    assert.ok(Math.abs((y + (height / 2)) - counter.cy) < 1e-6, `centred on counter ${counter.n}`);
+  }
+  // And it is the square a picture that does measure is fitted into: two
+  // kinds of file a host might give must not come out at two sizes.
+  assert.deepEqual(drawn, painted(bitmap(256, 256)));
+});
+
 test('the apple stands in while the picture has not landed, and wherever the list did not ask for one', () => {
   // Marked as a picture, nothing decoded yet: the apple, exactly as before.
   const waiting = fakeContext();

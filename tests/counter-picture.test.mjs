@@ -27,6 +27,7 @@ test('the picture is asked for once, is nothing until it lands, and is held once
   land(landed);
   await settled();
   assert.equal(picture.drawable, landed);
+  assert.equal(await picture.landed, landed, '`landed` is the drawable, for the caller that acts on the instant');
   assert.deepEqual(asked, [URL_]);
 
   // Closed with the player, like every other decoded bitmap.
@@ -44,6 +45,7 @@ test('a picture that cannot be fetched is named once, and the apple stands in fo
   await settled();
 
   assert.equal(picture.drawable, null);
+  assert.equal(await picture.landed, null, 'a picture that is not coming settles `landed` rather than leaving it hanging');
   assert.equal(warnings.length, 1);
   assert.equal(warnings[0].type, 'media');
   assert.equal(warnings[0].asset, 'board-counter');

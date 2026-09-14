@@ -134,6 +134,16 @@ export function createTimelinePlayer({
   });
   listen(globalThis.window ?? null, 'pagehide', hide);
 
+  // The counter picture lands whenever its fetch does, and its landing changes
+  // nothing the signature reads: a board already settled — paused, or running
+  // with nothing moving — would show it at the next thing that moved. So the
+  // landing is a frame of its own. Not before the first frame has been drawn,
+  // which reads the picture like any other.
+  void counter?.landed?.then((drawable) => {
+    if (!drawable || destroyed || sceneIndex === null) return;
+    render(clock.now(), { force: true });
+  });
+
   return {
     viewport,
     prepare,
