@@ -1082,17 +1082,20 @@ const at = (events, op) => ops(events, op).map((event) => [event.t_ms, event.lin
 
 test('a cue fires at its word\'s share of the chunk plus the lead, and rings its counter', () => {
   // The chunk starts at 1000. 1208 ms long: "two" at 5/16 is 377.5 → 378, "three"
-  // at 10/16 is 755, each plus the 80 ms lead.
+  // at 10/16 is 755, each plus the 80 ms lead. The rings then hold through the
+  // pause and go where the next chunk with no board cue begins, 4208, on the
+  // line of the chunk that lit them.
   const events = compile(lessonStory([
     slate(1, 3),
     rest(2, 1),
     spoken(3, [ringCue(4, 0, 1), ringCue(5, 5, 2), ringCue(6, 10, 3), flashCue(7, 10)]),
     rest(8, 2),
+    spoken(9, null),
   ]));
 
   assert.deepEqual(
     ops(events, 'ring').map((event) => [event.t_ms, event.counter, event.line, event.scene_index]),
-    [[1_080, 1, 4, 0], [1_458, 2, 5, 0], [1_835, 3, 6, 0], [2_335, 0, 3, 0]],
+    [[1_080, 1, 4, 0], [1_458, 2, 5, 0], [1_835, 3, 6, 0], [4_208, 0, 3, 0]],
   );
   assert.deepEqual(at(events, 'flash'), [[1_835, 7, 0]]);
   assert.deepEqual(warnings(events), []);
@@ -1109,7 +1112,7 @@ test('a cue fires at its word\'s share of the chunk plus the lead, and rings its
     ],
   );
   // And the whole stream is still in time order — the clear lands after the
-  // walk has moved on to the pause, and the schedule only ever moves forward.
+  // walk has moved on through the pause, and the schedule only ever moves forward.
   let last = -Infinity;
   for (const event of events) {
     assert.ok(event.t_ms >= last, `${event.op ?? event.kind} at ${event.t_ms} after ${last}`);
@@ -1117,15 +1120,46 @@ test('a cue fires at its word\'s share of the chunk plus the lead, and rings its
   }
 });
 
-test('the clear waits for a flash still pulsing at the chunk\'s end, and no longer', () => {
-  // 1208 ms of chunk, the flash at 835: the pulse runs to 1335, and a clear at
-  // the chunk's end would cut it off. A chunk long enough to outlast its own
-  // flash clears where it ends.
-  const short = compile(lessonStory([slate(1, 3), rest(2, 1), spoken(3, [flashCue(4, 10)]), rest(5, 2)]));
-  const long = compile(lessonStory([slate(1, 3), rest(2, 1), spoken(3, [flashCue(4, 10)], 3), rest(5, 2)]));
+test('a sweep holds through a pause and a further cued chunk, and goes where the counting stops', () => {
+  // The lesson's own shape: "one, two," — a pause for the child — "Three!"
+  // with the ring and the flash — then a line with no cue. Rings 1 and 2 are
+  // still lit when 3 joins them and the flash pulses all three; nothing goes
+  // until the un-cued line begins, and then everything does, before its
+  // subtitle, on the line of the chunk that opened the sweep.
+  const events = compile(lessonStory([
+    slate(1, 3),
+    rest(2, 1),
+    spoken(3, [ringCue(4, 0, 1), ringCue(5, 5, 2)]), // 1000 to 2208
+    rest(6, 1.5), // to 3708
+    spoken(7, [ringCue(8, 0, 3), flashCue(9, 0)]), // to 4916; the pulse lands at 4288
+    spoken(10, null),
+    rest(11, 1),
+  ]));
 
-  assert.deepEqual(at(short, 'flash'), [[1_835, 4, 0]]);
-  assert.deepEqual(ops(short, 'ring').map((event) => [event.t_ms, event.counter]), [[1_835 + FLASH.pulseMs, 0]]);
+  assert.deepEqual(
+    ops(events, 'ring').map((event) => [event.t_ms, event.counter, event.line]),
+    [[1_080, 1, 4], [1_458, 2, 5], [3_788, 3, 8], [4_916, 0, 3]],
+  );
+  assert.deepEqual(at(events, 'flash'), [[3_788, 9, 0]]);
+  const logged = events.findIndex((event) => event.source === 'step' && event.line === 10);
+  const clear = events.findIndex((event) => event.op === 'ring' && event.counter === 0);
+  const subtitle = events.findIndex((event) => event.op === 'subtitle' && event.t_ms === 4_916);
+  assert.ok(logged < clear && clear < subtitle, 'the clear did not land between the chunk\'s step and its subtitle');
+});
+
+test('the clear waits for a flash still pulsing where the counting stops, and no longer', () => {
+  // A flash on the last millisecond of a 1000 ms chunk pulses to 2499, and the
+  // un-cued chunk beginning at 2000 would cut it off: the clear waits for the
+  // pulse to land, and a second un-cued chunk beginning meanwhile leaves it
+  // waiting. A chunk long enough to outlast its own flash clears where the
+  // next chunk begins.
+  const short = compile(lessonStory([slate(1, 3), rest(2, 1), spoken(3, [flashCue(4, 15)], 1), spoken(5, null), rest(6, 2)]));
+  const twice = compile(lessonStory([slate(1, 3), rest(2, 1), spoken(3, [flashCue(4, 15)], 1), spoken(5, null, 0.2), spoken(6, null), rest(7, 2)]));
+  const long = compile(lessonStory([slate(1, 3), rest(2, 1), spoken(3, [flashCue(4, 10)], 3), spoken(5, null), rest(6, 2)]));
+
+  assert.deepEqual(at(short, 'flash'), [[1_999, 4, 0]]);
+  assert.deepEqual(ops(short, 'ring').map((event) => [event.t_ms, event.counter]), [[1_999 + FLASH.pulseMs, 0]]);
+  assert.deepEqual(ops(twice, 'ring').map((event) => [event.t_ms, event.counter]), [[1_999 + FLASH.pulseMs, 0]]);
   assert.deepEqual(at(long, 'flash'), [[1_000 + 1_875 + CUE.leadMs, 4, 0]]);
   assert.deepEqual(ops(long, 'ring').map((event) => [event.t_ms, event.counter]), [[4_000, 0]]);
 });
@@ -1134,24 +1168,24 @@ test('cues on one word fire in the order they were written, before the walk resu
   // Two cues at one instant: the order is the author's, not the op's. And a
   // cue clamped onto the chunk's last millisecond fires before the step after
   // the chunk is even logged — the timers were parked before the chunk's gate.
-  const ordered = (cues) => compile(lessonStory([slate(1, 3), rest(2, 1), spoken(3, cues, 1), rest(9, 1)]));
+  const ordered = (cues) => compile(lessonStory([slate(1, 3), rest(2, 1), spoken(3, cues, 1), spoken(9, null, 1)]));
   const flashFirst = ordered([flashCue(4, 15), ringCue(5, 15, 3)]);
   const ringFirst = ordered([ringCue(5, 15, 3), flashCue(4, 15)]);
   const stage = (events) => events.filter((event) => event.source === 'stage' && ['ring', 'flash'].includes(event.op));
 
   assert.deepEqual(stage(flashFirst).map((event) => [event.op, event.t_ms]), [['flash', 1_999], ['ring', 1_999], ['ring', 2_499]]);
   assert.deepEqual(stage(ringFirst).map((event) => [event.op, event.t_ms]), [['ring', 1_999], ['flash', 1_999], ['ring', 2_499]]);
-  const pauseLogged = ringFirst.findIndex((event) => event.source === 'step' && event.line === 9);
+  const nextLogged = ringFirst.findIndex((event) => event.source === 'step' && event.line === 9);
   const lastCue = ringFirst.findIndex((event) => event.op === 'flash');
-  assert.ok(lastCue < pauseLogged, 'a cue on the last millisecond fired after the walk had moved on');
+  assert.ok(lastCue < nextLogged, 'a cue on the last millisecond fired after the walk had moved on');
 
-  // The clear on the chunk's own end, with no flash to wait for, lands before
-  // the next step too: same millisecond, lower sequence.
+  // The clear with no flash to wait for lands as the un-cued chunk begins:
+  // the same millisecond as its subtitle, recorded first.
   const ringsOnly = ordered([ringCue(4, 0, 1)]);
   const clear = ringsOnly.findIndex((event) => event.op === 'ring' && event.counter === 0);
-  const after = ringsOnly.findIndex((event) => event.source === 'step' && event.line === 9);
-  assert.equal(ringsOnly[clear].t_ms, ringsOnly[after].t_ms);
-  assert.ok(clear < after, 'the clear fired after the step that follows the chunk');
+  const subtitle = ringsOnly.findIndex((event) => event.op === 'subtitle' && event.t_ms === 2_000);
+  assert.equal(ringsOnly[clear].t_ms, 2_000);
+  assert.ok(clear < subtitle, 'the clear landed after the subtitle of the chunk that stopped the counting');
 });
 
 test('an ordinary command cued mid-line fires through the same path, at the cue\'s instant and on its line', () => {
@@ -1171,6 +1205,32 @@ test('an ordinary command cued mid-line fires through the same path, at the cue\
   assert.deepEqual(warnings(events), []);
   // Neither is a board cue, so nothing is parked to clear.
   assert.deepEqual(ops(events, 'ring'), []);
+});
+
+test('a chunk whose only cues are ordinary commands is where the counting stops', () => {
+  // Counting is judged by the BOARD cues a chunk carries, not by whether it
+  // carries any: an emote fired mid-line is not a ring, so a chunk with only
+  // that ends the sweep the way an un-cued one does — the clear at its start,
+  // before its subtitle, on the line that opened the sweep — and opens none.
+  const events = compile(lessonStory([
+    put(1, 'ruby', 'center'),
+    slate(2, 3),
+    rest(3, 1),
+    spoken(4, [ringCue(5, 0, 1), ringCue(6, 5, 2)]), // 1000 to 2208
+    spoken(7, [cue(8, 5, { kind: 'cmd', cmd: 'emote', subjects: ['ruby'], emotion: 'happy', facing: null })]),
+    rest(9, 1),
+  ]));
+
+  assert.deepEqual(
+    ops(events, 'ring').map((event) => [event.t_ms, event.counter, event.line]),
+    [[1_080, 1, 5], [1_458, 2, 6], [2_208, 0, 4]],
+  );
+  const clear = events.findIndex((event) => event.op === 'ring' && event.counter === 0);
+  const subtitle = events.findIndex((event) => event.op === 'subtitle' && event.t_ms === 2_208);
+  assert.ok(clear < subtitle, 'the clear landed after the subtitle of the chunk that stopped the counting');
+  // The emote still fires on its own word: 378 ms into its line, plus the lead.
+  assert.deepEqual(ops(events, 'clip').map((event) => [event.t_ms, event.slug, event.clip]), [[2_666, 'ruby', 'happy']]);
+  assert.deepEqual(warnings(events), []);
 });
 
 test('a cued sound is a step at its instant, so it is heard', () => {
@@ -1197,24 +1257,55 @@ test('a cue never lands on or after the chunk\'s end', () => {
   // A 50 ms chunk: the last word plus the lead would land at 127, past the
   // gate, and is held to the last millisecond instead. A chunk of no length
   // fires its cues at 0 — still inside, because the gate is parked after them.
+  // Nothing un-cued is spoken after either, so no clear is recorded.
   const tiny = compile(lessonStory([slate(1, 3), rest(2, 1), spoken(3, [ringCue(4, 15, 1)], 0.05), rest(5, 2)]));
   const none = compile(lessonStory([slate(1, 3), rest(2, 1), spoken(3, [ringCue(4, 15, 1)], 0), rest(5, 2)]));
 
-  assert.deepEqual(ops(tiny, 'ring').map((event) => [event.t_ms, event.counter]), [[1_049, 1], [1_050, 0]]);
-  assert.deepEqual(ops(none, 'ring').map((event) => [event.t_ms, event.counter]), [[1_000, 1], [1_000, 0]]);
+  assert.deepEqual(ops(tiny, 'ring').map((event) => [event.t_ms, event.counter]), [[1_049, 1]]);
+  assert.deepEqual(ops(none, 'ring').map((event) => [event.t_ms, event.counter]), [[1_000, 1]]);
 });
 
-test('the clear carries the chunk\'s origin, captured when it was parked, even into the next scene', () => {
-  // A flash on the chunk's last millisecond keeps pulsing 500 ms past the end
-  // of the scene it was spoken in. By the time the clear fires the walk is in
-  // scene 1; the op still says scene 0, line 3.
-  const story = lessonStory([slate(1, 3), rest(2, 1), spoken(3, [flashCue(4, 15)], 1)]);
-  story.scenes.push({ ...story.scenes[0], line: 20, steps: [rest(21, 2)] });
+test('a sweep that reaches the cut records no clear: the cut is the clear', () => {
+  // The last chunk of a scene lit a ring and flashed on its last millisecond,
+  // and the pulse would run 500 ms past the seam. The cut puts both out itself
+  // (`stateAt`), and the next scene's first un-cued chunk finds nothing open —
+  // so no clear is recorded anywhere, not before the seam and not after it in
+  // somebody else's scene.
+  const story = lessonStory([slate(1, 3), rest(2, 1), spoken(3, [ringCue(4, 0, 1), flashCue(5, 15)], 1)]);
+  story.scenes.push({ ...story.scenes[0], line: 20, steps: [spoken(21, null), rest(22, 2)] });
   const events = compile(story);
 
-  assert.deepEqual(at(events, 'flash'), [[1_999, 4, 0]]);
-  assert.deepEqual(ops(events, 'ring').map((event) => [event.t_ms, event.counter, event.scene_index, event.line]), [[2_499, 0, 0, 3]]);
+  assert.deepEqual(at(events, 'flash'), [[1_999, 5, 0]]);
+  assert.deepEqual(ops(events, 'ring').map((event) => [event.t_ms, event.counter]), [[1_080, 1]]);
   assert.equal(ops(events, 'scene')[1].t_ms, 2_000);
+
+  // A clear already waiting on the pulse when the scene ends is withdrawn the
+  // same way: the un-cued chunk ran out 299 ms before the pulse would have.
+  const waiting = lessonStory([slate(1, 3), rest(2, 1), spoken(3, [flashCue(4, 15)], 1), spoken(5, null, 0.2)]);
+  waiting.scenes.push({ ...waiting.scenes[0], line: 20, steps: [rest(21, 2)] });
+  assert.deepEqual(ops(compile(waiting), 'ring'), []);
+});
+
+test('a cued chunk beginning under a clear still waiting on a pulse takes the clear first', () => {
+  // The flash pulses to 2499; the un-cued chunk at 2000 is 200 ms long, and
+  // the chunk at 2200 counts again. The old sweep's clear must not land
+  // mid-line and wipe the new rings, so it is pulled forward to 2200 — before
+  // the new sweep's first ring, still on the line that opened the old one —
+  // and the new sweep goes where ITS counting stops.
+  const events = compile(lessonStory([
+    slate(1, 3),
+    rest(2, 1),
+    spoken(3, [flashCue(4, 15)], 1),
+    spoken(5, null, 0.2),
+    spoken(6, [ringCue(7, 0, 1)], 1),
+    spoken(8, null),
+    rest(9, 1),
+  ]));
+
+  assert.deepEqual(
+    ops(events, 'ring').map((event) => [event.t_ms, event.counter, event.line]),
+    [[2_200, 0, 3], [2_280, 1, 7], [3_200, 0, 6]],
+  );
 });
 
 test('a chunk with no cues is the chunk it always was', () => {
@@ -1237,6 +1328,30 @@ test('a ring cue whose counter is not a whole number is refused and named on its
     assert.deepEqual([refusal.line, refusal.t_ms, refusal.detail], [
       4, 1_080, { type: 'policy', policy: 'ring-counter-unusable', counter: counter ?? null },
     ], JSON.stringify(counter));
+  }
+});
+
+test('a cue whose `at` cannot place it fires on the lead, and says so', () => {
+  // The estimate is a character position over a length. Without one the cue
+  // is timed at the lead alone — the line's first word, whichever word it was
+  // written under — and it still fires, because a cue lost is worse than a cue
+  // early. Said once per cue, on the cue's line, where the chunk parked it.
+  const unplaced = [
+    undefined,
+    {},
+    { word: 1, of: 3 },
+    { word: 1, of: 3, char: 'five', chars: 16 },
+    { word: 1, of: 3, char: 5, chars: 0 },
+  ];
+  for (const at of unplaced) {
+    const events = compile(lessonStory([slate(1, 3), rest(2, 1), spoken(3, [{ ...ringCue(4, 5, 1), at }]), rest(5, 2)]));
+
+    assert.deepEqual(ops(events, 'ring').map((event) => [event.t_ms, event.counter]), [[1_000 + CUE.leadMs, 1]], JSON.stringify(at));
+    const refusals = events.filter((event) => event.kind === 'warning');
+    assert.equal(refusals.length, 1, JSON.stringify(at));
+    assert.deepEqual([refusals[0].line, refusals[0].t_ms, refusals[0].detail], [
+      4, 1_000, { type: 'policy', policy: 'cue-at-unusable', at: at ?? null },
+    ], JSON.stringify(at));
   }
 });
 

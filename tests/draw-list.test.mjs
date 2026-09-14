@@ -806,6 +806,13 @@ function instantsOf(timeline) {
   const ring = first('highlight');
   if (ring) chosen.add(ring.t_ms + Math.round(HIGHLIGHT.durationMs / 4));
   for (const swept of stage.filter((event) => event.op === 'ring' && event.counter > 0)) chosen.add(swept.t_ms);
+  // The hold, and its end: the last frame before the clear, every swept
+  // counter still lit long after the chunk that lit them, and the clear itself
+  // — the compiler's `ring {counter: 0}` where the counting stopped.
+  for (const clear of stage.filter((event) => event.op === 'ring' && event.counter === 0)) {
+    chosen.add(clear.t_ms - 1);
+    chosen.add(clear.t_ms);
+  }
   const flash = first('flash');
   if (flash) chosen.add(flash.t_ms + Math.round(FLASH.pulseMs / 2));
   return [...chosen].sort((left, right) => left - right);

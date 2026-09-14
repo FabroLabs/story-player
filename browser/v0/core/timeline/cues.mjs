@@ -25,8 +25,16 @@ import { toMs } from './timing.mjs';
 export function cueOffsetMs(chunkStep, cue, policy = CUE) {
   const durationMs = toMs(chunkStep?.duration_s);
   const at = cue?.at;
-  const positioned = Number.isFinite(at?.char) && Number.isFinite(at?.chars) && at.chars > 0
-    ? Math.round((durationMs * at.char) / at.chars)
-    : 0;
+  const positioned = cueAtUsable(at) ? Math.round((durationMs * at.char) / at.chars) : 0;
   return Math.max(0, Math.min(positioned + policy.leadMs, durationMs - 1));
+}
+
+/**
+ * Whether an `at` can place its cue: a character position over a length the
+ * line has. One that cannot is timed at the lead alone — the line's first
+ * word, whichever word it was written under — and the compiler says so
+ * (`cue-at-unusable`) where it parks the cue.
+ */
+export function cueAtUsable(at) {
+  return Number.isFinite(at?.char) && Number.isFinite(at?.chars) && at.chars > 0;
 }

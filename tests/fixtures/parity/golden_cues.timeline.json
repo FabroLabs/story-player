@@ -357,14 +357,6 @@
       "t_ms": 4527
     },
     {
-      "counter": 0,
-      "line": 24,
-      "op": "ring",
-      "scene_index": 0,
-      "source": "stage",
-      "t_ms": 4654
-    },
-    {
       "detail": {
         "audio": "parity-jobs/parity/audio/52d738390119eefa8c292dd0b7f936104e158eb44a8a05d277d23990b54835a1.m4a",
         "cues": [
@@ -416,6 +408,14 @@
       "line": 29,
       "scene_index": 0,
       "source": "step",
+      "t_ms": 5027
+    },
+    {
+      "counter": 0,
+      "line": 24,
+      "op": "ring",
+      "scene_index": 0,
+      "source": "stage",
       "t_ms": 5027
     },
     {
