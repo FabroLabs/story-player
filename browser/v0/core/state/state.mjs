@@ -1,3 +1,4 @@
+import { performanceStateAt } from '../performance/evaluate.mjs';
 import { frameCell, frameIndexAt } from '../clips.mjs';
 import { NO_FLOOR_STAND_Y, floorYAtX, zoneDepthOrder, zoneNamed } from '../geometry.mjs';
 // `core` reaching into `app` for presentation policy is the layering the phase-3
@@ -34,6 +35,7 @@ import { beginMotion, motionAt, redirectMotion } from './motion.mjs';
  * the ones inside the slice of time it just crossed, exactly as it takes cues.
  */
 export function stateAt(timeline, bundle, tMs) {
+  if (bundle?.performance) return performanceStateAt(timeline, bundle, tMs);
   requireMatchingPair(timeline, bundle);
   const t = storyTimeMs(tMs);
   const world = new World(bundle);

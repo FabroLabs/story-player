@@ -74,6 +74,29 @@ booleans, both off by default:
 `spriteHeightForCm`, `floorYAtX`, `zoneNamed`, `selectFacingClip`,
 `selectLocomotion`), and the frozen `V0_POLICY`.
 
+## Host controls
+
+The plain `createStoryPlayer` handle exposes `play()`, `pause()`, `toggle()`,
+`seek(milliseconds)`, `setSubtitles(boolean)`, `getState()`, `getTimeline()` and
+`subscribe(listener)` alongside `ready`, streaming methods and `destroy()`.
+`subscribe` immediately reports current state when available and returns an
+unsubscribe function. State is `{tMs,durationMs,playing,ended,started,sceneIndex,
+subtitle}`; scene indices are zero-based and times are milliseconds. The timeline
+is read-only host data. Await `ready` before enabling controls; the first `play`
+spends the user gesture and begins the story, and playing an ended story replays.
+
+Pass `chrome: 'host'` when the surrounding app owns controls. This hides the
+internal ceremony, transport, actions, badge and ending overlay. The picture,
+subtitles, media errors, clock, media scheduler and seek behavior remain owned by
+the existing player. Hosts receive state changes from that same clock, including
+pause, seek, completion and background-tab suspension. This mode is for the plain
+handle API; the simple React component does not expose an external handle.
+
+For WHT, compiled scene events have `source: 'stage'`, `op: 'performance_scene'`,
+`scene_index`, `t_ms`, and the complete `scene` recipe with `start_ms`/`end_ms`.
+Audio events use `op: 'performance_audio'` and carry `cue`; narration text is
+`cue.text` when `cue.kind === 'narration'`. See the [performance contract](performance.md).
+
 ## How it plays
 
 One pure path, and every client runs the same one:

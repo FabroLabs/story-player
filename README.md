@@ -1,6 +1,6 @@
 # Fabro Story Player
 
-A self-contained Storylang player delivered as one classic browser script. It
+A self-contained story player delivered as one classic browser script. It
 mounts directly into a caller-owned element and renders inside an open Shadow
 DOM—no iframe, npm package, standalone page, or player-owned Story JSON fetch.
 
@@ -49,6 +49,12 @@ React APIs, how it plays, following a story still being written, the cards
 either side of it, controls, renditions and device tiers, stable versus
 immutable URLs, storage/CORS configuration, publishing, rollback, and GitLab
 migration.
+
+The same compiler and state evaluator accept complete declarative WHT performance
+JSON without a StoryLang marker. See [the performance contract](docs/performance.md)
+and [current integration evidence](WHT_IMPLEMENTATION_STATUS.md). The WHT source
+is ready for review; production deployment and paired runtime-lock changes remain
+pending. Pushing this feature branch does not publish a CDN artifact.
 
 ## Development
 

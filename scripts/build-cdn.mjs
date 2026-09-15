@@ -13,17 +13,18 @@ const TEMPLATE = path.join(ROOT, 'browser', 'template.mjs');
 const STYLES = path.join(ROOT, 'browser', 'styles.css');
 const TEMPLATE_STYLESHEET = "const STYLESHEET = new URL('./styles.css', import.meta.url).href;";
 
-export async function buildCdn({ commit, outfile = path.join(ROOT, 'dist', 'story-player.js') } = {}) {
+export async function buildCdn({ commit, sourceSha256 = null, outfile = path.join(ROOT, 'dist', 'story-player.js') } = {}) {
   if (!/^[0-9a-f]{40}$/.test(commit ?? '')) {
     throw new Error('STORY_PLAYER_COMMIT must be a 40-character lowercase Git commit');
   }
+  if (sourceSha256 !== null && !/^[0-9a-f]{64}$/.test(sourceSha256)) throw new Error('Invalid local source SHA256');
   const target = path.resolve(outfile);
   fs.mkdirSync(path.dirname(target), { recursive: true });
   const result = await build({
     absWorkingDir: ROOT,
     bundle: true,
     charset: 'utf8',
-    define: { __STORY_PLAYER_COMMIT__: JSON.stringify(commit) },
+    define: { __STORY_PLAYER_COMMIT__: JSON.stringify(commit), __STORY_PLAYER_LOCAL_SOURCE__: JSON.stringify(sourceSha256) },
     entryPoints: [ENTRY],
     format: 'iife',
     legalComments: 'none',

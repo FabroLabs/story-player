@@ -37,6 +37,8 @@ export const TIMELINE_OPS = Object.freeze([
   'ring',
   'flash',
   'subtitle',
+  'performance_scene',
+  'performance_audio',
   'end',
 ]);
 

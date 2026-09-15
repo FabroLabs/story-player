@@ -98,3 +98,19 @@ function assertDeeplyFrozen(value, seen = new Set()) {
     if (Object.hasOwn(descriptor, 'value')) assertDeeplyFrozen(descriptor.value, seen);
   }
 }
+
+test('local uncommitted source identity is explicit and cannot collide with the production base', async (t) => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'story-player-local-'));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const outfile = path.join(directory, 'story-player.js');
+  const sourceSha256 = 'a'.repeat(64);
+  await buildCdn({ commit: FIRST, sourceSha256, outfile });
+  const local = fs.readFileSync(outfile, 'utf8');
+  const context = vm.createContext({ console });
+  vm.runInContext(local, context);
+  assert.equal(context.FabroStoryPlayer.build.uncommitted, true);
+  assert.equal(context.FabroStoryPlayer.build.source_sha256, sourceSha256);
+  vm.runInContext(local, context);
+  const production = await artifact(t, FIRST);
+  assert.throws(() => vm.runInContext(production.source, context), /build collision/);
+});

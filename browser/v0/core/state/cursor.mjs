@@ -1,3 +1,4 @@
+import { performanceStateAt } from '../performance/evaluate.mjs';
 /**
  * `stateAt`, for somebody watching the story rather than asking about it.
  *
@@ -34,6 +35,11 @@
 import { World, requireMatchingPair, storyTimeMs } from './state.mjs';
 
 export function createStateCursor(timeline, bundle) {
+  if (bundle?.performance) {
+    let pair = { timeline, bundle };
+    return { at: (t) => performanceStateAt(pair.timeline, pair.bundle, t),
+      setStory: (timeline, bundle) => { pair = { timeline, bundle }; } };
+  }
   let story = null;
   let world = null;
   // How many of the timeline's events are already folded in, and the instant

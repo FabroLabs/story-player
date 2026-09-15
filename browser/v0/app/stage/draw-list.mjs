@@ -76,6 +76,11 @@ const NO_SHEETS = Object.freeze({ sheet: () => null, prop: () => null });
  * before it existed simply does not answer it.
  */
 export function buildDrawList(state, sheets = NO_SHEETS) {
+  if (state?.renderNodes) {
+    const [width, height] = state.plate.resolution;
+    return { width, height, camera: state.camera, transition: state.transition,
+      commands: state.renderNodes.map(n => ({ ...n, op: 'performance', hud: n.space === 'screen' })) };
+  }
   const [width, height] = plateSize(state?.plate);
   const actors = state?.actors ?? [];
   const board = slateFor(state?.slate, state?.tMs, width, height, pictured(sheets));

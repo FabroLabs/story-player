@@ -420,6 +420,12 @@ export function paintDrawList(context, list, {
     // take the number a child is counting with it — and the companion kept in
     // the corner over that board is drawn the same way.
     if (command.hud) context.setTransform(scale, 0, 0, scale, 0, 0);
+    if (command.op === 'performance') {
+      const drawable = command.shape ? shapeDrawable(context, command) : lookup(command.url);
+      if (drawable) paintPerformanceNode(context, command, drawable, scale);
+      if (command.hud) underCamera();
+      continue;
+    }
     if (command.op === 'shadow') {
       // The low tier draws no shadows: a radial gradient per character per
       // frame is the most expensive thing on the list and the least of what a
@@ -458,6 +464,13 @@ export function paintDrawList(context, list, {
     context.globalAlpha = 1;
     if (command.hud) underCamera();
     onPainted(command, drawable);
+  }
+  if (list.transition) {
+    context.setTransform(scale, 0, 0, scale, 0, 0);
+    context.globalAlpha = list.transition.opacity;
+    context.fillStyle = list.transition.color;
+    context.fillRect(0, 0, list.width, list.height);
+    context.globalAlpha = 1;
   }
 }
 
@@ -832,4 +845,155 @@ function sourceHeight(drawable) {
 
 function positive(value) {
   return Number.isFinite(value) && value > 0 ? value : 0;
+}
+
+// WHT consumes evaluated source-space commands. Motion/contact/depth/effect
+// phase is already resolved by the shared core; this function only paints.
+const performanceLayers = new WeakMap();
+function paintPerformanceNode(context, command, drawable, viewportScale = 1) {
+  context.save();
+  context.globalAlpha = command.opacity;
+  if (command.travel) {
+    for (const tile of command.travel.tiles) {
+      context.save();
+      context.translate(tile.x + (tile.flip ? tile.width : 0), tile.y);
+      if (tile.flip) context.scale(-1, 1);
+      context.drawImage(drawable, ...command.source, 0, 0, tile.width, tile.height);
+      context.restore();
+    }
+    context.restore();
+    return;
+  }
+  if (command.projection) {
+    for(const polygon of command.projectionClips??[]){context.beginPath();polygon.forEach((p,i)=>i?context.lineTo(...p):context.moveTo(...p));context.closePath();context.clip();}
+    paintProjectedImage(context, drawable, command.source, command.projectionMesh);
+    context.restore();
+    return;
+  }
+  context.transform(...command.matrix);
+  const [sx, sy, width, height] = command.source;
+  if (command.mask) {
+    context.beginPath();
+    if (command.mask.type === 'rect') context.rect(...command.mask.rect);
+    else {
+      command.mask.points.forEach((p, i) => i ? context.lineTo(...p) : context.moveTo(...p));
+      context.closePath();
+    }
+    context.clip();
+  }
+  if (command.glow) {
+    context.shadowColor = command.glow.color;
+    context.shadowBlur = command.glow.blur * viewportScale;
+  }
+  if (command.water) {
+    let layer = performanceLayers.get(context);
+    if (!layer) {
+      const canvas = context.canvas?.ownerDocument?.createElement('canvas')
+        ?? (typeof OffscreenCanvas === 'function' ? new OffscreenCanvas(width, height) : null);
+      if (!canvas) throw new Error('water masking requires an offscreen canvas');
+      layer = { canvas, context: canvas.getContext('2d') };
+      performanceLayers.set(context, layer);
+    }
+    if (layer.canvas.width !== width) layer.canvas.width = width;
+    if (layer.canvas.height !== height) layer.canvas.height = height;
+    const into = layer.context;
+    into.clearRect(0, 0, width, height);
+    into.drawImage(drawable, sx, sy, width, height, 0, 0, width, height);
+    const water = command.water;
+    const end = water.line + water.sourceHeight * (water.fade ?? .23);
+    into.globalCompositeOperation = 'source-atop';
+    const tint = into.createLinearGradient(0, water.line - 2, 0, end);
+    tint.addColorStop(0, '#55cce000');
+    tint.addColorStop(.18, water.color ? water.color.slice(0,7)+'30' : '#55cce030');
+    tint.addColorStop(1, water.color ?? '#55cce080');
+    into.fillStyle = tint;
+    into.fillRect(0, water.line - 2, width, height - water.line + 2);
+    into.globalCompositeOperation = 'destination-in';
+    const alpha = into.createLinearGradient(0, water.line - 2, 0, end);
+    alpha.addColorStop(0, '#000000');
+    alpha.addColorStop(1, 'rgba(0,0,0,' + (water.opacity ?? .6) + ')');
+    into.fillStyle = alpha;
+    into.fillRect(0, 0, width, height);
+    into.globalCompositeOperation = 'source-over';
+    context.drawImage(layer.canvas, 0, 0);
+  } else context.drawImage(drawable, sx, sy, width, height, 0, 0, width, height);
+  context.shadowBlur = 0;
+  for (const light of command.lights) {
+    const halo=context.createRadialGradient(light.x,light.y,0,light.x,light.y,light.radius*4);
+    halo.addColorStop(0,light.color+'b3');halo.addColorStop(.35,light.color+'4d');halo.addColorStop(1,light.color+'00');
+    context.globalAlpha=command.opacity*light.opacity;
+    context.fillStyle=halo;context.beginPath();context.arc(light.x,light.y,light.radius*4,0,Math.PI*2);context.fill();
+    context.fillStyle='#ffffffcc';context.beginPath();context.ellipse(light.x,light.y,light.radius*.85,light.radius*.5,0,0,Math.PI*2);context.fill();
+  }
+  context.shadowBlur = 0;
+  for (const particle of command.particles) {
+    context.globalAlpha = command.opacity * particle.opacity;
+    context.fillStyle = particle.color;
+    context.beginPath();
+    if (particle.points) particle.points.forEach((p,i)=>i ? context.lineTo(...p) : context.moveTo(...p));
+    else {
+      context.moveTo(particle.x, particle.y - particle.radius * 2);
+      context.lineTo(particle.x + particle.radius, particle.y);
+      context.lineTo(particle.x, particle.y + particle.radius * 2);
+      context.lineTo(particle.x - particle.radius, particle.y);
+    }
+    context.closePath(); context.fill();
+    if (particle.stroke) {
+      context.strokeStyle=particle.stroke; context.lineWidth=particle.stroke_width; context.stroke();
+    }
+  }
+  context.restore();
+}
+
+// The shared core emits the source reference projective screen mesh.
+// This adapter only textures its triangles.
+function paintProjectedImage(context, image, source, mesh) {
+  const [sx, sy, sw, sh] = source;
+  const transform=context.getTransform?.()??{a:1,b:0};
+  const overlap=Math.max(.15,1/Math.max(.001,Math.hypot(transform.a,transform.b)));
+  const triangle = (uv, xy) => {
+    const [[u0,v0],[u1,v1],[u2,v2]] = uv;
+    const [[x0,y0],[x1,y1],[x2,y2]] = xy;
+    const det = u0*(v1-v2)+u1*(v2-v0)+u2*(v0-v1);
+    if (Math.abs(det) < 1e-12) throw new Error('degenerate projection triangle');
+    const a=(x0*(v1-v2)+x1*(v2-v0)+x2*(v0-v1))/det;
+    const c=(x0*(u2-u1)+x1*(u0-u2)+x2*(u1-u0))/det;
+    const e=(x0*(u1*v2-u2*v1)+x1*(u2*v0-u0*v2)+x2*(u0*v1-u1*v0))/det;
+    const b=(y0*(v1-v2)+y1*(v2-v0)+y2*(v0-v1))/det;
+    const d=(y0*(u2-u1)+y1*(u0-u2)+y2*(u1-u0))/det;
+    const f=(y0*(u1*v2-u2*v1)+y1*(u2*v0-u0*v2)+y2*(u0*v1-u1*v0))/det;
+    const center=[(x0+x1+x2)/3,(y0+y1+y2)/3];
+    const expanded=xy.map(p=>{const dx=p[0]-center[0],dy=p[1]-center[1],length=Math.hypot(dx,dy)||1;return [p[0]+dx*overlap/length,p[1]+dy*overlap/length];});
+    context.save();context.beginPath();expanded.forEach((p,i)=>i?context.lineTo(...p):context.moveTo(...p));context.closePath();context.clip();
+    context.transform(a,b,c,d,e,f);
+    context.drawImage(image,sx,sy,sw,sh,0,0,sw,sh);context.restore();
+  };
+  for(let i=0;i<mesh.length;i+=3){
+    const points=mesh.slice(i,i+3);
+    triangle(points.map(p=>[p[2]*sw,p[3]*sh]),points.map(p=>p.slice(0,2)));
+  }
+}
+
+const performanceShapes = new WeakMap();
+function shapeDrawable(context, command) {
+  let cache = performanceShapes.get(context);
+  if (!cache) { cache = new Map(); performanceShapes.set(context, cache); }
+  const key = JSON.stringify([command.shape, command.source]);
+  if (cache.has(key)) return cache.get(key);
+  const [,,w,h] = command.source;
+  const canvas = context.canvas?.ownerDocument?.createElement('canvas')
+    ?? (typeof OffscreenCanvas === 'function' ? new OffscreenCanvas(w,h) : null);
+  if (!canvas) throw new Error('shape rasterization requires a canvas');
+  canvas.width=w; canvas.height=h;
+  const c=canvas.getContext('2d'), s=command.shape;
+  const [x,y,width,height]=s.bounds??[0,0,w,h];
+  c.beginPath();
+  if(s.kind==='rect')c.rect(x,y,width,height);
+  else if(s.kind==='roundrect')c.roundRect(x,y,width,height,s.radius??0);
+  else c.ellipse(x+width/2,y+height/2,width/2,height/2,0,s.kind==='arc'?s.start_angle:0,s.kind==='arc'?s.end_angle:Math.PI*2);
+  if(s.shadow){c.shadowColor=s.shadow.color;c.shadowBlur=s.shadow.blur;c.shadowOffsetX=s.shadow.offset[0];c.shadowOffsetY=s.shadow.offset[1];}
+  if(s.fill){c.fillStyle=s.fill;c.fill();}
+  if(s.stroke){c.strokeStyle=s.stroke;c.lineWidth=s.stroke_width??1;c.stroke();}
+  cache.set(key,canvas);
+  return canvas;
 }
