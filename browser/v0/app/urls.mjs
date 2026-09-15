@@ -1,3 +1,4 @@
+import { validatePerformance } from '../core/performance/validation.mjs';
 /**
  * Storage-root addressing for bucket-qualified v0 media, and the mount-time
  * shape checks for what a host hands over beside the story — `requirePlatesBlock`
@@ -87,6 +88,15 @@ function deepFreeze(value) {
 }
 
 export function resolveStoryAssets(story, assetBase) {
+  if (story?.performance) {
+    validatePerformance(story);
+    const source = cloneValue(story);
+    const assets = projectMap(source.assets, (a, id) => ({ ...a,
+      ...(a.type === 'shape' ? {} : {url: resolveMediaUrl(a.media, assetBase, 'performance asset ' + id)}) }));
+    const audio = source.audio.map(a => ({ ...a,
+      url: resolveMediaUrl(a.media, assetBase, 'performance audio ' + a.id) }));
+    return deepFreeze({ ...source, assets, audio });
+  }
   const source = cloneValue(story);
   const base = normalizeAssetBase(assetBase);
   const resolve = (key, where) => resolveMediaUrl(key, base, where);

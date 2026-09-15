@@ -5,7 +5,7 @@ const STYLESHEET = new URL('./styles.css', import.meta.url).href;
 // and the bedtime line is the one every story in this player can honestly wear.
 const KICKER = 'a bedtime story';
 
-export function createPlayerTemplate(root, { stylesheet = STYLESHEET, kicker } = {}) {
+export function createPlayerTemplate(root, { stylesheet = STYLESHEET, kicker, chrome } = {}) {
   const document = root.ownerDocument ?? globalThis.document;
   const link = element(document, 'link', { rel: 'stylesheet', href: stylesheet });
   // No chrome of our own above the picture: what a site embeds is a rectangle
@@ -120,6 +120,9 @@ export function createPlayerTemplate(root, { stylesheet = STYLESHEET, kicker } =
     debugList,
   ]);
   debugPanel.setAttribute('inert', '');
+  if (chrome === 'host') {
+    for (const node of [ceremony, controls.root, actions, badge.root, end]) node.style.display = 'none';
+  }
   root.replaceChildren(link, shell, debugPanel);
   return {
     title, status, start, ceremony, subtitles, subtitleArea, debugToggle, badge, card,

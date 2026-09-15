@@ -67,6 +67,13 @@ export const KEEP_CADENCE_MS = 80;
  * network, no DOM and no clock. `viewport` is `{ fitScale, dpr, dprCap }`.
  */
 export function sceneAssetPlan(timeline, bundle, sceneIndex, viewport = {}) {
+  if (bundle?.performance) {
+    const scene = bundle.scenes[sceneIndex];
+    if (!scene) throw new Error('performance scene is missing');
+    const ids = new Set(scene.nodes.flatMap(n => [n.asset, ...(n.segments ?? []).map(s => s.asset)]));
+    const props = [...ids].filter(id => bundle.assets[id].type !== 'shape').map(id => ({ slug: id, url: bundle.assets[id].url ?? bundle.assets[id].media }));
+    return { sceneIndex, cameraScale: 1, poster: null, sheets: [], props };
+  }
   const events = (timeline?.events ?? [])
     .filter((event) => event.source === 'stage' && event.scene_index === sceneIndex);
   const cameraScale = maxCameraScale(events);
@@ -528,6 +535,7 @@ export function createSceneLoader({
       warnOnce(url, {
         type: 'media', ...what, url, message: error?.message ?? 'asset failed',
       });
+      if (story.bundle?.performance) throw error;
       return false;
     }
   }

@@ -124,6 +124,9 @@ export function createV0Player({
   // The log button opens the panel, so a build that has no panel open to it has
   // no button either — a control that does nothing is worse than one absence.
   elements.debugToggle.hidden = !debug;
+  const subscribers = new Set();
+  let armed = false;
+  let beginRequested = false;
   let runtime = null;
   let loader = null;
   let runtimeStory = null;
@@ -152,11 +155,34 @@ export function createV0Player({
 
   return {
     ready,
+    play,
+    pause: () => runtime?.pause(),
+    toggle: () => runtime?.getState().playing ? runtime.pause() : play(),
+    seek: (milliseconds) => {
+      if (!Number.isFinite(milliseconds)) throw new TypeError('seek requires finite milliseconds');
+      runtime?.seekTo(milliseconds);
+    },
+    setSubtitles: (on) => {
+      if (typeof on !== 'boolean') throw new TypeError('subtitle preference must be boolean');
+      elements.subtitleArea.hidden = !on;
+      elements.subtitles.setAttribute('aria-pressed', String(on));
+      elements.subtitles.setAttribute('aria-label', on ? 'hide subtitles' : 'show subtitles');
+      writePreference(SUBTITLES_KEY, on ? 'on' : 'off');
+    },
+    getState: () => runtime?.getState() ?? null,
+    getTimeline: () => timeline,
+    subscribe(listener) {
+      if (typeof listener !== 'function') throw new TypeError('subscriber must be a function');
+      subscribers.add(listener);
+      if (runtime) listener(runtime.getState());
+      return () => subscribers.delete(listener);
+    },
     appendScene,
     finishStory,
     destroy() {
       if (destroyed) return;
       destroyed = true;
+      subscribers.clear();
       if (startHandler) elements.start.removeEventListener('click', startHandler);
       for (const cleanup of cleanups) cleanup();
       card?.destroy();
@@ -170,6 +196,21 @@ export function createV0Player({
       openStory();
     },
   };
+
+  function play() {
+    if (destroyed) return;
+    if (!armed) return ready.then(play);
+    if (!runtime?.getState().started) return startStory();
+    return runtime.play();
+  }
+
+  function publish(state) {
+    if (destroyed || !state) return;
+    for (const listener of subscribers) {
+      try { listener(state); }
+      catch (error) { warn({type: 'host', message: `host state listener failed: ${error?.message ?? error}`}); }
+    }
+  }
 
   async function initialize() {
     try {
@@ -249,6 +290,7 @@ export function createV0Player({
       signal,
       publishedComplete: streaming === null,
       expectedScenes: streaming?.scenes ?? null,
+      onState: publish,
       onEnd: () => (card?.hasEnd ? playCard(() => card.playEnd()) : null),
       onEndLeft: () => card?.cancel(),
       onReplay: () => {
@@ -287,6 +329,8 @@ export function createV0Player({
     }
     elements.status.textContent = 'ready when you are';
     elements.start.disabled = false;
+    armed = true;
+    publish(runtime?.getState() ?? null);
     startHandler = () => { void startStory(); };
     elements.start.addEventListener('click', startHandler, { once: true });
   }
@@ -426,7 +470,8 @@ export function createV0Player({
    * the story is begun when the curtain falls on it.
    */
   async function startStory() {
-    if (destroyed || signal.aborted) return;
+    if (destroyed || signal.aborted || beginRequested) return;
+    beginRequested = true;
     elements.start.disabled = true;
     elements.ceremony.classList.add('is-gone');
     if (!card?.hasIntro) {

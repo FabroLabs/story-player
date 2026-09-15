@@ -1,3 +1,4 @@
+import { performanceFixture } from './_performance.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
@@ -69,6 +70,9 @@ test('every published op is exercised by the corpus', () => {
     for (const event of compileTimeline(read(stem, 'bundle')).events) {
       if (event.source === 'stage') seen.add(event.op);
     }
+  }
+  for (const event of compileTimeline(performanceFixture()).events) {
+    if (event.source === 'stage') seen.add(event.op);
   }
   assert.deepEqual([...seen].sort(), [...TIMELINE_OPS].sort());
 });

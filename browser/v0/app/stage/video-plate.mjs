@@ -93,7 +93,13 @@ export function createVideoPlate(elements, { onWarning = () => {}, gestureTarget
     video.classList.remove('is-ready');
     video.pause();
     video.poster = next?.poster ?? '';
-    video.src = next?.video ?? '';
+    video.hidden = !next?.video;
+    if (!next?.video) {
+      video.removeAttribute?.('src');
+      video.load?.();
+      return;
+    }
+    video.src = next.video;
     video.load?.();
 
     listen('playing', () => {
@@ -217,7 +223,7 @@ export function createVideoPlate(elements, { onWarning = () => {}, gestureTarget
     // Asked to play before there is a scene to play: a real `<video>` with an
     // empty source rejects with a media error, which would be reported as a
     // blocked autoplay and arm a retry for something that was never refused.
-    if (!video.src) return;
+    if (!scene?.video) return;
     armDeadline();
     const attempt = video.play?.();
     if (!attempt?.catch) return;

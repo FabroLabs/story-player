@@ -1,3 +1,4 @@
+import { compilePerformance } from '../performance/evaluate.mjs';
 import { PlayerBoard } from '../board.mjs';
 import { desiredFacing, selectFacingClip, selectLocomotion } from '../clips.mjs';
 import { alongFloor, floorSpan, isSide, sideX, zoneNamed } from '../geometry.mjs';
@@ -60,6 +61,7 @@ const RELEASE_FOLLOW = 'off';
  * nothing, `{}` or `null`, and gets exactly the compiler it had before.
  */
 export function compileTimeline(bundle, options) {
+  if (bundle?.performance) return compilePerformance(bundle);
   requireCompilableBundle(bundle);
   const { plates } = options ?? {};
 

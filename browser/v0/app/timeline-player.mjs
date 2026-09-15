@@ -41,6 +41,7 @@ export function createTimelinePlayer({
   // before them: `onEnd` may hand back a promise to hold the end screen behind,
   // `onEndLeft` takes back whatever `onEnd` started, `onReplay` may claim the
   // way back to the start, and `onSceneOpen` says which scene is on screen.
+  onState = () => {},
   onEnd = () => null, onEndLeft = () => {}, onReplay = () => false, onSceneOpen = () => {},
 }) {
   // The story as it stands. A host watching a writer grows it under the runtime
@@ -165,11 +166,24 @@ export function createTimelinePlayer({
     appendScene,
     finishStory,
     isPlaying: () => clock.running,
+    getState,
     // Sections are written at scene boundaries, so the scene ON SCREEN has not
     // been written yet — and that is exactly the scene somebody downloading a
     // log in the middle of it is asking about.
     flushPerf: (reason = 'flush') => recorder?.flush(reason) ?? null,
   };
+
+  function getState() {
+    return {
+      tMs: clamp(clock.now()), durationMs, playing: waiting ? resumeAfterAppend : clock.running,
+      ended, started, sceneIndex, subtitle: subtitle ?? '',
+    };
+  }
+
+  function updateControls(value) {
+    controls.update(value);
+    onState(getState());
+  }
 
   /**
    * How much the picture is magnified between the sheet and the eye.
@@ -199,7 +213,7 @@ export function createTimelinePlayer({
     if (destroyed || signal?.aborted) return;
     render(0, { force: true });
     controls.arm(durationMs);
-    controls.update({ tMs: 0, playing: false, ended: false });
+    updateControls({ tMs: 0, playing: false, ended: false });
   }
 
   /** The viewer pressed begin: this is the one gesture the media can spend. */
@@ -231,7 +245,7 @@ export function createTimelinePlayer({
     // control at the one point a viewer is most likely to press it.
     if (waiting) {
       resumeAfterAppend = true;
-      controls.update({ tMs: clock.now(), playing: true, ended: false });
+      updateControls({ tMs: clock.now(), playing: true, ended: false });
       return;
     }
     // Pressing play on an ended story is a replay, and a replay is a seek: the
@@ -275,7 +289,7 @@ export function createTimelinePlayer({
       // asking for that to stop too, and a transport reading `paused` over a
       // voice still speaking is the control lying about what it did.
       media.pause();
-      controls.update({ tMs: clock.now(), playing: false, ended: false });
+      updateControls({ tMs: clock.now(), playing: false, ended: false });
       return;
     }
     if (!clock.running) return;
@@ -481,7 +495,7 @@ export function createTimelinePlayer({
     // The wait owns the transport while it is up: the button says what happens
     // when the scene lands, and the stopped clock underneath would say the
     // opposite — including to `toggle`, which reads the button back.
-    if (!waiting) controls.update({ tMs: t, playing: clock.running, ended });
+    if (!waiting) updateControls({ tMs: t, playing: clock.running, ended });
     if (ended || waiting) return;
     if (!(state.ended || (durationMs > 0 && t >= durationMs))) return;
     // The end of what is PUBLISHED is not the end of the story. Which of the
@@ -513,7 +527,7 @@ export function createTimelinePlayer({
     // again when the scene lands.
     media.settle();
     elements.stage.waiting.hidden = false;
-    controls.update({ tMs: clock.now(), playing: resumeAfterAppend, ended: false });
+    updateControls({ tMs: clock.now(), playing: resumeAfterAppend, ended: false });
   }
 
   function leaveWaiting(resume) {
@@ -563,7 +577,7 @@ export function createTimelinePlayer({
     if (started) void loader.queueRemainingScenes(sceneCount() - 1, viewport, {}).catch(warmingFailed);
     // An appended scene that moved nothing puts the wait straight back up, and
     // that wait has already said what the transport reads.
-    if (!waiting) controls.update({ tMs: clock.now(), playing: clock.running, ended });
+    if (!waiting) updateControls({ tMs: clock.now(), playing: clock.running, ended });
   }
 
   /**
@@ -635,6 +649,7 @@ export function createTimelinePlayer({
    * line that can be read, and the subtitle for it is already on screen.
    */
   function mediaWarned(detail) {
+    if (story.bundle?.performance) { pause(); showNote(detail.message); onWarning(detail); return; }
     if (detail?.asset === 'narration') showNote('narration unavailable · read along');
     onWarning(detail);
   }
@@ -783,6 +798,10 @@ export function createTimelinePlayer({
    */
   function warmingFailed(error) {
     if (destroyed || signal?.aborted || error?.name === 'AbortError') return;
+    if (story.bundle?.performance) {
+      pause();
+      showNote('Story media could not be loaded. Reopen to retry.');
+    }
     onWarning({
       type: 'media',
       asset: 'scene',
@@ -810,7 +829,7 @@ export function createTimelinePlayer({
     recorder?.flush('end');
     recorder?.pause();
     revealEnd();
-    controls.update({ tMs: durationMs, playing: false, ended: true });
+    updateControls({ tMs: durationMs, playing: false, ended: true });
   }
 
   /**
@@ -880,6 +899,7 @@ export function createTimelinePlayer({
  * never arrives, the pop never runs and the ring never pulses.
  */
 function signatureOf(state) {
+  if (state.renderNodes) return JSON.stringify([state.camera, state.renderNodes, state.transition]);
   const parts = [
     state.sceneIndex,
     round(state.camera?.scale, 4),

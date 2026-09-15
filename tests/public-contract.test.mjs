@@ -58,7 +58,7 @@ test('v0 tooling keeps the exact semantics every client consumes', () => {
   assert.deepEqual(tooling.TIMELINE_OPS, [
     'scene', 'place', 'place_object', 'clip', 'move', 'settle', 'depart',
     'exit', 'remove_object', 'push_in', 'pull_out', 'shot', 'pan',
-    'camera_reset', 'slate', 'highlight', 'ring', 'flash', 'subtitle', 'end',
+    'camera_reset', 'slate', 'highlight', 'ring', 'flash', 'subtitle', 'performance_scene', 'performance_audio', 'end',
   ]);
   assert.ok(Object.isFrozen(tooling.TIMELINE_OPS));
   assertDeeplyFrozen(tooling.V0_POLICY);
