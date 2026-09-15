@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import {
   normalizeAssetBase,
+  requireBoardBlock,
   requireCardsBlock,
   resolveMediaUrl,
   resolveStoryAssets,
@@ -288,7 +289,8 @@ test('the cards block is resolved at the door, slot by slot', () => {
       video: 'fairytale-assets/intros/forest/lantern.mp4',
       music: 'fairytale-assets/intro_music/gentle_lullaby.mp3',
       narration: { text: 'The owl’s quiet friend', audio: 'jobs/story-7/audio/title.wav' },
-      // A field a later manifest grew. This build performs the three above and
+      lead: 'owl',
+      // A field a later manifest grew. This build performs the four above and
       // plays the card rather than refusing a story over a key it does not read.
       duration_ms: 14_000,
     },
@@ -300,11 +302,16 @@ test('the cards block is resolved at the door, slot by slot', () => {
       video: `${BASE}/fairytale-assets/intros/forest/lantern.mp4`,
       music: `${BASE}/fairytale-assets/intro_music/gentle_lullaby.mp3`,
       narration: { text: 'The owl’s quiet friend', audio: `${BASE}/jobs/story-7/audio/title.wav` },
+      lead: 'owl',
     },
     end_card: {
       video: `${BASE}/fairytale-assets/intros/forest/goodnight.mp4`,
       music: `${BASE}/fairytale-assets/intro_music/dusk.mp3`,
       narration: null,
+      // Absent from the block, so absent from the card: an end card carries no
+      // title beat, and every story published before this key existed opens the
+      // way it was built to.
+      lead: null,
     },
   });
   assert.ok(Object.isFrozen(cards.intro), 'a resolved card can be written to by whoever plays it');
@@ -320,7 +327,7 @@ test('a card with nothing to play, and one with only half of it, are told apart'
   // closing one still opens.
   const opening = requireCardsBlock({ intro: { video: 'bucket/intro.mp4' } }, BASE);
   assert.deepEqual(opening, {
-    intro: { video: `${BASE}/bucket/intro.mp4`, music: null, narration: null },
+    intro: { video: `${BASE}/bucket/intro.mp4`, music: null, narration: null, lead: null },
   });
 });
 
@@ -335,6 +342,12 @@ test('what the cards block refuses, it refuses before a frame is drawn', () => {
   refuses({ intro: {} }, /cards intro video has invalid media path/);
   refuses({ intro: { video: 'https://elsewhere.example/intro.mp4' } }, /cards intro video has invalid media path/);
   refuses({ intro: { video: 'bucket/intro.mp4', music: '../escape.mp3' } }, /cards intro music has invalid media path/);
+  // A lead is a cast slug or nothing. Whether the story actually cast that
+  // character is a question about the bundle, answered by a warning and a card
+  // with no sprite on it — but a lead that is not a name at all is a block this
+  // player cannot perform, and it is refused where every other shape is.
+  refuses({ intro: { video: 'bucket/intro.mp4', lead: '' } }, /cards intro lead must be/);
+  refuses({ intro: { video: 'bucket/intro.mp4', lead: 7 } }, /cards intro lead must be/);
   refuses(
     { intro: { video: 'bucket/intro.mp4', narration: { audio: 'jobs/7/title.wav' } } },
     /cards intro narration must carry the line to speak/,
@@ -343,4 +356,28 @@ test('what the cards block refuses, it refuses before a frame is drawn', () => {
     { intro: { video: 'bucket/intro.mp4', narration: { text: 'A story', audio: '/etc/passwd' } } },
     /cards intro narration audio has invalid media path/,
   );
+});
+
+test('the board block is resolved at the door, and one naming no counter is no block', () => {
+  const board = requireBoardBlock({ counter: 'fairytale-assets/counters/nut.png' }, BASE);
+  assert.deepEqual(board, { counter: `${BASE}/fairytale-assets/counters/nut.png` });
+  assert.ok(Object.isFrozen(board), 'a resolved board can be written to by whoever draws it');
+
+  // No block, an empty one and one whose counter is null are the same nothing:
+  // the apple the board always drew. The one caller asks `if (boardBlock)`.
+  assert.equal(requireBoardBlock(null, BASE), null);
+  assert.equal(requireBoardBlock({}, BASE), null);
+  assert.equal(requireBoardBlock({ counter: null }, BASE), null);
+});
+
+test('what the board block refuses, it refuses before a frame is drawn', () => {
+  const refuses = (board, pattern) => assert.throws(() => requireBoardBlock(board, BASE), pattern);
+
+  refuses('bucket/nut.png', /board must be an object/);
+  // A misspelled key is indistinguishable from a deliberate omission, and both
+  // leave the board counting on apples.
+  refuses({ counters: 'bucket/nut.png' }, /"counters", which it does not take/);
+  refuses({ counter: 'https://elsewhere.example/nut.png' }, /board counter has invalid media path/);
+  refuses({ counter: 'bucket/../nut.png' }, /board counter has invalid media path/);
+  refuses({ counter: 7 }, /board counter has invalid media path/);
 });

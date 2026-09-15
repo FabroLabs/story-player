@@ -935,10 +935,274 @@ function lastNarrationCue(timeline) {
  * test's hands. `story` is the parity corpus, so what plays is a real compile
  * of a real bundle rather than a fixture written to suit the runtime.
  */
+/**
+ * A counting scene: one character standing still under a clip that never
+ * advances a frame.
+ *
+ * That is the shape the lesson commands are actually used in, and the shape
+ * where every OTHER field of the repaint signature is constant for the whole
+ * scene — so if the board and the ring do not put their own progress into it,
+ * the loop has no reason to draw a second frame and the lesson never appears.
+ */
+function stillLesson(bundle) {
+  for (const member of Object.values(bundle.cast)) {
+    for (const clip of Object.values(member.clips ?? {})) {
+      clip.frames = 1;
+      clip.grid = [1, 1];
+    }
+  }
+  const [scene] = bundle.scenes;
+  const spoken = scene.steps.find((step) => step.kind === 'chunk');
+  const says = (line, text) => ({ ...spoken, line, text, duration_s: 2 });
+  bundle.scenes = [{
+    ...scene,
+    steps: [
+      {
+        kind: 'cmd', line: 1, cmd: 'put', subjects: ['robin'], objects: [], position: 'center', facing: null, beside: null, zone: null,
+      },
+      says(2, 'Robin found three.'),
+      { kind: 'cmd', line: 3, cmd: 'slate', count: 3 },
+      says(4, 'Three.'),
+      { kind: 'cmd', line: 5, cmd: 'highlight', subjects: ['robin'] },
+      says(6, 'There is Robin.'),
+    ],
+  }];
+}
+
+test('the board blurs the plate under it, and holds the blur to the last frame', async (t) => {
+  const player = await mount(t, { doctor: stillLesson });
+  player.start();
+
+  // A lesson opens on its board: the scene that counts stands an empty panel
+  // from its first frame, so the plate is behind glass before the first count.
+  player.frames.advanceTo(1_000);
+  assert.equal(player.plate.style.filter, 'blur(23.76px)', 'the opening was not behind the glass');
+
+  // 2.2% of the plate's own height. The canvas cannot do this one: the plate is
+  // a `<video>` on its own compositor layer, so the frost is asked for from the
+  // render loop at the same instant the board is drawn.
+  player.frames.advanceTo(2_500);
+  assert.equal(player.plate.style.filter, 'blur(23.76px)');
+
+  // Nothing takes the board away, the ending included: the child's last picture
+  // is the answer they reached, drawn under the end card. The blur stays with
+  // it — letting the plate go sharp would be the floor coming back for the
+  // final frame alone.
+  player.frames.advanceTo(60_000);
+  assert.equal(player.plate.style.filter, 'blur(23.76px)');
+});
+
+// The same lesson, with a scene of looking around before the scene that counts.
+function laterLesson(bundle) {
+  stillLesson(bundle);
+  const [lesson] = bundle.scenes;
+  const spoken = lesson.steps.find((step) => step.kind === 'chunk');
+  bundle.scenes = [
+    { ...lesson, steps: [lesson.steps[0], { ...spoken, line: 2, text: 'Robin looks around.', duration_s: 2 }] },
+    lesson,
+  ];
+}
+
+test('the plate is clear until the scene of the first count', async (t) => {
+  const player = await mount(t, { doctor: laterLesson });
+  player.start();
+  const cut = player.timeline.events.find((event) => event.op === 'scene' && event.scene_index === 1).t_ms;
+
+  // Scene 1 counts nothing, so it plays on the floor, sharp.
+  player.frames.advanceTo(cut - 500);
+  assert.equal(player.plate.style.filter ?? '', '', 'a scene before the first count was behind glass');
+  // The panel goes up with the cut into the scene that counts, before its count.
+  player.frames.advanceTo(cut + 300);
+  assert.equal(player.plate.style.filter, 'blur(23.76px)');
+});
+
+test('a story that never counts is never behind glass', async (t) => {
+  const player = await mount(t);
+  player.start();
+
+  for (const at of [1_000, 8_000]) {
+    player.frames.advanceTo(at);
+    assert.equal(player.plate.style.filter ?? '', '', `frosted at ${at} ms`);
+  }
+});
+
+test('the lesson repaints on its own clock, and stops when it has landed', async (t) => {
+  const player = await mount(t, { doctor: stillLesson });
+  const context = player.canvas.context;
+  player.start();
+
+  // One frame, and everything it drew. `advanceTo` fires exactly one.
+  const frame = (at) => {
+    const from = context.calls.length;
+    player.frames.advanceTo(at);
+    return context.calls.slice(from);
+  };
+  const numerals = (calls) => calls.filter(([name]) => name === 'fillText').map(([, text]) => text);
+
+  const marks = (calls) => calls.filter(([name]) => name === 'ellipse' || name === 'fillText');
+
+  // The first line: somebody standing still, and no board.
+  assert.deepEqual(marks(frame(1_000)), []);
+
+  // The board arrives with the second line and BUILDS: a counter at a time,
+  // and only then the numeral under them. Two frames 80 ms apart draw
+  // different pictures because the build is still running.
+  const arriving = frame(2_040);
+  const settling = frame(2_120);
+  assert.ok(marks(arriving).length > 0, 'the board never arrived');
+  assert.deepEqual(numerals(arriving), [], 'the answer was written before the counters');
+  assert.notDeepEqual(arriving, settling, 'the build did not move between two frames');
+  // Still moving well past the first counter's pop: the ceiling is the WHOLE
+  // build — every counter, every cross and every token — and one that settled
+  // after the first pop would freeze the rest of the lesson on a still scene.
+  assert.notDeepEqual(frame(2_500), frame(2_600), 'the build stopped at the first pop');
+  // The equation: the last thing to land.
+  assert.deepEqual(numerals(frame(2_900)), ['3']);
+
+  // And once it has landed, a still scene is free again — the overlay's own
+  // progress reaches its ceiling and stops making every instant different.
+  //
+  // The two frames are further apart than the draw cadence (1000 / 24 = 41.67
+  // ms), or the empty result is the cadence gate turning the second frame away
+  // before it ever reached the picture — an assertion that passes with the
+  // ceiling deleted.
+  frame(3_400);
+  assert.deepEqual(frame(3_480), [], 'the loop kept repainting a picture nothing was changing');
+
+  // The ring runs on the same clock.
+  frame(4_040);
+  assert.ok(frame(4_120).length > 0, 'the ring stopped pulsing');
+  player.destroy();
+});
+
+// The still lesson with a cued line after it: "One, two, three." spoken over
+// two seconds from 6000, ringing a counter on each word and flashing on the
+// last — rings at 6080, 6705 and 7330, the flash 7330 to 7830 — then a line
+// with no cue from 8000, where the counting stops and the rings go.
+function cuedLesson(bundle) {
+  stillLesson(bundle);
+  const [scene] = bundle.scenes;
+  const spoken = scene.steps.find((step) => step.kind === 'chunk');
+  const cue = (line, char, step) => ({
+    line, word: 'x', occurrence: 1, at: { word: 0, of: 3, char, chars: 16 }, step: { kind: 'cmd', line, subjects: [], ...step },
+  });
+  scene.steps.push({
+    ...spoken,
+    line: 7,
+    text: 'One, two, three.',
+    duration_s: 2,
+    cues: [
+      cue(8, 0, { cmd: 'ring', counter: 1 }),
+      cue(9, 5, { cmd: 'ring', counter: 2 }),
+      cue(10, 10, { cmd: 'ring', counter: 3 }),
+      cue(11, 10, { cmd: 'flash' }),
+    ],
+  });
+  scene.steps.push({ ...spoken, line: 12, text: 'Three nuts.', duration_s: 2 });
+}
+
+test('a sweep repaints as each ring lands and while the flash runs, long after the board has landed', async (t) => {
+  const player = await mount(t, { doctor: cuedLesson });
+  const context = player.canvas.context;
+  player.start();
+  const frame = (at) => {
+    const from = context.calls.length;
+    player.frames.advanceTo(at);
+    return context.calls.slice(from);
+  };
+
+  // The board landed at 2850 and the highlight at 5500: by the cued line the
+  // scene is still, and stays still until the first ring.
+  frame(5_900);
+  assert.deepEqual(frame(5_980), [], 'a still scene was repainted before any cue');
+  // Each ring is a new picture, and then nothing until the next one.
+  assert.ok(frame(6_100).length > 0, 'the first ring did not repaint');
+  assert.deepEqual(frame(6_180), [], 'a ring already lit kept repainting');
+  assert.ok(frame(6_800).length > 0, 'the second ring did not repaint');
+  // The flash runs on the clock: two frames inside it are two pictures. This
+  // is the frame the build's own ceiling cannot reach — the board landed
+  // seconds ago — so it is the flash's own phase in the signature, or nothing.
+  const rising = frame(7_400);
+  const wider = frame(7_480);
+  assert.ok(rising.length > 0 && wider.length > 0, 'the flash did not repaint');
+  assert.notDeepEqual(rising, wider, 'the flash did not move between two frames');
+  // Landed: one last repaint, then still again with the rings lit.
+  frame(7_900);
+  assert.deepEqual(frame(7_980), [], 'the loop kept repainting after the pulse landed');
+  // The un-cued line takes the rings: one more picture, then nothing.
+  assert.ok(frame(8_100).length > 0, 'the clear did not repaint');
+  assert.deepEqual(frame(8_180), [], 'a cleared board kept repainting');
+  player.destroy();
+});
+
+// The host's picture for the board's counters. Its fetch is answered 1024 by
+// 512 — no sheet is — so the picture can be told from everything else drawn.
+const NUT = 'fairytale-assets/counters/nut.png';
+const nutAssets = (url) => (url.includes('/counters/') ? { width: 1024, height: 512 } : {});
+
+/** The counter pictures of the LAST painted frame. */
+function counterPictures(player) {
+  const { calls } = player.canvas.context;
+  const from = calls.findLastIndex(([name]) => name === 'clearRect');
+  return calls.slice(Math.max(0, from))
+    .filter(([name, source]) => name === 'drawImage' && source?.width === 1024 && source?.height === 512);
+}
+
+test('a mount with a board block draws its counters as the picture, once it has landed', async (t) => {
+  // The picture rides from the mount option through `counter-picture.mjs`, the
+  // runtime's `sceneSheets` and the draw list's `image` mark to the painter.
+  // Drop any one link and the board is apples again — the picture fetched,
+  // decoded and never drawn — so the chain is pinned from the outside.
+  const player = await mount(t, { doctor: stillLesson, options: { board: { counter: NUT } }, assets: nutAssets });
+  await settle();
+  player.start();
+  player.frames.advanceTo(4_000);
+
+  assert.equal(counterPictures(player).length, 3, 'three counters, each drawn as the picture');
+  player.destroy();
+});
+
+test('a counter picture landing on a paused, settled board is painted when it lands', async (t) => {
+  // The stage reads the picture at paint time, so the list needs no rebuilding
+  // — but nothing about the STATE changes when it lands, and a paused board
+  // has no next frame anyway. The landing has to ask for the paint itself, or
+  // the apples stay until somebody presses play.
+  let land = null;
+  const player = await mount(t, {
+    doctor: stillLesson,
+    options: { board: { counter: NUT } },
+    assets: nutAssets,
+    installed: () => {
+      const decode = globalThis.createImageBitmap;
+      globalThis.createImageBitmap = (blob) => (blob?.pixels?.width === 1024
+        ? new Promise((resolve) => { land = () => resolve(decode(blob)); })
+        : decode(blob));
+    },
+  });
+  player.start();
+  player.frames.advanceTo(4_000);
+  player.bar.toggle.dispatch('click');
+  assert.equal(player.frames.pending(), 0, 'the story is still running: this test is about the frame that never comes');
+  assert.equal(counterPictures(player).length, 0, 'the picture was drawn before it had landed');
+  assert.equal(typeof land, 'function', 'the counter picture was never asked for');
+  const painted = paints(player);
+
+  land();
+  await settle();
+
+  assert.equal(paints(player), painted + 1, 'the picture landed on a paused board and was painted no times, or more than once');
+  assert.equal(counterPictures(player).length, 3);
+  player.destroy();
+});
+
 async function mount(t, {
   doctor = () => {}, options = {}, machine = null, assets, story = null,
+  // Runs once the fake DOM is up and before the player is built, for a test
+  // that has to catch a fetch the mount itself makes.
+  installed = () => {},
 } = {}) {
   const dom = installDom(assets ? { assets } : {});
+  installed(dom);
   if (machine) {
     // The probe reads the navigator and the device pixel ratio, so a test that
     // wants a weak machine says so the way a weak machine does.
@@ -975,6 +1239,7 @@ async function mount(t, {
     canvas: findByClass(root, 'stage-canvas'),
     subtitle: findByClass(root, 'subtitle'),
     video: findByClass(root, 'plate-video'),
+    plate: findByClass(root, 'plate-layer'),
     end: findByClass(root, 'end-overlay'),
     bar: {
       at: findByClass(root, 'time-at'),

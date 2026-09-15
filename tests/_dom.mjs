@@ -197,11 +197,51 @@ export function fakeContext() {
     fillStyle: null,
     imageSmoothingEnabled: false,
     imageSmoothingQuality: null,
+    strokeStyle: null,
+    lineWidth: 1,
+    font: null,
+    textAlign: null,
+    textBaseline: null,
     clearRect: record('clearRect'),
     beginPath: record('beginPath'),
     arc: record('arc'),
     ellipse: record('ellipse'),
-    fill: record('fill'),
+    moveTo: record('moveTo'),
+    lineTo: record('lineTo'),
+    arcTo: record('arcTo'),
+    closePath: record('closePath'),
+    // The colour in force, like the alpha on a stroke and for the same reason:
+    // on the lesson's board the colour IS the claim — two reds and three greens
+    // are why the addends read as two groups, the answer is green because it is
+    // the answer — and a recorder that only said "something was filled" lets a
+    // board drawn in one flat hue pass every test in the suite.
+    fill: (...args) => calls.push([
+      'fill', ...args, { alpha: context.globalAlpha, ink: context.fillStyle },
+    ]),
+    // The width too: a flash on the board is a ring drawn WIDER for the length
+    // of its pulse, and a recorder that could not say how wide would let a
+    // pulse that never swelled pass as one that did.
+    stroke: (...args) => calls.push([
+      'stroke', ...args, {
+        alpha: context.globalAlpha, transform: [...transform], ink: context.strokeStyle, width: context.lineWidth,
+      },
+    ]),
+    // A glyph's width belongs to the font the device actually has, and this
+    // harness has none. It answers a width that is proportional to the text and
+    // to the font size in force, which is everything a layout test can honestly
+    // ask about: that the line was measured, and that it was centred on what
+    // came back.
+    measureText: (text) => {
+      const size = Number.parseInt(/(\d+)px/.exec(context.font ?? '')?.[1] ?? '', 10);
+      calls.push(['measureText', text]);
+      return { width: String(text).length * (Number.isFinite(size) ? size : 10) * 0.6 };
+    },
+    // Recorded like `drawImage` and for the same reason: a numeral is only
+    // right if it landed where the transform in force would have put it, and
+    // the slate's whole point is that that transform is NOT the camera's.
+    fillText: (...args) => calls.push([
+      'fillText', ...args, { alpha: context.globalAlpha, transform: [...transform], ink: context.fillStyle },
+    ]),
     setTransform(a, b, c, d, e, f) {
       calls.push(['setTransform', a, b, c, d, e, f]);
       transform = [a, d, e, f];
@@ -218,15 +258,14 @@ export function fakeContext() {
     },
     save() {
       calls.push(['save']);
-      stack.push([[...transform], context.globalAlpha, context.fillStyle]);
+      stack.push([[...transform], context.globalAlpha, context.fillStyle, context.strokeStyle, context.lineWidth]);
     },
     restore() {
       calls.push(['restore']);
       const held = stack.pop();
       if (!held) throw new Error('restore with nothing saved');
-      transform = held[0];
-      context.globalAlpha = held[1];
-      context.fillStyle = held[2];
+      [, context.globalAlpha, context.fillStyle, context.strokeStyle, context.lineWidth] = held;
+      [transform] = held;
     },
     drawImage: (...args) => calls.push([
       'drawImage', ...args, { alpha: context.globalAlpha, transform: [...transform] },

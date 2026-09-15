@@ -1,9 +1,11 @@
+import { performanceStateAt } from '../performance/evaluate.mjs';
 import { frameCell, frameIndexAt } from '../clips.mjs';
 import { NO_FLOOR_STAND_Y, floorYAtX, zoneDepthOrder, zoneNamed } from '../geometry.mjs';
 // `core` reaching into `app` for presentation policy is the layering the phase-3
 // compiler already inherited; phase 7 deletes the DOM stage and is the cheap
 // moment to move the module. The policy itself is pure.
 import { drawnSpriteHeightPx } from '../../app/stage/presentation-policy.mjs';
+import { carriedFrom, counterCount, isEmptyBoard, normaliseSlate } from '../slate.mjs';
 import { BandBook } from './bands.mjs';
 import { WIDE_FRAMING, framingBetween, framingForOp } from './camera.mjs';
 import { paintOrder, spreadBand } from './layout.mjs';
@@ -33,6 +35,7 @@ import { beginMotion, motionAt, redirectMotion } from './motion.mjs';
  * the ones inside the slice of time it just crossed, exactly as it takes cues.
  */
 export function stateAt(timeline, bundle, tMs) {
+  if (bundle?.performance) return performanceStateAt(timeline, bundle, tMs);
   requireMatchingPair(timeline, bundle);
   const t = storyTimeMs(tMs);
   const world = new World(bundle);
@@ -95,6 +98,34 @@ export function requireMatchingPair(timeline, bundle) {
   }
 }
 
+// No board: what a story with no lesson in it shows. `standing` is what tells
+// it from the EMPTY board a lesson opens on — the same count of nothing, but a
+// panel on screen with the frost behind it, waiting for its first counter.
+// `from` is 0 because nothing was standing. `rings` are the counters a cue has
+// swept (sorted, unique) and `flashAt` the instant every lit ring last pulsed:
+// both live only while the counting goes on — until the clear the compiler
+// records where it stops, a cut, or the ending.
+const EMPTY_SLATE = Object.freeze({
+  count: 0,
+  mode: 'count',
+  groups: Object.freeze([]),
+  sinceMs: 0,
+  from: 0,
+  standing: false,
+  rings: Object.freeze([]),
+  flashAt: null,
+});
+
+// Two boards are the same board when they claim the same arithmetic — not when
+// they merely land on the same number. Five counted and two-and-three are the
+// same total and different pictures, so the second one is raised.
+function sameBoard(board, shown) {
+  return board.count === shown.count
+    && board.mode === shown.mode
+    && board.groups.length === shown.groups.length
+    && board.groups.every((size, index) => size === shown.groups[index]);
+}
+
 /**
  * The fold itself: every event applied in order, and the picture read off it.
  *
@@ -111,6 +142,11 @@ export class World {
   #place = null;
   #plate = null;
   #subtitle = '';
+  // The counting board, and the instant it was raised — every counter's pop,
+  // every cross and every token of the equation is a function of that instant
+  // and t, so the same t always draws the same board. `from` is how much of it
+  // was already standing when it was raised (see `#showSlate`).
+  #slate = EMPTY_SLATE;
   #ended = false;
   #warnings = [];
   #camera = { from: WIDE_FRAMING, held: WIDE_FRAMING, startMs: 0, durationMs: 0 };
@@ -132,9 +168,14 @@ export class World {
       case 'move': this.#move(event); break;
       case 'settle': this.#settle(event); break;
       case 'depart': this.#depart(event); break;
-      case 'exit': this.#exit(event); break;
+      case 'exit': this.#leave(event.slug); break;
+      case 'remove_object': this.#removeObject(event); break;
+      case 'slate': this.#showSlate(event); break;
+      case 'highlight': this.#highlight(event); break;
+      case 'ring': this.#ring(event); break;
+      case 'flash': this.#slate = { ...this.#slate, flashAt: event.t_ms }; break;
       case 'subtitle': this.#subtitle = event.text ?? ''; break;
-      case 'end': this.#end(); break;
+      case 'end': this.#end(event); break;
       case 'push_in': case 'pull_out': case 'shot': case 'pan': case 'camera_reset':
         this.#camera_(event); break;
       // An op this player has no meaning for is not a shrug: it is content the
@@ -154,6 +195,7 @@ export class World {
       plate: this.#plate,
       actors,
       camera: this.#framingAt(tMs),
+      slate: { ...this.#slate, groups: [...this.#slate.groups], rings: [...this.#slate.rings] },
       subtitle: this.#subtitle,
       ended: this.#ended,
       warnings: this.#warnings,
@@ -162,6 +204,15 @@ export class World {
 
   // A cut is not a background swap: the stage empties, every motion still
   // running is cancelled, the camera goes home and the subtitle clears.
+  //
+  // The board is the one thing a cut leaves alone. A lesson is one uninterrupted
+  // surface — watched on the mounted player, a board that closed and reopened at
+  // every seam was the fault, not the feature — so it goes up where the scene
+  // of the story's first `slate` opens and is never taken down. Nothing here resets `from` either:
+  // it is how the board ON SCREEN is drawn, not what the next one counts from,
+  // and clearing it would take counters off a board still building through this
+  // cut. A board raised after the cut asks `carriedFrom` the same question it
+  // asks inside a scene: three counters that never left are not re-popped.
   #scene(event) {
     this.#sceneIndex = event.scene_index ?? null;
     const scene = this.#bundle?.scenes?.[this.#sceneIndex] ?? null;
@@ -171,6 +222,7 @@ export class World {
     this.#bands.openScene(this.#plate);
     this.#subtitle = '';
     this.#ended = false;
+    this.#clearSweep();
     this.#camera = { from: WIDE_FRAMING, held: WIDE_FRAMING, startMs: event.t_ms, durationMs: 0 };
   }
 
@@ -261,13 +313,143 @@ export class World {
     this.#applyClip(actor, event.clip, event);
   }
 
-  #exit(event) {
-    this.#actors.delete(event.slug);
-    this.#bands.forget(event.slug);
+  // Unreachable from this repository's compiler, which refuses a take of a prop
+  // this scene has not put down — but a timeline is read from wherever it came
+  // from, and this op is the one that makes things DISAPPEAR. A slug that names
+  // nobody takes nothing away and says so; one that names a character would
+  // vanish them mid-scene with no walk and no fade, which is a departure the
+  // story never wrote. Characters leave by `travel`.
+  #removeObject(event) {
+    const actor = this.#actors.get(event.slug);
+    if (!actor) {
+      this.#warn(event, { type: 'policy', policy: 'remove-missing', slug: event.slug ?? null });
+      return;
+    }
+    if (actor.kind !== 'object') {
+      this.#warn(event, { type: 'policy', policy: 'remove-not-a-prop', slug: event.slug ?? null });
+      return;
+    }
+    this.#leave(event.slug);
   }
 
-  #end() {
+  // The two ways a figure leaves the stage between cuts are one fold: the
+  // character who has finished walking off, and the prop somebody took. Both
+  // stop being drawn, and the band each stood on is no longer theirs to crowd.
+  #leave(slug) {
+    this.#actors.delete(slug);
+    this.#bands.forget(slug);
+  }
+
+  // A board whose arithmetic does not add up is refused rather than mended: it
+  // is the answer a child is being shown, and a player that quietly drew what
+  // it guessed was meant would disagree with the story's own numerals.
+  //
+  // It is refused HERE and not only at the compiler, because a timeline is read
+  // from wherever it came from — and the drawer's answer to a board it cannot
+  // draw is nothing at all, with nobody told. `normaliseSlate` is the same rule
+  // the compiler applied, so a refusal here is never a second opinion.
+  #showSlate(event) {
+    // The empty board: the panel the scene of the first count opens on. It
+    // stands where nothing stood, and leaves a board already standing alone —
+    // an empty board over counters would be the counters going away, which is
+    // the one thing no op does, so it is refused there like any count of nothing.
+    if (isEmptyBoard(event)) {
+      if (this.#slate.standing) {
+        this.#warn(event, {
+          type: 'policy', policy: 'slate-count-unusable', count: 0, mode: event.mode ?? null, groups: event.groups ?? null,
+        });
+        return;
+      }
+      this.#slate = { ...EMPTY_SLATE, sinceMs: event.t_ms, standing: true };
+      return;
+    }
+    const board = normaliseSlate(event);
+    if (!board) {
+      this.#warn(event, {
+        type: 'policy',
+        policy: 'slate-count-unusable',
+        count: event.count ?? null,
+        mode: event.mode ?? null,
+        groups: event.groups ?? null,
+      });
+      return;
+    }
+    // Asking for the board already showing is not a new board. Re-stamping
+    // `sinceMs` would replay the whole build on a board that has been sitting
+    // there, which is what a story repeating a total between two chunks would
+    // look like — the counters popping again on a number nobody changed.
+    if (sameBoard(board, this.#slate)) return;
+    // A plain count raised over a smaller plain count in the same scene is the
+    // story counting ON: four is three and one more, and re-popping the three
+    // that never left would be the board arriving twice. They are drawn settled
+    // instead — though they do MOVE, because the row is centred on the count it
+    // now holds, exactly as the board this one reproduces did. Anything else —
+    // a new kind of arithmetic, a count that shrank — is a new board and builds
+    // from nothing.
+    this.#slate = {
+      ...board, sinceMs: event.t_ms, from: carriedFrom(this.#slate, board), standing: true, rings: [], flashAt: null,
+    };
+  }
+
+  // A cue lit the k-th counter, and it stays lit until `counter: 0` — recorded
+  // by the compiler where the counting stops — puts every sweep ring out along
+  // with the flash. Kept sorted and unique so the picture is one shape however
+  // the cues were ordered, and a counter lit twice is lit once. Which counters
+  // the standing board HAS is the language's rule, refused where the cue was
+  // written — but a timeline is read from wherever it came from, and a ring
+  // on no board, or past the counters the board draws, is a mark the picture
+  // is missing: told the way a highlight of nobody is, and kept off the board.
+  #ring(event) {
+    const counter = event.counter;
+    if (!Number.isInteger(counter) || counter < 0) {
+      this.#warn(event, { type: 'policy', policy: 'ring-counter-unusable', counter: counter ?? null });
+      return;
+    }
+    // A clear puts out what there is, nothing included: the compiler leaves
+    // one behind a ring it refused, and that is not a second mistake.
+    if (counter === 0) {
+      this.#clearSweep();
+      return;
+    }
+    if (!this.#slate.standing || counter > counterCount(this.#slate)) {
+      this.#warn(event, { type: 'policy', policy: 'ring-missing', counter });
+      return;
+    }
+    if (this.#slate.rings.includes(counter)) return;
+    this.#slate = { ...this.#slate, rings: [...this.#slate.rings, counter].sort((left, right) => left - right) };
+  }
+
+  // The sweep rings and the flash go the way the highlight ring goes — with
+  // the cut, with the ending, and with the clear the compiler records where
+  // the counting stops — and the board they were on stays.
+  #clearSweep() {
+    if (this.#slate.rings.length === 0 && this.#slate.flashAt === null) return;
+    this.#slate = { ...this.#slate, rings: [], flashAt: null };
+  }
+
+  // Unreachable from this repository's compiler, which refuses a highlight of
+  // somebody who is not on stage — but a timeline is read from wherever it came
+  // from, and a ring around nobody is content the picture is missing.
+  #highlight(event) {
+    const actor = this.#actors.get(event.slug);
+    if (!actor) {
+      this.#warn(event, { type: 'policy', policy: 'highlight-missing', slug: event.slug ?? null });
+      return;
+    }
+    actor.highlightMs = event.t_ms;
+  }
+
+  // The subtitle and the rings go; the board does not. A lesson is one surface
+  // from its first count to the last frame, and the end card is drawn OVER it —
+  // the child's final picture is the answer they reached, not the floor it was
+  // counted on. Nothing in the language takes a board down: it is replaced by
+  // another board or it is the picture the story finishes on.
+  #end(event) {
     this.#subtitle = '';
+    // One actor at a time because `end` leaves the cast standing, unlike
+    // `scene`, which takes the rings with the actors it clears.
+    for (const actor of this.#actors.values()) actor.highlightMs = null;
+    this.#clearSweep();
     this.#ended = true;
   }
 
@@ -304,6 +486,7 @@ export class World {
       clipStartedMs: 0,
       clipMissing: false,
       motion: null,
+      highlightMs: null,
       approaching: false,
       order: this.#actors.size + 1,
     };
@@ -432,6 +615,7 @@ export class World {
       frame,
       cell: clip ? frameCell(frame, clip.grid ?? [clip.frames, 1]) : null,
       moving: actor.motion !== null,
+      highlightMs: actor.highlightMs,
     };
   }
 }

@@ -1,13 +1,15 @@
 import { compileTimeline } from '../core/timeline/compile.mjs';
 import { createBitmapCache } from './assets/bitmap-cache.mjs';
+import { loadCounterPicture } from './assets/counter-picture.mjs';
 import { createSceneLoader } from './assets/scene-loader.mjs';
 import { probeCapability } from './capability.mjs';
 import { createCardPhase } from './card-phase.mjs';
+import { createCardTitle } from './card-title.mjs';
 import { StoryClock } from './clock.mjs';
 import { DebugPanel, ObservableEventLog } from './debug-panel.mjs';
 import { createTimelinePlayer } from './timeline-player.mjs';
 import {
-  appendStoryScene, requireCardsBlock, requirePlatesBlock, resolveStoryAssets,
+  appendStoryScene, requireBoardBlock, requireCardsBlock, requirePlatesBlock, resolveStoryAssets,
 } from './urls.mjs';
 import { routeWarning } from './warning-router.mjs';
 
@@ -33,19 +35,28 @@ const SUBTITLES_KEY = 'storytime:subtitles';
  * sequenced here rather than compiled into the timeline (see `card-phase.mjs`),
  * which is what keeps `t` the story's own: the intro plays between the begin
  * click and `runtime.begin()`, the end card between the story stopping and its
- * end screen. A mount with no `cards` reaches none of it.
+ * end screen. A mount with no `cards` reaches none of it. Where the intro block
+ * names a `lead`, the opening ends on a title card instead of a cut — the
+ * story's name and that character, raised over the film's held last frame by
+ * `card-title.mjs`.
+ *
+ * `board` names what the counting board draws its counters as — one picture,
+ * fetched once here and handed to the stage (`counter-picture.mjs`). A mount
+ * without it draws the apple the board always drew.
  */
 export function createV0Player({
-  root, elements, story, assetBase, plates = null, stream = null, cards = null,
+  root, elements, story, assetBase, plates = null, stream = null, cards = null, board = null,
   signal, debug = false, perf = false,
 }) {
-  // The host's own three arguments, settled before anything is built from them:
+  // The host's own four arguments, settled before anything is built from them:
   // each is refused here or never again, since the compiler cannot report a bad
-  // hint, a bad `stream` would only show up as a badge counting wrong, and a bad
-  // card would be a black rectangle after the ceremony had already gone.
+  // hint, a bad `stream` would only show up as a badge counting wrong, a bad
+  // card would be a black rectangle after the ceremony had already gone, and a
+  // bad counter picture would be the apple standing in for it with no word why.
   const streaming = requireStream(stream);
   const platesHint = requirePlatesBlock(plates);
   const cardsBlock = requireCardsBlock(cards, assetBase);
+  const boardBlock = requireBoardBlock(board, assetBase);
   // Optional for a whole story — it can only answer for a place no scene stands
   // in — but not for a growing one: without it a healed step into a place the
   // published scenes have not opened yet is staged one way now and another way
@@ -82,12 +93,40 @@ export function createV0Player({
       message: `the scene on screen needs ${megabytes(heldBytes)} MB of decoded sheets against a ${megabytes(budgetBytes)} MB budget`,
     }),
   });
+  // The board's counter picture, asked for now rather than when the first board
+  // goes up: a lesson raises its board seconds into the story, and a picture
+  // fetched then would land a beat after the counters it was for.
+  const counterPicture = boardBlock
+    ? loadCounterPicture(boardBlock.counter, { signal, onWarning: warn })
+    : null;
+  // Who the intro's title beat is about, when the manifest says so. Built here
+  // rather than inside the phase because it is the only part of a card that
+  // reads the STORY: the lead is a cast slug, its sprite is a clip of that
+  // character, and the sheet goes through the same decoded-bitmap cache the
+  // scenes are drawn from. A manifest that names no lead builds none of it, and
+  // the card plays the opening every already-published story was built for.
+  const cardTitle = cardsBlock?.intro?.lead
+    ? createCardTitle({
+      elements: elements.card.title,
+      story,
+      assetBase,
+      lead: cardsBlock.intro.lead,
+      cache: bitmaps,
+      signal,
+      onWarning: warn,
+    })
+    : null;
   const card = cardsBlock
-    ? createCardPhase({ elements: elements.card, cards: cardsBlock, onWarning: warn })
+    ? createCardPhase({
+      elements: elements.card, cards: cardsBlock, title: cardTitle, onWarning: warn,
+    })
     : null;
   // The log button opens the panel, so a build that has no panel open to it has
   // no button either — a control that does nothing is worse than one absence.
   elements.debugToggle.hidden = !debug;
+  const subscribers = new Set();
+  let armed = false;
+  let beginRequested = false;
   let runtime = null;
   let loader = null;
   let runtimeStory = null;
@@ -116,16 +155,40 @@ export function createV0Player({
 
   return {
     ready,
+    play,
+    pause: () => runtime?.pause(),
+    toggle: () => runtime?.getState().playing ? runtime.pause() : play(),
+    seek: (milliseconds) => {
+      if (!Number.isFinite(milliseconds)) throw new TypeError('seek requires finite milliseconds');
+      runtime?.seekTo(milliseconds);
+    },
+    setSubtitles: (on) => {
+      if (typeof on !== 'boolean') throw new TypeError('subtitle preference must be boolean');
+      elements.subtitleArea.hidden = !on;
+      elements.subtitles.setAttribute('aria-pressed', String(on));
+      elements.subtitles.setAttribute('aria-label', on ? 'hide subtitles' : 'show subtitles');
+      writePreference(SUBTITLES_KEY, on ? 'on' : 'off');
+    },
+    getState: () => runtime?.getState() ?? null,
+    getTimeline: () => timeline,
+    subscribe(listener) {
+      if (typeof listener !== 'function') throw new TypeError('subscriber must be a function');
+      subscribers.add(listener);
+      if (runtime) listener(runtime.getState());
+      return () => subscribers.delete(listener);
+    },
     appendScene,
     finishStory,
     destroy() {
       if (destroyed) return;
       destroyed = true;
+      subscribers.clear();
       if (startHandler) elements.start.removeEventListener('click', startHandler);
       for (const cleanup of cleanups) cleanup();
       card?.destroy();
       runtime?.destroy();
       bitmaps.destroy();
+      counterPicture?.close();
       panel.destroy();
       // A begin that is still inside its card, or behind a curtain waiting for
       // a story nobody will publish now: both are let go, and both check
@@ -133,6 +196,21 @@ export function createV0Player({
       openStory();
     },
   };
+
+  function play() {
+    if (destroyed) return;
+    if (!armed) return ready.then(play);
+    if (!runtime?.getState().started) return startStory();
+    return runtime.play();
+  }
+
+  function publish(state) {
+    if (destroyed || !state) return;
+    for (const listener of subscribers) {
+      try { listener(state); }
+      catch (error) { warn({type: 'host', message: `host state listener failed: ${error?.message ?? error}`}); }
+    }
+  }
 
   async function initialize() {
     try {
@@ -204,6 +282,7 @@ export function createV0Player({
       clock,
       loader,
       cache: bitmaps,
+      counter: counterPicture,
       capability,
       log,
       perf,
@@ -211,6 +290,7 @@ export function createV0Player({
       signal,
       publishedComplete: streaming === null,
       expectedScenes: streaming?.scenes ?? null,
+      onState: publish,
       onEnd: () => (card?.hasEnd ? playCard(() => card.playEnd()) : null),
       onEndLeft: () => card?.cancel(),
       onReplay: () => {
@@ -249,6 +329,8 @@ export function createV0Player({
     }
     elements.status.textContent = 'ready when you are';
     elements.start.disabled = false;
+    armed = true;
+    publish(runtime?.getState() ?? null);
     startHandler = () => { void startStory(); };
     elements.start.addEventListener('click', startHandler, { once: true });
   }
@@ -388,7 +470,8 @@ export function createV0Player({
    * the story is begun when the curtain falls on it.
    */
   async function startStory() {
-    if (destroyed || signal.aborted) return;
+    if (destroyed || signal.aborted || beginRequested) return;
+    beginRequested = true;
     elements.start.disabled = true;
     elements.ceremony.classList.add('is-gone');
     if (!card?.hasIntro) {

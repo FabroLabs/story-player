@@ -12,6 +12,99 @@ export const MINIMUM_DEPARTURE_SECONDS = 0.35;
 export const DEFAULT_EXIT_X_PCT = Object.freeze({ left: -8, right: 108 });
 export const DEPARTURE_DEADLINE_MS = 5_000;
 
+// The counting board a lesson draws, and the ring that names a thing.
+//
+// Both are HUD, and they are HUD in two different senses. The board is painted
+// in plate space with the camera left out, so a push-in magnifies the actors
+// underneath while the arithmetic keeps its size and its place; the ring rides
+// its actor, under the framing, because it is a mark on that actor.
+//
+// Every number here is published for the same reason the movement numbers are:
+// a client drawing its own board has to land it where this one does. They are
+// the ratios of the teaching surface the lessons were designed against
+// (`procgraphics/math_board.py`), which measured everything against the panel
+// it draws rather than against the frame — so the board keeps its proportions
+// on a stage of any aspect. The COLOURS are deliberately not here: they are the
+// painter's, and a client with its own palette is still drawing this board.
+//
+// The milliseconds are the one thing the old renderer did not have. There, the
+// reveal was paced by the narration's own beats; here a board is raised at an
+// instant and builds from it, so the pacing is fixed and published: a counter
+// every `staggerMs`, each popping over `popMs`, then the taken ones crossed out
+// over `takeMs` apiece, then the equation a token every `tokenMs`.
+export const SLATE = Object.freeze({
+  // The most counters a board keeps in ONE row. Past it the board splits into
+  // two BALANCED rows rather than wrapping — eleven lands as six and five,
+  // twenty as ten and ten — so a row may hold more than this; what this number
+  // decides is whether there is a second row at all. A client that wraps every
+  // five draws four rows where this board draws two.
+  perRow: 5,
+  // The frosted panel, as percentages of the plate's own width and height.
+  panelPct: Object.freeze({ left: 4.5, top: 8.5, right: 95.5, bottom: 93 }),
+  radiusPct: 5,
+  // The band the counters live in, between these two fractions of the panel's
+  // height; the equation gets what is left below them.
+  countersTopPct: 11,
+  countersBottomPct: 62,
+  // A counter's cell is the smallest of: its share of the panel's width, the
+  // height the rows have to share, and this fraction of the plate's height —
+  // which is what keeps three counters from growing into three balloons.
+  cellShare: 0.84,
+  cellMaxPct: 27,
+  // The counter itself, and the gold ring around the newest one, as fractions
+  // of that cell and of the counter's own radius.
+  counterRadius: 0.34,
+  ringGap: 0.22,
+  ringWidth: 0.16,
+  // The red X over a counter being taken away.
+  crossWidth: 0.18,
+  // The gap above the equation band, and the one below it.
+  bandGapPct: 5,
+  // The equation's numerals: the smaller of this fraction of the band's height
+  // and this fraction of the plate's width, spaced by a fraction of that size.
+  equationFont: Object.freeze([0.84, 0.1]),
+  tokenGap: 0.28,
+  popMs: 350,
+  staggerMs: 250,
+  takeMs: 450,
+  takeStaggerMs: 250,
+  tokenMs: 300,
+  // The peak the newest counter overshoots to on its way in. It is the peak of
+  // the standard back-out curve rather than a second free number, and a test
+  // holds the curve to it.
+  overshoot: 1.1,
+  max: 20,
+  // What happens BEHIND the board while it is up: the plate is blurred so the
+  // scene reads as a backdrop rather than as something still worth watching,
+  // by this fraction of the plate's own height (the old renderer's 16px at
+  // 720), eased over this many milliseconds. The blur is CSS on the plate
+  // layer, not a draw-list number - the plate is a `<video>` and never enters
+  // the canvas - so `ms` reaches the stylesheet as a custom property.
+  frost: Object.freeze({ pct: 2.2, ms: 250 }),
+  // Where the one character left visible stands while the board is up: small,
+  // in the corner, over the panel. Percentages of the plate, feet on the line
+  // rather than centred, because a companion is stood on the floor.
+  companion: Object.freeze({ heightPct: 27, centreXPct: 90, feetPct: 99 }),
+});
+
+// `pulses` is how many times the ring brightens across `durationMs`, and
+// `ringPct` is how far outside the subject's own box it is drawn.
+export const HIGHLIGHT = Object.freeze({ durationMs: 1_500, pulses: 2, ringPct: 12 });
+
+// A cue: a command written under a spoken line, fired when a spoken word is
+// reached. Nothing in a bundle yet says when a word is spoken, so the first
+// version estimates it from the word's character position over the chunk's
+// measured duration — and adds `leadMs`, because synthesised speech opens on a
+// breath of silence before the first word and a cue on the character's own
+// share of the clock lands ahead of the voice. Published because a client
+// timing its own cues has to land them where this one does.
+export const CUE = Object.freeze({ leadMs: 80 });
+
+// The pulse every lit ring on the board gives when a `flash` cue fires: once,
+// over `pulseMs`, the stroke swelling to `gain` times its width at the peak
+// under a halo of the same ink at `halo` of the counter's own alpha.
+export const FLASH = Object.freeze({ pulseMs: 500, gain: 1.8, halo: 0.35 });
+
 export const MUSIC_VOLUME = 0.38;
 export const DUCKED_MUSIC_VOLUME = 0.14;
 export const MUSIC_FADE_MS = 850;

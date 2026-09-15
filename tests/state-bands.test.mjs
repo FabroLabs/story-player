@@ -142,6 +142,22 @@ test('a prop stands on the band its own op names', () => {
   assert.equal(lantern.clip, null);
 });
 
+test('a prop that was taken is off the stage from its own instant, and moves nobody', () => {
+  const taken = [
+    ...put(0, 'ash', 50),
+    stage(1000, 'place_object', { slug: 'lantern', x: 50, zone: 'road' }),
+    stage(2000, 'remove_object', { slug: 'lantern' }),
+  ];
+
+  assert.equal(bandOf(taken, 'lantern', 1500).band, 'road');
+  assert.equal(bandOf(taken, 'lantern'), undefined);
+  // Ash stood aside for the lantern — the prop is the one occupant crowding
+  // may not push — and stays where that put them. A take re-spreads nobody,
+  // the same as an exit: furniture must not move under a child's eyes.
+  assert.equal(bandOf(taken, 'ash', 1500).x, 35);
+  assert.equal(bandOf(taken, 'ash').x, 35);
+});
+
 // The board writes `null` for "whatever the plate answers" while a `put` writes
 // the default band's NAME. They are the same ground, and the DOM stage grouped
 // crowding by the raw key, so an arrival and somebody put on the same band

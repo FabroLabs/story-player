@@ -15,11 +15,14 @@ import {
 import {
   BESIDE_NUDGE_PCT,
   CAMERA_DURATIONS_MS,
+  CUE,
   DEFAULT_EXIT_X_PCT,
   DEFAULT_STAGE_RESOLUTION,
   DEPARTURE_DEADLINE_MS,
   DUCKED_MUSIC_VOLUME,
   DUCK_FADE_MS,
+  FLASH,
+  HIGHLIGHT,
   MINIMUM_DEPARTURE_SECONDS,
   MINIMUM_MOVE_SECONDS,
   MOVE_X_PCT_PER_SECOND,
@@ -30,6 +33,7 @@ import {
   PLATE_PARALLAX,
   PUSH_SCALE,
   SHOT_SIZES,
+  SLATE,
 } from '../browser/v0/policy.mjs';
 
 export { compileTimeline } from '../browser/v0/core/timeline/compile.mjs';
@@ -88,6 +92,10 @@ export const V0_POLICY = deepFreeze({
     defaultExitXPct: DEFAULT_EXIT_X_PCT,
     departureDeadlineMs: DEPARTURE_DEADLINE_MS,
   },
+  slate: SLATE,
+  highlight: HIGHLIGHT,
+  cue: CUE,
+  flash: FLASH,
   audio: {
     musicVolume: MUSIC_VOLUME,
     duckedMusicVolume: DUCKED_MUSIC_VOLUME,
