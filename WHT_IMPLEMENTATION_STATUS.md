@@ -34,7 +34,8 @@ Integration gates use Node22: `npm ci --ignore-scripts`, `npm test`,
 remote harness is not production storage proof.
 
 The source tests cover unknown/missing data, reachable contact frames, release
-and receiver geometry, source rectangles, masks/projection, deterministic
+and receiver geometry, source rectangles, masks/projection, malformed optional
+effect numbers (light phase, particle seed and travel offset/ease durations), deterministic
 forward/reverse/replay, audio, host controls and required media failures.
 Historical local work also compared all70 default casts against authored source
 geometry and sampled actual browser/iOS/Android output. Targeted seven-hero ×

@@ -428,6 +428,7 @@ export function validatePerformance(story) {
         finite(l.y, where);
         finite(l.radius, where, 0.001);
         finite(l.period_ms, where, 1);
+        if (l.phase !== undefined) finite(l.phase, where + ".light.phase");
         color(l.color, where);
         if (l.color.length !== 7) fail(where, "light color must be opaque RGB");
       }
@@ -448,6 +449,7 @@ export function validatePerformance(story) {
           if (n.particles[key] !== undefined)
             finite(n.particles[key], where, 0);
         for (const key of [
+          "seed",
           "phase_step",
           "vertical_scale",
           "rise",
@@ -485,6 +487,9 @@ export function validatePerformance(story) {
         );
         interval(n.travel, where);
         finite(n.travel.speed, where);
+        for (const key of ["offset", "ease_in_ms", "ease_out_ms"])
+          if (n.travel[key] !== undefined)
+            finite(n.travel[key], where + ".travel." + key);
         if (n.travel.scale !== undefined) finite(n.travel.scale, where, 0.001);
         if (
           n.travel.direction !== undefined &&

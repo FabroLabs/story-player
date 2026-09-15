@@ -82,12 +82,14 @@ top-left/top-right/bottom-right/bottom-left. Layers/masks express bag occlusion.
 
 lights:[{x,y,radius,color,phase,period_ms}] anchors repeating lens pulses in source
 pixels. particles:{count,color|colors:[palette],seed,start_ms,end_ms,radius} is a deterministic
-sparkle recipe, never executable code.
+sparkle recipe, never executable code. Optional phase and seed values must be
+finite numbers; strings and null are rejected.
 
 Backgrounds are image nodes with lower depth. Optional
 travel:{start_ms,end_ms,speed,offset,direction,scale,repeat,ease_in_ms,ease_out_ms}
 pans one coherent painting: nonrepeat uses bounded overscan; repeat uses mirrored
-tiles. Same-setting angle changes are contiguous scenes sharing setting_id.
+tiles. Optional offset and ease durations must be finite numbers. Ease durations
+are clamped to zero through half the travel interval. Same-setting angle changes are contiguous scenes sharing setting_id.
 transition:{kind:fade,duration_ms,color} is an explicit incoming scene fade.
 
 ## Audio
