@@ -54,6 +54,13 @@ export class TimelineStage {
     this.#record('place_object', origin, { slug, x, zone });
   }
 
+  // The other end of `placeObject`, and the only one a prop has: a character
+  // walks off by `travel`, a prop is taken. Nothing is cancelled because
+  // nothing was ever started for it.
+  removeObject(slug, origin = {}) {
+    this.#record('remove_object', origin, { slug });
+  }
+
   setCharacterClip(slug, clipKey, origin = {}) {
     this.#cancel(slug);
     this.#record('clip', origin, { slug, clip: clipKey ?? null });
@@ -152,6 +159,54 @@ export class TimelineStage {
   resetCamera() {
     this.#followSlug = null;
     this.#record('camera_reset', {}, {});
+  }
+
+  // The counting board belongs to the STORY, not to a scene and not to anybody
+  // standing in one: it goes up where the scene of its first count opens and
+  // comes down when the story ends. A count of 0 is the EMPTY board that
+  // opening stands (`raiseEmptyBoard`); an authored count of 0 never gets here.
+  //
+  // Unlike the subtitle, nothing records a reset for it, because nothing resets
+  // it: a board is replaced by another board or it is the picture the story
+  // finishes on, under the end card. A client folding the stream itself must
+  // clear it NOWHERE — clearing it at the cut is what made a lesson open and
+  // close a board at every seam, and clearing it at the ending puts the floor
+  // back for the one frame the answer should be standing on.
+  // The payload is the whole claim, always all three fields: the answer, the
+  // kind of arithmetic that reached it, and the groups it was reached from. A
+  // client that only knows how to draw a row of counters still has `count` and
+  // draws the right total; one that knows the rest draws the lesson.
+  setSlate({ count, mode, groups }, origin = {}) {
+    this.#record('slate', origin, { count, mode, groups: [...groups] });
+  }
+
+  // The panel with nothing on it, standing from the first frame of the scene
+  // that first counts. The same op as every other board — a client folding the
+  // stream meets one shape — with the one payload no story can write.
+  raiseEmptyBoard(origin = {}) {
+    this.#record('slate', origin, { count: 0, mode: 'count', groups: [] });
+  }
+
+  // One subject per event. A step naming three things is three rings, each of
+  // which a client may find or fail to find on its own — and a client that
+  // could only be told "these three" would have to guess which one was missing.
+  highlight(slug, origin = {}) {
+    this.#record('highlight', origin, { slug });
+  }
+
+  // The sweep ring a cue lights on the k-th counter of the standing board, and
+  // the one payload that puts them all out: `counter: 0`, which the compiler
+  // records where the counting stops — the first chunk after the cued ones
+  // spoken with no board cue. No board travels in the payload — the ring is
+  // on whatever board is standing, which every fold already knows.
+  ring(counter, origin = {}) {
+    this.#record('ring', origin, { counter });
+  }
+
+  // Every lit ring on the board pulses once. Nothing else travels: how long
+  // and how bright are `FLASH`, published policy, so one flash is one shape.
+  flash(origin = {}) {
+    this.#record('flash', origin, {});
   }
 
   setSubtitle(text) {

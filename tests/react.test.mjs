@@ -98,6 +98,44 @@ test('caller-supplied React mounts, replaces, and unmounts the plain player unde
   assert.equal(host.shadowRoot.childNodes.length, 0, 'React cleanup left the plain player mounted');
 });
 
+test('the kicker reaches the ceremony rather than the host element', async (t) => {
+  const browser = installBrowser();
+  t.after(browser.restore);
+  const StoryPlayer = createReactStoryPlayer(React);
+  const target = document.querySelector('#root');
+  const root = createRoot(target);
+  t.after(() => root.unmount());
+
+  // One story object across both renders: the remount has to be the kicker's
+  // doing, not the story's identity changing under it.
+  const lesson = story('Fourth moon');
+  const render = (kicker) => act(async () => {
+    root.render(React.createElement(StoryPlayer, {
+      story: lesson,
+      assetBase: 'https://storage.example/',
+      kicker,
+      className: 'story-slot',
+    }));
+    await settle();
+  });
+  const eyebrow = () => target.firstElementChild
+    .shadowRoot.querySelector('.start-ceremony .eyebrow').textContent;
+
+  await render('a counting lesson');
+  // A player option, not a DOM attribute — the same trap `perf` fell into.
+  assert.equal(
+    target.firstElementChild.getAttribute('kicker'),
+    null,
+    'the kicker was spread onto the host element',
+  );
+  assert.equal(eyebrow(), 'a counting lesson');
+
+  // The eyebrow is written once, when the ceremony is built, so the only way a
+  // changed prop can reach it is the remount its dependency buys.
+  await render('a shapes lesson');
+  assert.equal(eyebrow(), 'a shapes lesson', 'a new kicker never reached the ceremony');
+});
+
 test('the component hands the plates block over, and refuses to grow a story', async (t) => {
   const browser = installBrowser();
   t.after(browser.restore);
@@ -154,6 +192,35 @@ test('the component hands the cards block over too', async (t) => {
     host.shadowRoot.querySelector('.load-status').textContent,
     /cards intro video has invalid media path/,
     'the React adapter did not pass cards to the player',
+  );
+});
+
+test('the component hands the board block over too', async (t) => {
+  const browser = installBrowser();
+  t.after(browser.restore);
+  const StoryPlayer = createReactStoryPlayer(React);
+  const target = document.querySelector('#root');
+  const root = createRoot(target);
+  t.after(() => root.unmount());
+
+  // The same proof once more: a counter picture the player refuses is the
+  // cheapest evidence that the block arrived rather than landing on the div.
+  await act(async () => {
+    root.render(React.createElement(StoryPlayer, {
+      story: story('Sixth moon'),
+      assetBase: 'https://storage.example/',
+      board: { counter: 'https://elsewhere.example/nut.png' },
+      className: 'story-slot',
+    }));
+    await settle();
+  });
+
+  const host = target.firstElementChild;
+  assert.equal(host.getAttribute('board'), null, 'the board block was spread onto the host element');
+  assert.match(
+    host.shadowRoot.querySelector('.load-status').textContent,
+    /board counter has invalid media path/,
+    'the React adapter did not pass board to the player',
   );
 });
 

@@ -17,6 +17,8 @@
  */
 
 import { createStateCursor } from '../core/state/cursor.mjs';
+import { slateBuildMs } from '../core/slate.mjs';
+import { FLASH, HIGHLIGHT } from '../policy.mjs';
 import { KEEP_CADENCE_MS } from './assets/scene-loader.mjs';
 import { DEFAULT_DRAW_HZ, tierSettings } from './capability.mjs';
 import { createControls } from './controls.mjs';
@@ -29,6 +31,9 @@ const SKIP_MS = 10_000;
 
 export function createTimelinePlayer({
   elements, bundle, timeline, clock, loader, cache, log = null,
+  // The board's counter picture, when the host gave one (`counter-picture.mjs`).
+  // It rides with every scene's sheets, because a board can be raised in any.
+  counter = null,
   capability = tierSettings('high'), perf = false, onWarning = () => {}, signal = null,
   publishedComplete = true, expectedScenes = null,
   // The four seams the presentation phases either side of the story hang on.
@@ -36,6 +41,7 @@ export function createTimelinePlayer({
   // before them: `onEnd` may hand back a promise to hold the end screen behind,
   // `onEndLeft` takes back whatever `onEnd` started, `onReplay` may claim the
   // way back to the start, and `onSceneOpen` says which scene is on screen.
+  onState = () => {},
   onEnd = () => null, onEndLeft = () => {}, onReplay = () => false, onSceneOpen = () => {},
 }) {
   // The story as it stands. A host watching a writer grows it under the runtime
@@ -129,6 +135,16 @@ export function createTimelinePlayer({
   });
   listen(globalThis.window ?? null, 'pagehide', hide);
 
+  // The counter picture lands whenever its fetch does, and its landing changes
+  // nothing the signature reads: a board already settled — paused, or running
+  // with nothing moving — would show it at the next thing that moved. So the
+  // landing is a frame of its own. Not before the first frame has been drawn,
+  // which reads the picture like any other.
+  void counter?.landed?.then((drawable) => {
+    if (!drawable || destroyed || sceneIndex === null) return;
+    render(clock.now(), { force: true });
+  });
+
   return {
     viewport,
     prepare,
@@ -150,11 +166,24 @@ export function createTimelinePlayer({
     appendScene,
     finishStory,
     isPlaying: () => clock.running,
+    getState,
     // Sections are written at scene boundaries, so the scene ON SCREEN has not
     // been written yet — and that is exactly the scene somebody downloading a
     // log in the middle of it is asking about.
     flushPerf: (reason = 'flush') => recorder?.flush(reason) ?? null,
   };
+
+  function getState() {
+    return {
+      tMs: clamp(clock.now()), durationMs, playing: waiting ? resumeAfterAppend : clock.running,
+      ended, started, sceneIndex, subtitle: subtitle ?? '',
+    };
+  }
+
+  function updateControls(value) {
+    controls.update(value);
+    onState(getState());
+  }
 
   /**
    * How much the picture is magnified between the sheet and the eye.
@@ -184,7 +213,7 @@ export function createTimelinePlayer({
     if (destroyed || signal?.aborted) return;
     render(0, { force: true });
     controls.arm(durationMs);
-    controls.update({ tMs: 0, playing: false, ended: false });
+    updateControls({ tMs: 0, playing: false, ended: false });
   }
 
   /** The viewer pressed begin: this is the one gesture the media can spend. */
@@ -216,7 +245,7 @@ export function createTimelinePlayer({
     // control at the one point a viewer is most likely to press it.
     if (waiting) {
       resumeAfterAppend = true;
-      controls.update({ tMs: clock.now(), playing: true, ended: false });
+      updateControls({ tMs: clock.now(), playing: true, ended: false });
       return;
     }
     // Pressing play on an ended story is a replay, and a replay is a seek: the
@@ -260,7 +289,7 @@ export function createTimelinePlayer({
       // asking for that to stop too, and a transport reading `paused` over a
       // voice still speaking is the control lying about what it did.
       media.pause();
-      controls.update({ tMs: clock.now(), playing: false, ended: false });
+      updateControls({ tMs: clock.now(), playing: false, ended: false });
       return;
     }
     if (!clock.running) return;
@@ -456,12 +485,17 @@ export function createTimelinePlayer({
       media.tick(t);
     }
     plate.aim(state.camera);
+    // The other half of "behind the board". Everything else the board changes
+    // about the picture is a draw-list answer, but the plate is a `<video>` on
+    // its own compositor layer that the canvas never touches, so the blur has
+    // to be asked for here — from the same instant, on the same clock.
+    plate.frost(boardStanding(state.slate), state.plate?.resolution?.[1]);
     paint(state, force);
     say(state.subtitle);
     // The wait owns the transport while it is up: the button says what happens
     // when the scene lands, and the stopped clock underneath would say the
     // opposite — including to `toggle`, which reads the button back.
-    if (!waiting) controls.update({ tMs: t, playing: clock.running, ended });
+    if (!waiting) updateControls({ tMs: t, playing: clock.running, ended });
     if (ended || waiting) return;
     if (!(state.ended || (durationMs > 0 && t >= durationMs))) return;
     // The end of what is PUBLISHED is not the end of the story. Which of the
@@ -493,7 +527,7 @@ export function createTimelinePlayer({
     // again when the scene lands.
     media.settle();
     elements.stage.waiting.hidden = false;
-    controls.update({ tMs: clock.now(), playing: resumeAfterAppend, ended: false });
+    updateControls({ tMs: clock.now(), playing: resumeAfterAppend, ended: false });
   }
 
   function leaveWaiting(resume) {
@@ -543,7 +577,7 @@ export function createTimelinePlayer({
     if (started) void loader.queueRemainingScenes(sceneCount() - 1, viewport, {}).catch(warmingFailed);
     // An appended scene that moved nothing puts the wait straight back up, and
     // that wait has already said what the transport reads.
-    if (!waiting) controls.update({ tMs: clock.now(), playing: clock.running, ended });
+    if (!waiting) updateControls({ tMs: clock.now(), playing: clock.running, ended });
   }
 
   /**
@@ -615,6 +649,7 @@ export function createTimelinePlayer({
    * line that can be read, and the subtitle for it is already on screen.
    */
   function mediaWarned(detail) {
+    if (story.bundle?.performance) { pause(); showNote(detail.message); onWarning(detail); return; }
     if (detail?.asset === 'narration') showNote('narration unavailable · read along');
     onWarning(detail);
   }
@@ -660,7 +695,7 @@ export function createTimelinePlayer({
     const view = viewport();
     sceneView = view;
     const opened = sceneIndex;
-    sheets = sceneSheets(loader.plan(sceneIndex, view), cache);
+    sheets = sceneSheets(loader.plan(sceneIndex, view), cache, counter);
     plate.showScene(story.bundle?.scenes?.[sceneIndex]?.plate ?? null);
     void loader.loadScene(sceneIndex, view, { keep: true })
       // A running story draws the sheets as they land, on its next frame. A
@@ -763,6 +798,10 @@ export function createTimelinePlayer({
    */
   function warmingFailed(error) {
     if (destroyed || signal?.aborted || error?.name === 'AbortError') return;
+    if (story.bundle?.performance) {
+      pause();
+      showNote('Story media could not be loaded. Reopen to retry.');
+    }
     onWarning({
       type: 'media',
       asset: 'scene',
@@ -790,7 +829,7 @@ export function createTimelinePlayer({
     recorder?.flush('end');
     recorder?.pause();
     revealEnd();
-    controls.update({ tMs: durationMs, playing: false, ended: true });
+    updateControls({ tMs: durationMs, playing: false, ended: true });
   }
 
   /**
@@ -852,8 +891,15 @@ export function createTimelinePlayer({
  * Rounded to what the eye and the canvas can tell apart: a hundredth of a
  * percent of stage width, a tenth of a pixel of height. Two instants with the
  * same signature paint the same picture, so the second one is not painted.
+ *
+ * Everything above the lesson's two overlays moves because somebody moved. The
+ * overlays move because the CLOCK moved, and a counting scene is often one prop
+ * standing still — a prop's `frame` is `null` for its whole life — so without
+ * their own progress in here the string is constant for the scene and the board
+ * never arrives, the pop never runs and the ring never pulses.
  */
 function signatureOf(state) {
+  if (state.renderNodes) return JSON.stringify([state.camera, state.renderNodes, state.transition]);
   const parts = [
     state.sceneIndex,
     round(state.camera?.scale, 4),
@@ -869,9 +915,50 @@ function signatureOf(state) {
       round(actor.feetY, 1),
       round(actor.heightPx, 1),
       round(actor.opacity, 2),
+      overlayPhase(state.tMs, actor.highlightMs, HIGHLIGHT.durationMs),
     );
   }
+  // The board's own identity — five counted and two-and-three are the same
+  // total and different pictures — and how far through BUILDING it is. The
+  // build, not the first pop: a board goes on moving for as long as its
+  // counters are arriving, its taken ones crossing out and its equation
+  // writing itself, and a signature that settled after the first counter would
+  // freeze the rest of the lesson on a still scene. Then the cues' marks, which
+  // land long after the build has: which counters are swept, and how far the
+  // flash is through its pulse.
+  parts.push(
+    boardStanding(state.slate) ? 1 : 0,
+    state.slate?.count ?? 0,
+    state.slate?.mode ?? 'count',
+    (state.slate?.groups ?? []).join(','),
+    overlayPhase(state.tMs, state.slate?.sinceMs, slateBuildMs(state.slate)),
+    (state.slate?.rings ?? []).join(','),
+    overlayPhase(state.tMs, state.slate?.flashAt, FLASH.pulseMs),
+  );
   return parts.join('|');
+}
+
+/**
+ * Whether a board is on screen at all — the empty one a lesson opens on
+ * included. The fold says so in its own word; a picture from an older producer
+ * that has no word for it is read by its count, as it always was.
+ */
+function boardStanding(slate) {
+  return slate?.standing ?? ((slate?.count ?? 0) > 0);
+}
+
+/**
+ * How far an overlay is through its own animation, or 1 once it is over.
+ *
+ * The ceiling is the point: while it runs, every instant is a different string
+ * and every frame is painted; the moment it lands, one last repaint settles it
+ * and a still scene goes back to costing nothing. Without that, a ring that
+ * finished an hour of story ago would keep the loop redrawing for ever.
+ */
+function overlayPhase(tMs, sinceMs, spanMs) {
+  if (!Number.isFinite(sinceMs) || !Number.isFinite(tMs)) return 1;
+  const elapsed = tMs - sinceMs;
+  return elapsed >= 0 && elapsed < spanMs ? round(elapsed / spanMs, 3) : 1;
 }
 
 function round(value, places) {

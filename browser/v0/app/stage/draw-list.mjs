@@ -12,13 +12,30 @@
  * It is also the seam the plan's WebGL renderer would plug into: a command list
  * that names no 2D context can be executed by anything. Nothing here draws.
  *
- * The four commands, in the order they are emitted per actor:
+ * The commands, in the order they are emitted:
  *
  *   shadow      the soft ellipse that replaces the DOM stage's drop-shadow
  *   sprite      one cell of a sheet, feet-anchored in a square box
  *   prop        a whole SVG, fitted inside that same box
  *   missing     the placeholder, for a clip the bundle lacks or a sheet that
  *               has not decoded yet
+ *   ring        the lesson's glow around the thing being named, right after the
+ *               actor it belongs to, so it lies over them and under whoever
+ *               stands in front
+ *   slate       the counting board, marked `hud`, because it sits over the
+ *               whole picture and is NOT under the camera — see the note on it
+ *               below. A counter a cue has swept carries `swept: true`, a
+ *               board whose rings are pulsing carries `flash: {progress}`, and
+ *               a counter the host gave a picture for carries `image: true`;
+ *               all three are absent otherwise
+ *
+ * A board changes the list rather than joining it: while one is up the floor is
+ * not drawn at all. What follows the board is the lesson's ring, moved onto the
+ * counter the count has reached if the board hid the thing it named; then the
+ * companion as a `hud` figure in the corner; then, if the companion is who was
+ * named, their own ring around them up there. The blur behind the glass is the
+ * plate's own (`video-plate.mjs`), because the plate is a `<video>` this list
+ * never reaches.
  *
  * The sheet comes from the caller, not from the bundle, and that is deliberate:
  * which sheet a clip draws from is the rendition picker's answer (a tier chosen
@@ -29,7 +46,8 @@
  */
 
 import { frameCell } from '../../core/clips.mjs';
-import { DEFAULT_STAGE_RESOLUTION } from '../../policy.mjs';
+import { counterCount, isEmptyBoard, normaliseSlate, slateSchedule } from '../../core/slate.mjs';
+import { DEFAULT_STAGE_RESOLUTION, FLASH, HIGHLIGHT, SLATE } from '../../policy.mjs';
 
 // The shadow, as fractions of the sprite's drawn height. The DOM stage traced
 // the artwork's own silhouette with `filter: drop-shadow`, which costs a
@@ -45,26 +63,53 @@ export const WIDE_CAMERA = Object.freeze({ scale: 1, x: 0, y: 0 });
 const NO_SHEETS = Object.freeze({ sheet: () => null, prop: () => null });
 
 /**
- * `state` is `stateAt`'s answer; `sheets` answers two questions about assets:
+ * `state` is `stateAt`'s answer; `sheets` answers three questions about assets:
  *
  *   sheet(slug, clip, frame) -> { url, grid, chunkStart? } | null
  *   prop(slug)               -> { url } | null
+ *   counter()                -> { url, drawable } | null
  *
- * Both may answer `null` at any time — a scene whose sheets are still being
+ * All may answer `null` at any time — a scene whose sheets are still being
  * planned, a clip the bundle never carried — and the answer is a placeholder,
- * never a gap.
+ * never a gap. The third is the picture the host gave the counting board to
+ * draw its counters as (`counter-picture.mjs`), and a sheets object written
+ * before it existed simply does not answer it.
  */
 export function buildDrawList(state, sheets = NO_SHEETS) {
+  if (state?.renderNodes) {
+    const [width, height] = state.plate.resolution;
+    return { width, height, camera: state.camera, transition: state.transition,
+      commands: state.renderNodes.map(n => ({ ...n, op: 'performance', hud: n.space === 'screen' })) };
+  }
   const [width, height] = plateSize(state?.plate);
+  const actors = state?.actors ?? [];
+  const board = slateFor(state?.slate, state?.tMs, width, height, pictured(sheets));
+  // A board is not an overlay on the scene, it IS the scene while it is up:
+  // either the floor is drawn or the board is. The two lists are kept apart
+  // rather than filtered out of one, because "which actors survive a board" is
+  // exactly the question that gets answered differently in two places and
+  // leaves a card floating under the glass.
+  const commands = board
+    ? boardCommands(board, actors, state?.tMs, width, height, sheets)
+    : stageCommands(actors, state?.tMs, width, height, sheets);
+
+  return { width, height, camera: framing(state?.camera), commands };
+}
+
+/**
+ * The ordinary picture: everyone on the floor, in the order they cover each
+ * other.
+ */
+function stageCommands(actors, tMs, width, height, sheets) {
   const commands = [];
 
   // `state.actors` arrives in paint order — farthest band first — and stays in
   // it. Depth is the compiler's and the state core's answer; re-sorting here
   // would be a second opinion about who covers whom.
-  for (const actor of state?.actors ?? []) {
-    const opacity = clamped(actor?.opacity);
-    const size = positive(actor?.heightPx);
-    if (opacity <= 0 || size === 0) continue;
+  for (const actor of actors) {
+    if (!onScreen(actor)) continue;
+    const opacity = clamped(actor.opacity);
+    const size = positive(actor.heightPx);
 
     const centreX = (Number(actor.x) / 100) * width;
     const feetY = (Number(actor.feetY) / 100) * height;
@@ -92,9 +137,417 @@ export function buildDrawList(state, sheets = NO_SHEETS) {
       opacity: round(opacity * SHADOW_OPACITY, 4),
     });
     commands.push(figure(actor, box, sheets));
+    const ring = ringFor(actor, box, tMs);
+    if (ring) commands.push(ring);
   }
 
-  return { width, height, camera: framing(state?.camera), commands };
+  return commands;
+}
+
+/**
+ * What a lesson looks like while the board is up: the board, whatever the
+ * lesson was pointing at, and one companion in the corner.
+ *
+ * Nothing standing on the floor is drawn — not the pile being counted, not the
+ * numeral card, not the shadow under either. The board covers 91% of the stage
+ * and the rest is blurred plate (`video-plate.mjs::frost`), so a sprite drawn
+ * under it is either invisible or a sliver of a character sticking out past the
+ * glass. The lesson's own laws still put the pile down and ring the card; this
+ * is where those stop being pictures and become the board's arithmetic.
+ */
+function boardCommands(board, actors, tMs, width, height, sheets) {
+  const commands = [board];
+  const companion = companionOf(actors);
+  const box = companion ? cornerBox(companion, width, height) : null;
+
+  // A ring on somebody the board hid moves onto the counter; a ring on the
+  // companion stays ON the companion, who is still up there in the corner.
+  // Pointing at an apple is only right when the thing pointed at has gone under
+  // the glass — a lesson ringing its own narrator would otherwise get a pulse
+  // around a counter and no mark on the one it named.
+  //
+  // Two hidden things ringed at once are one counter ringed twice, so only one
+  // survives: the one named LAST. Paint order would answer "the farthest away",
+  // which is the opposite of what a lesson means by pointing.
+  const hidden = newestRinging(actors.filter((actor) => actor !== companion), tMs);
+  const onBoard = hidden ? boardRing(board, hidden, tMs) : null;
+  if (onBoard) commands.push(onBoard);
+
+  if (companion) {
+    commands.push({ ...figure(companion, box, sheets), hud: true });
+    const own = ringFor(companion, box, tMs);
+    if (own) commands.push({ ...own, hud: true });
+  }
+  return commands;
+}
+
+/**
+ * The lesson's `highlight`, moved onto the board.
+ *
+ * A ring is a finger pointing at the thing just named, and while the board is
+ * up the thing just named — the pile, the numeral card — is not on the floor
+ * any more: it is the counter the count has reached. Drawing the ring where the
+ * card actually stands would put a pulse under the glass, on nothing; dropping
+ * it would take the pointer out of the lesson at the one moment it is doing its
+ * job.
+ */
+function boardRing(board, actor, tMs) {
+  const counter = board.counters.find(({ ring }) => ring);
+  const progress = ringProgress(actor, tMs);
+  if (!counter || progress === null) return null;
+  // Clear of the counter's own gold ring rather than on it: the board already
+  // marks where the count has reached, and a pulse under that mark is a
+  // highlight nobody sees. That mark is widest while the counter overshoots —
+  // its centre line reaches `overshoot + ringGap` and it is `ringWidth` thick —
+  // so the pulse goes a half-stroke past it, and no further than half a cell
+  // (`1 / (2 * counterRadius)` counter radii), which is where the apple next
+  // door begins.
+  const radius = Math.min(
+    counter.r * (SLATE.overshoot + SLATE.ringGap + SLATE.ringWidth),
+    counter.r / (2 * SLATE.counterRadius),
+  );
+  return {
+    op: 'ring',
+    hud: true,
+    slug: actor.slug,
+    cx: counter.cx,
+    cy: counter.cy,
+    rx: round(radius),
+    ry: round(radius),
+    progress: round(progress, 4),
+    // The counter's own presence, not the hidden actor's: a ring is a mark ON
+    // the thing it points at, and what it points at now is the apple.
+    opacity: counter.alpha,
+  };
+}
+
+/**
+ * The one character left visible while the board is up: small, in the corner,
+ * over the panel.
+ *
+ * The first character on stage, because a lesson has one companion and the
+ * child it is being told to is not on the floor. Props are never it — a
+ * pinecone does not narrate — and neither is anybody who has already faded out.
+ */
+function companionOf(actors) {
+  return actors.find((actor) => actor?.kind !== 'object' && onScreen(actor)) ?? null;
+}
+
+/**
+ * The corner the companion stands in: a `hud` box like the board itself, so the
+ * camera can push into the scene behind the glass without dragging the
+ * companion off the edge of it.
+ */
+function cornerBox(actor, width, height) {
+  const { heightPct, centreXPct, feetPct } = SLATE.companion;
+  const size = (heightPct / 100) * height;
+  const centreX = (centreXPct / 100) * width;
+  const feetY = (feetPct / 100) * height;
+  return {
+    dx: round(centreX - (size / 2)),
+    dy: round(feetY - size),
+    dw: round(size),
+    dh: round(size),
+    opacity: round(clamped(actor.opacity), 4),
+  };
+}
+
+/**
+ * Whether an actor is on screen at all — the one answer both lists ask, so the
+ * board cannot draw a mark on somebody the floor would have refused to draw.
+ */
+function onScreen(actor) {
+  return clamped(actor?.opacity) > 0 && positive(actor?.heightPx) > 0;
+}
+
+/**
+ * The ring a `highlight` leaves on its subject, while it is still ringing.
+ *
+ * Its own progress travels with it rather than the instant it started, so the
+ * renderer needs no clock and no policy of its own to know how far through the
+ * pulse it is — and a golden reads as a fraction rather than as a timestamp
+ * that moves whenever the story ahead of it does.
+ *
+ * It also carries its subject's opacity, like the shadow under the same figure:
+ * a ring is a mark ON somebody, and one drawn at full strength around a
+ * character still fading in — which is every naming scene, where the thing is
+ * put down and ringed in the same instant — is a gold ellipse floating over an
+ * arrival rather than a pointer at it.
+ */
+function ringFor(actor, box, tMs) {
+  const progress = ringProgress(actor, tMs);
+  if (progress === null) return null;
+  const radius = (box.dw / 2) * (1 + (HIGHLIGHT.ringPct / 100));
+  return {
+    op: 'ring',
+    slug: actor.slug,
+    cx: round(box.dx + (box.dw / 2)),
+    cy: round(box.dy + (box.dh / 2)),
+    rx: round(radius),
+    ry: round(radius),
+    progress: round(progress, 4),
+    opacity: box.opacity,
+  };
+}
+
+/** Of everyone on screen and ringing, the one named last. */
+function newestRinging(actors, tMs) {
+  let newest = null;
+  for (const actor of actors) {
+    if (!onScreen(actor) || ringProgress(actor, tMs) === null) continue;
+    if (!newest || actor.highlightMs > newest.highlightMs) newest = actor;
+  }
+  return newest;
+}
+
+/** How far through its pulse a highlight is, or `null` if it is not ringing. */
+function ringProgress(actor, tMs) {
+  const since = actor?.highlightMs;
+  if (!Number.isFinite(since) || !Number.isFinite(tMs)) return null;
+  const progress = (tMs - since) / HIGHLIGHT.durationMs;
+  return progress >= 0 && progress < 1 ? progress : null;
+}
+
+/**
+ * The counting board: a frosted panel over the scene, a counter per thing
+ * counted, and the equation that names what happened.
+ *
+ * `hud` is the one word that matters to whoever executes this list. Everything
+ * else here is under the camera, so a push-in magnifies it; the board is not,
+ * because a board that doubled in size and slid off the top of the frame when
+ * the story leaned in on somebody would take the number a child is counting
+ * with it. It is measured against the plate all the same, so it is still the
+ * same list on every device.
+ *
+ * The whole build is a function of `tMs - sinceMs` and nothing else: the
+ * counters pop in one at a time, a subtraction then crosses out the ones taken,
+ * and only after that does the equation write itself token by token. A seek
+ * backwards is the same arithmetic asked at a smaller t, which is why none of
+ * it is remembered anywhere.
+ *
+ * The cues' marks ride on top and are written only while they are there —
+ * `swept` on a counter a cue has ringed, `flash` on the board while its rings
+ * pulse — so a board no cue ever touched is the same list it always was. The
+ * same goes for `image` on a counter: written only for a host that gave the
+ * board a picture, so a board drawn as apples is the list it always was.
+ */
+function slateFor(slate, tMs, width, height, pictured = false) {
+  // The empty board a scene opens on: the panel, the frost behind it and the
+  // companion in the corner, and nothing yet to count. Only a STANDING one —
+  // the fold's own word for it — a bare `count: 0` from an older producer is
+  // still no board at all.
+  if (slate?.standing && isEmptyBoard(slate)) return emptyBoard(width, height);
+  const board = normaliseSlate(slate);
+  if (!board) return null;
+  const drawn = counterCount(board);
+  if (drawn < 1) return null;
+
+  // `from` is how many counters were already standing when this board was
+  // raised - a plain count growing over a plain count. They are drawn settled,
+  // and the build starts at the first new one.
+  const sinceMs = Number.isFinite(slate?.sinceMs) ? slate.sinceMs : 0;
+  const elapsed = (Number.isFinite(tMs) ? tMs : 0) - sinceMs;
+  const schedule = slateSchedule(board, Number.isInteger(slate?.from) ? slate.from : 0);
+  const { from } = schedule;
+  const panel = panelBox(width, height);
+  const { places, cell, band } = counterPlaces(panel, width, height, drawn);
+  const swept = new Set(Array.isArray(slate?.rings) ? slate.rings : []);
+  const flash = flashFor(slate, tMs);
+
+  const counters = [];
+  let ringed = -1;
+  for (let index = 0; index < drawn; index += 1) {
+    const scale = index < from
+      ? 1
+      : popScale((elapsed - ((index - from) * SLATE.staggerMs)) / SLATE.popMs);
+    const cross = takeProgress(schedule, drawn, index, elapsed);
+    const alpha = 1 - cross;
+    // The ring marks where the count has got to: the newest counter that has
+    // begun to arrive and has not been taken away again.
+    if (scale > 0.2 && alpha > 0.5) ringed = index;
+    counters.push({
+      n: index + 1,
+      group: groupOf(board, index),
+      cx: round(places[index][0]),
+      cy: round(places[index][1]),
+      r: round(cell * SLATE.counterRadius),
+      scale: round(scale, 4),
+      alpha: round(alpha, 4),
+      cross: round(cross, 4),
+      ring: false,
+      ...(pictured ? { image: true } : {}),
+      ...(swept.has(index + 1) ? { swept: true } : {}),
+    });
+  }
+  if (ringed >= 0) counters[ringed].ring = true;
+
+  return {
+    op: 'slate',
+    hud: true,
+    mode: board.mode,
+    count: board.count,
+    groups: [...board.groups],
+    progress: round(clamped(elapsed / schedule.endMs), 4),
+    panel: panelCommand(panel),
+    counters,
+    equation: equationFor(board, schedule, elapsed, band),
+    ...(flash ? { flash } : {}),
+  };
+}
+
+/**
+ * Whether the host gave the board a picture to draw its counters as.
+ *
+ * Asked of the sheets like every other asset question, and answered without
+ * looking at whether the picture has landed: the LIST says what a counter is —
+ * a picture — and the painter decides what to do while the picture is not
+ * there yet, the way a sprite whose sheet is still decoding is still a sprite.
+ */
+function pictured(sheets) {
+  return typeof sheets?.counter === 'function' && Boolean(sheets.counter());
+}
+
+/**
+ * How far through its pulse the board's flash is, or `null` when none is
+ * running — before it fired (a seek backwards) and once it has landed alike.
+ * A fraction rather than the instant, for the reason the ring carries one: the
+ * painter has no clock, and a golden should not carry a timestamp.
+ */
+function flashFor(slate, tMs) {
+  const since = slate?.flashAt;
+  if (!Number.isFinite(since) || !Number.isFinite(tMs)) return null;
+  const progress = (tMs - since) / FLASH.pulseMs;
+  return progress >= 0 && progress < 1 ? { progress: round(progress, 4) } : null;
+}
+
+/**
+ * The panel with nothing on it: what a lesson's first frame shows, before the
+ * first count arrives. Settled from the start (`progress` 1) — there is no
+ * build to run — and with no equation, because nothing has been said.
+ */
+function emptyBoard(width, height) {
+  return {
+    op: 'slate',
+    hud: true,
+    mode: 'count',
+    count: 0,
+    groups: [],
+    progress: 1,
+    panel: panelCommand(panelBox(width, height)),
+    counters: [],
+    equation: null,
+  };
+}
+
+function panelCommand(panel) {
+  return {
+    x: round(panel.x),
+    y: round(panel.y),
+    w: round(panel.w),
+    h: round(panel.h),
+    r: round(panel.r),
+  };
+}
+
+/** How far through being taken away a counter is; 0 for every counter that stays. */
+function takeProgress({ countersEnd, taken }, drawn, index, elapsed) {
+  const first = drawn - taken;
+  if (taken < 1 || index < first) return 0;
+  const at = countersEnd + ((index - first) * SLATE.takeStaggerMs);
+  return smoothstep((elapsed - at) / SLATE.takeMs);
+}
+
+/**
+ * The equation, once the counters have finished doing what they do.
+ *
+ * `null` until then, and deliberately: the numerals are the abstraction of what
+ * the child has just watched happen, and one that appeared alongside the
+ * counters would be the answer arriving before the question. The tokens carry
+ * no x of their own - they are glyphs, and only the painter knows how wide a
+ * glyph is in the font it has.
+ */
+function equationFor(board, { revealEnd, tokens }, elapsed, band) {
+  if (elapsed < revealEnd || tokens.length === 0) return null;
+  return {
+    y: round(band.y),
+    h: round(band.h),
+    tokens: tokens.map(({ text, role }, index) => ({
+      text,
+      role,
+      alpha: round(smoothstep((elapsed - (revealEnd + (index * SLATE.tokenMs))) / SLATE.tokenMs), 4),
+    })),
+  };
+}
+
+/** The frosted panel, in plate pixels: percentages of the plate, both ways. */
+function panelBox(width, height) {
+  const { left, top, right, bottom } = SLATE.panelPct;
+  return {
+    x: (left / 100) * width,
+    y: (top / 100) * height,
+    w: ((right - left) / 100) * width,
+    h: ((bottom - top) / 100) * height,
+    r: (SLATE.radiusPct / 100) * height,
+  };
+}
+
+/**
+ * Where the counters stand, how big they are, and what is left below them for
+ * the equation.
+ *
+ * There is no ten-frame and no empty slot: the rows are sized to the count
+ * actually being drawn and centred on the plate, so three counters are three
+ * counters rather than three in a grid of ten. Six and over split into two
+ * balanced rows, and the cell is the smallest of what the panel's width, the
+ * rows' shared height and the plate itself allow.
+ */
+function counterPlaces(panel, width, height, n) {
+  const rows = n <= SLATE.perRow ? [n] : [Math.ceil(n / 2), Math.floor(n / 2)];
+  const top = panel.y + (panel.h * (SLATE.countersTopPct / 100));
+  const bottom = panel.y + (panel.h * (SLATE.countersBottomPct / 100));
+  const cell = Math.min(
+    (panel.w * SLATE.cellShare) / Math.max(...rows),
+    (bottom - top) / rows.length,
+    (SLATE.cellMaxPct / 100) * height,
+  );
+  const firstY = top + (((bottom - top) - (rows.length * cell)) / 2) + (cell / 2);
+  const places = [];
+  for (const [row, inRow] of rows.entries()) {
+    const firstX = ((width - (inRow * cell)) / 2) + (cell / 2);
+    for (let column = 0; column < inRow; column += 1) {
+      places.push([firstX + (column * cell), firstY + (row * cell)]);
+    }
+  }
+  const bandGap = SLATE.bandGapPct / 100;
+  const panelBottom = panel.y + panel.h;
+  const bandY = bottom + ((panelBottom - bottom) * bandGap);
+  return { places, cell, band: { y: bandY, h: panelBottom - bandY - (panel.h * bandGap) } };
+}
+
+// Which addend a counter belongs to - the colour a painter tells the groups
+// apart by. A subtraction is one group being taken from, so all of it is the
+// first group; a plain count has no groups to tell apart at all.
+function groupOf(board, index) {
+  return board.mode === 'add' && index >= board.groups[0] ? 1 : 0;
+}
+
+// The standard back-out: the counter overshoots its size and settles. `c1` is
+// the curve's own constant and not a second number to tune - its peak is
+// exactly `SLATE.overshoot`, which is the number that IS published, and a test
+// holds the two together.
+const BACK_C1 = 1.70158;
+
+function popScale(progress) {
+  if (!Number.isFinite(progress) || progress >= 1) return 1;
+  const past = Math.max(0, progress) - 1;
+  return 1 + ((BACK_C1 + 1) * past * past * past) + (BACK_C1 * past * past);
+}
+
+// The ease a counter fades on and a numeral arrives on: out of rest and into
+// it, so nothing in the lesson snaps.
+function smoothstep(progress) {
+  const u = clamped(progress);
+  return u * u * (3 - (2 * u));
 }
 
 function figure(actor, box, sheets) {

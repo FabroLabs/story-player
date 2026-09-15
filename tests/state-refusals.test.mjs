@@ -103,6 +103,30 @@ test('a shot size the vocabulary does not carry is refused by name', () => {
   assert.deepEqual(state.warnings.map((warning) => [warning.policy, warning.size]), [['camera-shot-size-unknown', 'enormous']]);
 });
 
+// `remove_object` is the one op whose whole job is to make something stop being
+// drawn, so a slug it cannot account for is the one it must not act on: a
+// removal naming nobody took nothing away, and one naming a character would
+// vanish them mid-scene with no walk and no fade. Characters leave by `travel`.
+test('a removal that names nobody takes nothing away, and says so', () => {
+  const state = at([PLACE, stage(1000, 'remove_object', { slug: 'lantern' })]);
+
+  assert.deepEqual(state.actors.map((actor) => actor.slug), ['ash']);
+  assert.deepEqual(
+    state.warnings.map((warning) => [warning.policy, warning.slug]),
+    [['remove-missing', 'lantern']],
+  );
+});
+
+test('a removal aimed at a character leaves them standing, and says so', () => {
+  const state = at([PLACE, stage(1000, 'remove_object', { slug: 'ash' })]);
+
+  assert.deepEqual(state.actors.map((actor) => actor.slug), ['ash']);
+  assert.deepEqual(
+    state.warnings.map((warning) => [warning.policy, warning.slug]),
+    [['remove-not-a-prop', 'ash']],
+  );
+});
+
 // An op this player has no meaning for is content the picture is missing while
 // every other client draws it — the compiler refuses unknown step kinds for the
 // same reason.

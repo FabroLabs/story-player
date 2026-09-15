@@ -20,7 +20,9 @@ base, for example `https://storage.example/`.
 
 Beside `story` and `assetBase`, `options` accepts the manifest's `plates` block,
 the `stream` object that says the story is still being written, the `cards`
-either side of the story, and two booleans, both off by default:
+either side of the story, the `board` block naming what the counting board's
+counters are drawn as, the `kicker` line the ceremony opens with, and two
+booleans, both off by default:
 
 - `plates` is the manifest block of the same name, `{place: {time: plate}}`,
   and each leaf is a whole plate—one carrying at least a non-empty `zones`
@@ -44,6 +46,22 @@ either side of the story, and two booleans, both off by default:
 - `cards` are the manifest's `intro` and `end_card` blocks, passed under those
   two names. See [the cards either side of the
   story](#the-cards-either-side-of-the-story).
+- `board` names what the counting board draws its counters as. Its one key,
+  `counter`, is a bucket-qualified picture—`board: {counter:
+  'fairytale-assets/counters/nut.png'}`—fetched once at the mount and drawn in
+  the apple's place on every board in the story, fitted whole inside the gold
+  ring at the apple's size, in the same order (pad, ring, picture, cross). Until
+  it lands, and for good if it cannot be fetched (named once in the log), the
+  board draws the apple it always drew—a board already standing when the
+  picture lands is repainted with it then, paused or not; a mount without the
+  block is that apple everywhere. A key other than `counter` is refused by name.
+  The draw list marks such a counter `image: true`, so another renderer of the
+  same list knows to draw the picture too; a list built without the block is
+  byte for byte the list it was.
+- `kicker` is the line over the story's name on the opening screen, for a host
+  mounting something that is not a bedtime story—`kicker: 'a counting lesson'`.
+  Anything that is not a string with words in it leaves the default,
+  `a bedtime story`, rather than an empty line where it would have been.
 - `debug: true` shows the log button and its drawer, and the log downloaded from
   that drawer carries the compiled timeline.
 - `perf: true` measures the running player—frame times per scene, long frames,
@@ -55,6 +73,29 @@ either side of the story, and two booleans, both off by default:
 `TIMELINE_OPS`, `stateAt`, the pure render rules (`frameIndexAt`, `frameCell`,
 `spriteHeightForCm`, `floorYAtX`, `zoneNamed`, `selectFacingClip`,
 `selectLocomotion`), and the frozen `V0_POLICY`.
+
+## Host controls
+
+The plain `createStoryPlayer` handle exposes `play()`, `pause()`, `toggle()`,
+`seek(milliseconds)`, `setSubtitles(boolean)`, `getState()`, `getTimeline()` and
+`subscribe(listener)` alongside `ready`, streaming methods and `destroy()`.
+`subscribe` immediately reports current state when available and returns an
+unsubscribe function. State is `{tMs,durationMs,playing,ended,started,sceneIndex,
+subtitle}`; scene indices are zero-based and times are milliseconds. The timeline
+is read-only host data. Await `ready` before enabling controls; the first `play`
+spends the user gesture and begins the story, and playing an ended story replays.
+
+Pass `chrome: 'host'` when the surrounding app owns controls. This hides the
+internal ceremony, transport, actions, badge and ending overlay. The picture,
+subtitles, media errors, clock, media scheduler and seek behavior remain owned by
+the existing player. Hosts receive state changes from that same clock, including
+pause, seek, completion and background-tab suspension. This mode is for the plain
+handle API; the simple React component does not expose an external handle.
+
+For WHT, compiled scene events have `source: 'stage'`, `op: 'performance_scene'`,
+`scene_index`, `t_ms`, and the complete `scene` recipe with `start_ms`/`end_ms`.
+Audio events use `op: 'performance_audio'` and carry `cue`; narration text is
+`cue.text` when `cue.kind === 'narration'`. See the [performance contract](performance.md).
 
 ## How it plays
 
@@ -73,8 +114,9 @@ play one schedule rather than two implementations of it.
 
 `stateAt` is one frame: a pure function of that timeline, the bundle and an
 instant in milliseconds, answering with the actors on stage, their clips and
-frame cells, the camera framing, the subtitle showing, and the warnings crossed
-on the way. It interprets the timeline and never re-decides it.
+frame cells, the camera framing, the subtitle showing, the counting board
+(`slate: {count, mode, groups, sinceMs, from, standing, rings, flashAt}`, and `highlightMs` on each
+actor—see below), and the warnings crossed on the way. It interprets the timeline and never re-decides it.
 
 The picture is a single canvas 2D stage drawn over the hardware-decoded
 `<video>` plate, both inside the player's open Shadow DOM. Camera framing is a
@@ -82,10 +124,129 @@ CSS transform on the plate and the matching `ctx.setTransform` on the canvas,
 written only when the framing moves. Subtitles, the media note and the controls
 stay ordinary DOM.
 
+A lesson draws two things a bedtime story never asks for, and both come through
+the same path. `slate` is the counting board: a translucent panel over the
+scene carrying one counter per thing counted and the equation written under
+them. It is the whole claim rather than a total—`mode`
+is `count`, `add` or `subtract`, `groups` is what it was reached from (`[n]`,
+`[a, b]` addends, or `[start, taken]`), and `count` is the answer—so a client
+can draw two addends in two colours and cross out what a take-away took. How
+many counters that is follows the mode: a count or a join draws `count` of
+them, and a SUBTRACTION draws `groups[0]`—everything it started with—then takes
+`groups[1]` away. A step that names only a count is normalised into the
+plain-count shape, so a bundle built before modes existed draws the same board.
+`count: 0` with `mode` `count` and nothing in `groups` is the EMPTY board: the compiler raises one
+at the opening of the scene that first counts—right after that scene's `scene`
+op, once per story—so a lesson begins on its panel rather than on the floor the
+panel is about to cover, and `stateAt` answers it with `standing: true` and
+nothing to draw on it. A client folding the stream stands the panel there,
+frost and all, and draws the first count onto it. An AUTHORED count of
+nothing—what v1's `slate(off)` compiled to—is still refused with
+`slate-count-unusable`, and so is an empty board over a standing one: nothing
+lowers a board, and a board comes down only with the story.
+`V0_POLICY.slate.max` is the largest count there is,
+and a claim whose own groups do not make its count—or that runs past the
+ceiling—is refused with `slate-count-unusable` rather than mended, at the
+compiler and again at `stateAt`, so no client is left drawing a board the story
+did not ask for without being told. A board the story TAKES AWAY before it has
+finished arriving—the ending, or a DIFFERENT board raised over it less than a
+build later—is said too, as `slate-cut-short` carrying the milliseconds it
+needed and the milliseconds it got: a board wiped before its equation shows a
+child the counters and never the sentence they were for, and nothing else about
+the bundle looks wrong. A scene cut is NOT one of them: the board outlives the
+seam, so a board raised a second before a cut goes on counting itself over the
+next scene. A board replaced by one counted on from it is not cut short either;
+that is the lesson working. The whole build is a function of the
+instant the board was raised (`sinceMs`) and of `from`: a counter every
+`staggerMs`, each popping over `popMs`, then a take-away crossing out one
+counter every `takeStaggerMs`, each cross taking `takeMs`, then the equation a
+token every `tokenMs`. `from` is how many counters were ALREADY standing—a
+plain count raised over a smaller plain count in the same scene carries the
+previous count, and those counters are drawn settled while the build starts at
+the first new one, so a lesson counting on to four does not re-pop the three
+that never left. A cut does not interrupt that either: the three are still
+standing after it, so a four raised in the next scene still counts on from them. A client folding the stream itself has to work `from` out the
+same way, or its board breathes on every number. It is a HUD—painted in plate
+coordinates with the camera left out, so a push-in moves the scene behind the
+glass while the arithmetic keeps its size and its place; any command the
+list marks `hud` is drawn that way, not the board alone. While a board is up it
+IS the picture: nothing standing on the floor is drawn—not the pile being
+counted, not the numeral card, not the shadow under either, because the panel
+covers 91 x 84.5% of the stage and a sprite under it is a sliver sticking out
+past the glass—and the plate behind it is blurred by
+`V0_POLICY.slate.frost.pct` of the plate's own height, eased over `frost.ms`.
+That blur is a CSS filter on the plate layer rather than a command in the list:
+the plate is a `<video>` on its own compositor layer that the list never
+reaches, so a client folding the stream itself has to apply it to whatever its
+background is. The one thing kept over the board is the companion, redrawn as a
+`hud` figure `V0_POLICY.slate.companion.heightPct` of the plate tall, centred at
+`centreXPct` with its feet at `feetPct`—the first character on stage, never a
+prop, and nobody who has already faded out. `highlight` is a gold ring around
+one subject, pulsing twice over `V0_POLICY.highlight.durationMs` and riding its
+actor under the camera—unless a board has hidden that subject, and then the same
+pulse is drawn `hud` just clear of the gold mark on the counter the count has
+reached. A highlight of the companion stays on the companion, up in the corner;
+two hidden subjects ringed in one instant leave only the one named last, since
+they would both land on the same counter. A scene cut clears the ring, and so does the ending. NOTHING
+clears the board—a lesson is one uninterrupted surface, and the board its first
+count raises is the board the end card is drawn over. Watch where that happens:
+the subtitle is reset by an event of its own, while the ring is cleared by the
+`scene` and `end` ops themselves, so a client folding the stream must clear the
+ring at both ops rather than wait for a reset that never arrives, and must
+never clear the board at either. Every rectangle, counter and band either one draws is measured
+from `V0_POLICY.slate` and `V0_POLICY.highlight`; the COLOURS are the painter's
+own—a client with its own palette is still drawing this board—and the numerals
+are set in the platform's rounded font, deliberately not part of that contract.
+
+A CUE is a command written under a spoken line, fired when a spoken word is
+reached. The bundle carries it on the chunk step—`cues: [{line, word,
+occurrence, at: {word, of, char, chars}, step}]`, present only on a chunk that
+has any—and the compiler times each one at `clamp(round(duration_ms × at.char /
+at.chars) + V0_POLICY.cue.leadMs, 0, duration_ms − 1)`: the word's character
+position over the chunk's measured length, pushed later by the lead, and never
+on or past the chunk's own end. (Measured word times, once a bundle carries
+them, replace that estimate at the one function that makes it.) A cue whose
+`at` cannot place it—missing, or without a finite `char` over a `chars` above
+zero—is timed at the lead alone, the line's first word, and said with
+`cue-at-unusable` on its line; it still fires. At its instant
+the cue's `step` is logged in the step stream—so a cued `sound` or `music`
+plays through the same path every other one does—and its command is performed
+exactly as it would be between chunks: a cued `emote`, `highlight` or `put`
+produces the ops it always produces, stamped with the cue's own line. Cues on
+one word fire in the order they were written. Two commands live only in cues.
+`ring` (`{counter: k}`, k ≥ 1) lights the k-th counter of the standing board
+with the same gold ring the newest counter wears, and it stays lit; `flash`
+(`{}`) makes every lit ring pulse once over `V0_POLICY.flash.pulseMs`, the
+stroke swelling to `gain` times its width under a halo of the same ink at
+`halo` alpha. A sweep stays until the counting stops: it holds through authored
+pauses and through further chunks with ring or flash cues, and the compiler
+records `ring {counter: 0}` where the next chunk with neither begins—before
+that chunk's subtitle, or, if a flash is still pulsing then, when the pulse
+lands—on the line of the chunk that opened the sweep, the way a settle carries
+its move's line. A cued chunk that begins while such a clear is still waiting
+on its pulse takes the clear first—fired at that chunk's own start, on the old
+sweep's line, before the first ring of the sweep it opens—so no clear lands
+mid-count. A scene cut and the ending put the rings out themselves, so a
+sweep that reaches either gets no clear from the compiler. `stateAt` carries them on the board as `rings` (the swept
+counters, sorted and unique) and `flashAt` (the instant of the last flash, or
+`null`): `counter: 0` clears both, a new board comes up with neither, and
+`scene` and `end` clear them the way they clear the highlight ring—never the
+board. The draw list marks a swept counter `swept: true` and a pulsing board
+`flash: {progress}`, both absent otherwise, so a board no cue touched is the
+list it always was. A ring whose counter is not a whole number is refused with
+`ring-counter-unusable` at the compiler and again at `stateAt`; whether a board
+stands with k counters on it is the language's own rule, refused where the cue
+is written—and a timeline from elsewhere that rings with no board standing, or
+past the counters the board draws (a take-away draws what it starts with), is
+told `ring-missing` at `stateAt`, the way a highlight of nobody is told
+`highlight-missing`, and the ring stays off the board.
+
 The story clock is pausable and seekable, and audio follows it: each cue starts
 at its own `t_ms` and is aligned by `currentTime`, so blocked or late audio
-never holds up the picture. The loop redraws only when the frame changed, and
-never faster than 24 Hz. A story that is paused, hidden, ended or destroyed
+never holds up the picture. The loop redraws only when the frame changed—and a
+board still popping, a ring still pulsing, a sweep ring landing or a flash
+running IS the frame changing, so a counting scene where nobody moves still
+repaints until its overlay has landed—and never faster than 24 Hz. A story that is paused, hidden, ended or destroyed
 schedules nothing.
 
 ## Plain JavaScript
@@ -252,6 +413,20 @@ story's own title, and its `audio` is optional too — the words are shown on th
 card either way, because a name only a listener gets is a name half the audience
 never hears.
 
+`intro.lead` is the cast slug of the character the story is about, and it is
+what turns the opening's ending into a title card — see the intro below. It is
+optional, and its absence is not a lesser card: a manifest written before this
+key existed opens exactly the way it was built to. It is read together with
+`intro.narration`, which carries the words: a card that names a lead but has no
+narration has no name to raise, and plays the ordinary short ending instead.
+
+The slug is looked up in the cast the player was mounted with — `story.cast`
+for a joined story, `story.cast_bundle` for a host that mounts the manifest
+itself (the no-scenes case below), which is where a manifest keeps that block.
+A slug neither carries, a character with no clip to stand in, or a sheet that
+has not decoded by the time the film ends costs the card its sprite and writes
+one line in the log. None of them costs the story anything.
+
 Neither card is in the compiled timeline, and that is the point: `duration_ms`,
 the scrub bar and every `t_ms` cover the story alone, so seeking cannot land
 inside a title sequence and the timeline a phone client is handed is the same
@@ -259,13 +434,47 @@ one this player compiles. What the cards are instead is a phase either side of
 it:
 
 - The intro plays between the begin click and the story. The film is warmed
-  while the opening scene is decoded, its own `<video>` is the clock, the music
-  starts inside the click, and the title is spoken a second in with the music
-  ducked under it. A curtain fades the card out over the story, which has
-  already started behind it.
+  while the opening scene is decoded, its own `<video>` is the clock, and the
+  music starts inside the click. It arrives through black rather than in front
+  of what was on screen, and it ENDS as a beat rather than a cut: the film's
+  last frame is held with the music still playing, then a curtain takes the card
+  away with the music falling inside it, and the story is begun only once that
+  curtain is over. The curtain is the arrival run backwards and takes the same
+  half-second: the film goes under the layer's own black first, then the black
+  goes out onto the story. A card that simply dissolved into scene one would not
+  read as an ending at all — two lit forests crossing over each other is a blur,
+  not a curtain — and a black that outstayed the arrival that made it would read
+  as a wait.
+- What happens on that held frame is what `intro.lead` decides. **Without a
+  lead**, the story's name is written and spoken a second into the film, with
+  the music ducked under it, and the held frame is a short beat — budget about a
+  second and three quarters between the film's last frame and the story's first. **With one**,
+  nothing is written over the moving picture at all: the name waits for the held
+  frame and fades in there, spoken at the same moment, with the lead standing
+  beside it in its idle loop. The name and the sprite are drawn on a layer of
+  their own ABOVE the card, so the curtain can take the film out from under them
+  and leave them standing on the black — and then they go WITH that black, on
+  the curtain's second half. What the story opens on is the story.
+- That beat is at least three seconds and no more than six: it asks the spoken
+  title's own file how long it is and waits for it, because a title sequence
+  that clips the title is the thing this beat exists to fix. A narration with no
+  audio, or one that never reports a duration, gets the three. So budget between
+  three and a half and six and a half seconds between the film's last frame and
+  the story's first.
+- The lead's sprite is drawn from the same bundle and the same decoded-sheet
+  cache the scenes are, at the smallest rendition the ladder carries: it is a
+  decoration on a three-second beat, not a subject. It is asked for while the
+  film is still playing and never waited on — a sheet that has not decoded by
+  the time the film ends leaves the name alone on the card, on schedule.
 - The end card plays after the story has stopped — the clock paused, the plate
   stopped, the last line left to finish — and before the end screen, which waits
-  behind it. Its film is warmed as the last scene opens.
+  behind it. Its film is warmed as the last scene opens. It ends differently
+  from the intro: there is no curtain, because there is nothing left to hand the
+  stage back to. The closing film holds its last frame and KEEPS it — the layer
+  drops under the end screen and the transport and becomes the ground "the end"
+  is written on, rather than fading out to show the scene the story stopped on.
+  The music still goes, over the length the curtain would have taken. Scrubbing
+  back into the story, or replaying it, takes that backdrop away with it.
 - A dedicated skip sits on the card, visible the whole time either one is up,
   and it is the only control there: the transport is withdrawn for as long as a
   card is playing and comes back when it is over. Covered is not enough — its
@@ -274,11 +483,17 @@ it:
 - A replay is the whole performance again — intro, story, end card — with the
   story standing at zero behind the opening film.
 - A card is not on the story's clock, so a tab that goes away stops it here: the
-  film and its music pause together and resume together.
+  film, its music and the lead's idle loop pause together and resume together. A
+  film that has already ended is not started again — the beat its last frame is
+  held for begins over, so a viewer who looked away gets the whole of it rather
+  than its stub.
 - Nothing here can hold the story up. A card whose file fails, is refused by the
   device, never puts a frame on screen, or stops moving part-way through ends
   its phase and writes one named line into the log. So does a spoken title: if
-  it cannot be heard the music stops making room for it.
+  it cannot be heard the music stops making room for it. And so does the lead —
+  a slug this story never cast, a character with no clip to stand in, a sheet
+  that was still fetching when the film ended: one line each, and a title beat
+  with the name on it and nothing beside it.
 
 `cards.intro` is also what allows a mount with **no scenes at all**, alongside
 `stream` and `plates`:
@@ -327,13 +542,18 @@ export function Performance({ story }) {
 }
 ```
 
-Changing `story`, `assetBase`, `plates`, `cards`, `debug`, or `perf` destroys the
-previous instance before mounting the replacement. Unmounting destroys the
+Changing `story`, `assetBase`, `plates`, `cards`, `board`, `kicker`, `debug`,
+or `perf`
+destroys the previous instance before mounting the replacement — the eyebrow is
+written once, when the ceremony is built, so a `kicker` that changes mid-story
+sends the viewer back to the opening screen. Hold it still, as you would a
+story. Unmounting destroys the
 instance. React StrictMode is supported.
 
-`plates` and `cards` are props here for the same reason they are options there:
-a component that mounted a finished story without them would stage that story
-differently, and open it without its title card. Hold the `cards` object still
+`plates`, `cards` and `board` are props here for the same reason they are
+options there: a component that mounted a finished story without them would
+stage that story differently, open it without its title card, and count on
+apples. Hold the `cards` and `board` objects still
 between renders — a fresh object literal on every render is a new identity, and
 a new identity remounts the player. `stream` is not a prop—it throws. The component keeps no
 handle to call `appendScene` on, and it remounts whenever `story` changes
@@ -438,6 +658,36 @@ the story runs; the tier never climbs back inside one session. A browser that
 gives no 2D context at all is not a failure to mount: the canvas draws nothing,
 one warning names the reason, and the poster, subtitles and audio still play.
 
+## The counting board, as a contact sheet
+
+`npm run sheet:board` paints a lesson's board at five instants of each build
+into a single PNG. It is dev tooling, not a test: it asserts nothing, it is
+never run by CI, and it exists because the board ARRIVES rather than appears,
+and no one screenshot shows that.
+
+A row is the life of ONE board, and its instants are clamped to that life rather
+than simply offset from it. A counting lesson raises `slate 1`, `slate 2` and
+`slate 3` about half a second apart, so a blind `+3.2 s` would paint the third
+board under the first one's caption; instead the row holds at its own last
+moment, its header says how long the board was held, and its final cell is
+whatever ended it — the next board, or the story. A scene cut ends nothing: the
+board outlives it. A board a cue sweeps gets more cells: each ring where it
+lands, the flash at its peak, the middle of a pause the rings hold through, and
+the clear where the counting stops.
+
+`--bundle <path>` (repeatable) takes real built bundles instead of the fixtures
+in `tests/fixtures/board/`; `--out` moves the PNG and `--scale` resizes it.
+`--counter <picture>` draws the counters as that png, webp, svg or jpeg, the
+way a host's `board.counter` does, so a picture can be judged on the board
+before it is in any bucket.
+`--dump` writes each instant's `slate` and `ring` draw-list commands to stdout
+as JSON lines — the pure answer, and the part worth diffing; progress and page
+errors go to stderr, so the stream pipes clean into `jq` or a differ.
+
+The plate is a DOM `<video>`, so it is never in these pixels: a flat ground
+stands in for it, and anything to be judged against a real plate — the frost,
+above all — needs a mounted player.
+
 ## Stable and immutable URLs
 
 Use stable when applications should receive a repaired player after reloading:
@@ -479,9 +729,11 @@ why the symptom looks like missing characters rather than a missing background.
 
 ## Branches and deployment
 
-`main` is where work lands. **`production` is what is deployed** — merging into
-it is the deliberate act that publishes a player, and nothing else in this
-repository moves what the cluster serves.
+Three branches, and only one of them reaches a child's bedtime. `dev` is where
+work is tried, `main` is where work lands and means "ready for production", and
+**`production` is what is deployed** — merging into it is the deliberate act
+that publishes a player, and nothing else in this repository moves what the
+cluster serves.
 
 A merge into `production` runs **Deploy player**
 (`.github/workflows/deploy-player.yml`):
@@ -494,6 +746,67 @@ A merge into `production` runs **Deploy player**
    and byte-compares them against what it just built.
 
 The `release` job cannot start unless `verify` passes.
+
+## The dev rail
+
+A push to `dev` runs **Deploy dev** (`.github/workflows/deploy-dev.yml`), which
+builds the player and writes it straight into the **`story-player-dev`** S3
+bucket — same layout as production, so an integration can point at
+
+```text
+${S3_URL}/story-player-dev/stable/story-player.js
+```
+
+or pin `story-player-dev/builds/<commit>/story-player.js` for an exact build.
+
+It is a separate bucket and not a prefix, because the production bucket is read
+at runtime: story-engine-v2 loads `story-player/stable/story-player.js` and pins
+`story-player/builds/<commit>/` in its `story-player.lock.json`. A dev build
+promoted into that bucket would be served to whoever is using that engine. A
+second bucket lets the credential itself be scoped, so a wrong key here cannot
+reach production even in principle — `scripts/storage-config.mjs` enforces the
+two names as an allow-list, and the workflow contract test asserts each rail
+never names the other's bucket or environment.
+
+Dev publishes no GitHub release. `production` does that because the cluster
+mirrors releases over a pull-shaped path it cannot invert; the dev store answers
+directly, so the build is written where it is read and `latest` keeps meaning
+exactly one thing — the newest production player.
+
+**Dev runs no tests, on purpose.** Five steps: checkout, Node, `npm ci`,
+`build:cdn`, `publish:cdn`. `dev` is where work is tried, and a preview rail
+that refuses to publish a broken build cannot show you the break — a dev page
+rendering wrong is faster feedback than a red tick. The consequence is worth
+holding onto: a commit pushed straight to `dev` is tested nowhere, because CI
+runs on pull requests and on `main`. The pull request into `main` is the first
+gate, and `production` reruns the whole suite before it publishes anything.
+
+There is no `workflow_dispatch` either — the trigger is a push to `dev` and
+nothing else. To republish without a new commit (after creating the bucket, or
+rotating a key), rerun the last run: `gh run rerun <id>`.
+
+### Naming, and why the two halves differ
+
+The `cdn-dev` environment holds these, named for the **rail**:
+
+| Name | Kind | Example |
+| --- | --- | --- |
+| `S3_DEV_URL` | variable | `http://<host>:9002` |
+| `S3_DEV_REGION` | variable | `us-east-1` (default if unset) |
+| `S3_DEV_ACCESS_KEY` | secret | — |
+| `S3_DEV_SECRET_KEY` | secret | — |
+
+The workflow maps them onto `S3_URL`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` and
+`S3_REGION`, which is what `scripts/storage-config.mjs` reads. The script side is
+named for the **protocol**, because it is not the script's business which rail
+called it — it is given an endpoint, a bucket and a key pair, and it validates
+them the same way either time. The GitHub side is named for the rail because a
+repository setting called `S3_ACCESS_KEY` gives a reader no clue which store it
+opens, and the one it used to open was production's. The workflow contract test
+asserts the dev workflow reads only `S3_DEV_*`.
+
+Neither side is named for a vendor. The store is RustFS today and MinIO in the
+cluster; the publisher only needs it to speak S3.
 
 ## How the bytes reach the store
 
@@ -510,20 +823,37 @@ verifies all three fields in `build.json` before it trusts a byte, mirrors into
 opened and the store credential never leaves the cluster. Expect the site to be
 serving a new player within about ten minutes of a green deploy.
 
-There was previously a second workflow that wrote straight into a RustFS bucket
-over S3 from the runner. It has been removed: it delivered to a store nothing
-now reads from, and two publish paths meant two answers to "which bytes are
-live". The S3 publisher scripts (`scripts/publish-cdn.mjs`,
-`scripts/rollback-cdn.mjs`, `scripts/storage-config.mjs`) and their tests remain
-for any deployment whose store IS reachable — nothing in CI calls them.
+There was previously a second workflow that wrote straight into the
+**production** bucket over S3, on every green `main`. It has been removed: two
+writers of one `stable/` key meant two answers to "which bytes are live", and
+the answer that mattered was the cluster's.
+
+The S3 publisher scripts (`scripts/publish-cdn.mjs`, `scripts/storage-config.mjs`,
+`scripts/verify-cdn.mjs`) are not vestigial — the dev rail above calls them. What
+changed is which bucket a runner may address: `story-player-dev` from `dev`, and
+nothing from `main`.
+
+`scripts/rollback-cdn.mjs` went with that change — see **Rollback** below for
+what replaced it. A script with no caller is a claim about how the system works,
+and that one had stopped being true.
 
 ## Rollback
 
-Pick the immutable `build-<commit>` release and pin the consumer to it. In the
-moonykids cluster that is `infra/scripts/17-player-rollback.sh <full-commit>`,
-which writes `stable/pinned.json`; the mirror keeps ingesting new builds but
-will not promote over the pin until it is removed. Nothing is rebuilt and no
-immutable release is ever edited.
+Production: pick the immutable `build-<commit>` release and pin the consumer to
+it. In the moonykids cluster that is `infra/scripts/17-player-rollback.sh
+<full-commit>`, which writes `stable/pinned.json`; the mirror keeps ingesting
+new builds but will not promote over the pin until it is removed. Nothing is
+rebuilt and no immutable release is ever edited.
+
+Dev: push again. If a specific older build is wanted meanwhile, point the dev
+server at its immutable object —
+`${S3_URL}/story-player-dev/builds/<commit>/story-player.js` — which is still
+there, because `builds/` writes are create-only and nothing prunes them.
+
+There is no rollback script. There used to be one that moved an S3 `stable/` key
+back to an earlier build; it described neither of these paths and had no caller,
+so it was removed rather than left as a claim about a mechanism that no longer
+existed.
 
 ## GitLab migration
 

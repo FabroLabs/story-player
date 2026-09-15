@@ -1,0 +1,80 @@
+name: Deploy dev
+
+# Push to `dev` → build the player, upload it to the dev bucket. Nothing else.
+#
+# This is a PREVIEW rail, not a gate. `dev` is where work is tried; `main` means
+# "ready for production" and is where the full suite runs; merging into
+# `production` is the only act that reaches a child's bedtime. So this workflow
+# deliberately does not test — a broken dev build shows up as a broken dev page,
+# which is the fastest feedback there is and costs nobody anything. Pushing
+# straight to `dev` therefore runs no tests at all; the pull request into `main`
+# is where CI stops a bad build from going anywhere that matters.
+#
+# WHY A SEPARATE BUCKET AND NOT A PREFIX
+# ──────────────────────────────────────
+# `story-player-dev`, never `story-player`. The production bucket is READ AT
+# RUNTIME by story-engine-v2 — it loads `story-player/stable/story-player.js`
+# and pins `story-player/builds/<commit>/` in `story-player.lock.json` — so a dev
+# build promoted into it would be served to whoever is using that engine. A
+# separate bucket lets the credential itself be scoped, so a mistake here cannot
+# reach production even in principle. `scripts/storage-config.mjs` enforces the
+# pair as an allow-list.
+#
+# WHY NO GITHUB RELEASE
+# ─────────────────────
+# Because nothing pulls dev. `production` publishes releases because the
+# cluster's MinIO is ClusterIP-only and delivery has to be pull-shaped. The dev
+# store answers over HTTP, so the build is written where it is read, and
+# `latest` keeps meaning exactly one thing — the newest production player.
+
+on:
+  push:
+    branches: [dev]
+
+# No release is created and no tag moves.
+permissions:
+  contents: read
+
+# A superseded dev build is worth nothing, and waiting for it delays the one the
+# developer is actually waiting on. `deploy-player.yml` queues instead, because a
+# superseded production build is immutable and someone may pin it.
+concurrency:
+  group: story-player-dev
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    # Scopes the store credential to this workflow. Keep the dev key distinct
+    # from any production key: an environment is only a boundary if the thing
+    # inside it cannot write the other rail.
+    environment: cdn-dev
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts
+
+      - run: npm run build:cdn
+        env:
+          STORY_PLAYER_COMMIT: ${{ github.sha }}
+
+      # Writes `builds/<commit>/` create-only, promotes `stable/`, then re-reads
+      # both anonymously to prove the store serves what was uploaded. Refuses an
+      # artifact that does not contain its declared commit. Creates the bucket
+      # with a public-read policy and CORS on first run, so the dev key needs
+      # CreateBucket once.
+      #
+      # GitHub side is named for the RAIL (`S3_DEV_*`), script side for the
+      # PROTOCOL (`S3_*`). The mapping sits beside the bucket it selects, so both
+      # halves of the decision are visible in the same few lines.
+      - run: npm run publish:cdn
+        env:
+          STORY_PLAYER_COMMIT: ${{ github.sha }}
+          STORY_PLAYER_BUCKET: story-player-dev
+          S3_URL: ${{ vars.S3_DEV_URL }}
+          S3_ACCESS_KEY: ${{ secrets.S3_DEV_ACCESS_KEY }}
+          S3_SECRET_KEY: ${{ secrets.S3_DEV_SECRET_KEY }}
+          S3_REGION: ${{ vars.S3_DEV_REGION || 'us-east-1' }}

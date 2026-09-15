@@ -1,0 +1,1036 @@
+{
+  "instants": [
+    {
+      "t_ms": 2820,
+      "list": {
+        "width": 1920,
+        "height": 1080,
+        "camera": {
+          "scale": 1,
+          "x": 0,
+          "y": 0
+        },
+        "commands": [
+          {
+            "op": "slate",
+            "hud": true,
+            "mode": "count",
+            "count": 2,
+            "groups": [
+              2
+            ],
+            "progress": 0.0011,
+            "panel": {
+              "x": 86.4,
+              "y": 91.8,
+              "w": 1747.2,
+              "h": 912.6,
+              "r": 54
+            },
+            "counters": [
+              {
+                "n": 1,
+                "group": 0,
+                "cx": 814.2,
+                "cy": 424.9,
+                "r": 99.14,
+                "scale": 0.0134,
+                "alpha": 1,
+                "cross": 0,
+                "ring": false
+              },
+              {
+                "n": 2,
+                "group": 0,
+                "cx": 1105.8,
+                "cy": 424.9,
+                "r": 99.14,
+                "scale": 0,
+                "alpha": 1,
+                "cross": 0,
+                "ring": false
+              }
+            ],
+            "equation": null
+          },
+          {
+            "op": "sprite",
+            "slug": "squirrel",
+            "url": "fairytale-assets/renditions/sprites/8f479bfe85c523a3fbaa55aca958df67.webp",
+            "cell": [
+              2,
+              2
+            ],
+            "cells": [
+              3,
+              3
+            ],
+            "dx": 1582.2,
+            "dy": 777.6,
+            "dw": 291.6,
+            "dh": 291.6,
+            "opacity": 1,
+            "hud": true
+          }
+        ]
+      }
+    },
+    {
+      "t_ms": 3269,
+      "list": {
+        "width": 1920,
+        "height": 1080,
+        "camera": {
+          "scale": 1,
+          "x": 0,
+          "y": 0
+        },
+        "commands": [
+          {
+            "op": "slate",
+            "hud": true,
+            "mode": "count",
+            "count": 2,
+            "groups": [
+              2
+            ],
+            "progress": 0.5,
+            "panel": {
+              "x": 86.4,
+              "y": 91.8,
+              "w": 1747.2,
+              "h": 912.6,
+              "r": 54
+            },
+            "counters": [
+              {
+                "n": 1,
+                "group": 0,
+                "cx": 814.2,
+                "cy": 424.9,
+                "r": 99.14,
+                "scale": 1,
+                "alpha": 1,
+                "cross": 0,
+                "ring": false
+              },
+              {
+                "n": 2,
+                "group": 0,
+                "cx": 1105.8,
+                "cy": 424.9,
+                "r": 99.14,
+                "scale": 1.0999,
+                "alpha": 1,
+                "cross": 0,
+                "ring": true
+              }
+            ],
+            "equation": null
+          },
+          {
+            "op": "sprite",
+            "slug": "squirrel",
+            "url": "fairytale-assets/renditions/sprites/725ba924fa38544a7d708a9df230642c.webp",
+            "cell": [
+              2,
+              1
+            ],
+            "cells": [
+              3,
+              3
+            ],
+            "dx": 1582.2,
+            "dy": 777.6,
+            "dw": 291.6,
+            "dh": 291.6,
+            "opacity": 1,
+            "hud": true
+          }
+        ]
+      }
+    },
+    {
+      "t_ms": 5736,
+      "list": {
+        "width": 1920,
+        "height": 1080,
+        "camera": {
+          "scale": 1,
+          "x": 0,
+          "y": 0
+        },
+        "commands": [
+          {
+            "op": "slate",
+            "hud": true,
+            "mode": "add",
+            "count": 5,
+            "groups": [
+              2,
+              3
+            ],
+            "progress": 0.0004,
+            "panel": {
+              "x": 86.4,
+              "y": 91.8,
+              "w": 1747.2,
+              "h": 912.6,
+              "r": 54
+            },
+            "counters": [
+              {
+                "n": 1,
+                "group": 0,
+                "cx": 376.8,
+                "cy": 424.9,
+                "r": 99.14,
+                "scale": 0.0134,
+                "alpha": 1,
+                "cross": 0,
+                "ring": false
+              },
+              {
+                "n": 2,
+                "group": 0,
+                "cx": 668.4,
+                "cy": 424.9,
+                "r": 99.14,
+                "scale": 0,
+                "alpha": 1,
+                "cross": 0,
+                "ring": false
+              },
+              {
+                "n": 3,
+                "group": 1,
+                "cx": 960,
+                "cy": 424.9,
+                "r": 99.14,
+                "scale": 0,
+                "alpha": 1,
+                "cross": 0,
+                "ring": false
+              },
+              {
+                "n": 4,
+                "group": 1,
+                "cx": 1251.6,
+                "cy": 424.9,
+                "r": 99.14,
+                "scale": 0,
+                "alpha": 1,
+                "cross": 0,
+                "ring": false
+              },
+              {
+                "n": 5,
+                "group": 1,
+                "cx": 1543.2,
+                "cy": 424.9,
+                "r": 99.14,
+                "scale": 0,
+                "alpha": 1,
+                "cross": 0,
+                "ring": false
+              }
+            ],
+            "equation": null
+          },
+          {
+            "op": "sprite",
+            "slug": "squirrel",
+            "url": "fairytale-assets/renditions/sprites/3cf00bad8cbee58d541b67ec8cdc999e.webp",
+            "cell": [
+              0,
+              0
+            ],
+            "cells": [
+              3,
+              3
+            ],
+            "dx": 1582.2,
+            "dy": 777.6,
+            "dw": 291.6,
+            "dh": 291.6,
+            "opacity": 1,
+            "hud": true
+          }
+        ]
+      }
+    },
+    {
+      "t_ms": 7160,
+      "list": {
+        "width": 1920,
+        "height": 1080,
+        "camera": {
+          "scale": 1,
+          "x": 0,
+          "y": 0
+        },
+        "commands": [
+          {
+            "op": "slate",
+            "hud": true,
+            "mode": "add",
+            "count": 5,
+            "groups": [
+              2,
+              3
+            ],
+            "progress": 0.5,
+            "panel": {
+              "x": 86.4,
+              "y": 91.8,
+              "w": 1747.2,
+              "h": 912.6,
+              "r": 54
+            },
+            "counters": [
+              {
+                "n": 1,
+                "group": 0,
+                "cx": 376.8,
+                "cy": 424.9,
+                "r": 99.14,
+                "scale": 1,
+                "alpha": 1,
+                "cross": 0,
+                "ring": false
+              },
+              {
+                "n": 2,
+                "group": 0,
+                "cx": 668.4,
+                "cy": 424.9,
+                "r": 99.14,
+                "scale": 1,
+                "alpha": 1,
+                "cross": 0,
+                "ring": false
+              },
+              {
+                "n": 3,
+                "group": 1,
+                "cx": 960,
+                "cy": 424.9,
+                "r": 99.14,
+                "scale": 1,
+                "alpha": 1,
+                "cross": 0,
+                "ring": false
+              },
+              {
+                "n": 4,
+                "group": 1,
+                "cx": 1251.6,
+                "cy": 424.9,
+                "r": 99.14,
+                "scale": 1,
+                "alpha": 1,
+                "cross": 0,
+                "ring": false
+              },
+              {
+                "n": 5,
+                "group": 1,
+                "cx": 1543.2,
+                "cy": 424.9,
+                "r": 99.14,
+                "scale": 1,
+                "alpha": 1,
+                "cross": 0,
+                "ring": true
+              }
+            ],
+            "equation": {
+              "y": 674.95,
+              "h": 283.82,
+              "tokens": [
+                {
+                  "text": "2",
+                  "role": "term",
+                  "alpha": 0.1563
+                },
+                {
+                  "text": "+",
+                  "role": "operator",
+                  "alpha": 0
+                },
+                {
+                  "text": "3",
+                  "role": "term",
+                  "alpha": 0
+                },
+                {
+                  "text": "=",
+                  "role": "equals",
+                  "alpha": 0
+                },
+                {
+                  "text": "5",
+                  "role": "result",
+                  "alpha": 0
+                }
+              ]
+            }
+          },
+          {
+            "op": "sprite",
+            "slug": "squirrel",
+            "url": "fairytale-assets/renditions/sprites/725ba924fa38544a7d708a9df230642c.webp",
+            "cell": [
+              1,
+              0
+            ],
+            "cells": [
+              3,
+              3
+            ],
+            "dx": 1582.2,
+            "dy": 777.6,
+            "dw": 291.6,
+            "dh": 291.6,
+            "opacity": 1,
+            "hud": true
+          }
+        ]
+      }
+    },
+    {
+      "t_ms": 13100,
+      "list": {
+        "width": 1920,
+        "height": 1080,
+        "camera": {
+          "scale": 1,
+          "x": 0,
+          "y": 0
+        },
+        "commands": [
+          {
+            "op": "slate",
+            "hud": true,
+            "mode": "count",
+            "count": 5,
+            "groups": [
+              5
+            ],
+            "progress": 0.5,
+            "panel": {
+              "x": 86.4,
+              "y": 91.8,
+              "w": 1747.2,
+              "h": 912.6,
+              "r": 54
+            },
+            "counters": [
+              {
+                "n": 1,
+                "group": 0,
+                "cx": 376.8,
+                "cy": 424.9,
+                "r": 99.14,
+                "scale": 1,
+                "alpha": 1,
+                "cross": 0,
+                "ring": false
+              },
+              {
+                "n": 2,
+                "group": 0,
+                "cx": 668.4,
+                "cy": 424.9,
+                "r": 99.14,
+                "scale": 1,
+                "alpha": 1,
+                "cross": 0,
+                "ring": false
+              },
+              {
+                "n": 3,
+                "group": 0,
+                "cx": 960,
+                "cy": 424.9,
+                "r": 99.14,
+                "scale": 1.0077,
+                "alpha": 1,
+                "cross": 0,
+                "ring": false
+              },
+              {
+                "n": 4,
+                "group": 0,
+                "cx": 1251.6,
+                "cy": 424.9,
+                "r": 99.14,
+                "scale": 0.74,
+                "alpha": 1,
+                "cross": 0,
+                "ring": true
+              },
+              {
+                "n": 5,
+                "group": 0,
+                "cx": 1543.2,
+                "cy": 424.9,
+                "r": 99.14,
+                "scale": 0,
+                "alpha": 1,
+                "cross": 0,
+                "ring": false
+              }
+            ],
+            "equation": null
+          },
+          {
+            "op": "sprite",
+            "slug": "squirrel",
+            "url": "fairytale-assets/renditions/sprites/3cf00bad8cbee58d541b67ec8cdc999e.webp",
+            "cell": [
+              0,
+              0
+            ],
+            "cells": [
+              3,
+              3
+            ],
+            "dx": 1582.2,
+            "dy": 777.6,
+            "dw": 291.6,
+            "dh": 291.6,
+            "opacity": 1,
+            "hud": true
+          }
+        ]
+      }
+    },
+    {
+      "t_ms": 17771,
+      "list": {
+        "width": 1920,
+        "height": 1080,
+        "camera": {
+          "scale": 1,
+          "x": 0,
+          "y": 0
+        },
+        "commands": [
+          {
+            "op": "slate",
+            "hud": true,
+            "mode": "subtract",
+            "count": 3,
+            "groups": [
+              5,
+              2
+            ],
+            "progress": 0.5,
+            "panel": {
+              "x": 86.4,
+              "y": 91.8,
+              "w": 1747.2,
+              "h": 912.6,
+              "r": 54
+            },
+            "counters": [
+              {
+                "n": 1,
+                "group": 0,
+                "cx": 376.8,
+                "cy": 424.9,
+                "r": 99.14,
+                "scale": 1,
+                "alpha": 1,
+                "cross": 0,
+                "ring": false
+              },
+              {
+                "n": 2,
+                "group": 0,
+                "cx": 668.4,
+                "cy": 424.9,
+                "r": 99.14,
+                "scale": 1,
+                "alpha": 1,
+                "cross": 0,
+                "ring": false
+              },
+              {
+                "n": 3,
+                "group": 0,
+                "cx": 960,
+                "cy": 424.9,
+                "r": 99.14,
+                "scale": 1,
+                "alpha": 1,
+                "cross": 0,
+                "ring": false
+              },
+              {
+                "n": 4,
+                "group": 0,
+                "cx": 1251.6,
+                "cy": 424.9,
+                "r": 99.14,
+                "scale": 1,
+                "alpha": 0.0089,
+                "cross": 0.9911,
+                "ring": false
+              },
+              {
+                "n": 5,
+                "group": 0,
+                "cx": 1543.2,
+                "cy": 424.9,
+                "r": 99.14,
+                "scale": 1,
+                "alpha": 0.6639,
+                "cross": 0.3361,
+                "ring": true
+              }
+            ],
+            "equation": null
+          },
+          {
+            "op": "sprite",
+            "slug": "squirrel",
+            "url": "fairytale-assets/renditions/sprites/3cf00bad8cbee58d541b67ec8cdc999e.webp",
+            "cell": [
+              0,
+              2
+            ],
+            "cells": [
+              3,
+              3
+            ],
+            "dx": 1582.2,
+            "dy": 777.6,
+            "dw": 291.6,
+            "dh": 291.6,
+            "opacity": 1,
+            "hud": true
+          }
+        ]
+      }
+    },
+    {
+      "t_ms": 20815,
+      "list": {
+        "width": 1920,
+        "height": 1080,
+        "camera": {
+          "scale": 1,
+          "x": 0,
+          "y": 0
+        },
+        "commands": [
+          {
+            "op": "slate",
+            "hud": true,
+            "mode": "subtract",
+            "count": 3,
+            "groups": [
+              5,
+              2
+            ],
+            "progress": 1,
+            "panel": {
+              "x": 86.4,
+              "y": 91.8,
+              "w": 1747.2,
+              "h": 912.6,
+              "r": 54
+            },
+            "counters": [
+              {
+                "n": 1,
+                "group": 0,
+                "cx": 376.8,
+                "cy": 424.9,
+                "r": 99.14,
+                "scale": 1,
+                "alpha": 1,
+                "cross": 0,
+                "ring": false
+              },
+              {
+                "n": 2,
+                "group": 0,
+                "cx": 668.4,
+                "cy": 424.9,
+                "r": 99.14,
+                "scale": 1,
+                "alpha": 1,
+                "cross": 0,
+                "ring": false
+              },
+              {
+                "n": 3,
+                "group": 0,
+                "cx": 960,
+                "cy": 424.9,
+                "r": 99.14,
+                "scale": 1,
+                "alpha": 1,
+                "cross": 0,
+                "ring": true
+              },
+              {
+                "n": 4,
+                "group": 0,
+                "cx": 1251.6,
+                "cy": 424.9,
+                "r": 99.14,
+                "scale": 1,
+                "alpha": 0,
+                "cross": 1,
+                "ring": false
+              },
+              {
+                "n": 5,
+                "group": 0,
+                "cx": 1543.2,
+                "cy": 424.9,
+                "r": 99.14,
+                "scale": 1,
+                "alpha": 0,
+                "cross": 1,
+                "ring": false
+              }
+            ],
+            "equation": {
+              "y": 674.95,
+              "h": 283.82,
+              "tokens": [
+                {
+                  "text": "5",
+                  "role": "term",
+                  "alpha": 1
+                },
+                {
+                  "text": "-",
+                  "role": "operator",
+                  "alpha": 1
+                },
+                {
+                  "text": "2",
+                  "role": "term",
+                  "alpha": 1
+                },
+                {
+                  "text": "=",
+                  "role": "equals",
+                  "alpha": 1
+                },
+                {
+                  "text": "3",
+                  "role": "result",
+                  "alpha": 1
+                }
+              ]
+            }
+          },
+          {
+            "op": "sprite",
+            "slug": "squirrel",
+            "url": "fairytale-assets/renditions/sprites/28d10376e4aebe1f1f205b19278018c9.webp",
+            "cell": [
+              0,
+              0
+            ],
+            "cells": [
+              3,
+              3
+            ],
+            "dx": 1582.2,
+            "dy": 777.6,
+            "dw": 291.6,
+            "dh": 291.6,
+            "opacity": 1,
+            "hud": true
+          }
+        ]
+      }
+    },
+    {
+      "t_ms": 20816,
+      "list": {
+        "width": 1920,
+        "height": 1080,
+        "camera": {
+          "scale": 1,
+          "x": 0,
+          "y": 0
+        },
+        "commands": [
+          {
+            "op": "slate",
+            "hud": true,
+            "mode": "subtract",
+            "count": 3,
+            "groups": [
+              5,
+              2
+            ],
+            "progress": 1,
+            "panel": {
+              "x": 86.4,
+              "y": 91.8,
+              "w": 1747.2,
+              "h": 912.6,
+              "r": 54
+            },
+            "counters": [
+              {
+                "n": 1,
+                "group": 0,
+                "cx": 376.8,
+                "cy": 424.9,
+                "r": 99.14,
+                "scale": 1,
+                "alpha": 1,
+                "cross": 0,
+                "ring": false
+              },
+              {
+                "n": 2,
+                "group": 0,
+                "cx": 668.4,
+                "cy": 424.9,
+                "r": 99.14,
+                "scale": 1,
+                "alpha": 1,
+                "cross": 0,
+                "ring": false
+              },
+              {
+                "n": 3,
+                "group": 0,
+                "cx": 960,
+                "cy": 424.9,
+                "r": 99.14,
+                "scale": 1,
+                "alpha": 1,
+                "cross": 0,
+                "ring": true
+              },
+              {
+                "n": 4,
+                "group": 0,
+                "cx": 1251.6,
+                "cy": 424.9,
+                "r": 99.14,
+                "scale": 1,
+                "alpha": 0,
+                "cross": 1,
+                "ring": false
+              },
+              {
+                "n": 5,
+                "group": 0,
+                "cx": 1543.2,
+                "cy": 424.9,
+                "r": 99.14,
+                "scale": 1,
+                "alpha": 0,
+                "cross": 1,
+                "ring": false
+              }
+            ],
+            "equation": {
+              "y": 674.95,
+              "h": 283.82,
+              "tokens": [
+                {
+                  "text": "5",
+                  "role": "term",
+                  "alpha": 1
+                },
+                {
+                  "text": "-",
+                  "role": "operator",
+                  "alpha": 1
+                },
+                {
+                  "text": "2",
+                  "role": "term",
+                  "alpha": 1
+                },
+                {
+                  "text": "=",
+                  "role": "equals",
+                  "alpha": 1
+                },
+                {
+                  "text": "3",
+                  "role": "result",
+                  "alpha": 1
+                }
+              ]
+            }
+          },
+          {
+            "op": "sprite",
+            "slug": "squirrel",
+            "url": "fairytale-assets/renditions/sprites/28d10376e4aebe1f1f205b19278018c9.webp",
+            "cell": [
+              0,
+              0
+            ],
+            "cells": [
+              3,
+              3
+            ],
+            "dx": 1582.2,
+            "dy": 777.6,
+            "dw": 291.6,
+            "dh": 291.6,
+            "opacity": 1,
+            "hud": true
+          }
+        ]
+      }
+    },
+    {
+      "t_ms": 21190,
+      "list": {
+        "width": 1920,
+        "height": 1080,
+        "camera": {
+          "scale": 1,
+          "x": 0,
+          "y": 0
+        },
+        "commands": [
+          {
+            "op": "slate",
+            "hud": true,
+            "mode": "subtract",
+            "count": 3,
+            "groups": [
+              5,
+              2
+            ],
+            "progress": 1,
+            "panel": {
+              "x": 86.4,
+              "y": 91.8,
+              "w": 1747.2,
+              "h": 912.6,
+              "r": 54
+            },
+            "counters": [
+              {
+                "n": 1,
+                "group": 0,
+                "cx": 376.8,
+                "cy": 424.9,
+                "r": 99.14,
+                "scale": 1,
+                "alpha": 1,
+                "cross": 0,
+                "ring": false
+              },
+              {
+                "n": 2,
+                "group": 0,
+                "cx": 668.4,
+                "cy": 424.9,
+                "r": 99.14,
+                "scale": 1,
+                "alpha": 1,
+                "cross": 0,
+                "ring": false
+              },
+              {
+                "n": 3,
+                "group": 0,
+                "cx": 960,
+                "cy": 424.9,
+                "r": 99.14,
+                "scale": 1,
+                "alpha": 1,
+                "cross": 0,
+                "ring": true
+              },
+              {
+                "n": 4,
+                "group": 0,
+                "cx": 1251.6,
+                "cy": 424.9,
+                "r": 99.14,
+                "scale": 1,
+                "alpha": 0,
+                "cross": 1,
+                "ring": false
+              },
+              {
+                "n": 5,
+                "group": 0,
+                "cx": 1543.2,
+                "cy": 424.9,
+                "r": 99.14,
+                "scale": 1,
+                "alpha": 0,
+                "cross": 1,
+                "ring": false
+              }
+            ],
+            "equation": {
+              "y": 674.95,
+              "h": 283.82,
+              "tokens": [
+                {
+                  "text": "5",
+                  "role": "term",
+                  "alpha": 1
+                },
+                {
+                  "text": "-",
+                  "role": "operator",
+                  "alpha": 1
+                },
+                {
+                  "text": "2",
+                  "role": "term",
+                  "alpha": 1
+                },
+                {
+                  "text": "=",
+                  "role": "equals",
+                  "alpha": 1
+                },
+                {
+                  "text": "3",
+                  "role": "result",
+                  "alpha": 1
+                }
+              ]
+            }
+          },
+          {
+            "op": "sprite",
+            "slug": "squirrel",
+            "url": "fairytale-assets/renditions/sprites/28d10376e4aebe1f1f205b19278018c9.webp",
+            "cell": [
+              1,
+              1
+            ],
+            "cells": [
+              3,
+              3
+            ],
+            "dx": 1582.2,
+            "dy": 777.6,
+            "dw": 291.6,
+            "dh": 291.6,
+            "opacity": 1,
+            "hud": true
+          }
+        ]
+      }
+    }
+  ]
+}

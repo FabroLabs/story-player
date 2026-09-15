@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { cuesBetween } from '../browser/v0/core/state/cues.mjs';
 import { compileTimeline } from '../browser/v0/core/timeline/compile.mjs';
+import { CUE, FLASH, SLATE } from '../browser/v0/policy.mjs';
 
 /**
  * The rules the parity corpus cannot reach.
@@ -636,10 +638,726 @@ test('a verb the character has no clip for falls back, and the fallback is named
   ]);
 });
 
+// --- the lesson commands ---------------------------------------------------
+
+const slate = (line, count, mode, groups) => ({
+  kind: 'cmd', line, cmd: 'slate', count, mode, groups,
+});
+const highlight = (line, ...subjects) => ({ kind: 'cmd', line, cmd: 'highlight', subjects });
+
+function lessonStory(steps) {
+  const story = baseStory(steps);
+  story.objects = { acorn: { height_cm: 8 }, numeral_3: { height_cm: 40 } };
+  return story;
+}
+
+test('a slate is recorded as the whole claim, and 0 is not one', () => {
+  // `SLATE.max` is the published maximum, so it is a count that WORKS — pinned
+  // beside the refusal, which otherwise leaves `>` and `>=` indistinguishable.
+  const events = compile(lessonStory([
+    slate(1, 3),
+    slate(2, 5, 'add', [2, 3]),
+    slate(3, 3, 'subtract', [5, 2]),
+    slate(4, SLATE.max),
+    slate(5, 0),
+  ]));
+
+  // Zero was `slate(off)`: the board a story put away itself. Nothing lowers a
+  // board now but the ending, so the step draws nothing and is refused by name
+  // rather than passed on as a board of no counters.
+
+  // Every op carries all three fields, whatever the step named: a step that
+  // names only a count is the plain count every bundle meant before modes
+  // existed, and one client draws one board from either producer.
+  assert.deepEqual(
+    ops(events, 'slate').map((event) => [event.count, event.mode, event.groups, event.line]),
+    [
+      // The empty board the scene opens on — on the scene's own line, not a
+      // step's — is the one count of nothing a timeline carries.
+      [0, 'count', [], 1],
+      [3, 'count', [3], 1],
+      [5, 'add', [2, 3], 2],
+      [3, 'subtract', [5, 2], 3],
+      [SLATE.max, 'count', [SLATE.max], 4],
+    ],
+  );
+  // This story spends no time at all, so every board it raises is taken away
+  // before it has arrived — which is the next test's subject, and said here
+  // only so that "no OTHER warning" keeps its meaning.
+  assert.deepEqual(
+    new Set(warnings(events).map((warning) => warning.policy)),
+    new Set(['slate-cut-short', 'slate-count-unusable']),
+  );
+});
+
+test('a board taken away before it has arrived is said, not silently lost', () => {
+  // A board is not a card that pops in a third of a second any more: `2 + 3`
+  // counts itself in, then writes its equation, and a scene that cuts a second
+  // later shows a child five apples and never the sentence they were for.
+  const pause = (line, seconds) => ({ kind: 'cmd', line, cmd: 'pause', seconds });
+  const cut = compile(lessonStory([slate(1, 5, 'add', [2, 3]), pause(2, 1)]));
+
+  assert.deepEqual(warnings(cut), [{
+    type: 'policy',
+    policy: 'slate-cut-short',
+    count: 5,
+    mode: 'add',
+    groups: [2, 3],
+    needs_ms: 2_850,
+    held_ms: 1_000,
+  }]);
+
+  // Given the time it needs, nothing is said.
+  const held = compile(lessonStory([slate(1, 5, 'add', [2, 3]), pause(2, 3)]));
+  assert.deepEqual(warnings(held), []);
+});
+
+test('a lesson counting on is not a board cut short, however fast it counts', () => {
+  // "One, two, three" raises three boards half a second apart and none of them
+  // finishes. That is the one case where not finishing is the POINT — each
+  // board carries the one before it — so warning three times would teach a
+  // writer to stop writing the thing the board is for.
+  const pause = (line, seconds) => ({ kind: 'cmd', line, cmd: 'pause', seconds });
+  const counted = compile(lessonStory([
+    slate(1, 1), pause(2, 0.5), slate(3, 2), pause(4, 0.5), slate(5, 3), pause(6, 2),
+  ]));
+
+  assert.deepEqual(warnings(counted), []);
+  // The last of them IS measured — against the end of the story — so a lesson
+  // that counts to three and stops dead still hears about it.
+  const stopped = compile(lessonStory([slate(1, 1), pause(2, 0.5), slate(3, 2), slate(5, 3)]));
+  assert.deepEqual(warnings(stopped).map((warning) => warning.policy), ['slate-cut-short']);
+});
+
+test('a count that is not a whole number of counters is refused, not rounded', () => {
+  for (const count of [2.5, '3', -1, null, undefined, SLATE.max + 1]) {
+    const events = compile(lessonStory([{ kind: 'cmd', line: 7, cmd: 'slate', count }]));
+
+    assert.deepEqual(ops(events, 'slate'), [], `${JSON.stringify(count)} reached the stage`);
+    assert.deepEqual(warnings(events), [
+      { type: 'policy', policy: 'slate-count-unusable', count: count ?? null, mode: null, groups: null },
+    ]);
+  }
+});
+
+test('a board whose own groups do not make its count never reaches a client', () => {
+  // The compiler is where the arithmetic is checked, because it is the one
+  // place that can name the STORY LINE the wrong claim was written on. A
+  // player fed the same claim refuses it too, but by then nobody knows where
+  // it came from.
+  const wrong = [
+    [6, 'add', [2, 3]],
+    [3, 'add', [3, 0]],
+    [2, 'subtract', [5, 2]],
+    [0, 'subtract', [3, 3]],
+    [6, 'multiply', [2, 3]],
+    [6, 'add', [1, 2, 3]],
+  ];
+  for (const [count, mode, groups] of wrong) {
+    const events = compile(lessonStory([slate(7, count, mode, groups)]));
+
+    assert.deepEqual(ops(events, 'slate'), [], `${count} ${mode} ${groups} reached the stage`);
+    assert.deepEqual(warnings(events), [
+      { type: 'policy', policy: 'slate-count-unusable', count, mode, groups },
+    ]);
+  }
+});
+
+test('a board raised again on the same claim is not a second board', () => {
+  // The fold keeps the first instant and lets the build run on (a story
+  // repeating a total between two chunks), so the scan must not restart its
+  // measurement either — or a board that stood four seconds is reported as
+  // having had one.
+  const pause = (line, seconds) => ({ kind: 'cmd', line, cmd: 'pause', seconds });
+  const events = compile(lessonStory([
+    slate(1, 5, 'add', [2, 3]), pause(2, 3), slate(3, 5, 'add', [2, 3]), pause(4, 1),
+  ]));
+
+  assert.deepEqual(warnings(events), []);
+  // The op itself is still recorded, as written — twice, after the empty board
+  // the scene opened on.
+  assert.deepEqual(ops(events, 'slate').map((event) => event.count), [0, 5, 5]);
+});
+
+test('a scene cut ends no board, and the board after it is measured counting on', () => {
+  // The one-word revert: putting `scene` back into what `boardsCutShort`
+  // measures. Nothing else in the suite notices it — every board in the parity
+  // corpus outlives its own cut with seconds to spare — so this is the test that
+  // holds the rule, and it holds both halves of it.
+  const pause = (line, seconds) => ({ kind: 'cmd', line, cmd: 'pause', seconds });
+  const twoScenes = (first, second) => {
+    const story = lessonStory(first);
+    story.scenes.push({ ...story.scenes[0], line: 20, steps: second });
+    return story;
+  };
+
+  // A join needs 2850 ms and gets 1000 before the seam. Measured at the cut it
+  // is a lost board; measured at the ending it finishes over the next scene.
+  const acrossTheSeam = compile(twoScenes(
+    [slate(1, 5, 'add', [2, 3]), pause(2, 1)],
+    [pause(21, 4)],
+  ));
+  assert.deepEqual(warnings(acrossTheSeam), []);
+
+  // And the carry: four counters raised over three that never left needs 650 ms,
+  // and 700 is enough. Were the cut to reset what the scan has SHOWN, `from`
+  // would be 0, the same board would need 1400, and this would warn.
+  const countedOn = compile(twoScenes(
+    [slate(1, 3), pause(2, 1)],
+    [slate(21, 4), pause(22, 0.7)],
+  ));
+  assert.deepEqual(warnings(countedOn), []);
+
+  // The ending still measures: the same board given 300 ms is still lost.
+  const stopped = compile(twoScenes(
+    [slate(1, 3), pause(2, 1)],
+    [slate(21, 4), pause(22, 0.3)],
+  ));
+  assert.deepEqual(warnings(stopped).map((warning) => warning.policy), ['slate-cut-short']);
+});
+
+test('a board wiped by a DIFFERENT board is cut short, counting on or not', () => {
+  // "Replaced by another board" is not the same as "counted on from". Three
+  // counters wiped by a join 200 ms later is exactly the loss this warning
+  // exists for; three counters that become four are the lesson working.
+  const pause = (line, seconds) => ({ kind: 'cmd', line, cmd: 'pause', seconds });
+  const wiped = compile(lessonStory([
+    slate(1, 3), pause(2, 0.2), slate(3, 5, 'add', [2, 3]), pause(4, 4),
+  ]));
+  const shrunk = compile(lessonStory([slate(1, 5), pause(2, 0.1), slate(3, 3), pause(4, 3)]));
+  const countedOn = compile(lessonStory([
+    slate(1, 1), pause(2, 0.5), slate(3, 2), pause(4, 0.5), slate(5, 3), pause(6, 2),
+  ]));
+
+  assert.deepEqual(warnings(wiped).map((warning) => warning.held_ms), [200]);
+  assert.deepEqual(warnings(shrunk).map((warning) => warning.held_ms), [100]);
+  assert.deepEqual(warnings(countedOn), []);
+});
+
+test('the complaint is filed beside the board, not after the story', () => {
+  // A warning appended at the end lands AFTER the `end` op, and a prefix whose
+  // last event is not `end` is a prefix no player can close
+  // (`compile-prefix.test.mjs`). It also reads as a fault at the ending rather
+  // than at the line that raised the board.
+  const pause = (line, seconds) => ({ kind: 'cmd', line, cmd: 'pause', seconds });
+  const events = compile(lessonStory([slate(1, 5, 'add', [2, 3]), pause(2, 1)]));
+  const raised = events.find((event) => event.op === 'slate');
+  const complaint = events.find((event) => event.kind === 'warning');
+
+  assert.equal(events.at(-1).op, 'end');
+  assert.ok(events.indexOf(complaint) > events.indexOf(raised));
+  assert.ok(events.indexOf(complaint) < events.length - 1);
+  assert.equal(complaint.t_ms, raised.t_ms);
+  assert.equal(complaint.line, 1);
+});
+
+test('the compiler records no slate at a scene boundary — the cut is the state core job', () => {
+  // The compiler records no reset — the state core leaves it standing — so
+  // what this pins is the ABSENCE of a second slate op at the scene boundary.
+  const story = lessonStory([slate(1, 2)]);
+  story.scenes.push({ ...story.scenes[0], line: 20, steps: [] });
+  const events = compile(story);
+
+  // The empty board the first scene opens on and the count itself, both in
+  // scene 0; the cut into scene 1 records nothing.
+  assert.deepEqual(ops(events, 'slate').map((event) => [event.count, event.scene_index]), [[0, 0], [2, 0]]);
+});
+
+test('a lesson opens on its board: the scene that first counts stands an empty panel from its first frame', () => {
+  const events = compile(lessonStory([put(1, 'ruby', 'center'), slate(2, 1)]));
+  const stage = events.filter((event) => event.source === 'stage');
+
+  // Right after the cut, on the same millisecond, before anybody is placed: the
+  // floor is never shown without the panel that is about to cover it.
+  assert.deepEqual(
+    stage.slice(0, 2).map((event) => [event.op, event.t_ms, event.count ?? null, event.mode ?? null, event.groups ?? null, event.line]),
+    [['scene', 0, null, null, null, 1], ['slate', 0, 0, 'count', [], 1]],
+  );
+});
+
+test('a story that never counts stands no board', () => {
+  assert.deepEqual(ops(compile(baseStory([put(1, 'ruby', 'center')])), 'slate'), []);
+});
+
+test('the empty board stands where the FIRST counting scene opens, and nowhere else', () => {
+  const story = lessonStory([put(1, 'ruby', 'center')]);
+  story.scenes.push({ ...story.scenes[0], line: 20, steps: [slate(21, 2)] });
+  story.scenes.push({ ...story.scenes[0], line: 30, steps: [slate(31, 3)] });
+  const events = compile(story);
+  const cuts = ops(events, 'scene');
+
+  // Scene 1 has nothing to count, so it opens on the floor; the panel goes up
+  // with scene 2's cut, and scene 3 — a board already standing — adds none.
+  assert.deepEqual(
+    ops(events, 'slate').map((event) => [event.count, event.scene_index, event.t_ms]),
+    [[0, 1, cuts[1].t_ms], [2, 1, cuts[1].t_ms], [3, 2, cuts[2].t_ms]],
+  );
+});
+
+test('a count inside a together: block is still the scene counting', () => {
+  const story = lessonStory([{ kind: 'together', line: 2, steps: [slate(2, 1), put(2, 'ruby', 'center')] }]);
+
+  assert.deepEqual(ops(compile(story), 'slate').map((event) => event.count), [0, 1]);
+});
+
+test('a count the compiler cannot reach opens no panel either', () => {
+  // A `together:` inside a `together:` is not storylang, and `performTogether`
+  // does not look inside one; a board the scene will never land must not
+  // stand an empty panel for the rest of the story.
+  const nested = { kind: 'together', line: 2, steps: [{ kind: 'together', line: 2, steps: [slate(2, 3)] }] };
+
+  assert.deepEqual(ops(compile(lessonStory([nested])), 'slate'), []);
+});
+
+test('the empty board is never cut short: there is nothing on it to arrive', () => {
+  // A story that spends no time at all cuts short every board it raises —
+  // every board but the empty one, which has no build to lose.
+  const events = compile(lessonStory([slate(1, 3)]));
+
+  assert.deepEqual(
+    warnings(events).filter((warning) => warning.policy === 'slate-cut-short').map((warning) => warning.count),
+    [3],
+  );
+});
+
+test('a highlight names one subject per event, so a client knows which one it lost', () => {
+  const events = compile(lessonStory([
+    put(1, 'ruby', 'center'),
+    { kind: 'cmd', line: 2, cmd: 'put', subjects: ['acorn'], objects: ['acorn'], position: 'left_third', facing: null },
+    highlight(3, 'ruby', 'acorn'),
+  ]));
+
+  // The line travels with the ring: it is what the debug drawer, the warning
+  // router and the writer's repair loop point at.
+  assert.deepEqual(
+    ops(events, 'highlight').map((event) => [event.slug, event.line]),
+    [['ruby', 3], ['acorn', 3]],
+  );
+  assert.deepEqual(warnings(events), []);
+});
+
+test('a highlight that names nobody is a step that did nothing, and it says so', () => {
+  for (const subjects of [undefined, [], null]) {
+    const events = compile(lessonStory([{ kind: 'cmd', line: 5, cmd: 'highlight', subjects }]));
+
+    assert.deepEqual(ops(events, 'highlight'), [], JSON.stringify(subjects));
+    assert.deepEqual(warnings(events), [{ type: 'policy', policy: 'highlight-unaimed' }]);
+  }
+});
+
+test('a highlight of somebody who is not on this stage is refused and named', () => {
+  const events = compile(lessonStory([put(1, 'ruby', 'center'), highlight(2, 'ruby', 'clover')]));
+
+  assert.deepEqual(ops(events, 'highlight').map((event) => event.slug), ['ruby']);
+  assert.deepEqual(warnings(events), [{ type: 'policy', policy: 'highlight-missing', slug: 'clover' }]);
+});
+
+test('a highlight reaches somebody standing in THIS place, not merely on the board', () => {
+  const story = lessonStory([put(1, 'ruby', 'center')]);
+  story.scenes.push({ ...story.scenes[0], line: 20, place: 'grove', steps: [highlight(21, 'ruby')] });
+  const events = compile(story);
+
+  assert.deepEqual(ops(events, 'highlight'), []);
+  assert.deepEqual(warnings(events), [{ type: 'policy', policy: 'highlight-missing', slug: 'ruby' }]);
+});
+
+test('a prop is only highlightable in the scene it was put down in', () => {
+  const story = lessonStory([
+    { kind: 'cmd', line: 1, cmd: 'put', subjects: ['acorn'], objects: ['acorn'], position: 'center', facing: null },
+  ]);
+  story.scenes.push({ ...story.scenes[0], line: 20, steps: [highlight(21, 'acorn')] });
+  const events = compile(story);
+
+  assert.deepEqual(ops(events, 'highlight'), []);
+  assert.deepEqual(warnings(events), [{ type: 'policy', policy: 'highlight-missing', slug: 'acorn' }]);
+});
+
+test('a highlight sharing a together with the put it rings is applied after it', () => {
+  // Sorted on its name alone, `highlight` comes before `put` — and would ring a
+  // card the same instant is about to set down.
+  const events = compile(lessonStory([{
+    kind: 'together',
+    line: 1,
+    steps: [
+      highlight(3, 'acorn'),
+      { kind: 'cmd', line: 2, cmd: 'put', subjects: ['acorn'], objects: ['acorn'], position: 'center', facing: null },
+    ],
+  }]));
+
+  assert.deepEqual(ops(events, 'highlight').map((event) => event.slug), ['acorn']);
+  assert.deepEqual(warnings(events), []);
+});
+
+// --- take ------------------------------------------------------------------
+
+const take = (line, ...subjects) => ({ kind: 'cmd', line, cmd: 'take', subjects });
+const putProp = (line, slug) => ({
+  kind: 'cmd', line, cmd: 'put', subjects: [slug], objects: [slug], position: 'center', facing: null,
+});
+
+test('a take removes the prop that was put down, and says which', () => {
+  const events = compile(lessonStory([putProp(1, 'acorn'), take(2, 'acorn')]));
+
+  assert.deepEqual(
+    ops(events, 'remove_object').map((event) => [event.slug, event.line]),
+    [['acorn', 2]],
+  );
+  assert.deepEqual(warnings(events), []);
+});
+
+test('a take of a prop nothing put down is refused and named', () => {
+  const events = compile(lessonStory([take(2, 'acorn')]));
+
+  assert.deepEqual(ops(events, 'remove_object'), []);
+  assert.deepEqual(warnings(events), [{ type: 'policy', policy: 'take-missing', slug: 'acorn' }]);
+});
+
+test('the same prop cannot be taken twice', () => {
+  const events = compile(lessonStory([putProp(1, 'acorn'), take(2, 'acorn'), take(3, 'acorn')]));
+
+  assert.deepEqual(ops(events, 'remove_object').map((event) => event.slug), ['acorn']);
+  assert.deepEqual(warnings(events), [{ type: 'policy', policy: 'take-missing', slug: 'acorn' }]);
+});
+
+test('a take reaches only the props ITS scene put down', () => {
+  const story = lessonStory([putProp(1, 'acorn')]);
+  story.scenes.push({ ...story.scenes[0], line: 20, steps: [take(21, 'acorn')] });
+  const events = compile(story);
+
+  assert.deepEqual(ops(events, 'remove_object'), []);
+  assert.deepEqual(warnings(events), [{ type: 'policy', policy: 'take-missing', slug: 'acorn' }]);
+});
+
+test('a take aimed at a character leaves them standing, and says so', () => {
+  // Props are taken; characters leave by `travel`. The refusal is the prop
+  // rule's own — no prop of that name was put down in this scene — and it is
+  // the whole guard: a `remove_object` on a character would vanish somebody
+  // mid-scene with no walk and no fade.
+  const events = compile(lessonStory([put(1, 'ruby', 'center'), take(2, 'ruby')]));
+
+  assert.deepEqual(ops(events, 'remove_object'), []);
+  assert.deepEqual(warnings(events), [{ type: 'policy', policy: 'take-missing', slug: 'ruby' }]);
+});
+
+test('a ring finds nothing where a take has been', () => {
+  const events = compile(lessonStory([putProp(1, 'acorn'), take(2, 'acorn'), highlight(3, 'acorn')]));
+
+  assert.deepEqual(ops(events, 'highlight'), []);
+  assert.deepEqual(warnings(events), [{ type: 'policy', policy: 'highlight-missing', slug: 'acorn' }]);
+});
+
+test('a take that names nobody is a step that did nothing, and it says so', () => {
+  for (const subjects of [undefined, [], null]) {
+    const events = compile(lessonStory([{ kind: 'cmd', line: 5, cmd: 'take', subjects }]));
+
+    assert.deepEqual(ops(events, 'remove_object'), [], JSON.stringify(subjects));
+    assert.deepEqual(warnings(events), [{ type: 'policy', policy: 'take-unaimed' }]);
+  }
+});
+
 test('a command this player does not perform keeps its own line', () => {
   const events = compile(baseStory([{ kind: 'cmd', line: 44, cmd: 'not_real' }]));
   const warning = events.find((event) => event.kind === 'warning');
 
   assert.equal(warning.line, 44);
   assert.deepEqual(warning.detail, { type: 'policy', policy: 'unknown-command', cmd: 'not_real' });
+});
+
+// --- cues: commands fired while a line is spoken ---------------------------
+
+// The plan's own example line: "One, two, three." — sixteen characters, the
+// words at 0, 5 and 10. Every expected instant below is worked from those by
+// hand, so the arithmetic is pinned rather than reflected.
+const CUED_TEXT = 'One, two, three.';
+const cue = (line, char, step) => ({
+  line, word: 'x', occurrence: 1, at: { word: 0, of: 3, char, chars: CUED_TEXT.length }, step: { ...step, line },
+});
+const ringCue = (line, char, counter) => cue(line, char, { kind: 'cmd', cmd: 'ring', subjects: [], counter });
+const flashCue = (line, char) => cue(line, char, { kind: 'cmd', cmd: 'flash', subjects: [] });
+const spoken = (line, cues, seconds = 1.208) => ({
+  kind: 'chunk', line, text: CUED_TEXT, audio: null, duration_s: seconds, ...(cues ? { cues } : {}),
+});
+const rest = (line, seconds) => ({ kind: 'cmd', line, cmd: 'pause', seconds });
+const at = (events, op) => ops(events, op).map((event) => [event.t_ms, event.line, event.scene_index]);
+
+test('a cue fires at its word\'s share of the chunk plus the lead, and rings its counter', () => {
+  // The chunk starts at 1000. 1208 ms long: "two" at 5/16 is 377.5 → 378, "three"
+  // at 10/16 is 755, each plus the 80 ms lead. The rings then hold through the
+  // pause and go where the next chunk with no board cue begins, 4208, on the
+  // line of the chunk that lit them.
+  const events = compile(lessonStory([
+    slate(1, 3),
+    rest(2, 1),
+    spoken(3, [ringCue(4, 0, 1), ringCue(5, 5, 2), ringCue(6, 10, 3), flashCue(7, 10)]),
+    rest(8, 2),
+    spoken(9, null),
+  ]));
+
+  assert.deepEqual(
+    ops(events, 'ring').map((event) => [event.t_ms, event.counter, event.line, event.scene_index]),
+    [[1_080, 1, 4, 0], [1_458, 2, 5, 0], [1_835, 3, 6, 0], [4_208, 0, 3, 0]],
+  );
+  assert.deepEqual(at(events, 'flash'), [[1_835, 7, 0]]);
+  assert.deepEqual(warnings(events), []);
+  // Each cue's own step is in the step stream at the cue's instant, on the
+  // cue's line — what a debug drawer and the writer's repair loop point at.
+  assert.deepEqual(
+    events.filter((event) => event.source === 'step' && (event.cmd === 'ring' || event.cmd === 'flash'))
+      .map((event) => [event.t_ms, event.line, event.cmd, event.detail]),
+    [
+      [1_080, 4, 'ring', { counter: 1, subjects: [] }],
+      [1_458, 5, 'ring', { counter: 2, subjects: [] }],
+      [1_835, 6, 'ring', { counter: 3, subjects: [] }],
+      [1_835, 7, 'flash', { subjects: [] }],
+    ],
+  );
+  // And the whole stream is still in time order — the clear lands after the
+  // walk has moved on through the pause, and the schedule only ever moves forward.
+  let last = -Infinity;
+  for (const event of events) {
+    assert.ok(event.t_ms >= last, `${event.op ?? event.kind} at ${event.t_ms} after ${last}`);
+    last = event.t_ms;
+  }
+});
+
+test('a sweep holds through a pause and a further cued chunk, and goes where the counting stops', () => {
+  // The lesson's own shape: "one, two," — a pause for the child — "Three!"
+  // with the ring and the flash — then a line with no cue. Rings 1 and 2 are
+  // still lit when 3 joins them and the flash pulses all three; nothing goes
+  // until the un-cued line begins, and then everything does, before its
+  // subtitle, on the line of the chunk that opened the sweep.
+  const events = compile(lessonStory([
+    slate(1, 3),
+    rest(2, 1),
+    spoken(3, [ringCue(4, 0, 1), ringCue(5, 5, 2)]), // 1000 to 2208
+    rest(6, 1.5), // to 3708
+    spoken(7, [ringCue(8, 0, 3), flashCue(9, 0)]), // to 4916; the pulse lands at 4288
+    spoken(10, null),
+    rest(11, 1),
+  ]));
+
+  assert.deepEqual(
+    ops(events, 'ring').map((event) => [event.t_ms, event.counter, event.line]),
+    [[1_080, 1, 4], [1_458, 2, 5], [3_788, 3, 8], [4_916, 0, 3]],
+  );
+  assert.deepEqual(at(events, 'flash'), [[3_788, 9, 0]]);
+  const logged = events.findIndex((event) => event.source === 'step' && event.line === 10);
+  const clear = events.findIndex((event) => event.op === 'ring' && event.counter === 0);
+  const subtitle = events.findIndex((event) => event.op === 'subtitle' && event.t_ms === 4_916);
+  assert.ok(logged < clear && clear < subtitle, 'the clear did not land between the chunk\'s step and its subtitle');
+});
+
+test('the clear waits for a flash still pulsing where the counting stops, and no longer', () => {
+  // A flash on the last millisecond of a 1000 ms chunk pulses to 2499, and the
+  // un-cued chunk beginning at 2000 would cut it off: the clear waits for the
+  // pulse to land, and a second un-cued chunk beginning meanwhile leaves it
+  // waiting. A chunk long enough to outlast its own flash clears where the
+  // next chunk begins.
+  const short = compile(lessonStory([slate(1, 3), rest(2, 1), spoken(3, [flashCue(4, 15)], 1), spoken(5, null), rest(6, 2)]));
+  const twice = compile(lessonStory([slate(1, 3), rest(2, 1), spoken(3, [flashCue(4, 15)], 1), spoken(5, null, 0.2), spoken(6, null), rest(7, 2)]));
+  const long = compile(lessonStory([slate(1, 3), rest(2, 1), spoken(3, [flashCue(4, 10)], 3), spoken(5, null), rest(6, 2)]));
+
+  assert.deepEqual(at(short, 'flash'), [[1_999, 4, 0]]);
+  assert.deepEqual(ops(short, 'ring').map((event) => [event.t_ms, event.counter]), [[1_999 + FLASH.pulseMs, 0]]);
+  assert.deepEqual(ops(twice, 'ring').map((event) => [event.t_ms, event.counter]), [[1_999 + FLASH.pulseMs, 0]]);
+  assert.deepEqual(at(long, 'flash'), [[1_000 + 1_875 + CUE.leadMs, 4, 0]]);
+  assert.deepEqual(ops(long, 'ring').map((event) => [event.t_ms, event.counter]), [[4_000, 0]]);
+});
+
+test('cues on one word fire in the order they were written, before the walk resumes', () => {
+  // Two cues at one instant: the order is the author's, not the op's. And a
+  // cue clamped onto the chunk's last millisecond fires before the step after
+  // the chunk is even logged — the timers were parked before the chunk's gate.
+  const ordered = (cues) => compile(lessonStory([slate(1, 3), rest(2, 1), spoken(3, cues, 1), spoken(9, null, 1)]));
+  const flashFirst = ordered([flashCue(4, 15), ringCue(5, 15, 3)]);
+  const ringFirst = ordered([ringCue(5, 15, 3), flashCue(4, 15)]);
+  const stage = (events) => events.filter((event) => event.source === 'stage' && ['ring', 'flash'].includes(event.op));
+
+  assert.deepEqual(stage(flashFirst).map((event) => [event.op, event.t_ms]), [['flash', 1_999], ['ring', 1_999], ['ring', 2_499]]);
+  assert.deepEqual(stage(ringFirst).map((event) => [event.op, event.t_ms]), [['ring', 1_999], ['flash', 1_999], ['ring', 2_499]]);
+  const nextLogged = ringFirst.findIndex((event) => event.source === 'step' && event.line === 9);
+  const lastCue = ringFirst.findIndex((event) => event.op === 'flash');
+  assert.ok(lastCue < nextLogged, 'a cue on the last millisecond fired after the walk had moved on');
+
+  // The clear with no flash to wait for lands as the un-cued chunk begins:
+  // the same millisecond as its subtitle, recorded first.
+  const ringsOnly = ordered([ringCue(4, 0, 1)]);
+  const clear = ringsOnly.findIndex((event) => event.op === 'ring' && event.counter === 0);
+  const subtitle = ringsOnly.findIndex((event) => event.op === 'subtitle' && event.t_ms === 2_000);
+  assert.equal(ringsOnly[clear].t_ms, 2_000);
+  assert.ok(clear < subtitle, 'the clear landed after the subtitle of the chunk that stopped the counting');
+});
+
+test('an ordinary command cued mid-line fires through the same path, at the cue\'s instant and on its line', () => {
+  const events = compile(lessonStory([
+    put(1, 'ruby', 'center'),
+    slate(2, 3),
+    rest(3, 1),
+    spoken(4, [
+      cue(5, 5, { kind: 'cmd', cmd: 'emote', subjects: ['ruby'], emotion: 'happy', facing: null }),
+      cue(6, 10, { kind: 'cmd', cmd: 'highlight', subjects: ['ruby'] }),
+    ]),
+    rest(7, 2),
+  ]));
+
+  assert.deepEqual(ops(events, 'clip').map((event) => [event.t_ms, event.slug, event.clip, event.line]), [[1_458, 'ruby', 'happy', 5]]);
+  assert.deepEqual(at(events, 'highlight'), [[1_835, 6, 0]]);
+  assert.deepEqual(warnings(events), []);
+  // Neither is a board cue, so nothing is parked to clear.
+  assert.deepEqual(ops(events, 'ring'), []);
+});
+
+test('a chunk whose only cues are ordinary commands is where the counting stops', () => {
+  // Counting is judged by the BOARD cues a chunk carries, not by whether it
+  // carries any: an emote fired mid-line is not a ring, so a chunk with only
+  // that ends the sweep the way an un-cued one does — the clear at its start,
+  // before its subtitle, on the line that opened the sweep — and opens none.
+  const events = compile(lessonStory([
+    put(1, 'ruby', 'center'),
+    slate(2, 3),
+    rest(3, 1),
+    spoken(4, [ringCue(5, 0, 1), ringCue(6, 5, 2)]), // 1000 to 2208
+    spoken(7, [cue(8, 5, { kind: 'cmd', cmd: 'emote', subjects: ['ruby'], emotion: 'happy', facing: null })]),
+    rest(9, 1),
+  ]));
+
+  assert.deepEqual(
+    ops(events, 'ring').map((event) => [event.t_ms, event.counter, event.line]),
+    [[1_080, 1, 5], [1_458, 2, 6], [2_208, 0, 4]],
+  );
+  const clear = events.findIndex((event) => event.op === 'ring' && event.counter === 0);
+  const subtitle = events.findIndex((event) => event.op === 'subtitle' && event.t_ms === 2_208);
+  assert.ok(clear < subtitle, 'the clear landed after the subtitle of the chunk that stopped the counting');
+  // The emote still fires on its own word: 378 ms into its line, plus the lead.
+  assert.deepEqual(ops(events, 'clip').map((event) => [event.t_ms, event.slug, event.clip]), [[2_666, 'ruby', 'happy']]);
+  assert.deepEqual(warnings(events), []);
+});
+
+test('a cued sound is a step at its instant, so it is heard', () => {
+  const story = lessonStory([
+    slate(1, 3),
+    rest(2, 1),
+    spoken(3, [cue(4, 5, { kind: 'cmd', cmd: 'sound', subjects: [], name: 'pop' })]),
+    rest(5, 2),
+  ]);
+  story.audio.sfx.pop = 'bucket/pop.m4a';
+  const timeline = compileTimeline(story);
+
+  const logged = timeline.events.find((event) => event.source === 'step' && event.cmd === 'sound');
+  assert.deepEqual([logged.t_ms, logged.line, logged.detail], [1_458, 4, { name: 'pop', subjects: [] }]);
+  // The audio director reads the step stream and nothing else: the cue is a
+  // sound effect that starts inside the line, not at its end.
+  assert.deepEqual(
+    cuesBetween(timeline, story, 1_000, 2_208).filter((heard) => heard.kind === 'sound').map((heard) => [heard.tMs, heard.name, heard.media]),
+    [[1_458, 'pop', 'bucket/pop.m4a']],
+  );
+});
+
+test('a cue never lands on or after the chunk\'s end', () => {
+  // A 50 ms chunk: the last word plus the lead would land at 127, past the
+  // gate, and is held to the last millisecond instead. A chunk of no length
+  // fires its cues at 0 — still inside, because the gate is parked after them.
+  // Nothing un-cued is spoken after either, so no clear is recorded.
+  const tiny = compile(lessonStory([slate(1, 3), rest(2, 1), spoken(3, [ringCue(4, 15, 1)], 0.05), rest(5, 2)]));
+  const none = compile(lessonStory([slate(1, 3), rest(2, 1), spoken(3, [ringCue(4, 15, 1)], 0), rest(5, 2)]));
+
+  assert.deepEqual(ops(tiny, 'ring').map((event) => [event.t_ms, event.counter]), [[1_049, 1]]);
+  assert.deepEqual(ops(none, 'ring').map((event) => [event.t_ms, event.counter]), [[1_000, 1]]);
+});
+
+test('a sweep that reaches the cut records no clear: the cut is the clear', () => {
+  // The last chunk of a scene lit a ring and flashed on its last millisecond,
+  // and the pulse would run 500 ms past the seam. The cut puts both out itself
+  // (`stateAt`), and the next scene's first un-cued chunk finds nothing open —
+  // so no clear is recorded anywhere, not before the seam and not after it in
+  // somebody else's scene.
+  const story = lessonStory([slate(1, 3), rest(2, 1), spoken(3, [ringCue(4, 0, 1), flashCue(5, 15)], 1)]);
+  story.scenes.push({ ...story.scenes[0], line: 20, steps: [spoken(21, null), rest(22, 2)] });
+  const events = compile(story);
+
+  assert.deepEqual(at(events, 'flash'), [[1_999, 5, 0]]);
+  assert.deepEqual(ops(events, 'ring').map((event) => [event.t_ms, event.counter]), [[1_080, 1]]);
+  assert.equal(ops(events, 'scene')[1].t_ms, 2_000);
+
+  // A clear already waiting on the pulse when the scene ends is withdrawn the
+  // same way: the un-cued chunk ran out 299 ms before the pulse would have.
+  const waiting = lessonStory([slate(1, 3), rest(2, 1), spoken(3, [flashCue(4, 15)], 1), spoken(5, null, 0.2)]);
+  waiting.scenes.push({ ...waiting.scenes[0], line: 20, steps: [rest(21, 2)] });
+  assert.deepEqual(ops(compile(waiting), 'ring'), []);
+});
+
+test('a cued chunk beginning under a clear still waiting on a pulse takes the clear first', () => {
+  // The flash pulses to 2499; the un-cued chunk at 2000 is 200 ms long, and
+  // the chunk at 2200 counts again. The old sweep's clear must not land
+  // mid-line and wipe the new rings, so it is pulled forward to 2200 — before
+  // the new sweep's first ring, still on the line that opened the old one —
+  // and the new sweep goes where ITS counting stops.
+  const events = compile(lessonStory([
+    slate(1, 3),
+    rest(2, 1),
+    spoken(3, [flashCue(4, 15)], 1),
+    spoken(5, null, 0.2),
+    spoken(6, [ringCue(7, 0, 1)], 1),
+    spoken(8, null),
+    rest(9, 1),
+  ]));
+
+  assert.deepEqual(
+    ops(events, 'ring').map((event) => [event.t_ms, event.counter, event.line]),
+    [[2_200, 0, 3], [2_280, 1, 7], [3_200, 0, 6]],
+  );
+});
+
+test('a chunk with no cues is the chunk it always was', () => {
+  // Nothing parked, nothing recorded: the nine parity timelines pin this byte
+  // for byte, and this is the same claim on a story small enough to read.
+  const events = compile(lessonStory([slate(1, 3), rest(2, 1), spoken(3, null), rest(4, 2)]));
+
+  assert.deepEqual(events.filter((event) => event.source === 'stage').map((event) => event.op), [
+    'scene', 'slate', 'slate', 'subtitle', 'subtitle', 'camera_reset', 'end',
+  ]);
+  assert.equal(events.find((event) => event.kind === 'chunk').detail.cues, undefined);
+});
+
+test('a ring cue whose counter is not a whole number is refused and named on its line', () => {
+  for (const counter of [1.5, 0, -1, '2', null, undefined]) {
+    const events = compile(lessonStory([slate(1, 3), rest(2, 1), spoken(3, [ringCue(4, 0, counter)]), rest(5, 2)]));
+
+    assert.deepEqual(ops(events, 'ring').filter((event) => event.counter !== 0), [], JSON.stringify(counter));
+    const refusal = events.find((event) => event.kind === 'warning');
+    assert.deepEqual([refusal.line, refusal.t_ms, refusal.detail], [
+      4, 1_080, { type: 'policy', policy: 'ring-counter-unusable', counter: counter ?? null },
+    ], JSON.stringify(counter));
+  }
+});
+
+test('a cue whose `at` cannot place it fires on the lead, and says so', () => {
+  // The estimate is a character position over a length. Without one the cue
+  // is timed at the lead alone — the line's first word, whichever word it was
+  // written under — and it still fires, because a cue lost is worse than a cue
+  // early. Said once per cue, on the cue's line, where the chunk parked it.
+  const unplaced = [
+    undefined,
+    {},
+    { word: 1, of: 3 },
+    { word: 1, of: 3, char: 'five', chars: 16 },
+    { word: 1, of: 3, char: 5, chars: 0 },
+  ];
+  for (const at of unplaced) {
+    const events = compile(lessonStory([slate(1, 3), rest(2, 1), spoken(3, [{ ...ringCue(4, 5, 1), at }]), rest(5, 2)]));
+
+    assert.deepEqual(ops(events, 'ring').map((event) => [event.t_ms, event.counter]), [[1_000 + CUE.leadMs, 1]], JSON.stringify(at));
+    const refusals = events.filter((event) => event.kind === 'warning');
+    assert.equal(refusals.length, 1, JSON.stringify(at));
+    assert.deepEqual([refusals[0].line, refusals[0].t_ms, refusals[0].detail], [
+      4, 1_000, { type: 'policy', policy: 'cue-at-unusable', at: at ?? null },
+    ], JSON.stringify(at));
+  }
+});
+
+test('a cue that fires anything but a command is refused at the door', () => {
+  const chunkCue = { line: 4, at: { char: 0, chars: 16 }, step: { kind: 'chunk', line: 4, text: 'no', duration_s: 1 } };
+  assert.throws(() => compile(lessonStory([spoken(3, [chunkCue])])), /line 4: cue "chunk"/);
+  assert.throws(() => compile(lessonStory([spoken(3, [{ line: 4 }])])), /line 4: cue undefined/);
+  assert.throws(() => compile(lessonStory([{ ...spoken(3, null), cues: 'x' }])), /line 3: cues "x" \(not a list\)/);
 });

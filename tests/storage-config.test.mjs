@@ -8,13 +8,13 @@ import {
 } from '../scripts/storage-config.mjs';
 
 const VALID = Object.freeze({
-  RUSTFS_URL: 'http://127.0.0.1:9000/',
+  S3_URL: 'http://127.0.0.1:9000/',
   STORY_PLAYER_BUCKET: 'story-player',
-  RUSTFS_ACCESS_KEY: 'publisher-access',
-  RUSTFS_SECRET_KEY: 'publisher-secret',
+  S3_ACCESS_KEY: 'publisher-access',
+  S3_SECRET_KEY: 'publisher-secret',
 });
 
-test('loads one strict storage origin, the fixed bucket, paired credentials, and default region', () => {
+test('loads one strict storage origin, an allowed bucket, paired credentials, and default region', () => {
   const config = loadStorageConfig(VALID);
 
   assert.deepEqual(config, {
@@ -38,10 +38,28 @@ test('loads one strict storage origin, the fixed bucket, paired credentials, and
   assert.doesNotMatch(JSON.stringify(storageSummary(config)), /publisher-access|publisher-secret/);
 });
 
+test('accepts the dev rail as a separate bucket, and keeps the two rails apart', () => {
+  const dev = loadStorageConfig({ ...VALID, STORY_PLAYER_BUCKET: 'story-player-dev' });
+
+  assert.equal(dev.bucket, 'story-player-dev');
+  // The whole point of the second rail: a dev publish addresses different
+  // objects, so it cannot reach `story-player/stable/story-player.js` — the key
+  // story-engine-v2 loads at runtime — however wrong the rest of the config is.
+  assert.equal(
+    publicObjectUrl(dev, 'stable/story-player.js'),
+    'http://127.0.0.1:9000/story-player-dev/stable/story-player.js',
+  );
+  assert.notEqual(
+    publicObjectUrl(dev, 'stable/story-player.js'),
+    publicObjectUrl(loadStorageConfig(VALID), 'stable/story-player.js'),
+  );
+  assert.equal(storageSummary(dev).bucket, 'story-player-dev');
+});
+
 test('accepts an explicit non-empty region and credential-free anonymous verification', () => {
-  assert.equal(loadStorageConfig({ ...VALID, RUSTFS_REGION: 'eu-west-2' }).region, 'eu-west-2');
+  assert.equal(loadStorageConfig({ ...VALID, S3_REGION: 'eu-west-2' }).region, 'eu-west-2');
   const config = loadStorageConfig({
-    RUSTFS_URL: 'https://storage.example',
+    S3_URL: 'https://storage.example',
     STORY_PLAYER_BUCKET: 'story-player',
   }, { requireCredentials: false });
   assert.equal(config.accessKeyId, null);
@@ -50,25 +68,29 @@ test('accepts an explicit non-empty region and credential-free anonymous verific
 
 test('refuses ambiguous endpoints, alternate buckets, incomplete credentials, and unsafe keys', () => {
   for (const [change, message] of [
-    [{ RUSTFS_URL: '' }, /RUSTFS_URL is required/],
-    [{ RUSTFS_URL: 'ftp://storage.example' }, /RUSTFS_URL must be an HTTP\(S\) origin/],
-    [{ RUSTFS_URL: 'https://user:pass@storage.example' }, /RUSTFS_URL must not contain credentials/],
-    [{ RUSTFS_URL: 'https://storage.example/api' }, /RUSTFS_URL must not contain a path/],
-    [{ RUSTFS_URL: 'https://storage.example/?x=1' }, /RUSTFS_URL must not contain a query or fragment/],
-    [{ STORY_PLAYER_BUCKET: 'some-player' }, /STORY_PLAYER_BUCKET must be exactly story-player/],
-    [{ RUSTFS_ACCESS_KEY: '' }, /RUSTFS_ACCESS_KEY and RUSTFS_SECRET_KEY must be provided together/],
-    [{ RUSTFS_SECRET_KEY: '' }, /RUSTFS_ACCESS_KEY and RUSTFS_SECRET_KEY must be provided together/],
-    [{ RUSTFS_REGION: ' ' }, /RUSTFS_REGION must not be blank/],
+    [{ S3_URL: '' }, /S3_URL is required/],
+    [{ S3_URL: 'ftp://storage.example' }, /S3_URL must be an HTTP\(S\) origin/],
+    [{ S3_URL: 'https://user:pass@storage.example' }, /S3_URL must not contain credentials/],
+    [{ S3_URL: 'https://storage.example/api' }, /S3_URL must not contain a path/],
+    [{ S3_URL: 'https://storage.example/?x=1' }, /S3_URL must not contain a query or fragment/],
+    // An allow-list, not a free-form name: this publisher signs public-read
+    // writes against a store that also holds `fairytale-assets` and `jobs`.
+    [{ STORY_PLAYER_BUCKET: 'some-player' }, /STORY_PLAYER_BUCKET must be one of/],
+    [{ STORY_PLAYER_BUCKET: 'fairytale-assets' }, /STORY_PLAYER_BUCKET must be one of/],
+    [{ STORY_PLAYER_BUCKET: 'story-player-staging' }, /STORY_PLAYER_BUCKET must be one of/],
+    [{ S3_ACCESS_KEY: '' }, /S3_ACCESS_KEY and S3_SECRET_KEY must be provided together/],
+    [{ S3_SECRET_KEY: '' }, /S3_ACCESS_KEY and S3_SECRET_KEY must be provided together/],
+    [{ S3_REGION: ' ' }, /S3_REGION must not be blank/],
   ]) {
     assert.throws(() => loadStorageConfig({ ...VALID, ...change }), message);
   }
 
   assert.throws(
     () => loadStorageConfig({
-      RUSTFS_URL: 'https://storage.example',
+      S3_URL: 'https://storage.example',
       STORY_PLAYER_BUCKET: 'story-player',
     }),
-    /RUSTFS_ACCESS_KEY and RUSTFS_SECRET_KEY are required/,
+    /S3_ACCESS_KEY and S3_SECRET_KEY are required/,
   );
 
   const config = loadStorageConfig(VALID);

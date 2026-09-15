@@ -3,7 +3,9 @@ import { createReactStoryPlayer } from './react.mjs';
 import * as v0 from '../tooling/v0.mjs';
 
 const NAME = 'FabroStoryPlayer';
-const build = { commit: __STORY_PLAYER_COMMIT__ };
+const build = __STORY_PLAYER_LOCAL_SOURCE__ === null
+  ? { commit: __STORY_PLAYER_COMMIT__ }
+  : { commit: __STORY_PLAYER_COMMIT__, uncommitted: true, source_sha256: __STORY_PLAYER_LOCAL_SOURCE__ };
 const api = deepFreeze({
   build,
   createStoryPlayer,
@@ -24,7 +26,7 @@ if (existingDescriptor === undefined) {
   const existing = Object.hasOwn(existingDescriptor, 'value')
     ? existingDescriptor.value
     : undefined;
-  if (existing?.build?.commit !== build.commit) {
+  if (existing?.build?.commit !== build.commit || existing?.build?.source_sha256 !== build.source_sha256) {
     throw new Error(
       `${NAME} build collision: page has ${String(existing?.build?.commit ?? 'unknown')}, `
       + `script is ${build.commit}`,
@@ -53,8 +55,9 @@ function isProtectedInstallation(value, descriptor) {
       && descriptor.writable === false
       && descriptor.value === value
       && hasExactKeys(value, Object.keys(api))
-      && hasExactKeys(value.build, ['commit'])
+      && hasExactKeys(value.build, Object.keys(build))
       && value.build.commit === build.commit
+      && value.build.source_sha256 === build.source_sha256
       && typeof value.createStoryPlayer === 'function'
       && typeof value.resolveMediaUrl === 'function'
       && typeof value.createReactStoryPlayer === 'function'

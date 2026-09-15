@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 import {
   IMMUTABLE_CACHE_CONTROL,
   PUBLIC_READ_CORS,
-  PUBLIC_READ_POLICY,
+  publicReadPolicy,
   STABLE_CACHE_CONTROL,
   ensurePublicBucket,
   publishCdn,
@@ -19,17 +19,23 @@ import { verifyCdnObject, verifyPublicBytes } from '../scripts/verify-cdn.mjs';
 const COMMIT = '0123456789abcdef0123456789abcdef01234567';
 const SCRIPT = new TextEncoder().encode(`window.FabroStoryPlayer = "${COMMIT}";\n`);
 const CONFIG = loadStorageConfig({
-  RUSTFS_URL: 'https://storage.example',
+  S3_URL: 'https://storage.example',
   STORY_PLAYER_BUCKET: 'story-player',
-  RUSTFS_ACCESS_KEY: 'access-do-not-log',
-  RUSTFS_SECRET_KEY: 'secret-do-not-log',
+  S3_ACCESS_KEY: 'access-do-not-log',
+  S3_SECRET_KEY: 'secret-do-not-log',
+});
+const DEV_CONFIG = loadStorageConfig({
+  S3_URL: 'https://storage.example',
+  STORY_PLAYER_BUCKET: 'story-player-dev',
+  S3_ACCESS_KEY: 'access-do-not-log',
+  S3_SECRET_KEY: 'secret-do-not-log',
 });
 const ROOT = fileURLToPath(new URL('../', import.meta.url));
 
 test('creates and configures the one public bucket idempotently without weakening conflicts', async () => {
   assert.equal(IMMUTABLE_CACHE_CONTROL, 'public, max-age=31536000, immutable');
   assert.equal(STABLE_CACHE_CONTROL, 'public, max-age=60, must-revalidate');
-  assert.deepEqual(PUBLIC_READ_POLICY, {
+  assert.deepEqual(publicReadPolicy('story-player'), {
     Version: '2012-10-17',
     Statement: [{
       Sid: 'AnonymousStoryPlayerRead',
@@ -39,6 +45,13 @@ test('creates and configures the one public bucket idempotently without weakenin
       Resource: ['arn:aws:s3:::story-player/*'],
     }],
   });
+  // The policy must name the bucket it is attached to. A constant here granted
+  // read on `story-player/*` while attached to `story-player-dev`, and every
+  // object the dev rail wrote came back 403 from its own verification step.
+  assert.deepEqual(
+    publicReadPolicy('story-player-dev').Statement[0].Resource,
+    ['arn:aws:s3:::story-player-dev/*'],
+  );
   assert.deepEqual(PUBLIC_READ_CORS, [{
     AllowedHeaders: ['*'],
     AllowedMethods: ['GET', 'HEAD'],
@@ -52,7 +65,7 @@ test('creates and configures the one public bucket idempotently without weakenin
     'bucketExists', 'createBucket', 'getBucketPolicy', 'putBucketPolicy',
     'getBucketCors', 'putBucketCors',
   ]);
-  assert.deepEqual(fresh.policy, PUBLIC_READ_POLICY);
+  assert.deepEqual(fresh.policy, publicReadPolicy('story-player'));
   assert.deepEqual(fresh.cors, PUBLIC_READ_CORS);
 
   fresh.calls.length = 0;
@@ -73,6 +86,34 @@ test('creates and configures the one public bucket idempotently without weakenin
     );
     assert.equal(conflict.calls.some(([name]) => name.startsWith('putBucket')), false);
   }
+});
+
+test('attaches the policy for the bucket it is on, and repairs its own cross-bucket mistake', async () => {
+  // The dev rail's first real publish created the bucket, granted anonymous
+  // read on `story-player/*`, attached that to `story-player-dev`, and then
+  // failed its own verification with 403 on every object it had just written.
+  const fresh = fakeStore();
+  await ensurePublicBucket({ store: fresh, config: DEV_CONFIG });
+  assert.deepEqual(fresh.policy, publicReadPolicy('story-player-dev'));
+
+  // A bucket already left in that state must heal without anyone reaching for
+  // an S3 client — the policy is byte-identical to this script's output for the
+  // other allowed bucket, so it is ours and it is wrong.
+  const stale = fakeStore({ exists: true, configured: true });
+  await ensurePublicBucket({ store: stale, config: DEV_CONFIG });
+  assert.deepEqual(stale.policy, publicReadPolicy('story-player-dev'));
+  assert.equal(stale.calls.filter(([name]) => name === 'putBucketPolicy').length, 1);
+
+  // But only that. A policy someone narrowed on purpose differs in more than
+  // the ARN and must never be silently widened back.
+  const narrowed = fakeStore({ exists: true, configured: true });
+  narrowed.policy = structuredClone(publicReadPolicy('story-player-dev'));
+  narrowed.policy.Statement[0].Principal = { AWS: 'arn:aws:iam::1:root' };
+  await assert.rejects(
+    ensurePublicBucket({ store: narrowed, config: DEV_CONFIG }),
+    /conflicting public bucket policy/,
+  );
+  assert.equal(narrowed.calls.some(([name]) => name === 'putBucketPolicy'), false);
 });
 
 test('publishes immutable objects create-only, verifies anonymously, and promotes metadata last', async () => {
@@ -311,7 +352,7 @@ test('repository commands, protected workflows, and public examples describe onl
     test: 'node --test "tests/*.test.mjs"',
     'build:cdn': 'node scripts/build-cdn.mjs',
     'publish:cdn': 'node scripts/publish-cdn.mjs',
-    'rollback:cdn': 'node scripts/rollback-cdn.mjs',
+    'sheet:board': 'node scripts/board-sheet.mjs',
     'test:e2e': 'playwright test',
     'verify:cdn': 'node scripts/verify-cdn.mjs',
     'verify:repository': 'node scripts/verify-repository.mjs',
@@ -325,14 +366,43 @@ test('repository commands, protected workflows, and public examples describe onl
   assert.match(ci, /playwright install --with-deps chromium/);
   assert.match(ci, /npm run test:e2e/);
   assert.doesNotMatch(ci, /npm pack|verify-package|verify-install/);
-  // The RustFS push workflow is gone: the store this player is consumed from is
-  // ClusterIP-only, so CI publishes a release and the cluster pulls. Asserted
-  // ABSENT rather than merely unmentioned, so it cannot quietly come back and
-  // give the repository two answers to "which bytes are live".
+  // The old S3 push workflow stays gone: it wrote the PRODUCTION bucket
+  // from `main`, which is what gave the repository two answers to "which bytes
+  // are live". Asserted ABSENT rather than merely unmentioned, so it cannot
+  // quietly come back.
   assert.equal(
     fs.existsSync(path.join(ROOT, '.github', 'workflows', 'publish-cdn.yml')),
     false,
   );
+
+  // `deploy-dev.yml` replaces it with a rail that CANNOT reach production.
+  // story-engine-v2 loads `story-player/stable/story-player.js` at runtime, so
+  // the guarantee below is the one that matters: the dev workflow addresses a
+  // different bucket, holds a different environment's credential, and publishes
+  // no release. This is asserted rather than trusted because a one-word edit
+  // here would silently point dev builds at real users.
+  const dev = read('.github/workflows/deploy-dev.yml');
+  assert.match(dev, /on:[\s\S]*?push:[\s\S]*?branches: \[dev\]/);
+  assert.match(dev, /environment: cdn-dev/);
+  assert.match(dev, /STORY_PLAYER_BUCKET: story-player-dev/);
+  // The production bucket, named without the `-dev` suffix, must never appear
+  // as this workflow's target.
+  assert.doesNotMatch(dev, /STORY_PLAYER_BUCKET:\s*story-player(?!-dev)/);
+  assert.doesNotMatch(dev, /cdn-production/);
+  // Every credential this workflow reads is named for the DEV rail. Asserted so
+  // a later edit cannot hand it a store key under a generic name — a repository
+  // setting called `S3_ACCESS_KEY` gives no clue which store it opens, and the
+  // one it opened before this rail existed was production's.
+  for (const name of ['S3_DEV_URL', 'S3_DEV_ACCESS_KEY', 'S3_DEV_SECRET_KEY']) {
+    assert.match(dev, new RegExp(String.raw`\$\{\{\s*(?:vars|secrets)\.${name}\s*\}\}`));
+  }
+  assert.doesNotMatch(dev, /(?:vars|secrets)\.S3_(?!DEV_)/);
+  // No release is created and no tag moves, so it needs no write access.
+  assert.match(dev, /permissions:\s*\n\s*contents: read/);
+  assert.doesNotMatch(dev, /gh release/);
+  // A superseded dev build is worth nothing; a superseded production build is
+  // immutable and may be pinned. The two workflows differ here on purpose.
+  assert.match(dev, /cancel-in-progress: true/);
 
   const deploy = read('.github/workflows/deploy-player.yml');
   // `production` is the deploy branch, and the trigger must stay `push`: a
@@ -364,7 +434,10 @@ test('repository commands, protected workflows, and public examples describe onl
   assert.match(deploy, /gh release upload latest dist\/story-player\.js dist\/build\.json --clobber/);
   assert.match(deploy, /gh release create "build-\$SHA" dist\/story-player\.js dist\/build\.json/);
   // No store credential reaches this workflow.
-  assert.doesNotMatch(deploy, /RUSTFS_|ACCESS_KEY|SECRET_KEY/);
+  assert.doesNotMatch(deploy, /S3_|ACCESS_KEY|SECRET_KEY/);
+  // And the isolation runs both ways: the production rail never names the dev
+  // bucket or the dev environment either.
+  assert.doesNotMatch(deploy, /story-player-dev|cdn-dev/);
 
   for (const document of [read('README.md'), read('docs/embedding.md')]) {
     assert.match(document, /createStoryPlayer/);
@@ -386,7 +459,7 @@ function fakeStore({
     cors: configured ? structuredClone(PUBLIC_READ_CORS) : null,
     exists,
     objects: new Map(),
-    policy: configured ? structuredClone(PUBLIC_READ_POLICY) : null,
+    policy: configured ? structuredClone(publicReadPolicy('story-player')) : null,
     async bucketExists() { this.calls.push(['bucketExists']); return this.exists; },
     async createBucket() { this.calls.push(['createBucket']); this.exists = true; },
     async getBucketPolicy() { this.calls.push(['getBucketPolicy']); return structuredClone(this.policy); },

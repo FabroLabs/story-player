@@ -57,8 +57,8 @@ test('v0 tooling keeps the exact semantics every client consumes', () => {
   assert.equal(typeof tooling.compileTimeline, 'function');
   assert.deepEqual(tooling.TIMELINE_OPS, [
     'scene', 'place', 'place_object', 'clip', 'move', 'settle', 'depart',
-    'exit', 'push_in', 'pull_out', 'shot', 'pan', 'camera_reset', 'subtitle',
-    'end',
+    'exit', 'remove_object', 'push_in', 'pull_out', 'shot', 'pan',
+    'camera_reset', 'slate', 'highlight', 'ring', 'flash', 'subtitle', 'performance_scene', 'performance_audio', 'end',
   ]);
   assert.ok(Object.isFrozen(tooling.TIMELINE_OPS));
   assertDeeplyFrozen(tooling.V0_POLICY);
@@ -94,6 +94,34 @@ test('v0 tooling keeps the exact semantics every client consumes', () => {
       defaultExitXPct: { left: -8, right: 108 },
       departureDeadlineMs: 5000,
     },
+    slate: {
+      perRow: 5,
+      panelPct: { left: 4.5, top: 8.5, right: 95.5, bottom: 93 },
+      radiusPct: 5,
+      countersTopPct: 11,
+      countersBottomPct: 62,
+      cellShare: 0.84,
+      cellMaxPct: 27,
+      counterRadius: 0.34,
+      ringGap: 0.22,
+      ringWidth: 0.16,
+      crossWidth: 0.18,
+      bandGapPct: 5,
+      equationFont: [0.84, 0.1],
+      tokenGap: 0.28,
+      popMs: 350,
+      staggerMs: 250,
+      takeMs: 450,
+      takeStaggerMs: 250,
+      tokenMs: 300,
+      overshoot: 1.1,
+      max: 20,
+      frost: { pct: 2.2, ms: 250 },
+      companion: { heightPct: 27, centreXPct: 90, feetPct: 99 },
+    },
+    highlight: { durationMs: 1500, pulses: 2, ringPct: 12 },
+    cue: { leadMs: 80 },
+    flash: { pulseMs: 500, gain: 1.8, halo: 0.35 },
     audio: {
       musicVolume: 0.38,
       duckedMusicVolume: 0.14,

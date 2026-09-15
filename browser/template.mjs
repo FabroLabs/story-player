@@ -1,6 +1,11 @@
 const STYLESHEET = new URL('./styles.css', import.meta.url).href;
+// The line over the story's name in the opening ceremony. A host that mounts
+// something other than a bedtime story — a counting lesson, say — says so with
+// `kicker`; anything that is not a string with words in it is a host's mistake,
+// and the bedtime line is the one every story in this player can honestly wear.
+const KICKER = 'a bedtime story';
 
-export function createPlayerTemplate(root, { stylesheet = STYLESHEET } = {}) {
+export function createPlayerTemplate(root, { stylesheet = STYLESHEET, kicker, chrome } = {}) {
   const document = root.ownerDocument ?? globalThis.document;
   const link = element(document, 'link', { rel: 'stylesheet', href: stylesheet });
   // No chrome of our own above the picture: what a site embeds is a rectangle
@@ -41,7 +46,7 @@ export function createPlayerTemplate(root, { stylesheet = STYLESHEET } = {}) {
   const status = element(document, 'p', { className: 'load-status', role: 'status', text: 'loading the story bundle' });
   const ceremony = element(document, 'div', { className: 'start-ceremony' }, [
     element(document, 'div', { className: 'ceremony-glow', 'aria-hidden': 'true' }),
-    element(document, 'p', { className: 'eyebrow', text: 'a bedtime story' }), title, start, status,
+    element(document, 'p', { className: 'eyebrow', text: eyebrowText(kicker) }), title, start, status,
   ]);
   const subtitle = element(document, 'p', { className: 'subtitle' });
   const mediaNote = element(document, 'p', { className: 'media-note' });
@@ -88,7 +93,7 @@ export function createPlayerTemplate(root, { stylesheet = STYLESHEET } = {}) {
   }, [
     element(document, 'div', { className: 'stage-letterbox', 'aria-hidden': 'true' }),
     stage, flash, badge.root, actions, ceremony, waiting, subtitleArea, end,
-    controls.root, card.layer,
+    controls.root, card.layer, card.title.layer,
   ]);
   const shell = element(document, 'main', { className: 'player-shell' }, [frame]);
   const debugClose = element(document, 'button', { className: 'icon-button', type: 'button', 'aria-label': 'close event log', text: '×' });
@@ -115,6 +120,9 @@ export function createPlayerTemplate(root, { stylesheet = STYLESHEET } = {}) {
     debugList,
   ]);
   debugPanel.setAttribute('inert', '');
+  if (chrome === 'host') {
+    for (const node of [ceremony, controls.root, actions, badge.root, end]) node.style.display = 'none';
+  }
   root.replaceChildren(link, shell, debugPanel);
   return {
     title, status, start, ceremony, subtitles, subtitleArea, debugToggle, badge, card,
@@ -154,7 +162,28 @@ function createCardLayer(document) {
   }, [element(document, 'span', { text: 'skip' })]);
   const layer = element(document, 'div', { className: 'card-layer', hidden: '' }, [video, line, skip]);
   layer.hidden = true;
-  return { layer, video, line, skip };
+  return { layer, video, line, skip, title: createTitleLayer(document) };
+}
+
+/**
+ * The intro card's title beat, on a layer of its own ABOVE the card.
+ *
+ * Above it and outside it, which is the whole reason this is a second element:
+ * the curtain fades the card away from underneath the name, and the name stays
+ * on over the story's first seconds before going on its own slower fade. Put
+ * inside `.card-layer` it would leave with the film it was raised over.
+ *
+ * It takes no pointer — there is nothing on it to press, and the transport
+ * underneath is live again the moment the story begins. The canvas is hidden
+ * from assistive technology for the reason the stage's is: it changes many
+ * times a second and carries no text. The name beside it is the text.
+ */
+function createTitleLayer(document) {
+  const canvas = element(document, 'canvas', { className: 'card-title-sprite', 'aria-hidden': 'true' });
+  const name = element(document, 'p', { className: 'card-title-name' });
+  const layer = element(document, 'div', { className: 'card-title', hidden: '' }, [canvas, name]);
+  layer.hidden = true;
+  return { layer, canvas, name };
 }
 
 /**
@@ -216,6 +245,10 @@ function createControlBar(document) {
   ]);
   root.hidden = true;
   return { root, scrub, fill, handle, at, total, remaining, back, forward, toggle };
+}
+
+function eyebrowText(kicker) {
+  return typeof kicker === 'string' && kicker.trim() ? kicker.trim() : KICKER;
 }
 
 function element(document, tag, attributes = {}, children = []) {

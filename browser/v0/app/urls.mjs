@@ -1,9 +1,11 @@
+import { validatePerformance } from '../core/performance/validation.mjs';
 /**
  * Storage-root addressing for bucket-qualified v0 media, and the mount-time
  * shape checks for what a host hands over beside the story — `requirePlatesBlock`
  * is where the manifest's `plates` is settled, `requireCardsBlock` where the
- * intro and end cards are, and `appendStoryScene` is where a scene published
- * after the mount is qualified the same way the rest was.
+ * intro and end cards are, `requireBoardBlock` where the counting board's
+ * counter picture is, and `appendStoryScene` is where a scene published after
+ * the mount is qualified the same way the rest was.
  */
 
 const SEGMENT = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
@@ -86,6 +88,15 @@ function deepFreeze(value) {
 }
 
 export function resolveStoryAssets(story, assetBase) {
+  if (story?.performance) {
+    validatePerformance(story);
+    const source = cloneValue(story);
+    const assets = projectMap(source.assets, (a, id) => ({ ...a,
+      ...(a.type === 'shape' ? {} : {url: resolveMediaUrl(a.media, assetBase, 'performance asset ' + id)}) }));
+    const audio = source.audio.map(a => ({ ...a,
+      url: resolveMediaUrl(a.media, assetBase, 'performance audio ' + a.id) }));
+    return deepFreeze({ ...source, assets, audio });
+  }
   const source = cloneValue(story);
   const base = normalizeAssetBase(assetBase);
   const resolve = (key, where) => resolveMediaUrl(key, base, where);
@@ -248,6 +259,7 @@ export function requireCardsBlock(cards, assetBase) {
       // story whose music the writer left out is still a story that opens.
       music: card.music == null ? null : resolveMediaUrl(card.music, base, `cards ${slot} music`),
       narration: requireCardLine(card.narration, slot, base),
+      lead: requireCardLead(card.lead, slot),
     };
   }
   // Both slots empty is the same nothing as no block at all — said here so the
@@ -275,6 +287,47 @@ function requireCardLine(narration, slot, base) {
       ? null
       : resolveMediaUrl(narration.audio, base, `cards ${slot} narration audio`),
   };
+}
+
+/**
+ * Who the card's title beat is about, by cast slug.
+ *
+ * Optional, and its absence is not a lesser card: every story published before
+ * the manifest carried this key plays the opening it was built for — the name
+ * read a second into the film — while a card that names a lead ends on a title
+ * beat instead. Only the SHAPE is settled here. Whether the story actually cast
+ * that character is a question about the mounted bundle rather than about this
+ * block, and the answer to it is a warning and a card with no sprite on it, not
+ * a refusal that would cost the viewer the story.
+ */
+function requireCardLead(lead, slot) {
+  if (lead == null) return null;
+  if (typeof lead !== 'string' || !lead) {
+    throw new Error(`cards ${slot} lead must be the lead character's cast slug`);
+  }
+  return lead;
+}
+
+/**
+ * The host's `board` block: what the counting board draws its counters as.
+ *
+ * One key, `counter` — the picture every counter on the board is drawn from, a
+ * bucket-qualified media path like everything else this player fetches. It is
+ * resolved at the door for the reason the cards are: a bad path found when the
+ * first board goes up would be the drawn apple standing in for it with no word
+ * about why, and a refusal here is one the host reads before a frame. A block
+ * naming no counter is the mount every host had before this key existed — the
+ * apple — and is the same nothing as no block at all.
+ */
+export function requireBoardBlock(board, assetBase) {
+  if (board == null) return null;
+  if (!isRecord(board)) throw new Error('board must be an object carrying its counter');
+  const unknown = Object.keys(board).filter((key) => key !== 'counter');
+  if (unknown.length > 0) {
+    throw new Error(`board carries ${unknown.map((key) => JSON.stringify(key)).join(', ')}, which it does not take`);
+  }
+  if (board.counter == null) return null;
+  return deepFreeze({ counter: resolveMediaUrl(board.counter, normalizeAssetBase(assetBase), 'board counter') });
 }
 
 function projectScene(scene, resolve, index) {
@@ -324,10 +377,20 @@ function validateSteps(steps, story, where) {
         throw new Error(`${stepWhere} object ${JSON.stringify(slug)} is absent from objects`);
       }
     }
+    // `highlight` and `take` are the commands whose subject may be a prop: a
+    // maths lesson rings the numeral card it just spoke, and takes it away
+    // again. The compiler resolves both against the props standing in the scene
+    // as well as the cast, so refusing the same slug at the door would turn every
+    // such lesson into "this story could not be opened" — which is what it did.
+    const named = step.cmd === 'highlight' || step.cmd === 'take' ? story.objects : null;
     for (const slug of step.subjects ?? []) {
       if (objectSlugs.has(slug)) continue;
+      if (named && Object.hasOwn(named, slug)) continue;
       if (!Object.hasOwn(story.cast, slug)) {
-        throw new Error(`${stepWhere} subject ${JSON.stringify(slug)} is absent from cast`);
+        throw new Error(
+          `${stepWhere} subject ${JSON.stringify(slug)} is absent from `
+          + `${named ? 'cast and objects' : 'cast'}`,
+        );
       }
     }
   }

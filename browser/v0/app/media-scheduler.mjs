@@ -1,3 +1,4 @@
+import { performanceAudioAt, performanceSoundsBetween } from '../core/performance/audio.mjs';
 /**
  * Everything you hear, on the story's clock.
  *
@@ -38,6 +39,7 @@ import {
 const LATE_START_MS = 120;
 
 export function createMediaScheduler({ timeline, bundle, onWarning = () => {} }) {
+  if (bundle?.performance) return createPerformanceMediaScheduler({ bundle, onWarning });
   const owned = new Map();
   const fades = new Map();
   const sounds = new Set();
@@ -604,4 +606,75 @@ export function createMediaScheduler({ timeline, bundle, onWarning = () => {} })
 
 function clampVolume(value) {
   return Math.max(0, Math.min(1, Number.isFinite(value) ? value : 0));
+}
+
+function createPerformanceMediaScheduler({ bundle, onWarning }) {
+  let story = bundle;
+  let playing = false;
+  let destroyed = false;
+  let now = 0;
+  const active = new Map();
+  const sounds = new Set();
+  const delivered = new Set();
+  const report = (cue, error) => onWarning({ type: 'media', asset: cue.kind,
+    message: 'Required story audio failed: ' + (error?.message ?? error), cue: cue.id });
+  const release = (media) => { media.pause(); media.removeAttribute?.('src'); media.load?.(); };
+  function start(media, cue) {
+    if (!playing || destroyed) return;
+    Promise.resolve(media.play()).catch(error => report(cue, error));
+  }
+  function open(cue) {
+    const media = new Audio();
+    media.preload = 'auto';
+    media.src = cue.url ?? cue.media;
+    media.volume = cue.volume ?? 1;
+    media.loop = cue.loop === true;
+    media.addEventListener('error', () => report(cue, new Error('media unavailable')));
+    return media;
+  }
+  function sync(tMs, seek = false) {
+    now = tMs;
+    const wanted = performanceAudioAt(story, tMs);
+    const ids = new Set(wanted.map(c => c.id));
+    for (const [id, item] of active) if (!ids.has(id)) { release(item.media); active.delete(id); }
+    for (const cue of wanted) {
+      let item = active.get(cue.id);
+      if (!item) {
+        const media = open(cue);
+        item = { media, cue };
+        active.set(cue.id, item);
+        media.addEventListener('loadedmetadata', () => {
+          if (destroyed || active.get(cue.id)?.media !== media) return;
+          const current = performanceAudioAt(story, now).find(c => c.id === cue.id);
+          if (current) media.currentTime = current.offset_ms / 1000;
+        });
+        media.currentTime = cue.offset_ms / 1000;
+        start(media, cue);
+      } else if (seek) item.media.currentTime = cue.offset_ms / 1000;
+      item.media.volume = cue.volume;
+    }
+  }
+  function clearSounds() { for (const media of sounds) release(media); sounds.clear(); }
+  return {
+    advance(from, to) {
+      if (destroyed) return;
+      sync(to);
+      for (const cue of performanceSoundsBetween(story, from, to)) {
+        if (delivered.has(cue.id)) continue;
+        delivered.add(cue.id);
+        const media = open(cue);
+        sounds.add(media);
+        media.addEventListener('ended', () => { sounds.delete(media); release(media); }, { once: true });
+        start(media, cue);
+      }
+    },
+    seek(t) { if (!destroyed) { clearSounds(); delivered.clear(); sync(t, true); } },
+    tick(t) { if (!destroyed) sync(t); },
+    pause() { playing = false; clearSounds(); for (const item of active.values()) item.media.pause(); },
+    settle() { this.pause(); },
+    resume() { if (destroyed) return; playing = true; for (const item of active.values()) start(item.media, item.cue); },
+    unlock() { return Promise.resolve(); },
+    setStory(next) { story = next.bundle; sync(now, true); },
+    destroy() { if (destroyed) return; destroyed = true; playing = false; clearSounds(); for (const item of active.values()) release(item.media); active.clear(); },
+  };
 }

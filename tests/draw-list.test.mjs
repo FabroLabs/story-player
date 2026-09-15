@@ -28,7 +28,9 @@ import {
   SHADOW_RADIUS_Y,
   buildDrawList,
 } from '../browser/v0/app/stage/draw-list.mjs';
+import { slateBuildMs } from '../browser/v0/core/slate.mjs';
 import { stateAt } from '../browser/v0/core/state/state.mjs';
+import { FLASH, HIGHLIGHT, SLATE } from '../browser/v0/policy.mjs';
 import { STEMS, read } from './_parity.mjs';
 
 const GOLDENS = new URL('fixtures/drawlist/', import.meta.url);
@@ -222,6 +224,550 @@ test('a plate with no resolution of its own is the stage’s default', () => {
   assert.deepEqual([list.width, list.height], [1920, 1080]);
 });
 
+// --- the lesson's two overlays ---------------------------------------------
+
+const slateList = (slate, tMs = 0, plate) => buildDrawList({ ...actorState({ plate }), slate, tMs });
+const only = (list, op) => list.commands.filter((command) => command.op === op);
+const boardAt = (slate, tMs = 0, plate) => only(slateList(slate, tMs, plate), 'slate')[0];
+const counting = (count, from = 0) => ({ count, mode: 'count', groups: [count], sinceMs: 0, from });
+const joining = (left, right) => ({
+  count: left + right, mode: 'add', groups: [left, right], sinceMs: 0, from: 0,
+});
+const taking = (left, right) => ({
+  count: left - right, mode: 'subtract', groups: [left, right], sinceMs: 0, from: 0,
+});
+// The instant every counter has landed and nothing has been taken away yet.
+const settled = (drawn, from = 0) => ((drawn - 1 - from) * SLATE.staggerMs) + SLATE.popMs;
+
+test('a story that counts nothing draws no board at all', () => {
+  const nothing = [
+    undefined,
+    null,
+    { count: 0, sinceMs: 0 },
+    { count: 1.5, sinceMs: 0 },
+    // A board whose own groups do not make its count is not a board to draw:
+    // the fold refused it out loud, and the drawer draws what it can stand behind.
+    { count: 6, mode: 'add', groups: [2, 3], sinceMs: 0 },
+    { count: 3, mode: 'multiply', groups: [1, 3], sinceMs: 0 },
+  ];
+  for (const slate of nothing) {
+    assert.deepEqual(only(slateList(slate), 'slate'), [], JSON.stringify(slate));
+  }
+});
+
+test('a board that names no mode is the plain count every older bundle means', () => {
+  const board = boardAt({ count: 3, sinceMs: 0 }, settled(3));
+
+  assert.equal(board.mode, 'count');
+  assert.deepEqual(board.groups, [3]);
+  assert.equal(board.counters.length, 3);
+});
+
+// The empty board a lesson opens on: the same count of nothing, standing.
+const opening = { count: 0, mode: 'count', groups: [], sinceMs: 0, from: 0, standing: true };
+
+test('the empty board a lesson opens on is the panel alone: nothing counted, nothing said', () => {
+  const board = boardAt(opening, 5_000);
+  const counted = boardAt(counting(1), settled(1));
+
+  assert.deepEqual(board.panel, counted.panel);
+  assert.deepEqual(
+    [board.count, board.mode, board.groups, board.counters, board.equation, board.progress],
+    [0, 'count', [], [], null, 1],
+  );
+  // It is the fold's `standing` that makes it a board: the same count of
+  // nothing from a producer with no such word is still no board at all.
+  assert.deepEqual(only(slateList({ ...opening, standing: false }), 'slate'), []);
+});
+
+test('the panel is the old board own rectangle, in this plate own pixels', () => {
+  // The ratios the lessons were drawn against: 4.5% in from the left, 8.5% down
+  // from the top, 91% by 84.5%, cornered at 5% of the height. On a 1920x1080
+  // plate that is this rectangle, and a client drawing its own panel lands it here.
+  const { panel } = boardAt(counting(3), settled(3));
+
+  assert.deepEqual(panel, {
+    x: 86.4, y: 91.8, w: 1747.2, h: 912.6, r: 54,
+  });
+  assert.equal(Math.round((panel.x + panel.w) * 10) / 10, 1833.6);
+  assert.equal(Math.round((panel.y + panel.h) * 10) / 10, 1004.4);
+});
+
+test('the counters stand in one row up to five, centred on the plate', () => {
+  const board = boardAt(counting(5), settled(5));
+  const middle = board.counters.map((counter) => counter.cx);
+
+  assert.deepEqual(board.counters.map((counter) => counter.n), [1, 2, 3, 4, 5]);
+  assert.equal(new Set(board.counters.map((counter) => counter.cy)).size, 1, 'one row');
+  // Centred: the row's own middle is the plate's middle, and the counters are
+  // evenly pitched by one cell.
+  assert.equal((middle[0] + middle.at(-1)) / 2, 1920 / 2);
+  const pitch = middle[1] - middle[0];
+  for (const [index, cx] of middle.entries()) {
+    assert.equal(Math.round((cx - middle[0]) * 100) / 100, Math.round(index * pitch * 100) / 100);
+  }
+  // Every counter the same size, and it is the fraction of the cell the old
+  // board drew its apples at.
+  assert.equal(new Set(board.counters.map((counter) => counter.r)).size, 1);
+  assert.equal(board.counters[0].r, Math.round(pitch * SLATE.counterRadius * 100) / 100);
+});
+
+test('six and over splits into two balanced rows, each centred on its own width', () => {
+  const board = boardAt(counting(7), settled(7));
+  const rows = new Map();
+  for (const counter of board.counters) {
+    rows.set(counter.cy, [...(rows.get(counter.cy) ?? []), counter]);
+  }
+  const [top, bottom] = [...rows.values()];
+
+  assert.equal(rows.size, 2);
+  assert.deepEqual([top.length, bottom.length], [4, 3], 'the fuller row is the top one');
+  for (const row of [top, bottom]) {
+    assert.equal((row[0].cx + row.at(-1).cx) / 2, 1920 / 2, 'the row is centred');
+  }
+  // Two rows of counters are smaller than one row of them: the rows share the
+  // height between the panel top and the equation band.
+  assert.ok(board.counters[0].r < boardAt(counting(5), settled(5)).counters[0].r);
+});
+
+test('the counters arrive one at a time, and the ring marks the newest of them', () => {
+  const arriving = (tMs) => boardAt(counting(3), tMs).counters.map((counter) => counter.scale);
+
+  assert.deepEqual(arriving(0), [0, 0, 0]);
+  // A counter every `staggerMs`: two of them are on their way at once — the
+  // stagger is shorter than the pop, so the board flows rather than ticks — and
+  // the third has not begun at all.
+  const middle = arriving(SLATE.staggerMs + 50);
+  assert.ok(middle[0] > 0 && middle[1] > 0);
+  assert.equal(middle[2], 0);
+  assert.deepEqual(arriving(settled(3)), [1, 1, 1]);
+  // The ring is on the newest counter that has BEGUN, not on the newest one
+  // that will exist: a ring around nothing is a ring around the next number.
+  assert.deepEqual(boardAt(counting(3), 100).counters.map((c) => c.ring), [true, false, false]);
+  assert.deepEqual(boardAt(counting(3), settled(3)).counters.map((c) => c.ring), [false, false, true]);
+});
+
+test('the pop starts at nothing, peaks at the published overshoot, and settles at one', () => {
+  // `overshoot` is the number a phone is handed; the curve lives in the drawer.
+  // Two files apart is exactly how a published number and its meaning drift.
+  const popAt = (tMs) => boardAt(counting(1), tMs).counters[0].scale;
+  const swept = [];
+  for (let tMs = 0; tMs <= SLATE.popMs; tMs += 1) swept.push(popAt(tMs));
+
+  assert.equal(popAt(0), 0);
+  assert.equal(popAt(SLATE.popMs), 1);
+  assert.equal(popAt(SLATE.popMs * 4), 1);
+  assert.equal(Math.round(Math.max(...swept) * 100) / 100, SLATE.overshoot);
+});
+
+test('a counter whose instant has not arrived yet is not drawn at a negative size', () => {
+  // Unreachable through the fold, which never hands out a `sinceMs` ahead of
+  // its own t — but the scale is a published field, and a client that trusts it
+  // would draw a counter at a large negative size.
+  assert.equal(boardAt({ ...counting(1), sinceMs: 1_000 }, 0).counters[0].scale, 0);
+});
+
+test('counting on from a smaller count leaves the counters already standing alone', () => {
+  // Three were there and the fourth is arriving: the three do not pop again,
+  // and the fourth starts at the board's own instant rather than fourth in a
+  // queue that already ran.
+  const board = boardAt(counting(4, 3), 0);
+
+  assert.deepEqual(board.counters.map((counter) => counter.scale), [1, 1, 1, 0]);
+  assert.equal(boardAt(counting(4, 3), SLATE.popMs).counters.at(-1).scale, 1);
+});
+
+test('a joining board colours its counters by the group they came from', () => {
+  const board = boardAt(joining(2, 3), settled(5));
+
+  assert.deepEqual(board.counters.map((counter) => counter.group), [0, 0, 1, 1, 1]);
+  assert.deepEqual(board.groups, [2, 3]);
+  assert.equal(board.count, 5);
+  // A plain count has nothing to tell apart, so every counter is the one group.
+  assert.deepEqual(boardAt(counting(3), settled(3)).counters.map((c) => c.group), [0, 0, 0]);
+});
+
+test('a take-away draws what it started with, then crosses out what was taken', () => {
+  const board = (tMs) => boardAt(taking(5, 2), tMs);
+  const drawn = board(settled(5));
+
+  assert.equal(drawn.counters.length, 5, 'a subtraction draws its starting set');
+  assert.equal(drawn.count, 3);
+  assert.deepEqual(drawn.counters.map((counter) => counter.cross), [0, 0, 0, 0, 0]);
+
+  // The two taken go one at a time, each crossed as it fades.
+  const taken = board(settled(5) + SLATE.takeMs);
+  assert.deepEqual(taken.counters.slice(0, 3).map((counter) => counter.alpha), [1, 1, 1]);
+  assert.equal(taken.counters[3].cross, 1);
+  assert.equal(taken.counters[3].alpha, 0);
+  assert.ok(taken.counters[4].cross < 1, 'the second one is still going');
+
+  const gone = board(settled(5) + SLATE.takeStaggerMs + SLATE.takeMs);
+  assert.deepEqual(gone.counters.slice(3).map((counter) => counter.alpha), [0, 0]);
+  // And the ring falls back to the newest counter still standing.
+  assert.deepEqual(gone.counters.map((counter) => counter.ring), [false, false, true, false, false]);
+});
+
+test('the equation waits for the counters, then writes itself one token at a time', () => {
+  const tokensAt = (tMs) => boardAt(joining(2, 3), tMs).equation;
+
+  assert.equal(tokensAt(settled(5) - 1), null, 'the answer arrived before the question');
+  const written = tokensAt(settled(5) + (5 * SLATE.tokenMs));
+  assert.deepEqual(written.tokens.map((token) => token.text), ['2', '+', '3', '=', '5']);
+  assert.deepEqual(
+    written.tokens.map((token) => token.role),
+    ['term', 'operator', 'term', 'equals', 'result'],
+  );
+  assert.deepEqual(written.tokens.map((token) => token.alpha), [1, 1, 1, 1, 1]);
+
+  // One token in: the first is there, the rest are still arriving in order.
+  const opening = tokensAt(settled(5) + SLATE.tokenMs);
+  assert.equal(opening.tokens[0].alpha, 1);
+  assert.deepEqual(opening.tokens.slice(2).map((token) => token.alpha), [0, 0, 0]);
+  // It stands in the band below the counters, inside the panel.
+  const { panel } = boardAt(joining(2, 3), settled(5));
+  assert.ok(written.y > panel.y + (panel.h / 2));
+  assert.ok(written.y + written.h <= panel.y + panel.h);
+});
+
+test('a take-away writes the take-away, and a plain count writes only its numeral', () => {
+  const taken = boardAt(taking(5, 2), settled(5) + (2 * SLATE.takeMs) + (5 * SLATE.tokenMs));
+  assert.deepEqual(taken.equation.tokens.map((token) => token.text), ['5', '-', '2', '3']
+    .toSpliced(3, 0, '='));
+
+  // "3 = 3" would be a sentence about numbers rather than the answer to "how
+  // many?" — the count is one numeral, and it is written in the answer's colour.
+  const counted = boardAt(counting(3), settled(3) + SLATE.tokenMs);
+  assert.deepEqual(counted.equation.tokens, [{ text: '3', role: 'result', alpha: 1 }]);
+});
+
+test('the build own progress runs from nothing to one across the whole board', () => {
+  const build = slateBuildMs(joining(2, 3));
+
+  assert.equal(boardAt(joining(2, 3), 0).progress, 0);
+  assert.equal(boardAt(joining(2, 3), build / 2).progress, 0.5);
+  assert.equal(boardAt(joining(2, 3), build).progress, 1);
+  assert.equal(boardAt(joining(2, 3), build * 3).progress, 1, 'it settles rather than running on');
+  // The last thing to happen is the last token landing, which is what the
+  // player asks about when it decides whether the picture is still moving.
+  assert.ok(boardAt(joining(2, 3), build - (SLATE.tokenMs / 2)).equation.tokens.at(-1).alpha < 1);
+  assert.equal(slateBuildMs({ count: 0, mode: 'count', groups: [] }), 0);
+  // A take-away lasts longer than the join it undoes: its counters have to be
+  // taken away before its equation may be written.
+  assert.ok(slateBuildMs(taking(5, 2)) > build);
+});
+
+test('every board the fold accepts is a board the drawer draws', () => {
+  // The drawer applies the same shared rule as the fold and answers `null` when
+  // it refuses — and it has nowhere to SAY so: a draw list carries commands,
+  // not warnings. That silence is only safe while the two cannot disagree, so
+  // the agreement is pinned here rather than assumed: every board a timeline
+  // can put on screen is swept against the drawer.
+  const boards = [];
+  for (let count = 1; count <= SLATE.max; count += 1) boards.push(counting(count));
+  for (let left = 1; left < SLATE.max; left += 1) {
+    for (let right = 1; left + right <= SLATE.max; right += 1) boards.push(joining(left, right));
+    for (let right = 1; right < left; right += 1) boards.push(taking(left, right));
+  }
+
+  for (const slate of boards) {
+    const state = stateAt(timelineOf(slate), SLATE_BUNDLE, 1_000 + slateBuildMs(slate));
+    assert.deepEqual(state.warnings, [], JSON.stringify(slate));
+    const [board] = only(buildDrawList({ ...actorState({}), slate: state.slate, tMs: state.tMs }), 'slate');
+    assert.ok(board, `the fold accepted ${JSON.stringify(slate)} and the drawer drew nothing`);
+    // Settled, what is left standing is the answer: a take-away's taken
+    // counters have gone, and everything else is still there.
+    const standing = board.counters.filter(({ alpha }) => alpha === 1).length;
+    assert.equal(standing, board.mode === 'subtract' ? board.count : board.counters.length);
+  }
+});
+
+// A one-scene timeline that raises exactly this board at 1,000 ms.
+const SLATE_BUNDLE = {
+  storylang_version: 0,
+  title: 'boards',
+  cast: {},
+  objects: {},
+  audio: { sfx: {}, bgm: {} },
+  scenes: [{ line: 1, place: 'dell', plate: { resolution: [1920, 1080], zones: [] }, steps: [] }],
+};
+const timelineOf = ({ count, mode, groups }) => ({
+  timeline_version: 1,
+  storylang_version: 0,
+  title: 'boards',
+  duration_ms: 60_000,
+  events: [
+    {
+      t_ms: 0, source: 'stage', op: 'scene', scene_index: 0, line: null, place: 'dell',
+    },
+    {
+      t_ms: 1_000, source: 'stage', op: 'slate', scene_index: 0, line: null, count, mode, groups,
+    },
+  ],
+});
+
+// --- behind the board -------------------------------------------------------
+
+const lesson = (slate, actors, tMs = 0) => buildDrawList(
+  { ...actorState({ actors }), slate, tMs },
+  oneSheet('sheet.webp', [1, 1]),
+);
+const RUBY = { slug: 'ruby', x: 50, feetY: 90, heightPx: 200, clip: 'idle_right' };
+const ACORN = { slug: 'acorn', kind: 'object', x: 20, feetY: 95, heightPx: 120 };
+
+test('the board takes the floor: nobody standing on it is drawn', () => {
+  const list = lesson(counting(1), [RUBY, ACORN]);
+
+  // Not the pile, not the card, not the shadow under either - the board covers
+  // them and the plate behind it is blurred.
+  assert.deepEqual(list.commands.map((command) => command.op), ['slate', 'sprite']);
+  assert.equal(list.commands.every((command) => command.hud === true), true);
+  assert.equal(list.commands.at(-1).slug, 'ruby');
+});
+
+test('the same cast without a board is the ordinary picture again', () => {
+  const list = lesson(null, [RUBY, ACORN]);
+
+  assert.deepEqual(
+    list.commands.map((command) => command.op),
+    ['shadow', 'sprite', 'shadow', 'missing'],
+  );
+  assert.equal(list.commands.some((command) => command.hud), false);
+});
+
+test('the empty board takes the floor like any other: the companion in the corner, nobody else', () => {
+  const list = lesson(opening, [RUBY, ACORN]);
+
+  assert.deepEqual(list.commands.map((command) => command.op), ['slate', 'sprite']);
+  assert.equal(list.commands.at(-1).slug, 'ruby');
+  // And outside the camera like any board: a push-in before the first count
+  // must not scale the opening panel and then snap it flat at the count.
+  assert.equal(list.commands.every((command) => command.hud === true), true);
+});
+
+test('the companion stands small in the corner, feet on the line', () => {
+  const [companion] = only(lesson(counting(1), [RUBY]), 'sprite');
+  const { heightPct, centreXPct, feetPct } = SLATE.companion;
+  const size = (heightPct / 100) * 1080;
+
+  assert.deepEqual(
+    { dx: companion.dx, dy: companion.dy, dw: companion.dw, dh: companion.dh },
+    {
+      dx: ((centreXPct / 100) * 1920) - (size / 2),
+      dy: ((feetPct / 100) * 1080) - size,
+      dw: size,
+      dh: size,
+    },
+  );
+  // Its own art, at its own instant - it goes on acting up there.
+  assert.equal(companion.url, 'sheet.webp');
+});
+
+test('a prop is never the companion, and neither is somebody already gone', () => {
+  assert.deepEqual(lesson(counting(1), [ACORN]).commands.map((c) => c.op), ['slate']);
+  assert.deepEqual(
+    lesson(counting(1), [{ ...RUBY, opacity: 0 }]).commands.map((c) => c.op),
+    ['slate'],
+  );
+  // The first character on stage, with the prop passed over rather than counted.
+  const [companion] = only(lesson(counting(1), [ACORN, RUBY]), 'sprite');
+  assert.equal(companion.slug, 'ruby');
+});
+
+test('a highlight the board hid is a pulse on the counter the count reached', () => {
+  // The numeral card: put down, ringed, and then covered by the glass.
+  const list = lesson(counting(3), [RUBY, { ...ACORN, highlightMs: 0 }], settled(3));
+  const board = only(list, 'slate')[0];
+  const [ring] = only(list, 'ring');
+  const marked = board.counters.find((counter) => counter.ring);
+
+  assert.deepEqual([ring.cx, ring.cy], [marked.cx, marked.cy]);
+  assert.equal(ring.hud, true);
+  assert.equal(ring.slug, 'acorn');
+  // Clear of the counter's gold ring at its WIDEST — the ring is drawn at
+  // `scale + ringGap` and is `ringWidth` thick, and the counter overshoots — so
+  // the pulse is never swallowed by the mark it sits outside of.
+  assert.ok(ring.rx > marked.r * (SLATE.overshoot + SLATE.ringGap + (SLATE.ringWidth / 2)));
+  // And still inside its own cell, so it does not reach the counter next door.
+  assert.ok(ring.rx <= marked.r / (2 * SLATE.counterRadius));
+  assert.equal(ring.progress, round(settled(3) / HIGHLIGHT.durationMs, 4));
+  assert.equal(ring.opacity, marked.alpha);
+  // The board, then what it points at, then who is telling the lesson.
+  assert.deepEqual(list.commands.map((command) => command.op), ['slate', 'ring', 'sprite']);
+});
+
+test('a highlight on the companion stays on the companion, in the corner', () => {
+  const list = lesson(counting(3), [{ ...RUBY, highlightMs: 0 }], settled(3));
+  const [companion] = only(list, 'sprite');
+  const [ring] = only(list, 'ring');
+  const marked = only(list, 'slate')[0].counters.find((counter) => counter.ring);
+
+  // Pointing at an apple would be a lie: the thing named is still on screen.
+  assert.deepEqual([ring.cx, ring.cy], [
+    round(companion.dx + (companion.dw / 2), 2),
+    round(companion.dy + (companion.dh / 2), 2),
+  ]);
+  assert.notEqual(ring.cx, marked.cx);
+  assert.equal(ring.hud, true);
+  // A mark follows the thing it marks.
+  assert.deepEqual(list.commands.map((command) => command.op), ['slate', 'sprite', 'ring']);
+});
+
+test('two things ringed at once: the board keeps the one named last', () => {
+  const list = lesson(counting(3), [
+    RUBY,
+    { ...ACORN, highlightMs: 0 },
+    { slug: 'card', kind: 'object', x: 70, feetY: 95, heightPx: 200, highlightMs: 200 },
+  ], 400);
+
+  // Paint order would answer 'acorn' — the farthest away — which is the
+  // opposite of what a lesson means by pointing at the thing it just said.
+  assert.deepEqual(only(list, 'ring').map((ring) => ring.slug), ['card']);
+});
+
+test('a companion whose art has not arrived is a lozenge in the corner, not a hole', () => {
+  const list = lesson(counting(1), [{ ...RUBY, clip: 'idle_right', clipMissing: true }]);
+  const [figure] = list.commands.filter((command) => command.op === 'missing');
+
+  assert.equal(figure.hud, true);
+  assert.equal(figure.dw, (SLATE.companion.heightPct / 100) * 1080);
+});
+
+test('a companion still fading carries its own opacity into the corner', () => {
+  const [companion] = only(lesson(counting(1), [{ ...RUBY, opacity: 0.3 }]), 'sprite');
+  assert.equal(companion.opacity, 0.3);
+});
+
+test('a ring on somebody already faded out is drawn nowhere at all', () => {
+  // The floor refuses to draw them; the board must not mark them either.
+  const gone = lesson(counting(3), [RUBY, { ...ACORN, opacity: 0, highlightMs: 0 }], settled(3));
+  assert.deepEqual(only(gone, 'ring'), []);
+});
+
+test('a ring whose pulse is over is not moved onto the board', () => {
+  const over = lesson(counting(1), [{ ...RUBY, highlightMs: 0 }], HIGHLIGHT.durationMs);
+  assert.deepEqual(only(over, 'ring'), []);
+  const none = lesson(counting(1), [RUBY]);
+  assert.deepEqual(only(none, 'ring'), []);
+});
+
+const round = (value, places) => Math.round(value * (10 ** places)) / (10 ** places);
+
+test('the board is measured against the plate, so a smaller stage gets a smaller board', () => {
+  const big = boardAt(counting(1), settled(1));
+  const small = boardAt(counting(1), settled(1), { resolution: [960, 540] });
+
+  assert.equal(small.panel.w, big.panel.w / 2);
+  assert.equal(small.panel.h, big.panel.h / 2);
+  assert.equal(small.counters[0].r, big.counters[0].r / 2);
+});
+
+test('a ring is drawn around its own actor, right after them', () => {
+  const list = buildDrawList({
+    ...actorState({
+      actors: [
+        { slug: 'ruby', x: 50, feetY: 90, heightPx: 200, clip: 'idle_right', highlightMs: 0 },
+        { slug: 'clover', x: 80, feetY: 90, heightPx: 200, clip: 'idle_right' },
+      ],
+    }),
+    tMs: 300,
+  }, oneSheet('sheet.webp', [1, 1]));
+  const [ring] = only(list, 'ring');
+  const sprite = list.commands.find((command) => command.op === 'sprite' && command.slug === 'ruby');
+
+  assert.equal(list.commands.indexOf(ring), list.commands.indexOf(sprite) + 1);
+  assert.equal(ring.slug, 'ruby');
+  assert.equal(ring.cx, sprite.dx + (sprite.dw / 2));
+  assert.equal(ring.cy, sprite.dy + (sprite.dh / 2));
+  assert.equal(ring.rx, Math.round((sprite.dw / 2) * (1 + (HIGHLIGHT.ringPct / 100)) * 100) / 100);
+  assert.ok(ring.rx > sprite.dw / 2, 'the ring is drawn outside the sprite it names');
+});
+
+test('a ring carries how far through its own life it is, and stops when that is over', () => {
+  const ringAt = (tMs) => only(buildDrawList({
+    ...actorState({ actors: [{ slug: 'ruby', x: 50, feetY: 90, heightPx: 200, clip: 'idle_right', highlightMs: 1_000 }] }),
+    tMs,
+  }, oneSheet('sheet.webp', [1, 1])), 'ring');
+
+  assert.deepEqual(ringAt(900), [], 'nothing before it fires — a seek backward');
+  assert.equal(ringAt(1_000)[0].progress, 0);
+  assert.equal(ringAt(1_000 + (HIGHLIGHT.durationMs / 2))[0].progress, 0.5);
+  assert.deepEqual(ringAt(1_000 + HIGHLIGHT.durationMs), []);
+});
+
+test('a ring carries its subject\'s opacity, the way the shadow under them does', () => {
+  const list = buildDrawList({
+    ...actorState({
+      actors: [{
+        slug: 'ruby', x: 50, feetY: 90, heightPx: 200, clip: 'idle_right', highlightMs: 0, opacity: 0.4,
+      }],
+    }),
+    tMs: 300,
+  }, oneSheet('sheet.webp', [1, 1]));
+  const [ring] = only(list, 'ring');
+
+  assert.equal(ring.opacity, 0.4);
+});
+
+test('an actor nobody ever named carries no ring', () => {
+  const list = buildDrawList(
+    actorState({ actors: [{ slug: 'ruby', x: 50, feetY: 90, heightPx: 200, clip: 'idle_right' }] }),
+    oneSheet('sheet.webp', [1, 1]),
+  );
+
+  assert.deepEqual(only(list, 'ring'), []);
+});
+
+// --- the cues' marks -------------------------------------------------------
+
+test('a counter a cue swept carries the mark, and one it has not carries nothing', () => {
+  const board = boardAt({ ...counting(3), rings: [1, 2] }, settled(3));
+
+  assert.deepEqual(board.counters.map((counter) => counter.swept), [true, true, undefined]);
+  // The newest counter's own ring is a different mark, and it is still there.
+  assert.deepEqual(board.counters.map((counter) => counter.ring), [false, false, true]);
+  // A ring past the board is a ring nobody sees, and it breaks nothing.
+  assert.deepEqual(boardAt({ ...counting(3), rings: [7] }, settled(3)).counters.some((counter) => counter.swept), false);
+});
+
+test('the flash rides the board as a fraction of its pulse, and only while it runs', () => {
+  const flashing = (tMs) => boardAt({ ...counting(3), sinceMs: 0, flashAt: 1_000 }, tMs).flash;
+
+  assert.equal(flashing(900), undefined, 'a flash that has not fired yet — a seek backward');
+  assert.deepEqual(flashing(1_000), { progress: 0 });
+  assert.deepEqual(flashing(1_000 + (FLASH.pulseMs / 2)), { progress: 0.5 });
+  assert.equal(flashing(1_000 + FLASH.pulseMs), undefined, 'the flash outlived its own pulse');
+});
+
+test('a board no cue ever touched is the list it always was', () => {
+  // Both marks are written only while they are there: the goldens of nine
+  // stories with no cues in them hold this byte for byte, and this is the
+  // same claim on one board.
+  const board = boardAt(counting(3), settled(3));
+
+  assert.equal('flash' in board, false);
+  assert.ok(board.counters.every((counter) => !('swept' in counter)));
+});
+
+test('a counter is marked as a picture only while the host gave one, landed or not', () => {
+  const asked = (counter) => only(buildDrawList(
+    { ...actorState({}), slate: counting(3), tMs: settled(3) },
+    { sheet: () => null, prop: () => null, counter },
+  ), 'slate')[0].counters;
+
+  // Marked from the moment the picture is asked for, before it has decoded:
+  // the list says what a counter IS, and the painter draws the apple meanwhile.
+  assert.deepEqual(
+    asked(() => ({ url: 'nut.png', drawable: null })).map((counter) => counter.image),
+    [true, true, true],
+  );
+  // A sheets object that answers no picture, and one written before the
+  // question existed, are the list it always was — the goldens hold this byte
+  // for byte, and the mark is absent rather than false.
+  assert.ok(asked(() => null).every((counter) => !('image' in counter)));
+  assert.ok(boardAt(counting(3), settled(3)).counters.every((counter) => !('image' in counter)));
+});
+
 /**
  * The instants worth writing down, read off the timeline rather than chosen by
  * hand: a hand-picked millisecond stops meaning anything the moment the corpus
@@ -231,6 +777,14 @@ test('a plate with no resolution of its own is the stage’s default', () => {
  * cast is standing rather than half of it — the middle of the first walk, the
  * far end of the first camera move of EACH kind, the moment a prop is on the
  * stage, and the ending.
+ *
+ * The lesson's two overlays need instants of their own for the same reason the
+ * camera did: they animate on the clock, and every instant this selector chose
+ * before them lands a millisecond or two after the op that started one — which
+ * pins a card at the very beginning of its pop and a ring nowhere at all. So the
+ * board is also sampled halfway through its pop, and the ring at the first of
+ * its two peaks. The cues' marks likewise: every sweep ring where it lands,
+ * and the first flash halfway through its pulse, or the sweep is pinned nowhere.
  *
  * The camera instants are where this was quietly empty. A `pan` sometimes
  * carries `duration_ms`; a `push_in` and a `pull_out` never do — their length
@@ -262,6 +816,24 @@ function instantsOf(timeline) {
   }
   const prop = first('place_object');
   if (prop) chosen.add(prop.t_ms + 1);
+  // Every board the story raises, sampled halfway through its own build —
+  // which is a different instant for every shape, and the only one that catches
+  // a board mid-arrival rather than settled.
+  for (const board of stage.filter((event) => event.op === 'slate' && event.count > 0)) {
+    chosen.add(board.t_ms + Math.round(slateBuildMs(board) / 2));
+  }
+  const ring = first('highlight');
+  if (ring) chosen.add(ring.t_ms + Math.round(HIGHLIGHT.durationMs / 4));
+  for (const swept of stage.filter((event) => event.op === 'ring' && event.counter > 0)) chosen.add(swept.t_ms);
+  // The hold, and its end: the last frame before the clear, every swept
+  // counter still lit long after the chunk that lit them, and the clear itself
+  // — the compiler's `ring {counter: 0}` where the counting stopped.
+  for (const clear of stage.filter((event) => event.op === 'ring' && event.counter === 0)) {
+    chosen.add(clear.t_ms - 1);
+    chosen.add(clear.t_ms);
+  }
+  const flash = first('flash');
+  if (flash) chosen.add(flash.t_ms + Math.round(FLASH.pulseMs / 2));
   return [...chosen].sort((left, right) => left - right);
 }
 
@@ -314,5 +886,5 @@ test('the goldens cover every command a healthy story draws', () => {
     const { instants } = JSON.parse(fs.readFileSync(new URL(`${stem}.json`, GOLDENS), 'utf8'));
     for (const instant of instants) for (const command of instant.list.commands) seen.add(command.op);
   }
-  assert.deepEqual([...seen].sort(), ['prop', 'shadow', 'sprite']);
+  assert.deepEqual([...seen].sort(), ['prop', 'ring', 'shadow', 'slate', 'sprite']);
 });

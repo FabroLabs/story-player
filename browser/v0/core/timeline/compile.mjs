@@ -1,7 +1,10 @@
+import { compilePerformance } from '../performance/evaluate.mjs';
 import { PlayerBoard } from '../board.mjs';
 import { desiredFacing, selectFacingClip, selectLocomotion } from '../clips.mjs';
 import { alongFloor, floorSpan, isSide, sideX, zoneNamed } from '../geometry.mjs';
+import { carriedFrom, normaliseSlate, slateBuildMs } from '../slate.mjs';
 import { cameraPoint, cameraSpeed, resolveShot } from './camera.mjs';
+import { cueAtUsable, cueOffsetMs } from './cues.mjs';
 import { Recorder, stepDetail } from './events.mjs';
 import { TimelineStage } from './stage.mjs';
 import { Schedule, createGate, runToEnd } from './timing.mjs';
@@ -9,6 +12,7 @@ import {
   BESIDE_NUDGE_PCT,
   DEFAULT_EXIT_X_PCT,
   DEPARTURE_DEADLINE_MS,
+  FLASH,
   MINIMUM_DEPARTURE_SECONDS,
   MINIMUM_MOVE_SECONDS,
   MOVE_X_PCT_PER_SECOND,
@@ -57,6 +61,7 @@ const RELEASE_FOLLOW = 'off';
  * nothing, `{}` or `null`, and gets exactly the compiler it had before.
  */
 export function compileTimeline(bundle, options) {
+  if (bundle?.performance) return compilePerformance(bundle);
   requireCompilableBundle(bundle);
   const { plates } = options ?? {};
 
@@ -65,13 +70,19 @@ export function compileTimeline(bundle, options) {
   const director = new Director(bundle, schedule, recorder, plates);
 
   runToEnd(schedule, walkStory(director));
+  // Worked out after the walk, because it is a question about what came NEXT:
+  // a board is only cut short by the thing that takes it away. It is put back
+  // beside the board it is about, at that instant — a warning appended at the
+  // end would land AFTER the `end` op, and a prefix whose last event is not
+  // `end` is a prefix no player can close.
+  const events = withCutShort(recorder.events(), schedule.now());
 
   return {
     timeline_version: TIMELINE_VERSION,
     storylang_version: bundle.storylang_version,
     title: bundle.title ?? null,
     duration_ms: schedule.now(),
-    events: recorder.events(),
+    events,
   };
 }
 
@@ -107,6 +118,19 @@ function requireCompilableBundle(bundle) {
         continue;
       }
       if (step.kind === 'together') walk(step.steps, sceneIndex);
+      // A cue carries the one step it fires, and only a command can be fired
+      // mid-line: a chunk or a block there would be time passing inside time.
+      if (step.kind === 'chunk' && step.cues !== undefined) {
+        if (!Array.isArray(step.cues)) {
+          unknown.push(`scene ${sceneIndex} line ${step.line ?? '?'}: cues ${JSON.stringify(step.cues)} (not a list)`);
+          continue;
+        }
+        for (const cue of step.cues) {
+          if (cue?.step?.kind !== 'cmd') {
+            unknown.push(`scene ${sceneIndex} line ${cue?.line ?? step.line ?? '?'}: cue ${JSON.stringify(cue?.step?.kind)}`);
+          }
+        }
+      }
     }
   };
   bundle.scenes.forEach((scene, index) => walk(scene?.steps, index));
@@ -181,9 +205,23 @@ class Director {
   #recorder;
   #stage;
   #board = new PlayerBoard();
+  // Props never join the board — a prop on it comes back as a character at the
+  // next scene in the same place — so the one thing that does need to know a
+  // prop is standing here keeps its own scene-scoped note.
+  #propsHere = new Set();
+  // Whether a board has been raised anywhere in this story yet. A board never
+  // comes down, so the first scene that counts is the only one that has to
+  // stand the empty panel it counts on (`beginScene`).
+  #boardStanding = false;
   #scene = null;
   #sceneIndex = null;
   #currentLine = null;
+  // The sweep the board cues have open, or null. `origin` is the chunk that
+  // opened it, which its clear carries the way a settle carries its move's;
+  // `pulseUntil` is the instant its latest flash stops pulsing; `closing` is a
+  // clear parked on that pulse by the chunk that stopped the counting, until
+  // it fires.
+  #sweep = null;
 
   constructor(story, schedule, recorder, plates = null) {
     this.#story = story;
@@ -201,8 +239,18 @@ class Director {
     this.#scene = scene;
     this.#sceneIndex = sceneIndex;
     this.#currentLine = scene.line ?? null;
+    this.#propsHere.clear();
     const origin = this.#origin(scene.line);
     this.#stage.showScene(scene, origin);
+    // A lesson opens on its board. The scene that first counts stands an empty
+    // panel from its first frame — the floor it would otherwise show is the
+    // floor the board is about to cover, with a numeral card lying on it and
+    // the pile the child is not yet counting — and every count after that lands
+    // on the panel already there. Once per story: a later scene has one standing.
+    if (!this.#boardStanding && sceneCounts(scene)) {
+      this.#stage.raiseEmptyBoard(origin);
+      this.#boardStanding = true;
+    }
     const arrivals = this.#board.beginScene(scene.place, this.#floorSpanFor(scene.place));
 
     // Arrivals are staged before the scene's first authored step.
@@ -212,6 +260,7 @@ class Director {
   }
 
   closeScene() {
+    this.#dropSweep();
     this.#stage.setSubtitle('');
     this.#stage.resetCamera();
   }
@@ -224,9 +273,9 @@ class Director {
     return this.#stage.pendingDepartures();
   }
 
-  logStep(step, together = null) {
+  logStep(step, together = null, sceneIndex = this.#sceneIndex) {
     this.#recorder.step({
-      scene_index: this.#sceneIndex,
+      scene_index: sceneIndex,
       line: step.line,
       kind: step.kind,
       ...(step.cmd === undefined ? {} : { cmd: step.cmd }),
@@ -252,8 +301,109 @@ class Director {
    */
   narrate(step) {
     this.#currentLine = step.line ?? this.#scene.line ?? null;
+    // A sweep holds while the counting goes on — through pauses and further
+    // cued chunks — and the first chunk spoken with no board cue is where it
+    // stops. Its clear goes before this subtitle, so a fold meeting both on
+    // the one millisecond puts the rings out first.
+    if (sweeps(step)) this.#openSweep(step);
+    else this.#closeSweep();
     this.#stage.setSubtitle(step.text);
+    // Parked BEFORE the chunk's own gate: a cue on the chunk's last millisecond
+    // then has the lower sequence number and fires before the walk resumes.
+    this.#parkCues(step);
     return this.wait(Math.max(0, Number(step.duration_s) * 1000 || 0));
+  }
+
+  /**
+   * A cue is a command under a spoken line, fired when a spoken word is
+   * reached: `cueOffsetMs` says when, and the timer performs the cue's own step
+   * through the same path a step between chunks takes — logged at its instant,
+   * so a cued `sound` is heard, then performed. Everything about WHERE is
+   * captured now rather than read when the timer fires: the walk is blocked on
+   * this chunk while the cues fire, but the sweep's clear lands chunks later,
+   * where the counting stops, when `#currentLine` is somebody else's.
+   *
+   * The two board cues live only here. A ring lit by a cue stays until the
+   * counting stops (`narrate`); a flash holds the sweep open until its pulse
+   * has landed, so the clear can never cut one short.
+   */
+  #parkCues(step) {
+    if (!Array.isArray(step.cues) || step.cues.length === 0) return;
+    const sceneIndex = this.#sceneIndex;
+    for (const cue of step.cues) {
+      const origin = { scene_index: sceneIndex, line: cue.line ?? step.line ?? null };
+      // An `at` the estimate cannot read puts the cue on the lead alone — the
+      // line's first word, whichever word it was written under. It still
+      // fires, since a cue lost is worse than a cue early, but a story whose
+      // ring landed on the wrong word would otherwise ship with a clean report.
+      if (!cueAtUsable(cue.at)) {
+        this.warning({ type: 'policy', policy: 'cue-at-unusable', at: cue.at ?? null }, origin.line, origin.scene_index);
+      }
+      const offset = cueOffsetMs(step, cue);
+      this.#schedule.at(offset, () => this.#performCue(cue.step, origin));
+      if (cue.step.cmd === 'flash') {
+        this.#sweep.pulseUntil = Math.max(this.#sweep.pulseUntil, this.#schedule.now() + offset + FLASH.pulseMs);
+      }
+    }
+  }
+
+  // A cued chunk keeps the sweep the last one left open, or opens its own. A
+  // clear still waiting on a pulse is pulled forward to here instead: the
+  // counting DID stop, and a clear landing mid-count would take this chunk's
+  // rings out with the old ones.
+  #openSweep(step) {
+    if (this.#sweep?.closing) this.#clearSweep();
+    this.#sweep ??= { origin: this.#origin(step.line), pulseUntil: 0, closing: null };
+  }
+
+  // The counting stopped: a chunk with no board cue has begun. The rings go
+  // now — or, if a flash is still pulsing, when the pulse lands.
+  #closeSweep() {
+    const sweep = this.#sweep;
+    if (!sweep || sweep.closing) return;
+    const remaining = sweep.pulseUntil - this.#schedule.now();
+    if (remaining <= 0) this.#clearSweep();
+    else sweep.closing = this.#schedule.at(remaining, () => this.#clearSweep());
+  }
+
+  #clearSweep() {
+    const { origin, closing } = this.#sweep;
+    this.#sweep = null;
+    if (closing) this.#schedule.cancel(closing);
+    this.#stage.ring(0, origin);
+  }
+
+  // The cut puts the rings out itself (`stateAt`, at `scene`), so a sweep
+  // still open at the seam — or a clear still waiting on a pulse — records
+  // nothing: no clear of this compiler's crosses a scene.
+  #dropSweep() {
+    if (this.#sweep?.closing) this.#schedule.cancel(this.#sweep.closing);
+    this.#sweep = null;
+  }
+
+  #performCue(step, origin) {
+    this.logStep(step, null, origin.scene_index);
+    switch (step.cmd) {
+      case 'ring': this.#ring(step, origin); break;
+      case 'flash': this.#stage.flash(origin); break;
+      default: this.performCommand(step, this.#board, origin);
+    }
+  }
+
+  // The k-th counter of the standing board, lit until the counting stops. Whether
+  // a board stands with k counters on it is the language's own rule, refused
+  // where the cue is written; here only the shape of the number is held, so a
+  // client is never handed a counter it cannot count to.
+  #ring(step, origin) {
+    if (!Number.isInteger(step.counter) || step.counter < 1) {
+      this.warning(
+        { type: 'policy', policy: 'ring-counter-unusable', counter: step.counter ?? null },
+        origin.line,
+        origin.scene_index,
+      );
+      return;
+    }
+    this.#stage.ring(step.counter, origin);
   }
 
   /**
@@ -299,11 +449,13 @@ class Director {
     }
   }
 
-  performCommand(step, reference = this.#board) {
+  // `origin` is given by a cue, which captured it when the cue was parked;
+  // every other caller is the walk itself, standing where the step is.
+  performCommand(step, reference = this.#board, origin = this.#origin(step.line)) {
     this.#currentLine = step.line ?? this.#scene.line ?? null;
-    const origin = this.#origin(step.line);
     switch (step.cmd) {
       case 'put': this.#put(step, reference, origin); break;
+      case 'take': this.#take(step, origin); break;
       case 'emote': this.#emote(step, reference, origin); break;
       case 'move': this.#move(step, reference, origin); break;
       case 'travel': this.#travel(step, reference, origin); break;
@@ -317,7 +469,70 @@ class Director {
       case 'shot': this.#shot(step); break;
       case 'pan_to': this.#panTo(step, reference); break;
       case 'follow': this.#follow(step, reference); break;
+      case 'slate': this.#slate(step, origin); break;
+      case 'highlight': this.#highlight(step, origin); break;
       default: this.warning({ type: 'policy', policy: 'unknown-command', cmd: step.cmd });
+    }
+  }
+
+  // The arithmetic is the story's, and it is checked here because a board is
+  // drawn straight from it: a claim whose own groups do not make its count
+  // would leave every client to invent the board it thought was meant, and they
+  // would not agree. What reaches the stage is the NORMALISED shape, so a v1
+  // step that names only a count is the same op as one that names all three.
+  #slate(step, origin) {
+    const board = normaliseSlate(step);
+    if (!board) {
+      this.warning({
+        type: 'policy',
+        policy: 'slate-count-unusable',
+        count: step.count ?? null,
+        mode: step.mode ?? null,
+        groups: step.groups ?? null,
+      });
+      return;
+    }
+    this.#boardStanding = true;
+    this.#stage.setSlate(board, origin);
+  }
+
+  // Read off the LIVE board rather than the `together` snapshot every other
+  // command resolves against: a highlight asks whether something is on stage,
+  // not where it is, and it is sorted last inside a `together` precisely so
+  // that answer includes whatever that instant has just put there.
+  #highlight(step, origin) {
+    // A step that named nobody is not a step that rang nobody: it is a lesson
+    // whose ring never appears, shipped with a clean compile report.
+    if (!(step.subjects?.length > 0)) {
+      this.warning({ type: 'policy', policy: 'highlight-unaimed' });
+      return;
+    }
+    for (const slug of step.subjects) {
+      const staged = this.#propsHere.has(slug)
+        || this.#board.positionOf(slug)?.place === this.#scene.place;
+      if (!staged) {
+        this.warning({ type: 'policy', policy: 'highlight-missing', slug });
+        continue;
+      }
+      this.#stage.highlight(slug, origin);
+    }
+  }
+
+  // The prop's own exit. Only a prop can be taken — a character leaves by
+  // `travel` — and only one standing HERE, which is `#propsHere` and not the
+  // board: a card put down two scenes ago is gone with that cut, and taking it
+  // again would delete a prop the scene never showed.
+  #take(step, origin) {
+    if (!(step.subjects?.length > 0)) {
+      this.warning({ type: 'policy', policy: 'take-unaimed' });
+      return;
+    }
+    for (const slug of step.subjects) {
+      if (!this.#propsHere.delete(slug)) {
+        this.warning({ type: 'policy', policy: 'take-missing', slug });
+        continue;
+      }
+      this.#stage.removeObject(slug, origin);
     }
   }
 
@@ -436,6 +651,7 @@ class Director {
       ?? sideX(step.position, own.span)
       ?? alongFloor(0.5, own.span);
     this.#stage.placeObject(slug, x, own.zone?.name ?? null, origin);
+    this.#propsHere.add(slug);
   }
 
   #emote(step, reference, origin) {
@@ -616,6 +832,152 @@ class Director {
   }
 }
 
+/**
+ * The timeline with each cut-short warning spliced in beside its own board.
+ *
+ * The events array stays in time order and the warning carries the instant the
+ * board was raised, so a reader scrubbing the log meets the complaint where the
+ * mistake is rather than at the end of the story.
+ */
+function withCutShort(events, durationMs) {
+  const cuts = boardsCutShort(events, durationMs);
+  if (cuts.length === 0) return events;
+  const out = [...events];
+  // Back to front, so an earlier splice cannot move a later index.
+  for (const cut of [...cuts].reverse()) {
+    out.splice(cut.at + 1, 0, {
+      t_ms: cut.t_ms,
+      scene_index: cut.scene_index,
+      line: cut.line,
+      kind: 'warning',
+      detail: cut.detail,
+      source: 'step',
+    });
+  }
+  return out;
+}
+
+// The fold's own comparison (`state.mjs`), which is the one that decides
+// whether a board is raised again at all: the same total reached another way is
+// a different picture, and a different picture is a new board.
+function sameBoard(board, shown) {
+  return board.count === shown.count
+    && board.mode === shown.mode
+    && board.groups.length === shown.groups.length
+    && board.groups.every((size, index) => size === shown.groups[index]);
+}
+
+/**
+ * Boards the story takes away before they have finished arriving.
+ *
+ * A board is no longer a card that pops in 350 ms: it counts itself in one
+ * counter at a time, crosses out what a take-away took, and only then writes
+ * the equation — `2 + 3 = 5` takes 2.85 s from the instant it is raised. Two
+ * things end one mid-build: the story stopping, and a DIFFERENT board raised
+ * over it. Neither leaves a mark on the bundle, and both show a child five
+ * apples and never the sentence they were for.
+ *
+ * A scene cut is no longer one of them: the board outlives the seam, so a
+ * lesson whose last board is raised a second before a cut finishes counting
+ * itself over the next scene.
+ *
+ * The one board NOT measured is the one a lesson counts on from: `slate 3`
+ * followed by `slate 4` is three counters that stay and a fourth arriving, so
+ * the first board was never interrupted — it is still on screen. That is the
+ * state core's own rule (`carriedFrom`), asked here rather than guessed, so
+ * "one, two, three" stays quiet while `slate 3` wiped by `slate(2+3)` — a
+ * different board, built from nothing — is the loss it looks like.
+ *
+ * It also reads the fold's other rule: a board repeated verbatim is not raised
+ * again (the state core keeps the first instant), so the repeat must not reset
+ * what is being measured either.
+ *
+ * The compiler is the only place this can be said: it is the one that knows
+ * both the schedule and the line of the story the board was raised on.
+ */
+function boardsCutShort(events, durationMs) {
+  const cuts = [];
+  let shown = null;
+  let raised = null;
+  const measure = (endsAt) => {
+    if (!raised) return;
+    const needs = slateBuildMs({ ...raised.board, from: raised.from });
+    const held = endsAt - raised.event.t_ms;
+    if (held < needs) {
+      cuts.push({
+        at: raised.at,
+        line: raised.event.line,
+        scene_index: raised.event.scene_index,
+        t_ms: raised.event.t_ms,
+        detail: {
+          type: 'policy',
+          policy: 'slate-cut-short',
+          count: raised.board.count,
+          mode: raised.board.mode,
+          groups: [...raised.board.groups],
+          needs_ms: needs,
+          held_ms: held,
+        },
+      });
+    }
+    raised = null;
+  };
+
+  for (const [index, event] of events.entries()) {
+    if (event.source !== 'stage') continue;
+    // Nothing takes a board away any more — `end` leaves it standing under the
+    // end card — but `end` is still where a build RUNS OUT: the story stops
+    // advancing, so counters that had not popped by then never pop. A cut is
+    // not that: the board goes on building over the next scene.
+    if (event.op === 'end') {
+      measure(event.t_ms);
+      shown = null;
+      continue;
+    }
+    if (event.op !== 'slate') continue;
+    const board = normaliseSlate(event);
+    // Already refused out loud where it was written; a second complaint about
+    // the same step would say nothing new. `slate 0` is the empty board a
+    // scene opens on: nothing arrives on it, so there is nothing to measure —
+    // and an authored `off` was refused where it was written, so no step here
+    // can end a board's life either.
+    if (!board) continue;
+    // The same board again is not a new board — the fold keeps the first
+    // instant and lets it go on building — so neither the measurement nor the
+    // board being measured moves.
+    if (shown && sameBoard(board, shown)) continue;
+    const from = carriedFrom(shown, board);
+    // Counting on leaves the board it counts from standing; anything else
+    // replaces it, and a board replaced mid-build is a board the child never
+    // saw finish.
+    if (from === 0) measure(event.t_ms);
+    raised = { at: index, event, board, from };
+    shown = board;
+  }
+  measure(durationMs);
+  return cuts;
+}
+
+// Whether a scene raises a board the player can draw anywhere in it — inside
+// a `together:` too, one level down, which is as far as `performTogether`
+// reaches. A step the compiler is about to refuse does not count: a panel
+// standing for a board that never arrives is a board the story did not get,
+// and the refusal it gets instead is the whole answer.
+function sceneCounts(scene) {
+  const drawable = (step) => step?.cmd === 'slate' && normaliseSlate(step) !== null;
+  return (scene?.steps ?? []).some((step) => drawable(step)
+    || (step?.kind === 'together' && (step.steps ?? []).some(drawable)));
+}
+
+// Whether a chunk carries a board cue — counting, as far as the sweep is
+// concerned. Judged by the cue's name rather than by whether it will be
+// performed: a ring refused when it fires was still written as counting, and
+// the clear it leaves behind finds nothing to put out, which the fold answers
+// with nothing.
+function sweeps(step) {
+  return (step.cues ?? []).some((cue) => cue?.step?.cmd === 'ring' || cue?.step?.cmd === 'flash');
+}
+
 function compareTogetherSteps(left, right) {
   const leftKey = togetherStepKey(left);
   const rightKey = togetherStepKey(right);
@@ -624,8 +986,11 @@ function compareTogetherSteps(left, right) {
 
 function togetherStepKey(step) {
   // Position/camera/audio effects begin before expression writes so a valid
-  // simultaneous move+emote keeps the authored emotion while still moving.
-  const phase = step.cmd === 'emote' ? 1 : 0;
+  // simultaneous move+emote keeps the authored emotion while still moving. A
+  // highlight comes after both: it decorates whatever the instant produced, and
+  // sorted on its name alone it would ring a card the same instant is about to
+  // put down.
+  const phase = step.cmd === 'emote' ? 1 : (step.cmd === 'highlight' ? 2 : 0);
   const subjects = [...(step.subjects ?? [])].sort().join(',');
   const target = step.target ?? step.destination ?? step.position ?? step.name ?? '';
   return `${phase}|${step.cmd}|${subjects}|${target}`;

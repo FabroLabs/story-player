@@ -17,7 +17,7 @@ import {
   S3Client,
 } from '@aws-sdk/client-s3';
 
-import { loadStorageConfig, storageSummary } from './storage-config.mjs';
+import { BUCKETS, loadStorageConfig, storageSummary } from './storage-config.mjs';
 import { digest, verifyPublicBytes } from './verify-cdn.mjs';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
@@ -26,16 +26,22 @@ const JSON_TYPE = 'application/json; charset=utf-8';
 
 export const IMMUTABLE_CACHE_CONTROL = 'public, max-age=31536000, immutable';
 export const STABLE_CACHE_CONTROL = 'public, max-age=60, must-revalidate';
-export const PUBLIC_READ_POLICY = deepFreeze({
-  Version: '2012-10-17',
-  Statement: [{
-    Sid: 'AnonymousStoryPlayerRead',
-    Effect: 'Allow',
-    Principal: '*',
-    Action: ['s3:GetObject'],
-    Resource: ['arn:aws:s3:::story-player/*'],
-  }],
-});
+// The policy has to name the bucket it is attached to. It was a constant while
+// there was one bucket, and stayed one when the second was added — so the dev
+// rail's first publish granted anonymous read on `story-player/*`, attached it
+// to `story-player-dev`, and every object it had just written came back 403.
+export function publicReadPolicy(bucket) {
+  return deepFreeze({
+    Version: '2012-10-17',
+    Statement: [{
+      Sid: 'AnonymousStoryPlayerRead',
+      Effect: 'Allow',
+      Principal: '*',
+      Action: ['s3:GetObject'],
+      Resource: [`arn:aws:s3:::${bucket}/*`],
+    }],
+  });
+}
 export const PUBLIC_READ_CORS = deepFreeze([{
   AllowedHeaders: ['*'],
   AllowedMethods: ['GET', 'HEAD'],
@@ -46,10 +52,20 @@ export const PUBLIC_READ_CORS = deepFreeze([{
 
 export async function ensurePublicBucket({ store, config }) {
   if (!await store.bucketExists()) await store.createBucket();
+  const wanted = publicReadPolicy(config.bucket);
   const policy = await store.getBucketPolicy();
-  if (policy === null) await store.putBucketPolicy(PUBLIC_READ_POLICY);
-  else if (!isDeepStrictEqual(policy, PUBLIC_READ_POLICY)) {
-    throw new Error('refusing conflicting public bucket policy');
+  if (policy === null) await store.putBucketPolicy(wanted);
+  else if (!isDeepStrictEqual(policy, wanted)) {
+    // A policy byte-identical to what this script writes for one of the OTHER
+    // allowed buckets is this script's own stale output — the bug above — and
+    // repairing it is the only way a bucket left in that state can heal without
+    // someone reaching for an S3 client. Anything else still refuses: a
+    // deliberately narrowed policy differs in more than the ARN and must not be
+    // silently widened back.
+    const stale = BUCKETS.some((name) => name !== config.bucket
+      && isDeepStrictEqual(policy, publicReadPolicy(name)));
+    if (!stale) throw new Error('refusing conflicting public bucket policy');
+    await store.putBucketPolicy(wanted);
   }
   const cors = await store.getBucketCors();
   if (cors === null) await store.putBucketCors(PUBLIC_READ_CORS);

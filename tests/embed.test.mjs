@@ -62,6 +62,107 @@ test('mounts one self-contained Shadow DOM player from parsed JSON', async (t) =
   assert.equal(typeof player.destroy, 'function');
 });
 
+test('the board block fetches its counter picture once, at the mount, under the asset base', async (t) => {
+  const dom = installDom();
+  t.after(dom.restore);
+  const host = document.createElement('div');
+  const player = createStoryPlayer(host, {
+    story: VALID_STORY,
+    assetBase: 'https://storage.example/root',
+    board: { counter: 'fairytale-assets/counters/nut.png' },
+  });
+
+  await player.ready;
+  assert.deepEqual(
+    dom.fetched().filter((url) => url.includes('/counters/')),
+    ['https://storage.example/root/fairytale-assets/counters/nut.png'],
+  );
+  player.destroy();
+});
+
+test('destroy closes the counter picture it decoded, so a host remounting does not leak one per mount', async (t) => {
+  // The picture is held for the life of the player rather than put through
+  // the cache, so the cache's eviction never closes it: `destroy` is the one
+  // place it can go, and a React host remounts on every changed prop.
+  const dom = installDom({ assets: (url) => (url.includes('/counters/') ? { width: 1024, height: 512 } : {}) });
+  t.after(dom.restore);
+  const decoded = [];
+  const decode = globalThis.createImageBitmap;
+  globalThis.createImageBitmap = async (blob) => {
+    const bitmap = await decode(blob);
+    decoded.push(bitmap);
+    return bitmap;
+  };
+  const player = createStoryPlayer(document.createElement('div'), {
+    story: VALID_STORY,
+    assetBase: 'https://storage.example/',
+    board: { counter: 'fairytale-assets/counters/nut.png' },
+  });
+  await player.ready;
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  const picture = decoded.find((bitmap) => bitmap.width === 1024);
+  assert.ok(picture, 'the counter picture was never decoded');
+  assert.notEqual(picture.closed, true, 'closed before the player went');
+
+  player.destroy();
+  assert.equal(picture.closed, true, 'the counter picture outlived the player');
+});
+
+test('a board block the player cannot perform is refused at the mount, by name', async (t) => {
+  const dom = installDom();
+  t.after(dom.restore);
+  const host = document.createElement('div');
+  const player = createStoryPlayer(host, {
+    story: VALID_STORY,
+    assetBase: 'https://storage.example/',
+    board: { counter: 'https://elsewhere.example/nut.png' },
+  });
+
+  await assert.rejects(player.ready, /board counter has invalid media path/);
+  assert.deepEqual(dom.fetched(), [], 'a refused mount fetched something');
+  player.destroy();
+});
+
+test('the ceremony opens with the kicker it was mounted with, or the bedtime line', async (t) => {
+  const dom = installDom();
+  t.after(dom.restore);
+  const mounted = [];
+  const eyebrowOf = (options) => {
+    const host = document.createElement('div');
+    mounted.push(createStoryPlayer(host, {
+      story: VALID_STORY, assetBase: 'https://storage.example/', ...options,
+    }));
+    // Scoped to the ceremony: the debug drawer's header wears the same class.
+    return findByClass(findByClass(host.shadowRoot, 'start-ceremony'), 'eyebrow').textContent;
+  };
+
+  assert.equal(eyebrowOf({ kicker: 'a counting lesson' }), 'a counting lesson');
+  assert.equal(eyebrowOf({ kicker: '  a counting lesson  ' }), 'a counting lesson');
+  assert.equal(eyebrowOf({}), 'a bedtime story');
+  // A host's mistake still reads as a sentence. An empty eyebrow over the
+  // story's name is a hole in the opening screen that nobody asked for, and
+  // the bedtime line is true of every story this player can be handed.
+  for (const kicker of [null, 42, '   ', {}, ['a counting lesson']]) {
+    assert.equal(eyebrowOf({ kicker }), 'a bedtime story', JSON.stringify(kicker));
+  }
+
+  // Mounted players are opening their assets; torn down only once each has
+  // settled, or the aborts land after this test has ended.
+  await Promise.allSettled(mounted.map((player) => player.ready));
+  for (const player of mounted) player.destroy();
+});
+
+// The mount is behind a ShadowRoot and this file's DOM is the hand-written one,
+// which carries children and classes but no selector engine.
+function findByClass(node, className) {
+  if (node?.className === className) return node;
+  for (const child of node?.children ?? []) {
+    const found = findByClass(child, className);
+    if (found) return found;
+  }
+  return null;
+}
+
 test('two players own independent roots and lifecycle state', async (t) => {
   const dom = installDom();
   t.after(dom.restore);
@@ -107,6 +208,44 @@ test('refuses unresolved cast references during ready instead of after the begin
 
   await assert.rejects(player.ready, /missing-fox.*absent from cast/);
   player.destroy();
+});
+
+test('opens a lesson that rings and takes a prop, and still refuses either around nobody', async (t) => {
+  const dom = installDom();
+  t.after(dom.restore);
+  // The mount door used to hold every subject to the cast, so the numeral card a
+  // maths lesson rings — a prop, never cast — turned the whole lesson into "this
+  // story could not be opened". `take` carries its prop the same way a ring
+  // does, in `subjects` with no `objects` beside it, and the compiler resolves
+  // both against the props standing in the scene as well as the cast; this is
+  // that same rule at the door, for both of them.
+  const lesson = (cmd, slug) => ({
+    ...VALID_STORY,
+    objects: { numeral_3: { height_cm: 40, svg: 'assets/three.svg' } },
+    scenes: [{
+      ...VALID_STORY.scenes[0],
+      steps: [
+        { kind: 'cmd', cmd: 'place_object', objects: ['numeral_3'], line: 6 },
+        { kind: 'cmd', cmd, subjects: [slug], line: 7 },
+      ],
+    }],
+  });
+
+  for (const cmd of ['highlight', 'take']) {
+    const player = createStoryPlayer(document.createElement('div'), {
+      story: lesson(cmd, 'numeral_3'),
+      assetBase: 'https://storage.example/',
+    });
+    await player.ready;
+    player.destroy();
+
+    const wrong = createStoryPlayer(document.createElement('div'), {
+      story: lesson(cmd, 'fox'),
+      assetBase: 'https://storage.example/',
+    });
+    await assert.rejects(wrong.ready, /fox.*absent from cast and objects/, cmd);
+    wrong.destroy();
+  }
 });
 
 test('refuses a second live owner and preserves foreign ShadowRoot content', async (t) => {
