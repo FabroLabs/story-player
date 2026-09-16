@@ -119,6 +119,11 @@ test('v0 tooling keeps the exact semantics every client consumes', () => {
       frost: { pct: 2.2, ms: 250 },
       companion: { heightPct: 27, centreXPct: 90, feetPct: 99 },
     },
+    cardBoard: {
+      max: 4, promptMax: 64, rowTopPct: 18, rowHeightPct: 54,
+      promptCentrePct: 10, promptFont: [0.12, 0.06],
+      imageInset: 0.06, cornerRadius: 0.1, focusWidth: 0.015, focusMinWidth: 3,
+    },
     highlight: { durationMs: 1500, pulses: 2, ringPct: 12 },
     cue: { leadMs: 80 },
     flash: { pulseMs: 500, gain: 1.8, halo: 0.35 },

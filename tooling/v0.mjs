@@ -15,6 +15,7 @@ import {
 import {
   BESIDE_NUDGE_PCT,
   CAMERA_DURATIONS_MS,
+  CARD_BOARD,
   CUE,
   DEFAULT_EXIT_X_PCT,
   DEFAULT_STAGE_RESOLUTION,
@@ -93,6 +94,7 @@ export const V0_POLICY = deepFreeze({
     departureDeadlineMs: DEPARTURE_DEADLINE_MS,
   },
   slate: SLATE,
+  cardBoard: CARD_BOARD,
   highlight: HIGHLIGHT,
   cue: CUE,
   flash: FLASH,

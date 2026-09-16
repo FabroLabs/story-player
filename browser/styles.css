@@ -1008,7 +1008,20 @@ button:focus-visible {
   .start-button { min-height: 2.8rem; padding: 0.62rem 1rem; font-size: 0.8rem; }
   .load-status { margin-top: 0.55rem; }
   .subtitle-wrap { padding-bottom: 4.6rem; }
+  /* Keep the Farm caption above the scrubber while phone controls are visible. */
+  .stage-frame.has-farm-overlay:not(.is-bare) .subtitle-wrap { padding-bottom: 6.5rem; }
   .controls { gap: 0.25rem; padding: 1.2rem 0.6rem 0.55rem; }
+}
+
+@media (max-width: 400px) {
+  /* Share the time row with transport to keep long captions inside short frames. */
+  .stage-frame.has-farm-overlay .controls { grid-template-columns: minmax(0, 1fr); }
+  .stage-frame.has-farm-overlay .scrub { grid-area: 1 / 1; }
+  .stage-frame.has-farm-overlay .times { grid-area: 2 / 1; align-self: center; pointer-events: none; }
+  .stage-frame.has-farm-overlay .control-row { grid-area: 2 / 1; }
+  .stage-frame.has-farm-overlay .chip { visibility: hidden; }
+  .stage-frame.has-farm-overlay .subtitle-wrap { font-size: 13px; line-height: 1.3; }
+  .stage-frame.has-farm-overlay:not(.is-bare) .subtitle-wrap { padding-bottom: 92px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

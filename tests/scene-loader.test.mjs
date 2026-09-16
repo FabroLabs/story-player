@@ -1,7 +1,7 @@
 /**
  * What a scene loads, in what order, and what it says when something is broken.
  *
- * The corpus tests are the ones that matter: ten real stories, 173 sheets,
+ * The corpus tests are the ones that matter: eleven real stories, 176 sheets,
  * and the plan is checked against the timeline they were compiled from rather
  * than against a fixture written to agree with the code.
  */
@@ -22,6 +22,7 @@ import { sceneSheets } from '../browser/v0/app/stage/canvas-stage.mjs';
 import { buildDrawList } from '../browser/v0/app/stage/draw-list.mjs';
 import { PAN_SCALE_FLOOR, PUSH_SCALE } from '../browser/v0/policy.mjs';
 import { stateAt } from '../browser/v0/core/state/state.mjs';
+import { compileTimeline } from '../browser/v0/core/timeline/compile.mjs';
 import { createStoryPlayer } from '../browser/embed.mjs';
 import { STEMS, read } from './_parity.mjs';
 import {
@@ -36,6 +37,36 @@ import {
 import { installDom } from './_dom.mjs';
 
 const name = (url) => String(url).split('/').pop();
+
+test('holding a board reports each decoded image while another required image is pending', async (t) => {
+  const bundle = {
+    storylang_version: 0, cast: {}, audio: { sfx: {}, bgm: {} },
+    objects: { a: { svg: 'assets/a.svg' }, b: { svg: 'assets/b.svg' } },
+    scenes: [{ place: 'dell', plate: { poster: 'assets/poster.svg', zones: [] }, steps: [
+      { kind: 'cmd', cmd: 'board', subjects: [], cards: ['a', 'b'] },
+      { kind: 'cmd', cmd: 'pause', seconds: 5 },
+    ] }],
+  };
+  const a = Promise.withResolvers(), b = Promise.withResolvers();
+  const cache = createBitmapCache({ decode: async (url) => {
+    if (url.endsWith('/a.svg')) await a.promise;
+    if (url.endsWith('/b.svg')) await b.promise;
+    return { width: 16, height: 16 };
+  } });
+  const loader = createSceneLoader({ timeline: compileTimeline(bundle), bundle, cache });
+  const arrivals = [];
+  const onRequiredImage = () => arrivals.push(['a', 'b'].filter((slug) => cache.has(`assets/${slug}.svg`)));
+  const landing = loader.holdScene(0, {}, [], { onRequiredImage });
+  t.after(async () => { a.resolve(); b.resolve(); await landing; cache.destroy(); });
+  a.resolve();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(arrivals, [['a']], 'a paused renderer must learn that the first card is drawable before the batch finishes');
+  b.resolve();
+  await landing;
+  assert.deepEqual(arrivals, [['a'], ['a', 'b']]);
+  assert.equal(loader.holdScene(0, {}, [], { onRequiredImage }), null);
+  assert.equal(arrivals.length, 2, 'a resident hold must not schedule another repaint');
+});
 
 /** Every `slug clip` pair an op names, and the ones replaced in the same ms. */
 function clipsNamedBy(timeline, sceneIndex) {
@@ -131,11 +162,11 @@ test('the corpus draws every clip that is ever on screen, and asks for no PNG', 
     }
   }
   // Measured, so a test that quietly stops covering the corpus fails loudly.
-  assert.equal(sheets, 173, 'the corpus draws 173 sheets across its 29 scenes');
+  assert.equal(sheets, 176, 'the corpus draws 176 sheets across its 30 scenes');
   // Three set and re-set at one instant, and three more the scene is cut away
   // from at the very millisecond they are asked for — an emote on a scene's
   // last line, which costs no time, so the cut lands on top of it.
-  assert.equal(replaced, 6, 'six clips in the corpus are never drawn for a millisecond');
+  assert.equal(replaced, 7, 'seven clips in the corpus are replaced before any frame can draw them');
 });
 
 test('a scene is planned at the magnification it actually reaches', () => {

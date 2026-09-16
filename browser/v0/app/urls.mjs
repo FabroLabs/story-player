@@ -8,6 +8,8 @@ import { validatePerformance } from '../core/performance/validation.mjs';
  * the mount is qualified the same way the rest was.
  */
 
+import { knownCardBoard } from '../core/card-board.mjs';
+
 const SEGMENT = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 const BUCKET = /^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/;
 const SCHEME = /^[a-z][a-z0-9+.-]*:/i;
@@ -367,9 +369,17 @@ function validateSteps(steps, story, where) {
   for (const [stepIndex, step] of steps.entries()) {
     const stepWhere = `${where} step ${stepIndex}`;
     if (!isRecord(step)) throw new Error(`${stepWhere} must be an object`);
+    if (step.cmd === 'board' && !knownCardBoard(step, story.objects)) {
+      throw new Error(`${stepWhere} board cards must name one to four unique objects, with a present focus and a prompt of at most 64 characters`);
+    }
     if (step.kind === 'together') {
       if (!Array.isArray(step.steps)) throw new Error(`${stepWhere} must carry a steps array`);
       validateSteps(step.steps, story, stepWhere);
+    }
+    if (step.kind === 'chunk' && Array.isArray(step.cues)) {
+      for (const [cueIndex, cue] of step.cues.entries()) {
+        if (cue?.step) validateSteps([cue.step], story, `${stepWhere} cue ${cueIndex}`);
+      }
     }
     const objectSlugs = new Set(step.objects ?? []);
     for (const slug of objectSlugs) {

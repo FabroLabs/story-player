@@ -18,6 +18,7 @@ import {
 import {
   BESIDE_NUDGE_PCT,
   CAMERA_DURATIONS_MS,
+  CARD_BOARD,
   CUE,
   DEFAULT_EXIT_X_PCT,
   DEFAULT_STAGE_RESOLUTION,
@@ -41,6 +42,7 @@ import {
 import { V0_POLICY } from '../tooling/v0.mjs';
 
 test('V0_POLICY is composed from the constants the player implementation consumes', () => {
+  assert.equal(V0_POLICY.cardBoard, CARD_BOARD);
   assert.deepEqual(V0_POLICY.geometry, {
     sideFraction: SIDE_FRACTION,
     standFraction: STAND_FRACTION,

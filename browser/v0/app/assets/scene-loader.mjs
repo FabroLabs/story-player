@@ -41,6 +41,7 @@
 
 import { zoneNamed } from '../../core/geometry.mjs';
 import { stateAt } from '../../core/state/state.mjs';
+import { knownCardBoard } from '../../core/card-board.mjs';
 import { PAN_SCALE_FLOOR, PUSH_SCALE } from '../../policy.mjs';
 import { drawnSpriteHeightPx } from '../stage/presentation-policy.mjs';
 import { KEEP_WINDOW, chunkWindow, sheetFor, wantedCellPx } from './rendition-picker.mjs';
@@ -113,12 +114,25 @@ export function sceneAssetPlan(timeline, bundle, sceneIndex, viewport = {}) {
     }
   }
 
+  // A board survives a cut, so a scene may need cards it never places itself.
+  const opening = events.find((event) => event.op === 'scene');
+  const inherited = opening ? stateAt(timeline, bundle, opening.t_ms).slate : null;
+  const boardCards = [];
+  for (const payload of [inherited, ...events.filter((event) => event.op === 'slate' && event.mode === 'cards')]) {
+    if (payload?.mode !== 'cards') continue;
+    const board = knownCardBoard(payload, bundle?.objects);
+    for (const slug of board?.cards ?? []) {
+      if (!boardCards.some((card) => card.slug === slug)) boardCards.push({ slug, url: bundle.objects[slug].svg });
+    }
+  }
+
   return {
     sceneIndex,
     cameraScale,
     poster: bundle?.scenes?.[sceneIndex]?.plate?.poster ?? null,
     sheets,
     props,
+    ...(boardCards.length > 0 ? { boardCards } : {}),
   };
 }
 
@@ -145,6 +159,7 @@ export function planAssets(plan, { window = 1 } = {}) {
       assets.push(asset);
     }
   };
+  for (const card of plan.boardCards ?? []) add({ ...card, asset: 'board-card', required: true });
   add({ url: plan.poster, asset: 'poster' });
   for (const sheet of plan.sheets) {
     const opens = Number.isInteger(sheet.openingFrame);
@@ -194,6 +209,9 @@ function keepAssets(plan, actors = null) {
       assets.push(asset);
     }
   };
+  // These are teaching targets, not floor actors: the actor filter below must
+  // never evict them while the board stands, even in a chunked scene.
+  for (const card of plan?.boardCards ?? []) add({ ...card, asset: 'board-card', required: true });
   add({ url: plan?.poster, asset: 'poster' });
   // The props ON STAGE, not every prop the scene ever places. The budget has
   // 92 KB of slack at the engine's own worst case (five characters, two chunks
@@ -378,13 +396,13 @@ export function createSceneLoader({
   /**
    * Decode everything scene `sceneIndex` draws, then report what failed.
    *
-   * Never rejects on a broken asset, and never leaves the gate shut: a 404
-   * sheet settles like any other, because refusing to start a story over one
-   * missing sprite is worse than the placeholder the canvas draws instead.
-   * An abort is the one exception — that is the player being destroyed.
+   * Ordinary broken sheets settle with a placeholder. Required board images
+   * reject the gate: missing teaching content cannot be presented as ready.
+   * Once rejected, later arrivals must not overwrite the terminal error with
+   * progress. An abort also rejects — that is the player being destroyed.
    */
   async function loadScene(sceneIndex, viewport = {}, {
-    onProgress = () => {}, keep = false, concurrency = 0,
+    onProgress = () => {}, onRequiredImage = () => {}, keep = false, concurrency = 0,
   } = {}) {
     const scenePlan = plan(sceneIndex, viewport);
     reportLegacySheets(scenePlan);
@@ -405,14 +423,23 @@ export function createSceneLoader({
     const total = assets.length;
     let done = 0;
     let failed = 0;
+    let stopped = false;
     onProgress(0, total);
     if (total === 0) return { total: 0, failed: 0 };
 
     const fetchOne = async ({ url, ...what }) => {
-      const landed = await attempt(url, what);
+      let landed;
+      try {
+        landed = await attempt(url, what);
+      } catch (error) {
+        stopped = true;
+        throw error;
+      }
+      if (stopped) return;
       if (!landed) failed += 1;
       throwIfAborted(signal);
       done += 1;
+      if (landed && what.required) onRequiredImage();
       onProgress(done, total);
     };
 
@@ -425,7 +452,7 @@ export function createSceneLoader({
     } else {
       const queue = [...assets];
       const workers = Array.from({ length: Math.min(concurrency, queue.length) }, async () => {
-        while (queue.length) await fetchOne(queue.shift());
+        while (!stopped && queue.length) await fetchOne(queue.shift());
       });
       await Promise.all(workers);
     }
@@ -490,11 +517,11 @@ export function createSceneLoader({
    * before it is needed and a character frozen on their last cell.
    *
    * Answers a promise for what it started fetching, or `null` when the window
-   * was already resident. A RUNNING story ignores it and draws what landed on
-   * its next frame; a paused one has no next frame, and this is how it knows to
-   * take one — the same repaint `loadScene` earns at a scene cut.
+   * was already resident. Required images also report each arrival so a still
+   * board can repaint before the whole window finishes. The settled promise
+   * gives a paused renderer the same final repaint as a scene cut.
    */
-  function holdScene(sceneIndex, viewport = {}, actors = null) {
+  function holdScene(sceneIndex, viewport = {}, actors = null, { onRequiredImage = () => {} } = {}) {
     const scenePlan = plan(sceneIndex, viewport);
     const wanted = keepAssets(scenePlan, actors);
     cache.keep(wanted.map(({ url }) => url));
@@ -506,7 +533,10 @@ export function createSceneLoader({
       // — and with it a link that dropped for one object gets a fresh chance
       // the next time a scene opens, which is the cache's own promise.
       if (cache.has(url) || refused.has(url)) continue;
-      landing.push(attempt(url, what));
+      landing.push(attempt(url, what).then((landed) => {
+        if (landed && what.required) onRequiredImage();
+        return landed;
+      }));
     }
     // Null rather than a resolved promise: the caller repaints on what lands,
     // and a hold that asked for nothing must not schedule a frame — including
@@ -535,6 +565,12 @@ export function createSceneLoader({
       warnOnce(url, {
         type: 'media', ...what, url, message: error?.message ?? 'asset failed',
       });
+      if (what.required) {
+        const refusal = new Error(`board image ${JSON.stringify(what.slug)} could not be loaded: ${error?.message ?? 'asset failed'}`);
+        refusal.code = 'BOARD_IMAGE_UNAVAILABLE';
+        refusal.slug = what.slug;
+        throw refusal;
+      }
       if (story.bundle?.performance) throw error;
       return false;
     }
