@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="788" height="272" viewBox="0 0 788 272" role="img" aria-label="1 fish" data-count="1">
+<defs><image id="fish-art" width="240" height="240" href="fish-geometry-fixture.png"/></defs>
+<use href="#fish-art" x="16" y="16"/>
+</svg>

@@ -1075,6 +1075,110 @@ test('the lesson repaints on its own clock, and stops when it has landed', async
   player.destroy();
 });
 
+function cardStory() {
+  const board = (focus = null, prompt = '') => ({ kind: 'cmd', cmd: 'board', cards: ['letter', 'apple'], focus, prompt, subjects: [], line: 1 });
+  const pause = (seconds) => ({ kind: 'cmd', cmd: 'pause', seconds, line: 2 });
+  return {
+    storylang_version: 0, title: 'A and apple', cast: {}, audio: { sfx: {}, bgm: {} },
+    objects: { letter: { svg: 'assets/a.svg', height_cm: 30 }, apple: { svg: 'assets/apple.svg', height_cm: 30 } },
+    scenes: [{ place: 'dell', plate: { poster: 'assets/poster.svg', video: 'assets/plate.mp4', zones: [] }, steps: [board(), pause(1), board(2, 'apple'), pause(3)] }],
+  };
+}
+
+test('a card focus and prompt change repaints a still lesson on its own', async (t) => {
+  const player = await mount(t, { story: cardStory() });
+  player.start();
+  player.frames.advanceTo(500);
+  const before = player.canvas.context.calls.length;
+  player.frames.advanceTo(1100);
+  const painted = player.canvas.context.calls.slice(before);
+  assert.ok(painted.some(([op, text]) => op === 'fillText' && text === 'apple'));
+  assert.ok(painted.some(([op]) => op === 'stroke'));
+  player.destroy();
+});
+
+test('a required card missing in a later scene stops playback with a visible explanation', async (t) => {
+  const story = cardStory();
+  story.objects.ball = { svg: 'assets/ball.svg', height_cm: 30 };
+  story.scenes.push({ ...story.scenes[0], steps: [{ kind: 'cmd', cmd: 'board', cards: ['ball'], subjects: [], focus: null, prompt: '' }, { kind: 'cmd', cmd: 'pause', seconds: 3 }] });
+  const player = await mount(t, { story, options: { chrome: 'host' }, assets: (url) => ({ status: url.endsWith('ball.svg') ? 404 : 200 }) });
+  const states = [];
+  player.subscribe(state => states.push(state));
+  player.start();
+  await settle();
+  assert.equal(player.getState().playing, false);
+  assert.equal(states.at(-1).playing, false, 'host chrome receives the terminal pause');
+  assert.match(player.mediaNote.textContent, /board image|lesson image/i);
+  assert.equal(player.end.hidden, false, 'the error must remain visible when subtitles are switched off');
+  assert.match(player.end.children[1].textContent, /picture unavailable/i);
+  assert.equal(player.frames.pending(), 0);
+  assert.equal(player.video.paused, true);
+  player.bar.toggle.dispatch('click');
+  assert.equal(player.frames.pending(), 0, 'play must not resume an incomplete teaching board');
+  player.destroy();
+});
+
+for (const paused of [false, true]) {
+  test(`each arriving card repaints an actor-free ${paused ? 'paused' : 'playing'} scene while another card is pending`, async (t) => {
+    const story = cardStory();
+    story.objects.ball = { svg: 'assets/ball.svg', height_cm: 30 };
+    story.scenes[0].steps = [
+      { kind: 'cmd', cmd: 'board', cards: ['letter'], subjects: [] },
+      { kind: 'cmd', cmd: 'pause', seconds: 1 },
+    ];
+    story.scenes.push({ ...story.scenes[0], steps: [
+      { kind: 'cmd', cmd: 'board', cards: ['apple', 'ball'], subjects: [] },
+      { kind: 'cmd', cmd: 'pause', seconds: 10 },
+    ] });
+    const player = await mount(t, { story });
+    const apple = Promise.withResolvers(), ball = Promise.withResolvers();
+    const fetch = globalThis.fetch;
+    globalThis.fetch = async (url, init) => {
+      if (url.endsWith('/apple.svg')) await apple.promise;
+      if (url.endsWith('/ball.svg')) await ball.promise;
+      return fetch(url, init);
+    };
+    t.after(() => { apple.resolve(); ball.resolve(); });
+    player.start();
+    player.frames.advanceTo(1200);
+    await settle();
+    if (paused) player.bar.toggle.dispatch('click');
+    const before = player.canvas.context.calls.length;
+    apple.resolve();
+    await settle();
+    if (!paused) player.frames.advanceTo(1500);
+    const calls = player.canvas.context.calls.slice(before);
+    assert.ok(calls.some(([op]) => op === 'drawImage'), 'the decoded card stayed hidden behind another pending image');
+    const lastPaint = calls.slice(calls.findLastIndex(([op]) => op === 'clearRect'));
+    assert.equal(lastPaint.filter(([op]) => op === 'drawImage').length, 1);
+    assert.equal(lastPaint.filter(([op, text]) => op === 'fillText' && text === 'image unavailable').length, 1);
+    player.destroy();
+  });
+}
+
+test('a late opening asset cannot replace the named required-image error with loading progress', async (t) => {
+  const dom = installDom({ assets: (url) => ({ status: url.endsWith('/a.svg') ? 404 : 200 }) });
+  const frames = virtualFrames(), audio = installAudio();
+  const poster = Promise.withResolvers();
+  const fetch = globalThis.fetch;
+  globalThis.fetch = async (url, init) => {
+    if (url.endsWith('/poster.svg')) await poster.promise;
+    return fetch(url, init);
+  };
+  t.after(() => { poster.resolve(); audio.restore(); frames.restore(); dom.restore(); });
+  const host = document.createElement('div');
+  const player = createStoryPlayer(host, { story: cardStory(), assetBase: ASSET_BASE });
+  t.after(() => player.destroy());
+  await assert.rejects(player.ready, /board image.*letter/);
+  const status = findByClass(host.shadowRoot, 'load-status');
+  const error = status.textContent;
+  assert.match(error, /board image.*letter/);
+  poster.resolve();
+  await settle();
+  assert.equal(status.textContent, error);
+  assert.equal(findByClass(host.shadowRoot, 'start-button').disabled, true);
+});
+
 // The still lesson with a cued line after it: "One, two, three." spoken over
 // two seconds from 6000, ringing a counter on each word and flashing on the
 // last — rings at 6080, 6705 and 7330, the flash 7330 to 7830 — then a line
@@ -1232,6 +1336,8 @@ async function mount(t, {
   const root = host.shadowRoot;
   const document_ = globalThis.document;
   return {
+    subscribe: player.subscribe,
+    getState: player.getState,
     bundle,
     timeline,
     frames,

@@ -6,8 +6,9 @@
  * carrying no canvas, no device pixel ratio and no letterbox. That separation is
  * what makes the list a fixture: the same instant of the same story produces the
  * same JSON on a phone and on a laptop, so a golden can pin placement without
- * pinning the machine it was drawn on. The viewport enters exactly once, at
- * paint time, as a single multiplier.
+ * pinning the machine it was drawn on. The local ocean teaching board also
+ * accepts a measured viewport to reserve fixed-size native subtitle space on
+ * short stages; all other geometry remains independent of the viewport.
  *
  * It is also the seam the plan's WebGL renderer would plug into: a command list
  * that names no 2D context can be executed by anything. Nothing here draws.
@@ -46,8 +47,13 @@
  */
 
 import { frameCell } from '../../core/clips.mjs';
+import { normaliseCardBoard } from '../../core/card-board.mjs';
+import { readOceanBoard } from '../../core/ocean-board.mjs';
+import { readFarmBoard, farmBoardMotion } from '../../core/farm-board.mjs';
+import { readFarmJourney, journeyCamera, journeyLabel } from '../../core/farm-journey.mjs';
+import { captionSafeTeachingRow, teachingLayout, quizHighlight, transitionLayout } from './ocean-board-layout.mjs';
 import { counterCount, isEmptyBoard, normaliseSlate, slateSchedule } from '../../core/slate.mjs';
-import { DEFAULT_STAGE_RESOLUTION, FLASH, HIGHLIGHT, SLATE } from '../../policy.mjs';
+import { CARD_BOARD, DEFAULT_STAGE_RESOLUTION, FLASH, HIGHLIGHT, SLATE } from '../../policy.mjs';
 
 // The shadow, as fractions of the sprite's drawn height. The DOM stage traced
 // the artwork's own silhouette with `filter: drop-shadow`, which costs a
@@ -75,22 +81,31 @@ const NO_SHEETS = Object.freeze({ sheet: () => null, prop: () => null });
  * draw its counters as (`counter-picture.mjs`), and a sheets object written
  * before it existed simply does not answer it.
  */
-export function buildDrawList(state, sheets = NO_SHEETS) {
+export function buildDrawList(state, sheets = NO_SHEETS, viewport = null) {
   if (state?.renderNodes) {
     const [width, height] = state.plate.resolution;
     return { width, height, camera: state.camera, transition: state.transition,
       commands: state.renderNodes.map(n => ({ ...n, op: 'performance', hud: n.space === 'screen' })) };
   }
   const [width, height] = plateSize(state?.plate);
+  const fit = Math.min(Number(viewport?.width) / width, Number(viewport?.height) / height);
+  const cssHeight = Number.isFinite(fit) && fit > 0 ? height * fit : null;
   const actors = state?.actors ?? [];
-  const board = slateFor(state?.slate, state?.tMs, width, height, pictured(sheets));
+  if (readFarmJourney(state?.slate)?.kind === 'journey') {
+    return {width,height,camera:journeyCamera(state),commands:[
+      ...stageCommands(actors,state?.tMs,width,height,sheets),...journeyLabel(state,width,height),
+    ]};
+  }
+  const board = state?.slate?.mode === 'cards'
+    ? cardBoardFor(state.slate, width, height, sheets, state.tMs, cssHeight)
+    : slateFor(state?.slate, state?.tMs, width, height, pictured(sheets));
   // A board is not an overlay on the scene, it IS the scene while it is up:
   // either the floor is drawn or the board is. The two lists are kept apart
   // rather than filtered out of one, because "which actors survive a board" is
   // exactly the question that gets answered differently in two places and
   // leaves a card floating under the glass.
   const commands = board
-    ? boardCommands(board, actors, state?.tMs, width, height, sheets)
+    ? board.farm ? farmCommands(board, actors, state?.tMs, width, height, sheets) : boardCommands(board, actors, state?.tMs, width, height, sheets)
     : stageCommands(actors, state?.tMs, width, height, sheets);
 
   return { width, height, camera: framing(state?.camera), commands };
@@ -181,6 +196,14 @@ function boardCommands(board, actors, tMs, width, height, sheets) {
   return commands;
 }
 
+function farmCommands(board, actors, tMs, width, height, sheets) {
+  const companion = companionOf(actors);
+  return [
+    ...stageCommands(actors.filter((actor) => actor !== companion), tMs, width, height, sheets),
+    ...boardCommands(board, companion ? [companion] : [], tMs, width, height, sheets),
+  ];
+}
+
 /**
  * The lesson's `highlight`, moved onto the board.
  *
@@ -192,6 +215,7 @@ function boardCommands(board, actors, tMs, width, height, sheets) {
  * job.
  */
 function boardRing(board, actor, tMs) {
+  if (board.mode === 'cards') return null;
   const counter = board.counters.find(({ ring }) => ring);
   const progress = ringProgress(actor, tMs);
   if (!counter || progress === null) return null;
@@ -331,6 +355,50 @@ function ringProgress(actor, tMs) {
  * same goes for `image` on a counter: written only for a host that gave the
  * board a picture, so a board drawn as apples is the list it always was.
  */
+function cardBoardFor(slate, width, height, sheets, tMs, cssHeight) {
+  let board = normaliseCardBoard(slate);
+  if (!board) return null;
+  const farm = readFarmBoard(board);
+  if (farm) board = farm.board;
+  let ocean = readOceanBoard(board);
+  const elapsed = Math.max(0, (tMs ?? 0) - (slate.sinceMs ?? 0));
+  const wrapper = ocean?.kind === 'transition' ? ocean : null;
+  if (wrapper) { board = wrapper.board; ocean = wrapper.ocean; }
+  if (ocean?.kind === 'quiz') board = { ...board, cards: board.cards.slice(0, 3) };
+  const panel = panelBox(width, height);
+  const rowWidth = panel.w * SLATE.cellShare;
+  const rowHeight = panel.h * CARD_BOARD.rowHeightPct / 100;
+  const cell = Math.min(rowWidth / board.cards.length, rowHeight);
+  const side = cell * SLATE.cellShare;
+  const top = panel.y + panel.h * CARD_BOARD.rowTopPct / 100;
+  // The local ocean sequence uses a fixed five-by-two grid; a square shrinks
+  // that whole grid and makes every fish too small to count on a phone.
+  const oceanCount = board.cards.length === 1 && /^ocean_count_(?:[1-9]|10)$/.test(board.cards[0]);
+  const countWidth = rowWidth * 0.8;
+  let result = {
+    op: 'slate', hud: true, mode: 'cards', panel: { ...panelCommand(panel), sheenH: round(panel.h * 0.16) },
+    cards: board.cards.map((slug, index) => ({
+      slug, url: sheets.prop(slug)?.url ?? null,
+      dx: round(oceanCount ? (width - countWidth) / 2 : (width - cell * board.cards.length) / 2 + cell * index + (cell - side) / 2),
+      dy: round(oceanCount ? top : top + (rowHeight - side) / 2),
+      dw: round(oceanCount ? countWidth : side), dh: round(oceanCount ? rowHeight : side), focused: board.focus === index + 1,
+    })),
+    prompt: {
+      text: board.prompt, cx: round(width / 2), cy: round(panel.y + panel.h * CARD_BOARD.promptCentrePct / 100),
+      maxWidth: round(rowWidth), size: round(Math.min(panel.h * CARD_BOARD.promptFont[0], width * CARD_BOARD.promptFont[1])),
+    },
+  };
+  if (ocean?.kind === 'teaching') {
+    const row = captionSafeTeachingRow({ x: (width - rowWidth) / 2, y: top, w: rowWidth, h: rowHeight }, result.prompt, height, cssHeight);
+    result = { ...result, cards: [], ...teachingLayout(ocean, wrapper ? Infinity : elapsed,
+      row, sheets) };
+  }
+  if (ocean?.kind === 'quiz') result.quizHighlight = quizHighlight(ocean, elapsed, result.cards, CARD_BOARD.imageInset);
+  if (wrapper) result.transition = transitionLayout(wrapper, elapsed, result, width);
+  if (farm) result.farm = farmBoardMotion(farm, elapsed, height);
+  return result;
+}
+
 function slateFor(slate, tMs, width, height, pictured = false) {
   // The empty board a scene opens on: the panel, the frost behind it and the
   // companion in the corner, and nothing yet to count. Only a STANDING one —

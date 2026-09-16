@@ -6,6 +6,7 @@ import { NO_FLOOR_STAND_Y, floorYAtX, zoneDepthOrder, zoneNamed } from '../geome
 // moment to move the module. The policy itself is pure.
 import { drawnSpriteHeightPx } from '../../app/stage/presentation-policy.mjs';
 import { carriedFrom, counterCount, isEmptyBoard, normaliseSlate } from '../slate.mjs';
+import { knownCardBoard, sameCards } from '../card-board.mjs';
 import { BandBook } from './bands.mjs';
 import { WIDE_FRAMING, framingBetween, framingForOp } from './camera.mjs';
 import { paintOrder, spreadBand } from './layout.mjs';
@@ -195,7 +196,9 @@ export class World {
       plate: this.#plate,
       actors,
       camera: this.#framingAt(tMs),
-      slate: { ...this.#slate, groups: [...this.#slate.groups], rings: [...this.#slate.rings] },
+      slate: this.#slate.mode === 'cards'
+        ? { ...this.#slate, cards: [...this.#slate.cards] }
+        : { ...this.#slate, groups: [...this.#slate.groups], rings: [...this.#slate.rings] },
       subtitle: this.#subtitle,
       ended: this.#ended,
       warnings: this.#warnings,
@@ -349,6 +352,16 @@ export class World {
   // draw is nothing at all, with nobody told. `normaliseSlate` is the same rule
   // the compiler applied, so a refusal here is never a second opinion.
   #showSlate(event) {
+    if (event.mode === 'cards') {
+      const board = knownCardBoard(event, this.#bundle.objects);
+      if (!board) {
+        this.#warn(event, { type: 'policy', policy: 'board-cards-unusable', cards: event.cards ?? null });
+        return;
+      }
+      const sinceMs = sameCards(board, this.#slate) ? this.#slate.sinceMs : event.t_ms;
+      this.#slate = { ...board, sinceMs, standing: true };
+      return;
+    }
     // The empty board: the panel the scene of the first count opens on. It
     // stands where nothing stood, and leaves a board already standing alone —
     // an empty board over counters would be the counters going away, which is
@@ -423,6 +436,7 @@ export class World {
   // the cut, with the ending, and with the clear the compiler records where
   // the counting stops — and the board they were on stays.
   #clearSweep() {
+    if (this.#slate.mode === 'cards') return;
     if (this.#slate.rings.length === 0 && this.#slate.flashAt === null) return;
     this.#slate = { ...this.#slate, rings: [], flashAt: null };
   }

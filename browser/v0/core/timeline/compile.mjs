@@ -3,6 +3,8 @@ import { PlayerBoard } from '../board.mjs';
 import { desiredFacing, selectFacingClip, selectLocomotion } from '../clips.mjs';
 import { alongFloor, floorSpan, isSide, sideX, zoneNamed } from '../geometry.mjs';
 import { carriedFrom, normaliseSlate, slateBuildMs } from '../slate.mjs';
+import { knownCardBoard } from '../card-board.mjs';
+import { readFarmJourney, withFarmTargetWarnings } from '../farm-journey.mjs';
 import { cameraPoint, cameraSpeed, resolveShot } from './camera.mjs';
 import { cueAtUsable, cueOffsetMs } from './cues.mjs';
 import { Recorder, stepDetail } from './events.mjs';
@@ -75,7 +77,7 @@ export function compileTimeline(bundle, options) {
   // beside the board it is about, at that instant — a warning appended at the
   // end would land AFTER the `end` op, and a prefix whose last event is not
   // `end` is a prefix no player can close.
-  const events = withCutShort(recorder.events(), schedule.now());
+  const events = withFarmTargetWarnings(withCutShort(recorder.events(), schedule.now()));
 
   return {
     timeline_version: TIMELINE_VERSION,
@@ -247,7 +249,7 @@ class Director {
     // floor the board is about to cover, with a numeral card lying on it and
     // the pile the child is not yet counting — and every count after that lands
     // on the panel already there. Once per story: a later scene has one standing.
-    if (!this.#boardStanding && sceneCounts(scene)) {
+    if (!this.#boardStanding && sceneCounts(scene, this.#story.objects)) {
       this.#stage.raiseEmptyBoard(origin);
       this.#boardStanding = true;
     }
@@ -470,6 +472,7 @@ class Director {
       case 'pan_to': this.#panTo(step, reference); break;
       case 'follow': this.#follow(step, reference); break;
       case 'slate': this.#slate(step, origin); break;
+      case 'board': this.#cardBoard(step, origin); break;
       case 'highlight': this.#highlight(step, origin); break;
       default: this.warning({ type: 'policy', policy: 'unknown-command', cmd: step.cmd });
     }
@@ -480,6 +483,25 @@ class Director {
   // would leave every client to invent the board it thought was meant, and they
   // would not agree. What reaches the stage is the NORMALISED shape, so a v1
   // step that names only a count is the same op as one that names all three.
+  #cardBoard(step, origin) {
+    const board = knownCardBoard(step, this.#story.objects);
+    if (!board) {
+      this.warning({ type: 'policy', policy: 'board-cards-unusable', cards: step.cards ?? null });
+      return;
+    }
+    const journey = readFarmJourney(board);
+    if (journey?.kind === 'journey') {
+      const missing = [...new Set([journey.from,journey.to])]
+        .filter(name=>name !== 'wide' && !this.#propsHere.has(`animal_${name}`));
+      if (missing.length) {
+        this.warning({type:'policy',policy:'farm-camera-target-missing',targets:missing});
+        return;
+      }
+    }
+    this.#boardStanding = true;
+    this.#stage.setCardBoard(board, origin);
+  }
+
   #slate(step, origin) {
     const board = normaliseSlate(step);
     if (!board) {
@@ -935,6 +957,11 @@ function boardsCutShort(events, durationMs) {
       continue;
     }
     if (event.op !== 'slate') continue;
+    if (event.mode === 'cards') {
+      measure(event.t_ms);
+      shown = null;
+      continue;
+    }
     const board = normaliseSlate(event);
     // Already refused out loud where it was written; a second complaint about
     // the same step would say nothing new. `slate 0` is the empty board a
@@ -963,8 +990,9 @@ function boardsCutShort(events, durationMs) {
 // reaches. A step the compiler is about to refuse does not count: a panel
 // standing for a board that never arrives is a board the story did not get,
 // and the refusal it gets instead is the whole answer.
-function sceneCounts(scene) {
-  const drawable = (step) => step?.cmd === 'slate' && normaliseSlate(step) !== null;
+function sceneCounts(scene, objects) {
+  const drawable = (step) => (step?.cmd === 'slate' && normaliseSlate(step) !== null)
+    || (step?.cmd === 'board' && knownCardBoard(step, objects) !== null);
   return (scene?.steps ?? []).some((step) => drawable(step)
     || (step?.kind === 'together' && (step.steps ?? []).some(drawable)));
 }
