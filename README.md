@@ -33,6 +33,10 @@ than into a slideshow.
 `V0_POLICY` that the engine's tools and the phone client run, so every client
 plays one schedule.
 
+Lessons can also put one to four catalog picture or glyph cards on that same
+glass board, with a focused slot and a short prompt. Their images must decode
+before the lesson can play; a missing teaching image stops it visibly.
+
 A story does not have to be finished to be watched: a host that has published
 one scene mounts it and hands over the rest as they land, and the timeline only
 ever grows — an appended scene never moves an event already played. With an

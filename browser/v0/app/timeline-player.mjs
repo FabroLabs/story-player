@@ -18,6 +18,9 @@
 
 import { createStateCursor } from '../core/state/cursor.mjs';
 import { slateBuildMs } from '../core/slate.mjs';
+import { oceanAnimationMs } from '../core/ocean-board.mjs';
+import { farmAnimationMs, sceneHasFarmBoard } from '../core/farm-board.mjs';
+import { journeyCamera } from '../core/farm-journey.mjs';
 import { FLASH, HIGHLIGHT } from '../policy.mjs';
 import { KEEP_CADENCE_MS } from './assets/scene-loader.mjs';
 import { DEFAULT_DRAW_HZ, tierSettings } from './capability.mjs';
@@ -104,6 +107,7 @@ export function createTimelinePlayer({
   let signature = null;
   let subtitle = null;
   let note = '';
+  let boardFailure = null;
   // The first instant the scheduler has not been told about yet. Cues are
   // half-open — `[from, to)` — so a story whose first line starts at t=0 needs
   // the very first slice to be `[0, 1)`, and a seek to t needs the cue AT t to
@@ -238,7 +242,7 @@ export function createTimelinePlayer({
   }
 
   function play() {
-    if (destroyed) return;
+    if (destroyed || boardFailure) return;
     // Waiting for a scene nobody has written yet: there is no time to move, so
     // what the button means is the resume, and the story takes it the moment
     // the scene lands. A transport that did nothing here would be a dead
@@ -329,7 +333,7 @@ export function createTimelinePlayer({
    * sound effect the seek jumped over.
    */
   function seekTo(milliseconds, { settled = true } = {}) {
-    if (destroyed) return;
+    if (destroyed || boardFailure) return;
     const t = clamp(milliseconds);
     clock.seek(t);
     if (started) {
@@ -484,12 +488,13 @@ export function createTimelinePlayer({
       }
       media.tick(t);
     }
-    plate.aim(state.camera);
+    plate.aim(journeyCamera(state));
     // The other half of "behind the board". Everything else the board changes
     // about the picture is a draw-list answer, but the plate is a `<video>` on
     // its own compositor layer that the canvas never touches, so the blur has
     // to be asked for here — from the same instant, on the same clock.
-    plate.frost(boardStanding(state.slate), state.plate?.resolution?.[1]);
+    // The opaque card panel protects the lesson; its surrounding forest stays visible.
+    plate.frost(boardStanding(state.slate) && state.slate?.mode !== 'cards', state.plate?.resolution?.[1]);
     paint(state, force);
     say(state.subtitle);
     // The wait owns the transport while it is up: the button says what happens
@@ -655,7 +660,7 @@ export function createTimelinePlayer({
   }
 
   function showNote(text) {
-    const next = text ?? '';
+    const next = boardFailure ?? text ?? '';
     if (next === note) return;
     note = next;
     elements.stage.mediaNote.textContent = next;
@@ -672,6 +677,7 @@ export function createTimelinePlayer({
   function openScene(state) {
     if (state.sceneIndex === sceneIndex) return;
     sceneIndex = state.sceneIndex;
+    stage.setFarmOverlay(sceneHasFarmBoard(story.bundle?.scenes?.[sceneIndex]));
     signature = null;
     // One perf section per scene, so a log from a slow phone says WHERE it was
     // slow rather than that it was.
@@ -697,17 +703,22 @@ export function createTimelinePlayer({
     const opened = sceneIndex;
     sheets = sceneSheets(loader.plan(sceneIndex, view), cache, counter);
     plate.showScene(story.bundle?.scenes?.[sceneIndex]?.plate ?? null);
-    void loader.loadScene(sceneIndex, view, { keep: true })
+    void loader.loadScene(sceneIndex, view, { keep: true, onRequiredImage: () => imageArrived(opened) })
       // A running story draws the sheets as they land, on its next frame. A
       // PAUSED one has no next frame: a scrub into a scene that is not decoded
       // yet painted placeholders and stopped, and they stayed on screen until
       // somebody pressed play. Only for the scene still on screen — a cut that
       // has already happened has its own paint coming.
-      .then(() => {
-        if (destroyed || clock.running || opened !== sceneIndex) return;
-        render(clock.now(), { force: true });
-      })
+      .then(() => imageArrived(opened))
       .catch(warmingFailed);
+  }
+
+  function imageArrived(opened) {
+    if (destroyed || boardFailure || opened !== sceneIndex) return;
+    // Board content can stay still indefinitely. A decoded image changes the
+    // picture without changing state, so even a running loop needs invalidation.
+    signature = null;
+    if (!clock.running) render(clock.now(), { force: true });
   }
 
   /**
@@ -738,7 +749,9 @@ export function createTimelinePlayer({
     heldAtMs = tMs;
     heldCast = state.actors;
     const opened = sceneIndex;
-    const landing = loader.holdScene(sceneIndex, sceneView, state.actors);
+    const landing = loader.holdScene(sceneIndex, sceneView, state.actors, {
+      onRequiredImage: () => imageArrived(opened),
+    });
     // A running story draws what lands on its next frame. A PAUSED one has no
     // next frame — and since the window fetches most of a scene now, a scrub
     // INSIDE one scene is the case `openScene` never sees: the chunks the
@@ -747,10 +760,7 @@ export function createTimelinePlayer({
     // still on screen, and only when the hold really asked for something, so
     // the repaint cannot hold from itself for ever.
     if (!landing) return;
-    void landing.then(() => {
-      if (destroyed || clock.running || opened !== sceneIndex) return;
-      render(clock.now(), { force: true });
-    }).catch(warmingFailed);
+    void landing.then(() => imageArrived(opened)).catch(warmingFailed);
   }
 
   /**
@@ -798,6 +808,25 @@ export function createTimelinePlayer({
    */
   function warmingFailed(error) {
     if (destroyed || signal?.aborted || error?.name === 'AbortError') return;
+    if (error?.code === 'BOARD_IMAGE_UNAVAILABLE') {
+      boardFailure = `${error.message}. Reload the lesson to try again.`;
+      resumeWhenVisible = false;
+      resumeAfterAppend = false;
+      clock.pause();
+      stopLoop();
+      plate.pause();
+      media.pause();
+      recorder?.pause();
+      updateControls({ tMs: clock.now(), playing: false, ended: false });
+      // Reuse the native stopping screen so a subtitle preference cannot hide
+      // a failure of the lesson itself. No end phase is played on this path.
+      elements.stage.end.children[1].textContent = 'picture unavailable';
+      elements.stage.end.children[2].textContent = 'reload the lesson to try again';
+      elements.stage.end.setAttribute('role', 'alert');
+      elements.stage.end.hidden = false;
+      showNote(boardFailure);
+      return;
+    }
     if (story.bundle?.performance) {
       pause();
       showNote('Story media could not be loaded. Reopen to retry.');
@@ -898,7 +927,7 @@ export function createTimelinePlayer({
  * their own progress in here the string is constant for the scene and the board
  * never arrives, the pop never runs and the ring never pulses.
  */
-function signatureOf(state) {
+export function signatureOf(state) {
   if (state.renderNodes) return JSON.stringify([state.camera, state.renderNodes, state.transition]);
   const parts = [
     state.sceneIndex,
@@ -935,6 +964,11 @@ function signatureOf(state) {
     (state.slate?.rings ?? []).join(','),
     overlayPhase(state.tMs, state.slate?.flashAt, FLASH.pulseMs),
   );
+  if (state.slate?.mode === 'cards') {
+    parts.push(JSON.stringify([state.slate.cards, state.slate.focus, state.slate.prompt]));
+    const span = Math.max(oceanAnimationMs(state.slate), farmAnimationMs(state.slate));
+    if (span > 0) parts.push(overlayPhase(state.tMs, state.slate.sinceMs, span));
+  }
   return parts.join('|');
 }
 

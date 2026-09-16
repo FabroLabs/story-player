@@ -315,6 +315,63 @@ test('a prop is fitted whole into its box and stood on its own feet', (t) => {
   assert.deepEqual(drawn.slice(0, 5), [drawn[0], 810, 930, 300, 150]);
 });
 
+for (const [shape, width, height] of [['wide', 200, 100], ['portrait', 100, 200], ['square', 200, 200]]) {
+  test(`a ${shape} card image is centered inside its card without stretching`, () => {
+    const context = fakeContext();
+    const image = bitmap(width, height);
+    const list = buildDrawList({
+      ...stageState(),
+      slate: { mode: 'cards', cards: ['artwork'], focus: null, prompt: '', standing: true, sinceMs: 0 },
+      tMs: 1000,
+    }, book());
+    paintDrawList(context, list, { lookup: () => image });
+    const card = list.commands.find(({ op }) => op === 'slate').cards[0];
+    const [drawn] = context.of('drawImage');
+    const [, x, y, drawnWidth, drawnHeight] = drawn;
+    assert.equal(drawn[0], image);
+    assert.ok(Math.abs(x + drawnWidth / 2 - (card.dx + card.dw / 2)) < 1e-8);
+    assert.ok(Math.abs(y + drawnHeight / 2 - (card.dy + card.dh / 2)) < 1e-8, 'card artwork must not inherit a floor prop\'s bottom anchor');
+    assert.equal(drawnWidth / drawnHeight, width / height);
+    assert.ok(x > card.dx && y > card.dy);
+    assert.ok(x + drawnWidth < card.dx + card.dw && y + drawnHeight < card.dy + card.dh);
+  });
+}
+
+for (const resolution of [[1920, 1080], [390, 844], [844, 390]]) {
+  test(`three reward stars stay above only the focused card at ${resolution.join('x')}`, () => {
+    for (let count = 1; count <= 4; count += 1) {
+      for (const focus of [null, ...Array.from({ length: count }, (_, i) => i + 1)]) {
+        const context = fakeContext();
+        const list = buildDrawList({
+          ...stageState(), plate: { resolution }, tMs: 1000,
+          slate: { mode: 'cards', cards: ['a', 'b', 'c', 'd'].slice(0, count), focus, prompt: 'Find A', standing: true, sinceMs: 0 },
+        }, book());
+        paintDrawList(context, list, { lookup: () => bitmap(200, 100) });
+        const board = list.commands.find(({ op }) => op === 'slate');
+        const stars = [];
+        let points = [];
+        for (const [op, x, y] of context.calls) {
+          if (op === 'beginPath') points = [];
+          if (op === 'moveTo' || op === 'lineTo') points.push([x, y]);
+          if (op === 'fill' && points.length === 10) stars.push(points);
+        }
+        assert.equal(stars.length, focus === null ? 0 : 3, `focus ${focus}, ${count} cards`);
+        if (focus === null) continue;
+        const card = board.cards[focus - 1];
+        for (const [x, y] of stars.flat()) {
+          assert.ok(x > card.dx && x < card.dx + card.dw, 'stars belong to the answer card');
+          assert.ok(y < card.dy, 'stars must not cover the glyph');
+          assert.ok(y > board.prompt.cy + board.prompt.size / 2, 'stars must clear the prompt');
+          assert.ok(x > board.panel.x && x < board.panel.x + board.panel.w);
+          assert.ok(y > board.panel.y && y < board.panel.y + board.panel.h);
+        }
+        const tops = stars.map((points) => Math.min(...points.map(([, y]) => y)));
+        assert.ok(tops[1] < tops[0] && tops[1] < tops[2], 'the middle star tops a short arc');
+      }
+    }
+  });
+}
+
 test('a resize repaints the instant already on screen', (t) => {
   // The story may be paused, or over, or still at its begin gate: in all three
   // nothing is going to ask for another frame, and a canvas resized to new

@@ -1,0 +1,349 @@
+{
+  "instants": [
+    {
+      "t_ms": 1,
+      "list": {
+        "width": 1920,
+        "height": 1080,
+        "camera": {
+          "scale": 1,
+          "x": 0,
+          "y": 0
+        },
+        "commands": [
+          {
+            "op": "slate",
+            "hud": true,
+            "mode": "cards",
+            "panel": {
+              "x": 86.4,
+              "y": 91.8,
+              "w": 1747.2,
+              "h": 912.6,
+              "r": 54,
+              "sheenH": 146.02
+            },
+            "cards": [
+              {
+                "slug": "pinecone",
+                "url": "fairytale-assets/objects/biology_plants_and_geology/pinecone.svg",
+                "dx": 265.31,
+                "dy": 297,
+                "dw": 410.94,
+                "dh": 410.94,
+                "focused": false
+              },
+              {
+                "slug": "acorn",
+                "url": "fairytale-assets/objects/biology_plants_and_geology/acorn.svg",
+                "dx": 754.53,
+                "dy": 297,
+                "dw": 410.94,
+                "dh": 410.94,
+                "focused": false
+              },
+              {
+                "slug": "mushroom",
+                "url": "fairytale-assets/objects/nature_and_city/mushroom.svg",
+                "dx": 1243.75,
+                "dy": 297,
+                "dw": 410.94,
+                "dh": 410.94,
+                "focused": false
+              }
+            ],
+            "prompt": {
+              "text": "Find the acorn",
+              "cx": 960,
+              "cy": 183.06,
+              "maxWidth": 1467.65,
+              "size": 109.51
+            }
+          },
+          {
+            "op": "sprite",
+            "slug": "squirrel",
+            "url": "fairytale-assets/renditions/sprites/28d10376e4aebe1f1f205b19278018c9.webp",
+            "cell": [
+              0,
+              0
+            ],
+            "cells": [
+              3,
+              3
+            ],
+            "dx": 1582.2,
+            "dy": 777.6,
+            "dw": 291.6,
+            "dh": 291.6,
+            "opacity": 1,
+            "hud": true
+          }
+        ]
+      }
+    },
+    {
+      "t_ms": 6625,
+      "list": {
+        "width": 1920,
+        "height": 1080,
+        "camera": {
+          "scale": 1,
+          "x": 0,
+          "y": 0
+        },
+        "commands": [
+          {
+            "op": "slate",
+            "hud": true,
+            "mode": "cards",
+            "panel": {
+              "x": 86.4,
+              "y": 91.8,
+              "w": 1747.2,
+              "h": 912.6,
+              "r": 54,
+              "sheenH": 146.02
+            },
+            "cards": [
+              {
+                "slug": "pinecone",
+                "url": "fairytale-assets/objects/biology_plants_and_geology/pinecone.svg",
+                "dx": 265.31,
+                "dy": 297,
+                "dw": 410.94,
+                "dh": 410.94,
+                "focused": false
+              },
+              {
+                "slug": "acorn",
+                "url": "fairytale-assets/objects/biology_plants_and_geology/acorn.svg",
+                "dx": 754.53,
+                "dy": 297,
+                "dw": 410.94,
+                "dh": 410.94,
+                "focused": true
+              },
+              {
+                "slug": "mushroom",
+                "url": "fairytale-assets/objects/nature_and_city/mushroom.svg",
+                "dx": 1243.75,
+                "dy": 297,
+                "dw": 410.94,
+                "dh": 410.94,
+                "focused": false
+              }
+            ],
+            "prompt": {
+              "text": "The acorn",
+              "cx": 960,
+              "cy": 183.06,
+              "maxWidth": 1467.65,
+              "size": 109.51
+            }
+          },
+          {
+            "op": "sprite",
+            "slug": "squirrel",
+            "url": "fairytale-assets/renditions/sprites/8f479bfe85c523a3fbaa55aca958df67.webp",
+            "cell": [
+              0,
+              0
+            ],
+            "cells": [
+              3,
+              3
+            ],
+            "dx": 1582.2,
+            "dy": 777.6,
+            "dw": 291.6,
+            "dh": 291.6,
+            "opacity": 1,
+            "hud": true
+          }
+        ]
+      }
+    },
+    {
+      "t_ms": 13131,
+      "list": {
+        "width": 1920,
+        "height": 1080,
+        "camera": {
+          "scale": 1,
+          "x": 0,
+          "y": 0
+        },
+        "commands": [
+          {
+            "op": "slate",
+            "hud": true,
+            "mode": "add",
+            "count": 3,
+            "groups": [
+              2,
+              1
+            ],
+            "progress": 0.5,
+            "panel": {
+              "x": 86.4,
+              "y": 91.8,
+              "w": 1747.2,
+              "h": 912.6,
+              "r": 54
+            },
+            "counters": [
+              {
+                "n": 1,
+                "group": 0,
+                "cx": 668.4,
+                "cy": 424.9,
+                "r": 99.14,
+                "scale": 1,
+                "alpha": 1,
+                "cross": 0,
+                "ring": false
+              },
+              {
+                "n": 2,
+                "group": 0,
+                "cx": 960,
+                "cy": 424.9,
+                "r": 99.14,
+                "scale": 1,
+                "alpha": 1,
+                "cross": 0,
+                "ring": false
+              },
+              {
+                "n": 3,
+                "group": 1,
+                "cx": 1251.6,
+                "cy": 424.9,
+                "r": 99.14,
+                "scale": 1,
+                "alpha": 1,
+                "cross": 0,
+                "ring": true
+              }
+            ],
+            "equation": {
+              "y": 674.95,
+              "h": 283.82,
+              "tokens": [
+                {
+                  "text": "2",
+                  "role": "term",
+                  "alpha": 1
+                },
+                {
+                  "text": "+",
+                  "role": "operator",
+                  "alpha": 0.0197
+                },
+                {
+                  "text": "1",
+                  "role": "term",
+                  "alpha": 0
+                },
+                {
+                  "text": "=",
+                  "role": "equals",
+                  "alpha": 0
+                },
+                {
+                  "text": "3",
+                  "role": "result",
+                  "alpha": 0
+                }
+              ]
+            }
+          },
+          {
+            "op": "sprite",
+            "slug": "squirrel",
+            "url": "fairytale-assets/renditions/sprites/17b7bab60d20c1907292b6bfa94285af.webp",
+            "cell": [
+              0,
+              2
+            ],
+            "cells": [
+              3,
+              3
+            ],
+            "dx": 1582.2,
+            "dy": 777.6,
+            "dw": 291.6,
+            "dh": 291.6,
+            "opacity": 1,
+            "hud": true
+          }
+        ]
+      }
+    },
+    {
+      "t_ms": 16177,
+      "list": {
+        "width": 1920,
+        "height": 1080,
+        "camera": {
+          "scale": 1,
+          "x": 0,
+          "y": 0
+        },
+        "commands": [
+          {
+            "op": "slate",
+            "hud": true,
+            "mode": "cards",
+            "panel": {
+              "x": 86.4,
+              "y": 91.8,
+              "w": 1747.2,
+              "h": 912.6,
+              "r": 54,
+              "sheenH": 146.02
+            },
+            "cards": [
+              {
+                "slug": "acorn",
+                "url": "fairytale-assets/objects/biology_plants_and_geology/acorn.svg",
+                "dx": 753.02,
+                "dy": 295.49,
+                "dw": 413.96,
+                "dh": 413.96,
+                "focused": false
+              }
+            ],
+            "prompt": {
+              "text": "",
+              "cx": 960,
+              "cy": 183.06,
+              "maxWidth": 1467.65,
+              "size": 109.51
+            }
+          },
+          {
+            "op": "sprite",
+            "slug": "squirrel",
+            "url": "fairytale-assets/renditions/sprites/7b83f786467a460bf3edc099b086863a.webp",
+            "cell": [
+              1,
+              0
+            ],
+            "cells": [
+              3,
+              3
+            ],
+            "dx": 1582.2,
+            "dy": 777.6,
+            "dw": 291.6,
+            "dh": 291.6,
+            "opacity": 1,
+            "hud": true
+          }
+        ]
+      }
+    }
+  ]
+}

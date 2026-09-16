@@ -17,7 +17,7 @@
  */
 
 import { DPR_CAP, chunkAt } from '../assets/rendition-picker.mjs';
-import { DEFAULT_STAGE_RESOLUTION, FLASH, HIGHLIGHT, SLATE } from '../../policy.mjs';
+import { CARD_BOARD, DEFAULT_STAGE_RESOLUTION, FLASH, HIGHLIGHT, SLATE } from '../../policy.mjs';
 import { buildDrawList } from './draw-list.mjs';
 
 // The ink of the shadow and of the placeholder, kept here rather than in the
@@ -40,6 +40,13 @@ const TAU = Math.PI * 2;
 // drawing this board, and the list carries the geometry it must agree on.
 const SLATE_PANEL_INK = 'rgba(255, 255, 255, 0.59)';
 const SLATE_PANEL_EDGE = 'rgba(255, 255, 255, 0.84)';
+// Card edges and letter shapes must stay distinct from the live forest.
+const CARD_PAINT = Object.freeze({
+  backdrop: 'rgba(11, 24, 29, 0.22)',
+  fill: '#e8efe9', edge: '#bccdc8', sheen: 'rgba(255, 255, 255, 0.38)',
+  card: '#fffef8', cardEdge: '#90a7ab', shadow: 'rgba(24, 52, 57, 0.16)',
+  answer: '#fff0b2', answerEdge: '#c48a12',
+});
 const SLATE_GROUP_INKS = ['236, 92, 86', '96, 184, 120', '94, 158, 224', '196, 132, 224'];
 const SLATE_PAD_TINTS = ['255, 186, 166', '170, 226, 184', '176, 206, 248', '224, 192, 248'];
 // A plain count is not two groups of anything, so its counters are one calm
@@ -148,7 +155,12 @@ export function createCanvasStage(elements, {
     observer.observe(elements.frame);
   }
 
-  return { fitScale, draw, setTier, destroy };
+  return { fitScale, draw, setTier, setFarmOverlay, destroy };
+
+  function setFarmOverlay(enabled) {
+    if (destroyed) return;
+    elements.frame.classList.toggle('has-farm-overlay', enabled === true);
+  }
 
   /**
    * Take the numbers a lower tier asks for, mid-story.
@@ -181,9 +193,9 @@ export function createCanvasStage(elements, {
   /** Paint one instant. `sheets` is `sceneSheets` or anything with its shape. */
   function draw(state, sheets) {
     if (!context || destroyed) return null;
-    const list = buildDrawList(state, sheets);
+    const list = buildDrawList(state, sheets, elements.frame.getBoundingClientRect());
     sizeStage(list.width, list.height);
-    last = { list, lookup: lookupOf(sheets), counter: counterOf(sheets) };
+    last = { list, state, sheets, lookup: lookupOf(sheets), counter: counterOf(sheets) };
     paint(list, last.lookup, last.counter);
     return list;
   }
@@ -273,6 +285,8 @@ export function createCanvasStage(elements, {
 
   function destroy() {
     if (destroyed) return;
+    elements.frame.classList.remove('has-farm-overlay');
+    elements.stage.style.top = '';
     destroyed = true;
     observer?.disconnect();
     observer = null;
@@ -315,7 +329,7 @@ export function createCanvasStage(elements, {
     elements.canvas.height = pixels[1];
   }
 
-  // A resize repaints from the last list rather than waiting for the next
+  // A resize rebuilds from the last state rather than waiting for the next
   // frame: the story may be paused, or over, or still at its begin gate, and
   // in all three nothing is going to ask for another frame.
   function resized() {
@@ -323,6 +337,7 @@ export function createCanvasStage(elements, {
       fitStage();
       return;
     }
+    last.list = buildDrawList(last.state, last.sheets, elements.frame.getBoundingClientRect());
     sizeStage(last.list.width, last.list.height);
     // Through `paint`, not around it: a cell that is not decoded at this
     // instant is ordinary now the renditions are cut up — every chunk boundary
@@ -367,7 +382,7 @@ export function createCanvasStage(elements, {
 export function sceneSheets(plan, cache, counter = null) {
   const sheets = new Map();
   for (const sheet of plan?.sheets ?? []) sheets.set(`${sheet.slug} ${sheet.clip}`, sheet);
-  const props = new Map((plan?.props ?? []).map((prop) => [prop.slug, { url: prop.url }]));
+  const props = new Map([...(plan?.props ?? []), ...(plan?.boardCards ?? [])].map((prop) => [prop.slug, { url: prop.url }]));
   return {
     counter: () => counter,
     // Per FRAME, not per clip: where the bundle carries a chunk ladder, which
@@ -420,6 +435,22 @@ export function paintDrawList(context, list, {
     // take the number a child is counting with it — and the companion kept in
     // the corner over that board is drawn the same way.
     if (command.hud) context.setTransform(scale, 0, 0, scale, 0, 0);
+    if (command.op === 'farm-label') {
+      context.save();
+      context.globalAlpha = command.opacity;
+      context.fillStyle = '#fff7df';
+      context.strokeStyle = '#d4a751';
+      context.lineWidth = 4;
+      roundedRect(context,command.x,command.y,command.w,command.h,command.h*.35);
+      context.fill(); context.stroke();
+      context.fillStyle = '#234b35';
+      context.font = `800 ${command.h*.58}px system-ui, sans-serif`;
+      context.textAlign = 'center'; context.textBaseline = 'middle';
+      context.fillText(command.text,command.x+command.w/2,command.y+command.h*.52,command.w*.88);
+      context.restore();
+      underCamera();
+      continue;
+    }
     if (command.op === 'performance') {
       const drawable = command.shape ? shapeDrawable(context, command) : lookup(command.url);
       if (drawable) paintPerformanceNode(context, command, drawable, scale);
@@ -443,7 +474,8 @@ export function paintDrawList(context, list, {
     // lesson, and a device too weak for a drop shadow is not too weak for a
     // rounded rectangle.
     if (command.op === 'slate') {
-      paintSlate(context, command, list.width, counter());
+      if (command.mode === 'cards') paintCardBoard(context, command, lookup, list.width, list.height);
+      else paintSlate(context, command, list.width, counter());
       if (command.hud) underCamera();
       continue;
     }
@@ -512,7 +544,7 @@ function paintSprite(context, command, drawable) {
  * placeholder here would be a permanent glowing blob in a story with a clean
  * log.
  */
-function paintProp(context, command, drawable) {
+function paintProp(context, command, drawable, anchor = 'bottom') {
   const width = sourceWidth(drawable);
   const height = sourceHeight(drawable);
   if (!(width > 0) || !(height > 0)) {
@@ -525,7 +557,7 @@ function paintProp(context, command, drawable) {
   context.drawImage(
     drawable,
     command.dx + ((command.dw - drawnWidth) / 2),
-    command.dy + command.dh - drawnHeight,
+    command.dy + (command.dh - drawnHeight) * (anchor === 'center' ? 0.5 : 1),
     drawnWidth,
     drawnHeight,
   );
@@ -540,6 +572,170 @@ function paintProp(context, command, drawable) {
  * lands — the board is sized for where the counters WILL be, which is why it
  * does not jump as the last one arrives.
  */
+function paintCardBoard(context, command, lookup, width, height) {
+  if (command.farm) {
+    const { farm, ...base } = command;
+    context.save();
+    context.translate(0, farm.dy);
+    paintCardBoard(context, base, lookup, width, height);
+    context.restore();
+    return;
+  }
+  if (command.transition) return paintTransitionBoard(context, command, lookup, width, height);
+  if (command.ocean) return paintOceanBoard(context, command, lookup, width, height);
+  const { panel, cards, prompt, quizHighlight } = command;
+  context.save();
+  context.fillStyle = CARD_PAINT.backdrop;
+  roundedRect(context, 0, 0, width, height, 0);
+  context.fill();
+  paintPanel(context, panel, CARD_PAINT);
+  for (const card of cards) {
+    const { dx, dy, dw, dh, focused } = card;
+    const radius = Math.min(dw, dh) * CARD_BOARD.cornerRadius;
+    roundedRect(context, dx, dy + dh * 0.025, dw, dh, radius);
+    context.fillStyle = CARD_PAINT.shadow;
+    context.fill();
+    roundedRect(context, dx, dy, dw, dh, radius);
+    context.fillStyle = focused ? CARD_PAINT.answer : CARD_PAINT.card;
+    context.fill();
+    context.strokeStyle = focused ? CARD_PAINT.answerEdge : CARD_PAINT.cardEdge;
+    context.lineWidth = focused
+      ? Math.max(CARD_BOARD.focusMinWidth, dw * CARD_BOARD.focusWidth)
+      : Math.max(2, dw * 0.009);
+    context.stroke();
+    const drawable = card.url ? lookup(card.url) : null;
+    if (drawable) {
+      const inset = Math.min(dw, dh) * CARD_BOARD.imageInset;
+      paintProp(context, { dx: dx + inset, dy: dy + inset, dw: dw - 2 * inset, dh: dh - 2 * inset }, drawable, 'center');
+    } else {
+      context.fillStyle = 'rgb(74, 58, 18)';
+      context.font = numeralFont(Math.max(16, dw * 0.07));
+      context.textAlign = 'center';
+      context.textBaseline = 'middle';
+      context.fillText('image unavailable', dx + dw / 2, dy + dh / 2, dw * 0.9);
+    }
+    if (focused) paintAnswerStars(context, card);
+  }
+  if (quizHighlight) paintCountingRing(context, quizHighlight);
+  paintCardPrompt(context, prompt);
+  context.restore();
+}
+
+function paintTransitionBoard(context, { transition, ...base }, lookup, width, height) {
+  context.save();
+  context.globalAlpha *= transition.opacity;
+  context.translate(transition.dx, 0);
+  paintCardBoard(context, base, lookup, width, height);
+  context.restore();
+  for (const bubble of transition.bubbles) {
+    if (bubble.opacity <= 0 || bubble.r <= 0) continue;
+    context.save();
+    context.globalAlpha *= bubble.opacity;
+    context.beginPath();
+    context.arc(bubble.cx, bubble.cy, bubble.r, 0, TAU);
+    context.fillStyle = 'rgba(218, 249, 250, 0.82)';
+    context.strokeStyle = 'rgba(255, 255, 255, 0.94)';
+    context.lineWidth = Math.max(1, bubble.r * 0.07);
+    context.fill();
+    context.stroke();
+    context.restore();
+  }
+}
+
+function paintCardPrompt(context, prompt) {
+  if (prompt.text) {
+    context.font = numeralFont(prompt.size);
+    const measured = context.measureText(prompt.text).width;
+    if (measured > prompt.maxWidth) context.font = numeralFont(prompt.size * prompt.maxWidth / measured);
+    context.textAlign = 'center';
+    context.textBaseline = 'middle';
+    context.fillStyle = 'rgb(51, 67, 83)';
+    context.fillText(prompt.text, prompt.cx, prompt.cy, prompt.maxWidth);
+  }
+}
+
+function paintOceanBoard(context, { panel, prompt, fishArea, fish, numeral }, lookup, width, height) {
+  context.save();
+  context.fillStyle = CARD_PAINT.backdrop;
+  roundedRect(context, 0, 0, width, height, 0);
+  context.fill();
+  paintPanel(context, panel, CARD_PAINT);
+  roundedRect(context, fishArea.dx, fishArea.dy, fishArea.dw, fishArea.dh, fishArea.dh * 0.055);
+  context.fillStyle = CARD_PAINT.card;
+  context.fill();
+  context.strokeStyle = CARD_PAINT.cardEdge;
+  context.lineWidth = Math.max(2, height * 0.003);
+  context.stroke();
+  for (const item of fish) {
+    if (item.opacity <= 0) continue;
+    const drawable = item.url ? lookup(item.url) : null;
+    context.save();
+    context.globalAlpha *= item.opacity;
+    if (drawable) paintProp(context, item, drawable, 'center');
+    else paintMissing(context, item);
+    context.restore();
+    if (item.highlight) paintCountingRing(context, {
+      cx: item.dx + item.dw / 2, cy: item.dy + item.dh / 2,
+      rx: item.dw * 0.49, ry: item.dh * 0.43, progress: item.highlightProgress,
+    });
+  }
+  if (numeral.opacity > 0) {
+    const { box } = numeral;
+    context.save();
+    context.globalAlpha *= numeral.opacity;
+    roundedRect(context, box.dx, box.dy, box.dw, box.dh, box.dw * 0.08);
+    context.fillStyle = CARD_PAINT.answer;
+    context.fill();
+    context.strokeStyle = CARD_PAINT.answerEdge;
+    context.lineWidth = Math.max(2, box.dw * 0.012);
+    context.stroke();
+    const inset = box.dw * 0.08;
+    const target = { dx: box.dx + inset, dy: box.dy + inset, dw: box.dw - 2 * inset, dh: box.dh - 2 * inset, opacity: numeral.opacity };
+    const drawable = numeral.url ? lookup(numeral.url) : null;
+    if (drawable) paintProp(context, target, drawable, 'center');
+    else paintMissing(context, target);
+    context.restore();
+  }
+  paintCardPrompt(context, prompt);
+  context.restore();
+}
+
+function paintCountingRing(context, { cx, cy, rx, ry, progress }) {
+  context.save();
+  context.globalAlpha *= 0.45 + 0.55 * progress;
+  context.strokeStyle = CARD_PAINT.answerEdge;
+  context.lineWidth = Math.max(2, rx * 0.07);
+  context.beginPath();
+  context.ellipse(cx, cy, rx, ry, 0, 0, TAU);
+  context.fillStyle = 'rgba(255, 219, 125, 0.16)';
+  context.fill();
+  context.stroke();
+  context.restore();
+}
+
+function paintAnswerStars(context, { dx, dy, dw, dh }) {
+  const size = Math.min(dw, dh);
+  context.fillStyle = '#f2ba35';
+  context.strokeStyle = '#b77a0d';
+  context.lineWidth = Math.max(1, size * 0.005);
+  for (const [offset, rise, radius] of [[-0.13, 0.047, 0.03], [0, 0.069, 0.04], [0.13, 0.047, 0.03]]) {
+    const cx = dx + dw / 2 + size * offset;
+    const cy = dy - size * rise;
+    context.beginPath();
+    for (let point = 0; point < 10; point += 1) {
+      const angle = -Math.PI / 2 + point * Math.PI / 5;
+      const reach = size * radius * (point % 2 === 0 ? 1 : 0.46);
+      const x = cx + Math.cos(angle) * reach;
+      const y = cy + Math.sin(angle) * reach;
+      if (point === 0) context.moveTo(x, y);
+      else context.lineTo(x, y);
+    }
+    context.closePath();
+    context.fill();
+    context.stroke();
+  }
+}
+
 function paintSlate(context, {
   mode, panel, counters, equation, flash = null,
 }, plateWidth, picture = null) {
@@ -550,15 +746,20 @@ function paintSlate(context, {
   context.restore();
 }
 
-function paintPanel(context, panel) {
+function paintPanel(context, panel, palette = null) {
   roundedRect(context, panel.x, panel.y, panel.w, panel.h, panel.r);
-  context.fillStyle = SLATE_PANEL_INK;
+  context.fillStyle = palette?.fill ?? SLATE_PANEL_INK;
   context.fill();
-  context.strokeStyle = SLATE_PANEL_EDGE;
+  context.strokeStyle = palette?.edge ?? SLATE_PANEL_EDGE;
   // The old board drew a 3px edge on a 720-high frame; a plate is measured in
   // its own pixels, so the edge is measured in them too.
   context.lineWidth = Math.max(2, panel.h * 0.005);
   context.stroke();
+  if (palette?.sheen) {
+    roundedRect(context, panel.x, panel.y, panel.w, panel.sheenH, panel.r);
+    context.fillStyle = palette.sheen;
+    context.fill();
+  }
 }
 
 /**

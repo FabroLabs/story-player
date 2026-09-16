@@ -1,0 +1,572 @@
+{
+  "duration_ms": 16177,
+  "events": [
+    {
+      "line": 7,
+      "op": "scene",
+      "place": "forest_clearing",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 0
+    },
+    {
+      "count": 0,
+      "groups": [],
+      "line": 7,
+      "mode": "count",
+      "op": "slate",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 0
+    },
+    {
+      "cmd": "put",
+      "detail": {
+        "beside": null,
+        "facing": null,
+        "objects": [],
+        "position": "center",
+        "subjects": [
+          "squirrel"
+        ],
+        "zone": null
+      },
+      "kind": "cmd",
+      "line": 8,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 0
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "right",
+        "slug": "squirrel",
+        "verb": "idle"
+      },
+      "kind": "warning",
+      "line": 8,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 0
+    },
+    {
+      "clip": "idle_right",
+      "line": 8,
+      "op": "place",
+      "scene_index": 0,
+      "slug": "squirrel",
+      "source": "stage",
+      "t_ms": 0,
+      "x": 46.07000000000001
+    },
+    {
+      "cmd": "board",
+      "detail": {
+        "cards": [
+          "pinecone",
+          "acorn",
+          "mushroom"
+        ],
+        "focus": null,
+        "prompt": "Find the acorn",
+        "subjects": []
+      },
+      "kind": "cmd",
+      "line": 9,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 0
+    },
+    {
+      "cards": [
+        "pinecone",
+        "acorn",
+        "mushroom"
+      ],
+      "focus": null,
+      "line": 9,
+      "mode": "cards",
+      "op": "slate",
+      "prompt": "Find the acorn",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 0
+    },
+    {
+      "cmd": "emote",
+      "detail": {
+        "emotion": "happy",
+        "facing": null,
+        "subjects": [
+          "squirrel"
+        ]
+      },
+      "kind": "cmd",
+      "line": 11,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 0
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "right",
+        "slug": "squirrel",
+        "verb": "happy"
+      },
+      "kind": "warning",
+      "line": 11,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 0
+    },
+    {
+      "clip": "happy_right_jumping",
+      "line": 11,
+      "op": "clip",
+      "scene_index": 0,
+      "slug": "squirrel",
+      "source": "stage",
+      "t_ms": 0
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/dab0636dc24ccbe0f6bdf2c3e35c9346ee44fc9614a280e4603e9fb09d697418.m4a",
+        "duration_s": 2.013,
+        "text": "Which treasure is an acorn?"
+      },
+      "kind": "chunk",
+      "line": 12,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 0
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 0,
+      "text": "Which treasure is an acorn?"
+    },
+    {
+      "cmd": "pause",
+      "detail": {
+        "seconds": 3,
+        "subjects": []
+      },
+      "kind": "cmd",
+      "line": 13,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 2013
+    },
+    {
+      "cmd": "board",
+      "detail": {
+        "cards": [
+          "pinecone",
+          "acorn",
+          "mushroom"
+        ],
+        "focus": 2,
+        "prompt": "The acorn",
+        "subjects": []
+      },
+      "kind": "cmd",
+      "line": 14,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 5013
+    },
+    {
+      "cards": [
+        "pinecone",
+        "acorn",
+        "mushroom"
+      ],
+      "focus": 2,
+      "line": 14,
+      "mode": "cards",
+      "op": "slate",
+      "prompt": "The acorn",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 5013
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/419e7184bbc37802e9de67b19dbc96abbe5092bc8e39bf89fd2fa393480f2a31.m4a",
+        "duration_s": 1.611,
+        "text": "Here is the acorn."
+      },
+      "kind": "chunk",
+      "line": 15,
+      "scene_index": 0,
+      "source": "step",
+      "t_ms": 5013
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 5013,
+      "text": "Here is the acorn."
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 6624,
+      "text": ""
+    },
+    {
+      "line": null,
+      "op": "camera_reset",
+      "scene_index": 0,
+      "source": "stage",
+      "t_ms": 6624
+    },
+    {
+      "line": 16,
+      "op": "scene",
+      "place": "forest_clearing",
+      "scene_index": 1,
+      "source": "stage",
+      "t_ms": 6624
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "right",
+        "slug": "squirrel",
+        "verb": "idle"
+      },
+      "kind": "warning",
+      "line": 16,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 6624
+    },
+    {
+      "clip": "idle_right",
+      "line": 16,
+      "op": "place",
+      "scene_index": 1,
+      "slug": "squirrel",
+      "source": "stage",
+      "t_ms": 6624,
+      "x": 46.07000000000001
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/d56480a08bce6ae0fbae436beaa64d24b4c4d622f13cba6179f4edcd65a189ba.m4a",
+        "duration_s": 2.416,
+        "text": "The cards stay on our board."
+      },
+      "kind": "chunk",
+      "line": 18,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 6624
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 1,
+      "source": "stage",
+      "t_ms": 6624,
+      "text": "The cards stay on our board."
+    },
+    {
+      "detail": {
+        "steps": [
+          {
+            "cards": [
+              "mushroom",
+              "pinecone"
+            ],
+            "cmd": "board",
+            "focus": null,
+            "kind": "cmd",
+            "line": 20,
+            "prompt": "",
+            "subjects": []
+          },
+          {
+            "cmd": "emote",
+            "emotion": "happy",
+            "facing": null,
+            "kind": "cmd",
+            "line": 21,
+            "subjects": [
+              "squirrel"
+            ]
+          }
+        ]
+      },
+      "kind": "together",
+      "line": 19,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 9040
+    },
+    {
+      "cmd": "board",
+      "detail": {
+        "cards": [
+          "mushroom",
+          "pinecone"
+        ],
+        "focus": null,
+        "prompt": "",
+        "subjects": [],
+        "together_line": 19
+      },
+      "kind": "cmd",
+      "line": 20,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 9040
+    },
+    {
+      "cmd": "emote",
+      "detail": {
+        "emotion": "happy",
+        "facing": null,
+        "subjects": [
+          "squirrel"
+        ],
+        "together_line": 19
+      },
+      "kind": "cmd",
+      "line": 21,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 9040
+    },
+    {
+      "cards": [
+        "mushroom",
+        "pinecone"
+      ],
+      "focus": null,
+      "line": 20,
+      "mode": "cards",
+      "op": "slate",
+      "prompt": "",
+      "scene_index": 1,
+      "source": "stage",
+      "t_ms": 9040
+    },
+    {
+      "detail": {
+        "policy": "facing-fallback",
+        "requested": "camera",
+        "selected": "right",
+        "slug": "squirrel",
+        "verb": "happy"
+      },
+      "kind": "warning",
+      "line": 21,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 9040
+    },
+    {
+      "clip": "happy_right_jumping",
+      "line": 21,
+      "op": "clip",
+      "scene_index": 1,
+      "slug": "squirrel",
+      "source": "stage",
+      "t_ms": 9040
+    },
+    {
+      "cmd": "pause",
+      "detail": {
+        "seconds": 0.5,
+        "subjects": []
+      },
+      "kind": "cmd",
+      "line": 22,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 9040
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/d19e6fb9cc47f0a279618b7933744fcf3806125b1090b0f503e53f1c7071025a.m4a",
+        "duration_s": 2.416,
+        "text": "Now a mushroom and a pinecone."
+      },
+      "kind": "chunk",
+      "line": 22,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 9540
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 1,
+      "source": "stage",
+      "t_ms": 9540,
+      "text": "Now a mushroom and a pinecone."
+    },
+    {
+      "cmd": "slate",
+      "detail": {
+        "count": 3,
+        "groups": [
+          2,
+          1
+        ],
+        "mode": "add",
+        "subjects": []
+      },
+      "kind": "cmd",
+      "line": 23,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 11956
+    },
+    {
+      "count": 3,
+      "groups": [
+        2,
+        1
+      ],
+      "line": 23,
+      "mode": "add",
+      "op": "slate",
+      "scene_index": 1,
+      "source": "stage",
+      "t_ms": 11956
+    },
+    {
+      "cmd": "pause",
+      "detail": {
+        "seconds": 0.5,
+        "subjects": []
+      },
+      "kind": "cmd",
+      "line": 24,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 11956
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/c0f7286fc46ddf5eade6b39ba931e3fb6bfdf8d6953e6665779cf6313edc8127.m4a",
+        "duration_s": 2.013,
+        "text": "Two and one make three."
+      },
+      "kind": "chunk",
+      "line": 24,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 12456
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 1,
+      "source": "stage",
+      "t_ms": 12456,
+      "text": "Two and one make three."
+    },
+    {
+      "cmd": "board",
+      "detail": {
+        "cards": [
+          "acorn"
+        ],
+        "focus": null,
+        "prompt": "",
+        "subjects": []
+      },
+      "kind": "cmd",
+      "line": 25,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 14469
+    },
+    {
+      "cards": [
+        "acorn"
+      ],
+      "focus": null,
+      "line": 25,
+      "mode": "cards",
+      "op": "slate",
+      "prompt": "",
+      "scene_index": 1,
+      "source": "stage",
+      "t_ms": 14469
+    },
+    {
+      "cmd": "pause",
+      "detail": {
+        "seconds": 0.5,
+        "subjects": []
+      },
+      "kind": "cmd",
+      "line": 26,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 14469
+    },
+    {
+      "detail": {
+        "audio": "parity-jobs/parity/audio/36fb3e75337916496182f91b9f540f98750d8f551d5af91690f7c85e9950811a.m4a",
+        "duration_s": 1.208,
+        "text": "One last treasure."
+      },
+      "kind": "chunk",
+      "line": 26,
+      "scene_index": 1,
+      "source": "step",
+      "t_ms": 14969
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 1,
+      "source": "stage",
+      "t_ms": 14969,
+      "text": "One last treasure."
+    },
+    {
+      "line": null,
+      "op": "subtitle",
+      "scene_index": 1,
+      "source": "stage",
+      "t_ms": 16177,
+      "text": ""
+    },
+    {
+      "line": null,
+      "op": "camera_reset",
+      "scene_index": 1,
+      "source": "stage",
+      "t_ms": 16177
+    },
+    {
+      "line": null,
+      "op": "end",
+      "scene_index": 1,
+      "source": "stage",
+      "t_ms": 16177
+    }
+  ],
+  "storylang_version": 0,
+  "timeline_version": 1,
+  "title": "Golden: cards on the teaching board"
+}
