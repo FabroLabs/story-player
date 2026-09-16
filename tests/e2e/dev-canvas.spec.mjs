@@ -307,7 +307,7 @@ const CANVAS_PAGE = `<!doctype html>
             return (style.filter && style.filter !== 'none') || (backdrop && backdrop !== 'none');
           })
           .map((node) => node.className || node.tagName.toLowerCase());
-        return { legacy, filtered, canvasCount: root.querySelectorAll('canvas').length };
+        return { legacy, filtered, canvasCount: root.querySelectorAll('.logical-stage canvas').length };
       },
 
       async scrub() {

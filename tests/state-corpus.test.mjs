@@ -9,7 +9,7 @@ import { compileTimeline } from '../browser/v0/core/timeline/compile.mjs';
 import { STEMS, read } from './_parity.mjs';
 
 /**
- * `stateAt` against the ten published timelines.
+ * `stateAt` against the eleven published timelines.
  *
  * The compiler is pinned to these byte for byte, so they are also the only
  * corpus in the repository where "what the story asked for" is known
@@ -31,6 +31,7 @@ const STORIES = STEMS.map((stem) => ({
 // to one point are recorded on one point. Measured, so a rule change moves the
 // number rather than passing quietly.
 const SEPARATING = new Map([
+  ['golden_board_cards', 0],
   ['golden_board', 2],
   ['golden_camera_moves', 4],
   ['golden_cues', 0],
@@ -47,6 +48,7 @@ const SEPARATING = new Map([
 // anybody across a stage at all — the rest place, emote and travel — so the
 // count is here to say which, and to notice if a rule ever stops one landing.
 const WALKS = new Map([
+  ['golden_board_cards', 0],
   ['golden_board', 0],
   ['golden_camera_moves', 1],
   ['golden_cues', 0],
@@ -66,6 +68,7 @@ const WALKS = new Map([
 // stories are crowded, which is the point of them. Counted so that a change
 // which quietly makes the number zero has to say so.
 const EXACT_PLACEMENTS = new Map([
+  ['golden_board_cards', 2],
   ['golden_board', 1],
   ['golden_camera_moves', 1],
   // Two on one band from the first frame, so the spread has touched both.

@@ -91,6 +91,13 @@ export const SLATE = Object.freeze({
 // `ringPct` is how far outside the subject's own box it is drawn.
 export const HIGHLIGHT = Object.freeze({ durationMs: 1_500, pulses: 2, ringPct: 12 });
 
+// Cards share SLATE's panel and companion. Their upper row leaves the native
+// subtitle and transport band clear; the prompt is above the artwork.
+export const CARD_BOARD = Object.freeze({
+  max: 4, promptMax: 64, rowTopPct: 18, rowHeightPct: 54,
+  promptCentrePct: 10, promptFont: Object.freeze([0.12, 0.06]),
+  imageInset: 0.06, cornerRadius: 0.1, focusWidth: 0.015, focusMinWidth: 3,
+});
 // A cue: a command written under a spoken line, fired when a spoken word is
 // reached. Nothing in a bundle yet says when a word is spoken, so the first
 // version estimates it from the word's character position over the chunk's

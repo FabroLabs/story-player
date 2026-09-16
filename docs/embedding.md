@@ -198,6 +198,46 @@ from `V0_POLICY.slate` and `V0_POLICY.highlight`; the COLOURS are the painter's
 own—a client with its own palette is still drawing this board—and the numerals
 are set in the platform's rounded font, deliberately not part of that contract.
 
+A card lesson uses the same panel, companion, frost and canvas. Its authored
+step is `{kind: 'cmd', cmd: 'board', subjects: [], cards: ['letter_a',
+'apple'], focus: 2, prompt: 'apple'}`. `cards` contains one to four unique
+slugs from the bundle's `objects`; their `svg` assets may contain the outlined
+glyphs or embedded picture artwork. `focus` is a one-based slot or `null`, and
+`prompt` is ordinary text of at most 64 Unicode code points. Omitted focus and
+prompt mean `null` and `''`; each command replaces both, so an earlier answer
+cannot remain highlighted by accident. Invalid shapes and unknown objects are
+refused at mount and append, and reported as `board-cards-unusable` by the pure
+compiler and fold when either is called directly.
+
+The compiled op remains `slate`, with the distinct payload `{mode: 'cards',
+cards, focus, prompt}`. It has no arithmetic `count` or `groups`. `stateAt`
+returns those fields with `standing: true` and `sinceMs`. Changing only focus
+or prompt preserves the arrival time; changing the ordered cards resets it.
+The board persists through scene cuts and the ending, and seeking restores the
+whole payload for the instant. The first scene carrying a usable card board
+opens on the same empty panel a counting lesson uses. Card commands consume no
+time; narration chunks and authored pauses provide their timing.
+
+`V0_POLICY.cardBoard` publishes the slot and prompt limits and the card layout
+inside `V0_POLICY.slate`'s panel. The prompt sits above the image row, leaving
+the native subtitle and transport band clear. Card lessons use an opaque pale
+panel over a lightly shaded, recognizable scene, with solid ivory cards, blue-gray borders and a
+small lower shadow. A focused slot turns warm yellow with a gold border and
+three small gold stars above it, clear of the prompt and artwork;
+each image is fitted whole without stretching and centered inside its card.
+Floor props retain their bottom anchor. The draw list emits a
+`slate` command with `mode: 'cards'`, the panel, ordered card rectangles
+(`slug`, `url`, `dx`, `dy`, `dw`, `dh`, `focused`) and a measured prompt area
+(`text`, `cx`, `cy`, `maxWidth`, `size`). Arithmetic draw lists are unchanged.
+
+Card artwork is required lesson content. The scene loader plans both authored
+and inherited cards, resolves them through the ordinary object URLs, and keeps
+them in the bitmap cache independently of floor actors. A required image that
+cannot fetch or decode rejects `ready` at the opening gate. A later failure
+stops the story clock, narration and video and shows a reload message on the
+stage; it never continues the lesson with a missing picture. Optional posters
+and character assets retain their existing fallback behavior.
+
 A CUE is a command written under a spoken line, fired when a spoken word is
 reached. The bundle carries it on the chunk step—`cues: [{line, word,
 occurrence, at: {word, of, char, chars}, step}]`, present only on a chunk that
@@ -863,3 +903,35 @@ two files — `story-player.js` and `build.json` — anywhere a consumer can fet
 over HTTPS. What must not change is the contract: the consumer verifies commit,
 byte count and SHA-256 before promoting, so any host works as long as both files
 are served together and `build.json` describes the bytes beside it.
+
+
+### Learn presentation markers
+
+Learn uses reserved object slugs inside the existing `board` card array; these
+are presentation conventions, not new timeline operations. Every marker still
+needs an object entry. Do not use reserved names for ordinary picture cards.
+
+- Ocean teaching: `[ocean_{phase}_{N}, ocean_fish, ocean_number_{N}]`, with
+  `phase` = `arrive`, `hold`, `reveal`, or `recount` (the latter adds `_{index}`).
+  Counts are 1-10; the `ocean_school_` variant is limited to 1-5. The empty school
+  is `[ocean_school_empty, ocean_fish]`. Three `ocean_group_N` cards (or three
+  `ocean_small_group_N`, 1-3) plus `ocean_quiz_count_index` highlight a fish in
+  the focused group. Indices must fit the selected count.
+- `ocean_zone_out`, `ocean_zone_in`, `ocean_hide_out`, and `ocean_goodbye_out`
+  wrap a complete board as its final card. Wrappers cannot nest or wrap an
+  arrival/recount. Removing a wrapper preserves the underlying card clock;
+  focus/prompt changes also preserve it. Replacing the underlying ordered cards
+  starts a new clock.
+- `farm_board_lift` or `farm_board_lower` is the final card after 1-3 picture
+  cards. It lifts/lowers the board over 1.2 seconds and retains that position.
+  It cannot wrap Ocean content or focus the marker slot.
+- `[animal_NAME, farm_view_FROM_TO]` selects a 2.8-second habitat camera move,
+  with its name label fading in at 3.8-4.2 seconds. Endpoints are `wide` or
+  cow, sheep, goat, pig, horse, donkey, dog, cat, rabbit, chicken, duck, goose.
+  The picture matches `TO` unless `TO` is `wide`; focus must be absent.
+  Both animal endpoints must be placed in the scene. A missing target,
+  including one lost across a scene cut, emits `farm-camera-target-missing`.
+
+Malformed reserved combinations are refused at mount and append, including
+boards in narration cues. These clocks are derived from timeline time, so pause,
+reverse seeking, and resizing restore the same presentation.

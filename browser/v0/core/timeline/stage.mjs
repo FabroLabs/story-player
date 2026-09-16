@@ -180,6 +180,10 @@ export class TimelineStage {
     this.#record('slate', origin, { count, mode, groups: [...groups] });
   }
 
+  setCardBoard({ cards, focus, prompt }, origin = {}) {
+    this.#record('slate', origin, { mode: 'cards', cards: [...cards], focus, prompt });
+  }
+
   // The panel with nothing on it, standing from the first frame of the scene
   // that first counts. The same op as every other board — a client folding the
   // stream meets one shape — with the one payload no story can write.

@@ -265,3 +265,40 @@ function close(server) {
   if (!server) return Promise.resolve();
   return new Promise((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())));
 }
+
+
+test('Farm phone captions sit above the timeline with visible controls', async ({ page }) => {
+  await page.setViewportSize({width:390,height:844});
+  await page.goto(`${application.url}/plain-js.html`);
+  await page.evaluate(() => window.__mounted);
+  const bounds = await page.evaluate(async (assetBase) => {
+    const host = document.body.appendChild(document.createElement('div'));
+    host.style.width = '358px';
+    const story = structuredClone(window.__story);
+    const svg = story.scenes[0].plate.poster;
+    story.cast = {};
+    story.objects = Object.fromEntries(['animal_cow','farm_view_wide_cow'].map(slug=>[slug,{svg,height_cm:35}]));
+    story.scenes = [{...story.scenes[0],steps:[
+      {kind:'cmd',cmd:'put',subjects:['animal_cow'],objects:['animal_cow'],position:'center'},
+      {kind:'cmd',cmd:'board',subjects:[],cards:['animal_cow','farm_view_wide_cow'],prompt:'Cow'},
+      {kind:'cmd',cmd:'pause',seconds:10}]}];
+    const handle = FabroStoryPlayer.createStoryPlayer(host,{story,assetBase});
+    await handle.ready;
+    const root = host.shadowRoot;
+    root.querySelector('.start-button').click();
+    handle.pause();
+    const frame = root.querySelector('.stage-frame');
+    frame.classList.remove('is-bare');
+    root.querySelector('.subtitle').textContent = 'The happy cow is standing in the green meadow.';
+    root.querySelector('.subtitle-wrap').hidden = false;
+    await new Promise(resolve => setTimeout(resolve, 400));
+    const text = root.querySelector('.subtitle').getBoundingClientRect();
+    const scrub = root.querySelector('.scrub').getBoundingClientRect();
+    const result = {farm:frame.classList.contains('has-farm-overlay'),bottom:text.bottom,top:text.top,timeline:scrub.top,frameTop:frame.getBoundingClientRect().top};
+    handle.destroy();
+    return result;
+  }, storage.url);
+  expect(bounds.farm).toBe(true);
+  expect(bounds.bottom).toBeLessThanOrEqual(bounds.timeline);
+  expect(bounds.top).toBeGreaterThanOrEqual(bounds.frameTop);
+});
