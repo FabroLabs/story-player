@@ -18,6 +18,7 @@ export const PERFORMANCE_CAPABILITIES = Object.freeze([
   "segments",
   "transition",
   "shapes",
+  "captions",
 ]);
 const SCALARS = new Set([
   "x",
@@ -112,7 +113,7 @@ export function validatePerformance(story) {
   record(story, "story");
   finiteTree(story, "story");
   record(story.performance, "header", "kind resolution required_capabilities");
-  if (story.performance.kind !== "wht") fail("kind", "unsupported input");
+  if (!["wht", "bedtime"].includes(story.performance.kind)) fail("kind", "unsupported input");
   vector(story.performance.resolution, 2, "resolution");
   story.performance.resolution.forEach((v) => finite(v, "resolution", 1, 8192));
   if (!Array.isArray(story.performance.required_capabilities))
@@ -584,7 +585,23 @@ export function validatePerformance(story) {
       color(scene.transition.color, scene.id);
     }
   }
-  if (end > 300000) fail("duration", "WHT exceeds five minutes");
+  if (story.performance.kind === "wht" && end > 300000) fail("duration", "WHT exceeds five minutes");
+  if (own(story, "captions")) {
+    if (!story.performance.required_capabilities.includes("captions"))
+      fail("captions", "requires captions capability");
+    if (!Array.isArray(story.captions)) fail("captions", "expected cue array");
+    let previous = 0;
+    for (const [index, cue] of story.captions.entries()) {
+      const where = "captions[" + index + "]";
+      record(cue, where, "start_ms end_ms text");
+      interval(cue, where);
+      finite(cue.end_ms, where + ".end_ms", 0, end);
+      if (cue.start_ms < previous) fail(where, "unordered/overlapping captions");
+      if (typeof cue.text !== "string" || !cue.text.trim())
+        fail(where, "nonempty text required");
+      previous = cue.end_ms;
+    }
+  }
   if (!Array.isArray(story.audio)) fail("audio", "expected cue array");
   const ids = new Set();
   for (const a of story.audio) {

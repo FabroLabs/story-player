@@ -44,8 +44,9 @@ proofs, not continuous review of every frame, universal avatar admission or
 production deployment. Detailed images, private documents, logs and hash receipts
 remain outside this repository.
 
-- `scripts/compile-performance.mjs` compiles/audits complete JSON and evaluates a
-  requested state without media I/O.
+- `scripts/compile-performance.mjs` compiles/audits complete JSON and evaluates
+  requested states (`--state=MS`, or `--states=MS,MS,…` for several in one call)
+  without media I/O.
 - `scripts/build-performance-compiler.mjs --out-dir DIRECTORY` creates a
   content-addressed standalone compiler and source receipt for engine consumers.
 - `scripts/build-local.mjs OUTPUT.js` creates an explicitly uncommitted debug

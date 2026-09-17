@@ -35,7 +35,7 @@ export function auditPerformance(story) {
     ...story.audio.map((a) => a.media),
   ].filter(Boolean);
   return {
-    kind: "wht",
+    kind: story.performance.kind,
     supported_capabilities: [...PERFORMANCE_CAPABILITIES].sort(),
     used_capabilities: [...used].sort(),
     declared_capabilities: [...story.performance.required_capabilities].sort(),

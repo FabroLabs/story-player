@@ -227,6 +227,45 @@ test('turning subtitles off takes the whole subtitle area with it', async (t) =>
   );
 });
 
+test('timed performance captions reuse the subtitle area and CC toggle after seeks', async (t) => {
+  const dom = installDom();
+  t.after(dom.restore);
+  const host = document.createElement('div');
+  const player = createStoryPlayer(host, {
+    story: {
+      performance: { kind: 'wht', resolution: [1000, 562.5],
+        required_capabilities: ['captions'] },
+      assets: {}, audio: [],
+      scenes: [{ id: 'song', start_ms: 0, end_ms: 4000, nodes: [] }],
+      captions: [
+        { start_ms: 0, end_ms: 1000, text: 'A is for apple' },
+        { start_ms: 2000, end_ms: 4000, text: 'B is for ball' },
+      ],
+    },
+    assetBase: 'https://storage.example/',
+  });
+  t.after(() => player.destroy());
+  await player.ready;
+  player.play();
+  player.pause();
+  player.seek(250);
+  const area = find(host.shadowRoot, (node) => node.className === 'subtitle-wrap');
+  const subtitle = find(host.shadowRoot, (node) => node.className === 'subtitle');
+  const button = find(host.shadowRoot, (node) => node.getAttribute?.('aria-label') === 'hide subtitles');
+  assert.equal(subtitle.parent, area);
+  assert.equal(subtitle.textContent, 'A is for apple');
+  button.dispatch('click');
+  assert.equal(area.hidden, true);
+  player.seek(2500);
+  button.dispatch('click');
+  assert.equal(area.hidden, false);
+  assert.equal(subtitle.textContent, 'B is for ball');
+  player.seek(1000);
+  assert.equal(subtitle.textContent, '');
+  player.seek(250);
+  assert.equal(subtitle.textContent, 'A is for apple');
+});
+
 function find(root, predicate) {
   if (predicate(root)) return root;
   for (const child of root.children ?? []) {
