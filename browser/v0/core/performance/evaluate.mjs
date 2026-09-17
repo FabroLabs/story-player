@@ -337,6 +337,9 @@ export function performanceStateAt(timeline, story, tMs) {
     x: (100 * (width / 2 - cx * zoom)) / width,
     y: (100 * (height / 2 - cy * zoom)) / height,
   };
+  const caption = story.captions?.find(
+    (cue) => t >= cue.start_ms && t < cue.end_ms,
+  );
   const narration = story.audio.find(
     (a) =>
       a.kind === "narration" &&
@@ -358,7 +361,9 @@ export function performanceStateAt(timeline, story, tMs) {
     actors: [],
     camera,
     audio: performanceAudioAt(story, t),
-    subtitle: narration?.text ?? "",
+    subtitle: Object.hasOwn(story, "captions")
+      ? caption?.text ?? ""
+      : narration?.text ?? "",
     ended: t >= timeline.duration_ms,
     warnings: [],
     renderNodes,
