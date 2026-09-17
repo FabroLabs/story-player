@@ -104,6 +104,24 @@ forward crossings, never historical catch-up. Replay resets delivery; pause,
 seek and destroy stop one-shots. Equal-time cues preserve authored order.
 duration_ms is measured media duration. Text/word cue metadata is data.
 
+## Timed captions
+
+Optional top-level `captions` contains `{start_ms,end_ms,text}` cues. Declare
+`captions` in `performance.required_capabilities` whenever the field is present,
+including an empty array. Older players refuse that capability before playback.
+Each cue has exactly those three fields: finite absolute story milliseconds,
+`0 <= start_ms < end_ms <= story duration`, and nonblank string text. Cues must
+be ordered without overlap; adjacent intervals and gaps are allowed.
+
+The active half-open interval `[start_ms,end_ms)` supplies the normal subtitle
+text, including when it spans a scene cut. Between cues, and for an empty array,
+the subtitle is empty. Omitting `captions` preserves active narration text as the
+subtitle. Lyrics use the existing CC toggle and subtitle area above transport.
+They neither create audio cues nor affect music gain, seeking or scheduling.
+For a premixed song, author one music entry with `volume:1` and `loop:false`.
+Caption edits change the compilation signature, so stored instructions must be
+regenerated whenever lyrics or their timings change.
+
 ## All70 coverage gate
 
 Inventory every rendering branch/field used by 69 generic sources plus picnic.
