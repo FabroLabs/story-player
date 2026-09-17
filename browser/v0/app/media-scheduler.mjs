@@ -618,10 +618,19 @@ function createPerformanceMediaScheduler({ bundle, onWarning }) {
   const delivered = new Set();
   const report = (cue, error) => onWarning({ type: 'media', asset: cue.kind,
     message: 'Required story audio failed: ' + (error?.message ?? error), cue: cue.id });
-  const release = (media) => { media.pause(); media.removeAttribute?.('src'); media.load?.(); };
+  // Media this scheduler paused or released since it last asked them to play. A pending
+  // play() that the browser then rejects with AbortError was interrupted by us, not
+  // refused by the device, and is not a story media failure (the same rule as above).
+  const interrupted = new WeakSet();
+  const halt = (media) => { interrupted.add(media); media.pause(); };
+  const release = (media) => { halt(media); media.removeAttribute?.('src'); media.load?.(); };
   function start(media, cue) {
     if (!playing || destroyed) return;
-    Promise.resolve(media.play()).catch(error => report(cue, error));
+    interrupted.delete(media);
+    Promise.resolve(media.play()).catch((error) => {
+      if (error?.name === 'AbortError' && (destroyed || interrupted.has(media))) return;
+      report(cue, error);
+    });
   }
   function open(cue) {
     const media = new Audio();
@@ -658,7 +667,11 @@ function createPerformanceMediaScheduler({ bundle, onWarning }) {
   return {
     advance(from, to) {
       if (destroyed) return;
-      sync(to);
+      // `to` is the exclusive end of the slice; the instant being played is just before
+      // it, and `tick` syncs that same instant. Syncing at `to` itself disagreed with
+      // `tick` whenever a cue boundary fell inside the last millisecond: the ending cue
+      // was released and reopened and the next one opened and released in one frame.
+      sync(Math.max(from, to - 1));
       for (const cue of performanceSoundsBetween(story, from, to)) {
         if (delivered.has(cue.id)) continue;
         delivered.add(cue.id);
@@ -670,7 +683,7 @@ function createPerformanceMediaScheduler({ bundle, onWarning }) {
     },
     seek(t) { if (!destroyed) { clearSounds(); delivered.clear(); sync(t, true); } },
     tick(t) { if (!destroyed) sync(t); },
-    pause() { playing = false; clearSounds(); for (const item of active.values()) item.media.pause(); },
+    pause() { playing = false; clearSounds(); for (const item of active.values()) halt(item.media); },
     settle() { this.pause(); },
     resume() { if (destroyed) return; playing = true; for (const item of active.values()) start(item.media, item.cue); },
     unlock() { return Promise.resolve(); },
