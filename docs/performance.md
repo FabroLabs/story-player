@@ -8,6 +8,15 @@ This describes the implemented contract; source review and deployment are
 separate from story admission. Local implementation evidence and release status
 are recorded in [WHT_IMPLEMENTATION_STATUS.md](../WHT_IMPLEMENTATION_STATUS.md).
 
+## Kinds
+
+`performance.kind` names the product a document belongs to: `wht` (What Happened
+Today) or `bedtime`. Both use exactly this field contract, compiler, evaluator and
+adapters. The kind is carried into the compiled instructions, the audit and the
+state evaluator: instructions or a timeline compiled for one kind never play a
+document of the other. Only `wht` is limited to five minutes (300000 ms); a
+bedtime story may run longer. Any other kind is refused before playback.
+
 ## Envelope example
 
     {
@@ -103,6 +112,9 @@ tracks seek to elapsed time (modulo media duration for loops). SFX fire only on
 forward crossings, never historical catch-up. Replay resets delivery; pause,
 seek and destroy stop one-shots. Equal-time cues preserve authored order.
 duration_ms is measured media duration. Text/word cue metadata is data.
+A cue ending where the next begins hands over in the same frame without a pause.
+A play() request the player itself interrupted (pause, seek, release) is not a
+media failure and never pauses the story.
 
 ## Timed captions
 
