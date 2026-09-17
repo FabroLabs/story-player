@@ -4,7 +4,7 @@ export const PERFORMERS = new Map([[0, createV0Player]]);
 
 export function performerFor(story) {
   if (story?.performance) {
-    if (story.performance.kind !== 'wht') throw new Error('unsupported performance kind');
+    if (!['wht', 'bedtime'].includes(story.performance.kind)) throw new Error('unsupported performance kind');
     return createV0Player;
   }
   const version = story?.storylang_version;

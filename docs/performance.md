@@ -8,6 +8,15 @@ This describes the implemented contract; source review and deployment are
 separate from story admission. Local implementation evidence and release status
 are recorded in [WHT_IMPLEMENTATION_STATUS.md](../WHT_IMPLEMENTATION_STATUS.md).
 
+## Kinds
+
+`performance.kind` names the product a document belongs to: `wht` (What Happened
+Today) or `bedtime`. Both use exactly this field contract, compiler, evaluator and
+adapters. The kind is carried into the compiled instructions, the audit and the
+state evaluator: instructions or a timeline compiled for one kind never play a
+document of the other. Only `wht` is limited to five minutes (300000 ms); a
+bedtime story may run longer. Any other kind is refused before playback.
+
 ## Envelope example
 
     {
@@ -103,6 +112,27 @@ tracks seek to elapsed time (modulo media duration for loops). SFX fire only on
 forward crossings, never historical catch-up. Replay resets delivery; pause,
 seek and destroy stop one-shots. Equal-time cues preserve authored order.
 duration_ms is measured media duration. Text/word cue metadata is data.
+A cue ending where the next begins hands over in the same frame without a pause.
+A play() request the player itself interrupted (pause, seek, release) is not a
+media failure and never pauses the story.
+
+## Timed captions
+
+Optional top-level `captions` contains `{start_ms,end_ms,text}` cues. Declare
+`captions` in `performance.required_capabilities` whenever the field is present,
+including an empty array. Older players refuse that capability before playback.
+Each cue has exactly those three fields: finite absolute story milliseconds,
+`0 <= start_ms < end_ms <= story duration`, and nonblank string text. Cues must
+be ordered without overlap; adjacent intervals and gaps are allowed.
+
+The active half-open interval `[start_ms,end_ms)` supplies the normal subtitle
+text, including when it spans a scene cut. Between cues, and for an empty array,
+the subtitle is empty. Omitting `captions` preserves active narration text as the
+subtitle. Lyrics use the existing CC toggle and subtitle area above transport.
+They neither create audio cues nor affect music gain, seeking or scheduling.
+For a premixed song, author one music entry with `volume:1` and `loop:false`.
+Caption edits change the compilation signature, so stored instructions must be
+regenerated whenever lyrics or their timings change.
 
 ## All70 coverage gate
 

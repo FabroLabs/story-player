@@ -101,7 +101,7 @@ export function compilePerformance(story) {
   });
   const timeline = {
     timeline_version: 1,
-    performance_kind: "wht",
+    performance_kind: story.performance.kind,
     performance_signature: signature(story),
     title: story.title ?? null,
     duration_ms: duration,
@@ -120,7 +120,7 @@ export function compilePerformance(story) {
 
 export function performanceStateAt(timeline, story, tMs) {
   if (!Number.isFinite(tMs)) throw new Error("performance time must be finite");
-  if (timeline?.performance_kind !== "wht" || timeline.timeline_version !== 1)
+  if (!["wht", "bedtime"].includes(timeline?.performance_kind) || timeline.performance_kind !== story.performance.kind || timeline.timeline_version !== 1)
     throw new Error("performance timeline mismatch");
   const t = Math.max(0, tMs);
   let opened = null;
@@ -337,6 +337,9 @@ export function performanceStateAt(timeline, story, tMs) {
     x: (100 * (width / 2 - cx * zoom)) / width,
     y: (100 * (height / 2 - cy * zoom)) / height,
   };
+  const caption = story.captions?.find(
+    (cue) => t >= cue.start_ms && t < cue.end_ms,
+  );
   const narration = story.audio.find(
     (a) =>
       a.kind === "narration" &&
@@ -358,7 +361,9 @@ export function performanceStateAt(timeline, story, tMs) {
     actors: [],
     camera,
     audio: performanceAudioAt(story, t),
-    subtitle: narration?.text ?? "",
+    subtitle: Object.hasOwn(story, "captions")
+      ? caption?.text ?? ""
+      : narration?.text ?? "",
     ended: t >= timeline.duration_ms,
     warnings: [],
     renderNodes,
