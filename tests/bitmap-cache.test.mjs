@@ -326,3 +326,33 @@ test('a device that says it has little memory is given half the budget', () => {
   assert.equal(defaultBudgetBytes({}), DEFAULT_BUDGET_BYTES, 'a browser that will not say is not a small one');
   assert.equal(defaultBudgetBytes(undefined), DEFAULT_BUDGET_BYTES);
 });
+
+test('the next scene\'s sheets, decoded ahead, are not evicted to make room for other loads', async () => {
+  const { decode } = countingDecoder({ 'now.webp': 100, 'next.webp': 100, 'other.webp': 100 });
+  const cache = createBitmapCache({ decode, budgetBytes: 100 * 100 * 4 * 2 });
+  cache.keep(['now.webp']);
+  cache.keepNext(['next.webp']);
+  await cache.load('now.webp');
+  await cache.load('next.webp');
+  await cache.load('other.webp');
+  await cache.load('now.webp');
+  assert.equal(cache.has('next.webp'), true, 'a sheet decoded for the next scene was evicted');
+});
+
+test('a prefetch downloads into the HTTP cache and decodes nothing', async (t) => {
+  const prior = globalThis.fetch;
+  const asked = [];
+  let read = 0;
+  globalThis.fetch = async (url, options) => {
+    asked.push([url, options.mode, options.credentials]);
+    return { ok: true, status: 200, arrayBuffer: async () => { read += 1; return new ArrayBuffer(4); } };
+  };
+  t.after(() => { globalThis.fetch = prior; });
+  const { calls, decode } = countingDecoder();
+  const cache = createBitmapCache({ decode });
+  await cache.prefetch('later.webp');
+  assert.deepEqual(asked, [['later.webp', 'cors', 'omit']], 'not the request a decode makes, so not answered from cache');
+  assert.equal(read, 1, 'the body was not read, so nothing was cached');
+  assert.deepEqual(calls, []);
+  assert.equal(cache.has('later.webp'), false);
+});

@@ -307,6 +307,19 @@ button:focus-visible {
    back as a permanent dim over a playing story. */
 .waiting-overlay[hidden] { display: none; }
 
+/* A hold: the story waits on its last frame for sound or pictures that have not landed. No dim —
+   the picture is the story, paused — just the spinner, over the middle of the stage. */
+.hold-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  display: grid;
+  place-content: center;
+  pointer-events: none;
+}
+
+.hold-overlay[hidden] { display: none; }
+
 .waiting-spinner {
   width: 2.1rem;
   height: 2.1rem;

@@ -648,6 +648,20 @@ sentence being read finish rather than freezing it mid-word. The clock has
 stopped at both, so nothing is counting there: what ends the line is the file
 itself, or the next pause, seek or `destroy`.
 
+A performance (wht, grow, bedtime, learn's songs) never plays a gap instead. Its
+narration is downloaded whole into memory from the moment it is prepared, and
+`ready` waits for the opening's sheets, its first two lines and the bed or song
+under them. When the story reaches a line that has not landed, the start of a
+bed or song that cannot play yet, or a scene cut whose sheets are not all
+decoded, it holds on its last frame—picture, voice and music together—and goes
+on the moment they land; a line noticed late starts at its first word, never
+inside it. The transport and `getState().playing` read playing through a hold,
+pause ends it, and a seek lands the same way. A small spinner shows once a hold
+passes 300 ms; one that has not ended after 20 s stops the story with a note,
+and play asks again. The next scene's sheets are decoded while the current one
+plays, as far as the bitmap budget allows, so most cuts do not hold at all. See
+the [performance contract](performance.md#loading-and-holds).
+
 ## Sheets, renditions and device tiers
 
 Every clip in a current bundle carries `renditions`—the content-addressed webp

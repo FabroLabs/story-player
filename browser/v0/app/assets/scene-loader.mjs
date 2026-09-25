@@ -72,7 +72,12 @@ export function sceneAssetPlan(timeline, bundle, sceneIndex, viewport = {}) {
     const scene = bundle.scenes[sceneIndex];
     if (!scene) throw new Error('performance scene is missing');
     const ids = new Set(scene.nodes.flatMap(n => [n.asset, ...(n.segments ?? []).map(s => s.asset)]));
-    const props = [...ids].filter(id => bundle.assets[id].type !== 'shape').map(id => ({ slug: id, url: bundle.assets[id].url ?? bundle.assets[id].media }));
+    // `bytes` is what the sheet costs decoded, known before it is fetched: the document carries
+    // every asset's pixel size.
+    const props = [...ids].filter(id => bundle.assets[id].type !== 'shape').map(id => ({
+      slug: id, url: bundle.assets[id].url ?? bundle.assets[id].media,
+      bytes: (bundle.assets[id].width ?? 0) * (bundle.assets[id].height ?? 0) * 4,
+    }));
     return { sceneIndex, cameraScale: 1, poster: null, sheets: [], props };
   }
   const events = (timeline?.events ?? [])
@@ -376,7 +381,44 @@ export function createSceneLoader({
   let story = { timeline, bundle };
   let warming = null;
 
-  return { plan, loadScene, holdScene, queueRemainingScenes, sceneCount, setStory };
+  return { plan, loadScene, holdScene, queueRemainingScenes, sceneCount, setStory, sceneReady, prepareScene };
+
+  /** Whether everything scene `sceneIndex` draws is decoded — its cut may be shown. */
+  function sceneReady(sceneIndex, viewport = {}) {
+    return planAssets(plan(sceneIndex, viewport)).every(({ url }) => cache.has(url));
+  }
+
+  /**
+   * Decode the next scene ahead, as far as the memory budget allows.
+   *
+   * What bedtime's invisible preroll nodes do by hand, for every story: while scene `sceneIndex -
+   * 1` plays, the sheets scene `sceneIndex` adds are decoded one at a time, in drawing order, for
+   * as long as the scene on screen and those already decoded still fit the budget. What does not
+   * fit is decoded at the cut while the story holds. A failure is not named here: the cut tries
+   * again, and says so if it has to.
+   */
+  async function prepareScene(sceneIndex, onScreen, viewport = {}) {
+    if (sceneIndex >= sceneCount()) return;
+    const showing = plan(onScreen, viewport).props;
+    const current = new Set(showing.map(({ url }) => url));
+    let bytes = showing.reduce((sum, prop) => sum + prop.bytes, 0);
+    const next = [];
+    for (const prop of plan(sceneIndex, viewport).props) {
+      if (current.has(prop.url)) continue;
+      if (bytes + prop.bytes > cache.budget) break;
+      bytes += prop.bytes;
+      next.push(prop.url);
+    }
+    cache.keepNext(next);
+    for (const url of next) {
+      throwIfAborted(signal);
+      try {
+        await cache.load(url, { signal });
+      } catch (error) {
+        if (signal?.aborted) throw error;
+      }
+    }
+  }
 
   /** The host published another scene: everything below plans from it now. */
   function setStory(next) {
@@ -492,7 +534,12 @@ export function createSceneLoader({
         // queue outlives a tier demotion and a resize, and the sheets a scene
         // is warmed with have to be the ones it will be opened with.
         const view = typeof viewport === 'function' ? viewport() : viewport;
-        const result = await loadScene(index, view, { concurrency: 1 });
+        // A performance's later scenes are downloaded, not decoded: `prepareScene` decodes the
+        // next one from the moment its predecessor opens, within the budget, and decoding every
+        // scene here only churned the cache (a 3584² sheet is 49 MB decoded).
+        const result = story.bundle?.performance
+          ? await download(index, view)
+          : await loadScene(index, view, { concurrency: 1 });
         throwIfAborted(signal);
         onScene(index, result.total);
       }
@@ -503,6 +550,19 @@ export function createSceneLoader({
       // warmed at all.
       warming = null;
     }
+  }
+
+  async function download(sceneIndex, viewport) {
+    const assets = planAssets(plan(sceneIndex, viewport));
+    for (const { url } of assets) {
+      throwIfAborted(signal);
+      try {
+        await cache.prefetch(url, { signal });
+      } catch (error) {
+        if (signal?.aborted) throw error;
+      }
+    }
+    return { total: assets.length };
   }
 
   /**
