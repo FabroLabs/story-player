@@ -1,8 +1,9 @@
 # AGENTS.md — story-player
 
 - Browser delivery is one deterministic classic IIFE built from maintainable
-  ESM. It has zero runtime dependencies, embeds its CSS, and installs only the
-  deeply frozen `window.FabroStoryPlayer` global.
+  ESM. It has zero runtime dependencies, embeds its CSS, and installs only
+  `window.FabroStoryPlayers[<commit>]` (every build on the page) and
+  `window.FabroStoryPlayer` (the first one), both deeply frozen.
 - The supported browser API is exactly `build`, `createStoryPlayer`,
   `resolveMediaUrl`, `createReactStoryPlayer`, and `tooling`. React is always
   supplied by the caller; never bundle a React copy.
@@ -74,6 +75,8 @@
   page is the feedback. Never let it address the production bucket:
   `storage-config.mjs` holds both names as an allow-list and the workflow
   contract test asserts each rail never names the other's bucket or environment.
+- A push to `patch/**` runs `deploy-dev.yml` too and never promotes `stable/`: a
+  patch build is reached by commit, by the one story that points at it.
 - `build.json` is the whole contract — commit, byte count, SHA-256. Never
   publish one of the two files without the other, and never edit an immutable
   release.

@@ -1,6 +1,8 @@
 name: Deploy dev
 
 # Push to `dev` → build the player, upload it to the dev bucket. Nothing else.
+# Push to `patch/**` → the same build, uploaded beside the others without moving
+# `stable/`: a patch is for the one story that points at it by commit.
 #
 # This is a PREVIEW rail, not a gate. `dev` is where work is tried; `main` means
 # "ready for production" and is where the full suite runs; merging into
@@ -29,7 +31,7 @@ name: Deploy dev
 
 on:
   push:
-    branches: [dev]
+    branches: [dev, 'patch/**']
 
 # No release is created and no tag moves.
 permissions:
@@ -39,7 +41,7 @@ permissions:
 # developer is actually waiting on. `deploy-player.yml` queues instead, because a
 # superseded production build is immutable and someone may pin it.
 concurrency:
-  group: story-player-dev
+  group: story-player-dev-${{ github.ref_name }}
   cancel-in-progress: true
 
 jobs:
@@ -74,6 +76,7 @@ jobs:
         env:
           STORY_PLAYER_COMMIT: ${{ github.sha }}
           STORY_PLAYER_BUCKET: story-player-dev
+          STORY_PLAYER_PROMOTE: ${{ github.ref_name == 'dev' }}
           S3_URL: ${{ vars.S3_DEV_URL }}
           S3_ACCESS_KEY: ${{ secrets.S3_DEV_ACCESS_KEY }}
           S3_SECRET_KEY: ${{ secrets.S3_DEV_SECRET_KEY }}

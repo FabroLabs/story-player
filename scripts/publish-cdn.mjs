@@ -81,6 +81,9 @@ export async function publishCdn({
   config,
   fetchImpl = globalThis.fetch,
   log = defaultLog,
+  // A patch build (`patch/**`) is published for the one story that points at it: it adds
+  // `builds/<commit>/` and leaves `stable/` on the build every other story plays.
+  promote = true,
   store,
 }) {
   requireCommit(commit);
@@ -128,15 +131,17 @@ export async function publishCdn({
   });
   log({ event: 'immutable-verified', bytes: script.length, commit, key: immutableKey, sha256 });
 
-  await promoteStable({ config, fetchImpl, metadata, script, sha256, store });
-  log({ event: 'stable-promoted', bytes: script.length, commit, key: stableKey, sha256 });
+  if (promote) {
+    await promoteStable({ config, fetchImpl, metadata, script, sha256, store });
+    log({ event: 'stable-promoted', bytes: script.length, commit, key: stableKey, sha256 });
+  }
   return Object.freeze({
     bucket: config.bucket,
     bytes: script.length,
     commit,
     immutableKey,
     sha256,
-    stableKey,
+    stableKey: promote ? stableKey : null,
   });
 }
 
@@ -330,6 +335,7 @@ if (invoked) {
       artifact,
       commit,
       config,
+      promote: process.env.STORY_PLAYER_PROMOTE !== 'false',
       store: createS3Store(config),
     });
     process.stdout.write(`${JSON.stringify(report)}\n`);

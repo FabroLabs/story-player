@@ -382,7 +382,9 @@ test('repository commands, protected workflows, and public examples describe onl
   // no release. This is asserted rather than trusted because a one-word edit
   // here would silently point dev builds at real users.
   const dev = read('.github/workflows/deploy-dev.yml');
-  assert.match(dev, /on:[\s\S]*?push:[\s\S]*?branches: \[dev\]/);
+  assert.match(dev, /on:[\s\S]*?push:[\s\S]*?branches: \[dev, 'patch\/\*\*'\]/);
+  // Only `dev` moves `stable/`; a patch build is reached by commit alone.
+  assert.match(dev, /STORY_PLAYER_PROMOTE: \$\{\{ github\.ref_name == 'dev' \}\}/);
   assert.match(dev, /environment: cdn-dev/);
   assert.match(dev, /STORY_PLAYER_BUCKET: story-player-dev/);
   // The production bucket, named without the `-dev` suffix, must never appear
@@ -518,3 +520,15 @@ function sha256(bytes) {
 function read(relative) {
   return fs.readFileSync(path.join(ROOT, relative), 'utf8');
 }
+
+test('a patch build is published beside the others and never moves stable', async () => {
+  const store = fakeStore({ exists: true, configured: true });
+  const report = await publishCdn({
+    artifact: SCRIPT, commit: COMMIT, config: CONFIG, fetchImpl: store.fetch, log: () => {}, promote: false, store,
+  });
+  assert.equal(report.stableKey, null);
+  assert.ok(store.objects.has(`builds/${COMMIT}/story-player.js`));
+  assert.ok(store.objects.has(`builds/${COMMIT}/build.json`));
+  assert.equal(store.objects.has('stable/story-player.js'), false, 'a patch build became every story\'s player');
+  assert.equal(store.objects.has('stable/build.json'), false);
+});

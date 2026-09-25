@@ -2,14 +2,23 @@
 
 ## Browser contract
 
-Load one classic script. It installs a deeply frozen
-`window.FabroStoryPlayer` with exactly five members:
+Load one classic script per build. Each build is a deeply frozen object with
+exactly five members:
 
 - `build.commit`
 - `createStoryPlayer(container, options)`
 - `resolveMediaUrl(path, assetBase)`
 - `createReactStoryPlayer(React)`
 - `tooling`, including the deterministic `tooling.v0` surface
+
+It registers itself as `window.FabroStoryPlayers[<build.commit>]`, and the first
+build a page loads is also `window.FabroStoryPlayer`. A story plays the build it
+was made with, so a page may load several immutable builds and mount each story
+with its own: `FabroStoryPlayers[story.player.commit].createStoryPlayer(...)`.
+Both globals and every registry entry are non-writable and non-configurable;
+loading the same build again is a no-op, and anything else already standing
+under one of those names is refused. Builds made before the registry install
+only `FabroStoryPlayer` and refuse to load after a different build.
 
 The host fetches and parses `story.json`. The player receives only that object
 and a trusted storage-root `assetBase`; it never accepts or fetches a story URL.
@@ -748,6 +757,8 @@ https://storage.example/story-player/builds/<full-commit>/build.json
 
 Immutable responses cache for one year and include the full Git commit,
 byte count, and SHA-256 in `build.json`. There are no semantic-version aliases.
+A host loading the build a story names should pass that SHA-256 as the script's
+`integrity`, so the page runs exactly the bytes the story was made with.
 
 ## Storage and CORS
 
@@ -821,8 +832,13 @@ holding onto: a commit pushed straight to `dev` is tested nowhere, because CI
 runs on pull requests and on `main`. The pull request into `main` is the first
 gate, and `production` reruns the whole suite before it publishes anything.
 
-There is no `workflow_dispatch` either — the trigger is a push to `dev` and
-nothing else. To republish without a new commit (after creating the bucket, or
+A push to a `patch/**` branch runs the same workflow and uploads its build
+beside the others **without** moving `stable/`: a patch is cut from the build one
+story plays, carries only that story's fix, and is reached by commit, never by
+`stable`. Only maintainers may create `patch/**` branches.
+
+There is no `workflow_dispatch` either — the trigger is a push to `dev` or
+`patch/**` and nothing else. To republish without a new commit (after creating the bucket, or
 rotating a key), rerun the last run: `gh run rerun <id>`.
 
 ### Naming, and why the two halves differ
