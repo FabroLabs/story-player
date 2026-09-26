@@ -1,8 +1,9 @@
 # AGENTS.md — story-player
 
 - Browser delivery is one deterministic classic IIFE built from maintainable
-  ESM. It has zero runtime dependencies, embeds its CSS, and installs only the
-  deeply frozen `window.FabroStoryPlayer` global.
+  ESM. It has zero runtime dependencies, embeds its CSS, and installs only
+  `window.FabroStoryPlayers[<commit>]` (every build on the page) and
+  `window.FabroStoryPlayer` (the first one), both deeply frozen.
 - The supported browser API is exactly `build`, `createStoryPlayer`,
   `resolveMediaUrl`, `createReactStoryPlayer`, and `tooling`. React is always
   supplied by the caller; never bundle a React copy.
@@ -61,10 +62,9 @@
   credential — only the job's own token. The one store credential in this
   repository lives in the `cdn-dev` environment, is named `S3_DEV_*`, and must
   never be able to write the production bucket.
-- Three branches. `dev` is where work is tried, `main` is where it lands and
-  means "ready for production", and **`production` is what is deployed**. A
-  merge into `production` runs `deploy-player.yml`, which gates the release on
-  the full suite and then moves the rolling `latest` tag.
+- Two branches. `dev` is where work is tried, and **`main` is what is
+  deployed**. A merge into `main` runs `deploy-player.yml`, which gates the
+  release on the full suite and then moves the rolling `latest` tag.
 - Production CD is **pull, not push**: the cluster's MinIO is ClusterIP-only, so
   a runner cannot write to it. A CronJob in the cluster fetches `latest`,
   verifies `build.json` and promotes `stable/`.

@@ -1,11 +1,11 @@
 name: Deploy player
 
-# Merge into `production` → the player reaches the cluster's MinIO.
+# Merge into `main` → the player reaches the cluster's MinIO.
 #
 # THE SHAPE, AND WHY IT IS THIS ONE
 # ─────────────────────────────────
-# `main` is where work lands. `production` is what is deployed: merging into it
-# is the deliberate act that publishes a player to real children's bedtimes, and
+# `dev` is where work is tried. `main` is what is deployed: merging into it is
+# the deliberate act that publishes a player to real children's bedtimes, and
 # nothing else in this repository moves what the cluster serves.
 #
 # Delivery is PULL, not push, and that is forced by the infrastructure rather
@@ -21,23 +21,19 @@ name: Deploy player
 # inbound is opened and the store credential never leaves the cluster. Expect the
 # site to be serving the new player within ~10 minutes of a green run here.
 #
-# WHY `push` AND NOT `workflow_run`
-# ─────────────────────────────────
-# A `workflow_run` trigger only fires for the copy of the workflow file on the
-# repository's DEFAULT branch. This file's whole point is to live on `production`
-# and react to `production`, so `workflow_run` would silently never run — the
-# worst kind of broken, because the branch would look wired up.
-#
-# `push` uses the file from the pushed branch, which is what we want. The cost is
-# that it does not inherit CI's green tick, so the gate is rebuilt here: `verify`
-# runs the same unit, build, browser and repository checks, and `release` will not
-# start unless it passes. Publishing an untested player is the one failure this
+# WHY `push`
+# ─────────
+# `push` runs the workflow file from the merged commit itself, so a change to
+# this file takes effect with the merge that carries it. The cost is that it
+# does not inherit CI's green tick, so the gate is rebuilt here: `verify` runs the
+# same unit, build, browser and repository checks, and `release` will not start
+# unless it passes. Publishing an untested player is the one failure this
 # workflow exists to prevent — a broken renderer is a black rectangle where a
 # child's story should be.
 
 on:
   push:
-    branches: [production]
+    branches: [main]
   # Re-publish the current tip by hand: recovering after a release was deleted,
   # or re-pointing `latest` once the mirror has been unpinned.
   workflow_dispatch:
@@ -90,8 +86,8 @@ jobs:
         # older player than the one already published.
         run: |
           set -euo pipefail
-          git fetch origin production --depth=1
-          test "$(git rev-parse origin/production)" = "$GITHUB_SHA"
+          git fetch origin main --depth=1
+          test "$(git rev-parse origin/main)" = "$GITHUB_SHA"
         env:
           GITHUB_SHA: ${{ github.sha }}
 

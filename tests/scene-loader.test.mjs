@@ -787,3 +787,63 @@ test('a bundle without renditions plays from the originals and says so once per 
   await loader.loadScene(0, {});
   assert.equal(warnings.length, 2, 'the same clip said it twice');
 });
+
+/** Three performance scenes; each sheet 100² (40 000 bytes decoded), scene 1 adding two to scene 0's one. */
+function performanceScenes() {
+  const sheet = (name) => ({ type: 'image', media: `https://storage.example/${name}.png`, width: 100, height: 100 });
+  return {
+    performance: { kind: 'wht' },
+    assets: { room: sheet('room'), hero: sheet('hero'), wave: sheet('wave'), far: sheet('far') },
+    scenes: [
+      { start_ms: 0, end_ms: 1000, nodes: [{ id: 'room', asset: 'room' }] },
+      { start_ms: 1000, end_ms: 2000, nodes: [{ id: 'room', asset: 'room' }, { id: 'hero', asset: 'hero', segments: [{ asset: 'wave' }] }] },
+      { start_ms: 2000, end_ms: 3000, nodes: [{ id: 'far', asset: 'far' }] },
+    ],
+    audio: [],
+  };
+}
+
+test('a performance scene is ready only once every sheet it draws is decoded, segment swaps included', async () => {
+  const cache = fakeCache();
+  const loader = createSceneLoader({ timeline: null, bundle: performanceScenes(), cache });
+  assert.equal(loader.sceneReady(1), false);
+  await cache.load('https://storage.example/room.png');
+  await cache.load('https://storage.example/hero.png');
+  assert.equal(loader.sceneReady(1), false, 'a scene missing its swap sheet counted as ready');
+  await cache.load('https://storage.example/wave.png');
+  assert.equal(loader.sceneReady(1), true);
+});
+
+test('the next scene is decoded ahead only as far as the budget allows, and spared eviction', async () => {
+  const cache = { ...fakeCache(), budget: 40_000 * 2, next: [] };
+  cache.keepNext = (urls) => { cache.next = urls; };
+  const loader = createSceneLoader({ timeline: null, bundle: performanceScenes(), cache });
+  await loader.prepareScene(1, 0);
+  assert.deepEqual(cache.loaded.map(name), ['hero.png'], 'decoded past the budget, or what the scene on screen already holds');
+  assert.deepEqual(cache.next.map(name), ['hero.png']);
+});
+
+test('a performance\'s later scenes are downloaded during playback, not decoded', async () => {
+  const cache = { ...fakeCache(), prefetched: [] };
+  cache.prefetch = async (url) => { cache.prefetched.push(url); };
+  const loader = createSceneLoader({ timeline: null, bundle: performanceScenes(), cache });
+  await loader.queueRemainingScenes(1, {});
+  assert.deepEqual(cache.loaded, [], 'the warm-up decoded sheets');
+  assert.deepEqual(cache.prefetched.map(name), ['room.png', 'hero.png', 'wave.png', 'far.png']);
+});
+
+test('a preparation a newer scene replaced stops decoding', async () => {
+  const cache = { ...fakeCache(), budget: 1e12, next: [] };
+  cache.keepNext = (urls) => { cache.next = urls; };
+  const loaded = [];
+  const landing = [];
+  cache.load = (url) => { loaded.push(url); return new Promise((resolve) => { landing.push(resolve); }); };
+  const loader = createSceneLoader({ timeline: null, bundle: performanceScenes(), cache });
+  void loader.prepareScene(1, 0);
+  void loader.prepareScene(2, 1);
+  await Promise.resolve();
+  landing.shift()();
+  await new Promise((resolve) => { setImmediate(resolve); });
+  assert.deepEqual(loaded.map(name), ['hero.png', 'far.png'], 'the replaced preparation went on decoding');
+  assert.deepEqual(cache.next.map(name), ['far.png']);
+});

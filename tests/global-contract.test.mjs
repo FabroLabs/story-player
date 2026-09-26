@@ -17,7 +17,7 @@ const V0_TOOLING = [
   'spriteHeightForCm', 'stateAt', 'zoneNamed',
 ];
 
-test('the classic script installs only the deeply frozen five-member global', async (t) => {
+test('the classic script installs the deeply frozen five-member build and the registry of builds', async (t) => {
   const { source } = await artifact(t, FIRST);
   const context = vm.createContext({ console, Element: class {} });
   const before = new Set(Object.keys(context));
@@ -41,32 +41,38 @@ test('the classic script installs only the deeply frozen five-member global', as
     /bundle version 17 unknown to this player \(knows: 0\)/,
   );
   assert.deepEqual(
-    Object.keys(context).filter((name) => !before.has(name)),
-    ['FabroStoryPlayer'],
+    Object.keys(context).filter((name) => !before.has(name)).sort(),
+    ['FabroStoryPlayer', 'FabroStoryPlayers'],
   );
-  assert.deepEqual(Object.getOwnPropertyDescriptor(context, 'FabroStoryPlayer'), {
-    configurable: false,
-    enumerable: true,
-    writable: false,
-    value: api,
-  });
+  for (const name of ['FabroStoryPlayer', 'FabroStoryPlayers']) {
+    const { configurable, enumerable, writable } = Object.getOwnPropertyDescriptor(context, name);
+    assert.deepEqual({ configurable, enumerable, writable }, { configurable: false, enumerable: true, writable: false });
+  }
+  assert.deepEqual(Object.keys(context.FabroStoryPlayers), [FIRST]);
+  assert.equal(context.FabroStoryPlayers[FIRST], api);
   assertDeeplyFrozen(api);
 });
 
-test('a mutable same-commit lookalike is a collision, not an idempotent reload', async (t) => {
+test('a mutable lookalike of either global is refused, not adopted', async (t) => {
   const { source } = await artifact(t, FIRST);
-  const context = vm.createContext({
-    console,
-    FabroStoryPlayer: { build: { commit: FIRST } },
-  });
-
   assert.throws(
-    () => vm.runInContext(source, context),
-    /FabroStoryPlayer existing global is not the protected 1111111 build/,
+    () => vm.runInContext(source, vm.createContext({ console, FabroStoryPlayer: { build: { commit: FIRST } } })),
+    /FabroStoryPlayer existing global is not a protected build/,
+  );
+  assert.throws(
+    () => vm.runInContext(source, vm.createContext({ console, FabroStoryPlayers: {} })),
+    /FabroStoryPlayers existing global is not the protected registry/,
+  );
+  const planted = vm.createContext({ console });
+  vm.runInContext(`Object.defineProperty(globalThis, 'FabroStoryPlayers', { value: {}, enumerable: true });
+    Object.defineProperty(FabroStoryPlayers, '${FIRST}', { value: { build: { commit: '${FIRST}' } }, enumerable: true });`, planted);
+  assert.throws(
+    () => vm.runInContext(source, planted),
+    /FabroStoryPlayers\[1111111\] existing entry is not the protected 1111111 build/,
   );
 });
 
-test('identical reload is idempotent and a different build collision fails closed', async (t) => {
+test('an identical reload is idempotent, and a second build installs beside the first', async (t) => {
   const first = await artifact(t, FIRST);
   const second = await artifact(t, SECOND);
   const context = vm.createContext({ console });
@@ -75,11 +81,21 @@ test('identical reload is idempotent and a different build collision fails close
   const installed = context.FabroStoryPlayer;
   vm.runInContext(first.source, context);
   assert.equal(context.FabroStoryPlayer, installed);
-  assert.throws(
-    () => vm.runInContext(second.source, context),
-    /FabroStoryPlayer build collision.*1111111.*2222222/,
-  );
-  assert.equal(context.FabroStoryPlayer, installed);
+  vm.runInContext(second.source, context);
+  assert.equal(context.FabroStoryPlayer, installed, 'the page\'s first build was replaced');
+  assert.deepEqual(Object.keys(context.FabroStoryPlayers).sort(), [FIRST, SECOND]);
+  assert.equal(context.FabroStoryPlayers[SECOND].build.commit, SECOND);
+  assert.notEqual(context.FabroStoryPlayers[SECOND].createStoryPlayer, installed.createStoryPlayer);
+});
+
+test('a build loaded after one that predates the registry keeps the older global and registers itself', async (t) => {
+  const { source } = await artifact(t, SECOND);
+  const context = vm.createContext({ console });
+  vm.runInContext(`Object.defineProperty(globalThis, 'FabroStoryPlayer', {
+    value: Object.freeze({ build: Object.freeze({ commit: '${FIRST}' }) }), enumerable: true });`, context);
+  vm.runInContext(source, context);
+  assert.equal(context.FabroStoryPlayer.build.commit, FIRST);
+  assert.equal(context.FabroStoryPlayers[SECOND].build.commit, SECOND);
 });
 
 async function artifact(t, commit) {

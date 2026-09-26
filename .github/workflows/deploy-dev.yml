@@ -2,9 +2,8 @@ name: Deploy dev
 
 # Push to `dev` → build the player, upload it to the dev bucket. Nothing else.
 #
-# This is a PREVIEW rail, not a gate. `dev` is where work is tried; `main` means
-# "ready for production" and is where the full suite runs; merging into
-# `production` is the only act that reaches a child's bedtime. So this workflow
+# This is a PREVIEW rail, not a gate. `dev` is where work is tried; a merge into
+# `main` runs the full suite and is the only act that reaches a child's bedtime. So this workflow
 # deliberately does not test — a broken dev build shows up as a broken dev page,
 # which is the fastest feedback there is and costs nobody anything. Pushing
 # straight to `dev` therefore runs no tests at all; the pull request into `main`
@@ -22,7 +21,7 @@ name: Deploy dev
 #
 # WHY NO GITHUB RELEASE
 # ─────────────────────
-# Because nothing pulls dev. `production` publishes releases because the
+# Because nothing pulls dev. `main` publishes releases because the
 # cluster's MinIO is ClusterIP-only and delivery has to be pull-shaped. The dev
 # store answers over HTTP, so the build is written where it is read, and
 # `latest` keeps meaning exactly one thing — the newest production player.

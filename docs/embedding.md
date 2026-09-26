@@ -2,14 +2,23 @@
 
 ## Browser contract
 
-Load one classic script. It installs a deeply frozen
-`window.FabroStoryPlayer` with exactly five members:
+Load one classic script per build. Each build is a deeply frozen object with
+exactly five members:
 
 - `build.commit`
 - `createStoryPlayer(container, options)`
 - `resolveMediaUrl(path, assetBase)`
 - `createReactStoryPlayer(React)`
 - `tooling`, including the deterministic `tooling.v0` surface
+
+It registers itself as `window.FabroStoryPlayers[<build.commit>]`, and the first
+build a page loads is also `window.FabroStoryPlayer`. A story plays the build it
+was made with, so a page may load several immutable builds and mount each story
+with its own: `FabroStoryPlayers[story.player.commit].createStoryPlayer(...)`.
+Both globals and every registry entry are non-writable and non-configurable;
+loading the same build again is a no-op, and anything else already standing
+under one of those names is refused. Builds made before the registry install
+only `FabroStoryPlayer` and refuse to load after a different build.
 
 The host fetches and parses `story.json`. The player receives only that object
 and a trusted storage-root `assetBase`; it never accepts or fetches a story URL.
@@ -648,6 +657,20 @@ sentence being read finish rather than freezing it mid-word. The clock has
 stopped at both, so nothing is counting there: what ends the line is the file
 itself, or the next pause, seek or `destroy`.
 
+A performance (wht, grow, bedtime, learn's songs) never plays a gap instead. Its
+narration is downloaded whole into memory from the moment it is prepared, and
+`ready` waits for the opening's sheets, its first two lines and the bed or song
+under them (the sound part at most 20 s). When the story reaches a line that has
+not landed, or a scene cut whose sheets are not all decoded, it holds on its
+last frame—picture, voice and music together—and goes on the moment they land;
+a bed or song is waited for at most 1.5 s. A line noticed late starts at its
+first word, never inside it. The transport and `getState().playing` read playing through a hold,
+pause ends it, and a seek lands the same way. A small spinner shows once a hold
+passes 300 ms; one that has not ended after 20 s stops the story with a note,
+and play asks again. The next scene's sheets are decoded while the current one
+plays, as far as the bitmap budget allows, so most cuts do not hold at all. See
+the [performance contract](performance.md#loading-and-holds).
+
 ## Sheets, renditions and device tiers
 
 Every clip in a current bundle carries `renditions`—the content-addressed webp
@@ -748,6 +771,8 @@ https://storage.example/story-player/builds/<full-commit>/build.json
 
 Immutable responses cache for one year and include the full Git commit,
 byte count, and SHA-256 in `build.json`. There are no semantic-version aliases.
+A host loading the build a story names should pass that SHA-256 as the script's
+`integrity`, so the page runs exactly the bytes the story was made with.
 
 ## Storage and CORS
 
@@ -769,13 +794,13 @@ why the symptom looks like missing characters rather than a missing background.
 
 ## Branches and deployment
 
-Three branches, and only one of them reaches a child's bedtime. `dev` is where
-work is tried, `main` is where work lands and means "ready for production", and
-**`production` is what is deployed** — merging into it is the deliberate act
-that publishes a player, and nothing else in this repository moves what the
-cluster serves.
+Two branches, and one of them reaches a child's bedtime. `dev` is where work is
+tried, and **`main` is what is deployed** — merging into it is the deliberate
+act that publishes a player, and nothing else in this repository moves what the
+cluster serves. Pull requests into `main` run the full suite (`ci.yml`) before
+the merge.
 
-A merge into `production` runs **Deploy player**
+A merge into `main` runs **Deploy player**
 (`.github/workflows/deploy-player.yml`):
 
 1. `verify` — unit tests, a deterministic build, real Chromium
@@ -808,7 +833,7 @@ reach production even in principle — `scripts/storage-config.mjs` enforces the
 two names as an allow-list, and the workflow contract test asserts each rail
 never names the other's bucket or environment.
 
-Dev publishes no GitHub release. `production` does that because the cluster
+Dev publishes no GitHub release. `main` does that because the cluster
 mirrors releases over a pull-shaped path it cannot invert; the dev store answers
 directly, so the build is written where it is read and `latest` keeps meaning
 exactly one thing — the newest production player.
@@ -819,7 +844,7 @@ that refuses to publish a broken build cannot show you the break — a dev page
 rendering wrong is faster feedback than a red tick. The consequence is worth
 holding onto: a commit pushed straight to `dev` is tested nowhere, because CI
 runs on pull requests and on `main`. The pull request into `main` is the first
-gate, and `production` reruns the whole suite before it publishes anything.
+gate, and the release reruns the whole suite before it publishes anything.
 
 There is no `workflow_dispatch` either — the trigger is a push to `dev` and
 nothing else. To republish without a new commit (after creating the bucket, or
