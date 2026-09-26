@@ -31,6 +31,13 @@ import { createCanvasStage, sceneSheets } from './stage/canvas-stage.mjs';
 import { createVideoPlate } from './stage/video-plate.mjs';
 
 const SKIP_MS = 10_000;
+// A performance that reaches sound or pictures that have not landed holds on
+// its last frame until they do. The spinner shows only once a hold outlasts a
+// blink; a hold that does not end stops the story with a note, and play asks
+// again. A scene whose sheets would not load is asked for again this often.
+const HOLD_SPINNER_MS = 300;
+const HOLD_TIMEOUT_MS = 20_000;
+const RETRY_MS = 1_000;
 
 export function createTimelinePlayer({
   elements, bundle, timeline, clock, loader, cache, log = null,
@@ -117,17 +124,24 @@ export function createTimelinePlayer({
   let frame = null;
   let ended = false;
   let started = false;
-  // Playback caught up with the writer: the stage dims, and the story is held
-  // here — not ended — until the next scene lands or the host says there is
-  // none. `resumeAfterAppend` is the transport's promise about what happens
-  // then, and a viewer may change it while they wait.
-  let waiting = false;
+  // The story is held, not ended: `'writer'` when playback caught up with the
+  // writer (the stage dims until the next scene lands or the host says there is
+  // none), `'media'` when a performance reached sound or pictures that have not
+  // landed (the last frame stays up until they do). `resumeAfterAppend` is the
+  // transport's promise about what happens then, and a viewer may change it
+  // while they wait.
+  let waiting = null;
   let resumeAfterAppend = false;
   let resumeWhenVisible = false;
   // A pointer is down on the scrub bar: the picture follows it, the sound is
   // held until it lands. See `seekTo`.
   let scrubbing = false;
   let destroyed = false;
+  // Which hold is current, and its spinner and give-up timers.
+  let holds = 0;
+  let holdTimers = [];
+  // The scene a paused seek landed in before its sheets did, being fetched.
+  let awaitedCut = null;
   // Which arrival at the end the screen is still owed. An end card is played
   // between reaching the end and showing it, and a viewer who scrubs back out
   // in the middle of one has left an end that must not arrive behind them.
@@ -213,7 +227,12 @@ export function createTimelinePlayer({
     // that touches the `<video>`, and the recorder asks it rather than reaching
     // past it.
     recorder?.watchVideo({ getVideoPlaybackQuality: () => plate.quality() });
-    await loader.loadScene(0, viewport(), { keep: true, onProgress });
+    // Sound first: the opening's lines and its bed are small, and a story that
+    // opens on pictures and then waits for its first word has opened wrong. A
+    // gate that cannot get them lets the story start anyway — the hold at the
+    // line is what waits, and what says so if it has to.
+    const sound = within(media.prepare?.(), HOLD_TIMEOUT_MS);
+    await Promise.all([sound, loader.loadScene(0, viewport(), { keep: true, onProgress })]);
     if (destroyed || signal?.aborted) return;
     render(0, { force: true });
     controls.arm(durationMs);
@@ -238,7 +257,11 @@ export function createTimelinePlayer({
     // this instant: a tier demotion lowers `dprCap` and a resize moves the
     // letterbox, and a queue holding the begin-time numbers would spend the
     // rest of the story fetching sheets `openScene` will never ask for.
-    void loader.queueRemainingScenes(1, viewport, {}).catch(warmingFailed);
+    // A performance's pictures wait behind its narration: a line is a few
+    // hundred kilobytes and a sheet a few megabytes, and the line is sooner.
+    const warm = () => loader.queueRemainingScenes(1, viewport, {}).catch(warmingFailed);
+    if (media.loaded) void media.loaded().then(warm);
+    else void warm();
   }
 
   function play() {
@@ -286,6 +309,11 @@ export function createTimelinePlayer({
 
   function pause() {
     if (destroyed) return;
+    if (waiting === 'media') {
+      leaveWaiting(false);
+      updateControls({ tMs: clock.now(), playing: false, ended: false });
+      return;
+    }
     if (waiting) {
       resumeAfterAppend = false;
       // `settle` left the line being read out sounding — that is the whole
@@ -363,7 +391,9 @@ export function createTimelinePlayer({
     // Scrubbing back out of the wait takes the spinner with it and leaves the
     // story where the pointer put it, paused — the same thing scrubbing out of
     // the end does. The append that arrives later finds nothing to resume.
-    if (waiting && t < durationMs) leaveWaiting(false);
+    // Out of a hold, though, the story goes on playing from where it landed —
+    // and holds again there if that is not ready either.
+    if (waiting && t < durationMs) leaveWaiting(waiting === 'media');
     render(t, { force: true });
   }
 
@@ -391,6 +421,7 @@ export function createTimelinePlayer({
     if (destroyed) return;
     destroyed = true;
     stopLoop();
+    clearHoldTimers();
     for (const [target, type, handler] of listeners) target.removeEventListener(type, handler);
     listeners.length = 0;
     controls.destroy();
@@ -470,10 +501,17 @@ export function createTimelinePlayer({
    */
   function render(tMs, { force = false } = {}) {
     if (destroyed) return;
-    const t = clamp(tMs);
+    let t = clamp(tMs);
+    // Sound or a cut this frame would cross that has not landed: the story
+    // stops just short of it, draws that instant, and holds there.
+    const hold = started && clock.running && !scrubbing && !waiting ? holdAt(t) : null;
+    if (hold) {
+      t = Math.max(hold.atMs - 1, mediaNextMs - 1, 0);
+      clock.seek(t);
+    }
     const state = cursor.at(t);
-    openScene(state);
-    holdChunks(t, state, force);
+    const shown = openScene(state);
+    if (shown) holdChunks(t, state, force);
     report(state.warnings);
     // Only a RUNNING story crosses time. A paused one is redrawn at the instant
     // it stands at — by the pause itself, by a scrub, by a resize — and handing
@@ -495,8 +533,14 @@ export function createTimelinePlayer({
     // to be asked for here — from the same instant, on the same clock.
     // The opaque card panel protects the lesson; its surrounding forest stays visible.
     plate.frost(boardStanding(state.slate) && state.slate?.mode !== 'cards', state.plate?.resolution?.[1]);
-    paint(state, force);
+    // A cut whose sheets are not decoded is not drawn at all: the last frame
+    // stays up until every one of them is, never a scene with parts missing.
+    if (shown) paint(state, force);
     say(state.subtitle);
+    if (hold) {
+      holdFor(hold);
+      return;
+    }
     // The wait owns the transport while it is up: the button says what happens
     // when the scene lands, and the stopped clock underneath would say the
     // opposite — including to `toggle`, which reads the button back.
@@ -521,7 +565,7 @@ export function createTimelinePlayer({
    * is not started again by a scene landing.
    */
   function waitForScene() {
-    waiting = true;
+    waiting = 'writer';
     resumeAfterAppend = clock.running;
     clock.pause();
     stopLoop();
@@ -537,8 +581,10 @@ export function createTimelinePlayer({
 
   function leaveWaiting(resume) {
     if (!waiting) return;
-    waiting = false;
+    waiting = null;
+    clearHoldTimers();
     elements.stage.waiting.hidden = true;
+    if (elements.stage.hold) elements.stage.hold.hidden = true;
     const wanted = resumeAfterAppend;
     resumeAfterAppend = false;
     if (resume && wanted) play();
@@ -573,7 +619,7 @@ export function createTimelinePlayer({
     // published — so resuming straight into it opens on a plate that has not
     // loaded and stand-in thumbnails for the cast. The story is stopped and the
     // spinner is already up: the decode is free here and visible one tick later.
-    if (waiting) await warmAppended();
+    if (waiting === 'writer') await warmAppended();
     if (destroyed) return;
     leaveWaiting(true);
     // The warm queue runs to the end of what was published and returns; the
@@ -623,7 +669,7 @@ export function createTimelinePlayer({
     onSceneOpen(sceneIndex, sceneCount(), complete);
     // Already sitting at the end of the prefix with the spinner up: that end
     // was the story's, and nothing is coming to move it.
-    if (!waiting) return;
+    if (waiting !== 'writer') return;
     leaveWaiting(false);
     finish();
   }
@@ -672,10 +718,17 @@ export function createTimelinePlayer({
    *
    * The load is not awaited. Every later scene was already warmed in playing
    * order, and a story that stopped at a cut to wait for a decode would stutter
-   * on exactly the frame a viewer is most likely to be watching.
+   * on exactly the frame a viewer is most likely to be watching. A performance
+   * is the exception: its sheets are too big to keep warm, so its cut is opened
+   * only once they are all decoded (`cutReady`), and until then the story
+   * holds on the last frame rather than show a scene with parts missing.
    */
   function openScene(state) {
-    if (state.sceneIndex === sceneIndex) return;
+    if (state.sceneIndex === sceneIndex) return true;
+    if (!cutReady(state.sceneIndex)) {
+      awaitCut(state.sceneIndex);
+      return false;
+    }
     sceneIndex = state.sceneIndex;
     stage.setFarmOverlay(sceneHasFarmBoard(story.bundle?.scenes?.[sceneIndex]));
     signature = null;
@@ -696,7 +749,7 @@ export function createTimelinePlayer({
       sheets = null;
       sceneView = null;
       plate.showScene(null);
-      return;
+      return true;
     }
     const view = viewport();
     sceneView = view;
@@ -711,6 +764,101 @@ export function createTimelinePlayer({
       // has already happened has its own paint coming.
       .then(() => imageArrived(opened))
       .catch(warmingFailed);
+    // The next scene's sheets, decoded while this one plays, as far as the
+    // budget allows: the cut to it is then only a hold for what did not fit.
+    if (story.bundle?.performance) void loader.prepareScene(opened + 1, opened, view).catch(warmingFailed);
+    return true;
+  }
+
+  /** A performance's cut is shown only once every sheet its scene draws is decoded. */
+  function cutReady(index) {
+    return !story.bundle?.performance || index === null || loader.sceneReady(index, sceneView ?? viewport());
+  }
+
+  /**
+   * A paused story sought into a scene that is not decoded shows its last
+   * frame until the scene is, and then the scene. A running one holds instead
+   * (`holdAt`), and asks for the same sheets there.
+   */
+  function awaitCut(index) {
+    if (awaitedCut === index) return;
+    awaitedCut = index;
+    void loader.loadScene(index, sceneView ?? viewport(), { keep: true })
+      .then(() => {
+        if (awaitedCut === index) awaitedCut = null;
+        if (!destroyed && !clock.running && !waiting) render(clock.now(), { force: true });
+      }, () => { if (awaitedCut === index) awaitedCut = null; });
+  }
+
+  /**
+   * The first thing between the last frame and `t` a performance cannot show or
+   * sound yet: a line or the start of a bed or song still downloading, or a cut
+   * whose sheets are not decoded. `null` for everything else, and for every
+   * other kind of story.
+   */
+  function holdAt(t) {
+    if (!story.bundle?.performance) return null;
+    const from = Math.min(mediaNextMs, t);
+    const found = [media.blocker?.(from, t + 1), cutBlocker(from, t)].filter(Boolean);
+    return found.sort((a, b) => a.atMs - b.atMs)[0] ?? null;
+  }
+
+  function cutBlocker(fromMs, tMs) {
+    for (const [index, scene] of (story.bundle.scenes ?? []).entries()) {
+      if (scene.end_ms <= fromMs || scene.start_ms > tMs || index === sceneIndex || cutReady(index)) continue;
+      return { atMs: Math.max(scene.start_ms, fromMs), until: () => sceneLanded(index) };
+    }
+    return null;
+  }
+
+  /** Decode a held-for scene, asking again after a failure while the hold lasts. */
+  async function sceneLanded(index) {
+    while (!destroyed && waiting === 'media') {
+      try {
+        await loader.loadScene(index, sceneView ?? viewport(), { keep: true });
+        return;
+      } catch (error) {
+        if (signal?.aborted) throw error;
+        await new Promise((resolve) => { setTimeout(resolve, RETRY_MS); });
+      }
+    }
+  }
+
+  /**
+   * Stop on the last frame until what the story reached has landed.
+   *
+   * Picture, voice and music stop together, exactly as a pause stops them, and
+   * the transport keeps reading "playing". The spinner comes only if the wait
+   * outlasts a blink; a wait that does not end at all stops the story with a
+   * note, and play asks again.
+   */
+  function holdFor(hold) {
+    waiting = 'media';
+    resumeAfterAppend = true;
+    clock.pause();
+    stopLoop();
+    plate.pause();
+    media.pause();
+    recorder?.pause();
+    holds += 1;
+    const mine = holds;
+    const current = () => mine === holds && waiting === 'media';
+    holdTimers = [
+      setTimeout(() => { if (current() && elements.stage.hold) elements.stage.hold.hidden = false; }, HOLD_SPINNER_MS),
+      setTimeout(() => {
+        if (!current()) return;
+        leaveWaiting(false);
+        showNote('Story media could not be loaded. Press play to try again.');
+        updateControls({ tMs: clock.now(), playing: false, ended: false });
+      }, HOLD_TIMEOUT_MS),
+    ];
+    void hold.until().then(() => { if (current()) leaveWaiting(true); }, () => {});
+    updateControls({ tMs: clock.now(), playing: true, ended: false });
+  }
+
+  function clearHoldTimers() {
+    for (const timer of holdTimers) clearTimeout(timer);
+    holdTimers = [];
   }
 
   function imageArrived(opened) {
@@ -912,6 +1060,16 @@ export function createTimelinePlayer({
     const t = Math.max(0, Math.round(milliseconds));
     return durationMs > 0 ? Math.min(durationMs, t) : t;
   }
+}
+
+/** `promise`, or nothing after `ms` — whichever comes first. */
+function within(promise, ms) {
+  if (!promise) return Promise.resolve();
+  let timer = null;
+  return Promise.race([
+    promise.catch(() => {}),
+    new Promise((resolve) => { timer = setTimeout(resolve, ms); }),
+  ]).finally(() => clearTimeout(timer));
 }
 
 /**

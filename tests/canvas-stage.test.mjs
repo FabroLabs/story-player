@@ -1083,3 +1083,17 @@ test('the stage reads the picture off its sheets at paint time, so a late one ne
   stage.setTier({ dprCap: 1.5, shadows: false });
   assert.equal(context.of('drawImage').filter(([source]) => source === picture.drawable).length, 1);
 });
+
+test('a performance node whose swap sheet is missing keeps the frame it last had, rather than vanishing', () => {
+  const context = fakeContext();
+  context.transform = () => {};
+  const node = (url, source) => ({ op: 'performance', id: 'hero', url, source, matrix: [1, 0, 0, 1, 0, 0], opacity: 1, lights: [], particles: [] });
+  const list = (command) => ({ width: 100, height: 100, camera: { scale: 1, x: 0, y: 0 }, commands: [command] });
+  const sheet = { width: 10, height: 10 };
+  const lookup = (url) => (url === 'a.png' ? sheet : null);
+  paintDrawList(context, list(node('a.png', [0, 0, 5, 5])), { lookup });
+  paintDrawList(context, list(node('b.png', [5, 0, 5, 5])), { lookup });
+  const draws = context.calls.filter(([name]) => name === 'drawImage');
+  assert.equal(draws.length, 2, 'the node disappeared when its next sheet was missing');
+  assert.deepEqual(draws[1].slice(1, 6), [sheet, 0, 0, 5, 5], 'the node was not held on the frame it last had');
+});

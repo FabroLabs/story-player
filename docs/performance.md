@@ -104,17 +104,43 @@ transition:{kind:fade,duration_ms,color} is an explicit incoming scene fade.
 ## Audio
 
 Audio array entries: {id,kind,media,start_ms,end_ms?,duration_ms,volume,loop,text?,gain_keys?}.
-end_ms is the active playback boundary, separate from measured media duration_ms.
+end_ms is the cue's window, separate from measured media duration_ms.
 gain_keys:[[absoluteMs,volume],...] changes authored gain without reopening a track.
 Kinds: narration,music,ambience,sfx. Narration/SFX default volume=1;
-music/ambience require an authored volume. WHT never speech-ducks. Continuous
-tracks seek to elapsed time (modulo media duration for loops). SFX fire only on
-forward crossings, never historical catch-up. Replay resets delivery; pause,
-seek and destroy stop one-shots. Equal-time cues preserve authored order.
-duration_ms is measured media duration. Text/word cue metadata is data.
-A cue ending where the next begins hands over in the same frame without a pause.
-A play() request the player itself interrupted (pause, seek, release) is not a
-media failure and never pauses the story.
+music/ambience require an authored volume. WHT never speech-ducks. Music and
+ambience keep musical time: they seek to elapsed time (modulo media duration for
+loops). SFX fire only on forward crossings, never historical catch-up. Replay
+resets delivery; pause, seek and destroy stop one-shots. Equal-time cues
+preserve authored order. duration_ms is measured media duration. Text/word cue
+metadata is data. A cue ending where the next begins hands over in the same
+frame without a pause. A play() request the player itself interrupted (pause,
+seek, release) is not a media failure and never pauses the story.
+
+Narration is downloaded whole, in playing order from the playhead, from the
+moment the story is prepared, and each line plays from memory. A line starts no
+later than its first word: noticed late, it skips at most its silent
+`metadata.lead_in_ms` and is late rather than cut; only a viewer's seek lands
+inside a line. A line still speaking when its window closes may run on for up
+to `V0_POLICY.audio.narrationGraceMs`; a seek or destroy cuts it at once.
+
+## Loading and holds
+
+The opening gate waits for scene 0's sheets, the first two narration lines and
+every bed or song that sounds before the second line, playable from its start.
+After that the story never plays a gap: when the clock reaches a line that has
+not landed, the start of a bed or song that cannot play yet, or a scene cut
+whose sheets—segment swaps included—are not all decoded, the whole story holds
+on its last frame (picture, voice and music) and goes on the moment they land.
+A cut is all or nothing, a seek lands the same way, and the transport reads
+playing throughout. A spinner shows once a hold passes 300 ms; a hold that has
+not ended after 20 s stops the story with a note, and play asks again.
+
+While a scene plays, the sheets the next scene adds are decoded as far as the
+bitmap budget allows (asset `width × height × 4` bytes each); the rest are
+decoded at the cut, under a hold. Later scenes are downloaded during playback,
+after the narration, into the browser's HTTP cache, and decoded only when their
+scene is next. Within a scene, a node whose swap sheet failed keeps the frame
+it last had.
 
 ## Timed captions
 

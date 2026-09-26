@@ -158,9 +158,12 @@ test('a frame inside the last millisecond before a cue boundary keeps both lines
     assert.equal(audio.made[0].paused, false, 'the first line was interrupted before its end');
     await frame(2016);
     assert.equal(audio.made.length, 2);
-    assert.equal(audio.made[0].paused, true, 'the first line was not released at its end');
+    assert.equal(audio.made[0].paused, false, 'a line still speaking was cut at the end of its window');
     assert.equal(audio.made[1].paused, false, 'the second line did not start');
     assert.equal(audio.made[1].plays, 1);
+    await frame(3000);
+    assert.equal(audio.made[0].paused, true, 'the first line outlived its window by more than the grace');
+    assert.equal(audio.made[1].paused, false);
     assert.deepEqual(warnings, []);
   } finally {
     audio.restore();
@@ -195,6 +198,164 @@ test('a play the scheduler interrupts itself is not a media failure; a refusal s
     scheduler.destroy();
     await settle();
     assert.equal(warnings.length, 1, 'teardown was reported as a failure');
+  } finally {
+    audio.restore();
+  }
+});
+
+/** An Audio that records its listeners, so a test can fire `loadedmetadata` or end it. */
+function installListeningAudio() {
+  const prior = globalThis.Audio;
+  const made = [];
+  globalThis.Audio = class {
+    constructor() {
+      this.paused = true;
+      this.ended = false;
+      this.currentTime = 0;
+      this.plays = 0;
+      this.listeners = {};
+      made.push(this);
+    }
+    play() { this.paused = false; this.plays += 1; return Promise.resolve(); }
+    pause() { this.paused = true; }
+    addEventListener(type, fn) { (this.listeners[type] ??= []).push(fn); }
+    fire(type) { for (const fn of this.listeners[type] ?? []) fn(); }
+    removeAttribute() {}
+    load() {}
+  };
+  return { made, restore: () => { globalThis.Audio = prior; } };
+}
+
+const voiced = {
+  performance: { kind: 'bedtime' },
+  audio: [
+    { id: 'bed', kind: 'ambience', media: 'pack/bed.m4a', start_ms: 0, end_ms: 20000, duration_ms: 20000, volume: 1 },
+    { id: 'line', kind: 'narration', media: 'pack/line.m4a', start_ms: 1000, end_ms: 6000, duration_ms: 3000,
+      volume: 1, metadata: { lead_in_ms: 500 } },
+    { id: 'bare', kind: 'narration', media: 'pack/bare.m4a', start_ms: 7000, end_ms: 9000, duration_ms: 1500, volume: 1 },
+  ],
+};
+
+test('a line noticed late starts from its first word; a seek still lands exactly', () => {
+  const audio = installListeningAudio();
+  try {
+    const scheduler = createMediaScheduler({ bundle: voiced, timeline: {} });
+    scheduler.resume();
+    // the frame that first sees the line comes 800 ms after it began (a stall, a slow load)
+    scheduler.tick(1800);
+    const [bed, line] = audio.made;
+    assert.equal(bed.currentTime, 1.8, 'the bed keeps musical time');
+    assert.equal(line.currentTime, 0.5, 'only the silent lead-in may be skipped');
+    line.fire('loadedmetadata');
+    assert.equal(line.currentTime, 0.5, 'the position is kept when the file has loaded');
+    // no lead-in declared: late lines start at their very beginning
+    scheduler.tick(7400);
+    assert.equal(audio.made.at(-1).currentTime, 0);
+    // scrubbing into the middle of a line is a seek: exact
+    scheduler.seek(2500);
+    const reopened = audio.made.at(-1);
+    assert.equal(reopened.currentTime, 1.5);
+    reopened.fire('loadedmetadata');
+    assert.equal(reopened.currentTime, 1.5);
+    scheduler.destroy();
+  } finally {
+    audio.restore();
+  }
+});
+
+test('resuming does not play a line again that has already finished', () => {
+  const audio = installListeningAudio();
+  try {
+    const scheduler = createMediaScheduler({ bundle: voiced, timeline: {} });
+    scheduler.resume();
+    scheduler.tick(1000);
+    const line = audio.made[1];
+    line.ended = true; // spoke to its end; its window still runs for another second
+    scheduler.pause();
+    scheduler.resume();
+    assert.equal(line.plays, 1, 'the finished line started again');
+    assert.equal(audio.made[0].plays, 2, 'the bed did not resume');
+    scheduler.destroy();
+  } finally {
+    audio.restore();
+  }
+});
+
+/** A store the test lands lines in by hand. */
+function manualStore(names = []) {
+  const here = new Set(names);
+  const waiters = [];
+  return {
+    started: false,
+    start() { this.started = true; }, seek() {}, destroy() {},
+    ready: (cue) => here.has(cue.id),
+    url: (cue) => `mem:${cue.id}`,
+    whenReady: (cue) => here.has(cue.id) ? Promise.resolve() : new Promise((resolve) => { waiters.push([cue.id, resolve]); }),
+    whenAll: () => Promise.resolve(),
+    land(id) { here.add(id); for (const [name, resolve] of waiters) if (name === id) resolve(); },
+  };
+}
+
+test('the gate waits for the first two lines in memory and the opening bed playable', async () => {
+  const audio = installListeningAudio();
+  // every element opens with nothing buffered, as a real one does
+  globalThis.Audio.prototype.readyState = 0;
+  try {
+    const store = manualStore();
+    const scheduler = createMediaScheduler({ bundle: voiced, timeline: {}, store });
+    let open = false;
+    void scheduler.prepare().then(() => { open = true; });
+    assert.equal(store.started, true, 'the gate did not start the download');
+    const bed = audio.made[0];
+    store.land('line'); store.land('bare');
+    await settle();
+    assert.equal(open, false, 'the gate opened before the bed could play from its start');
+    bed.readyState = 4; bed.fire('canplay');
+    await settle();
+    assert.equal(open, true);
+    scheduler.destroy();
+  } finally {
+    audio.restore();
+  }
+});
+
+test('a line not in memory is not played from the network: the runtime is told to hold at its cue', async () => {
+  const audio = installListeningAudio();
+  try {
+    const store = manualStore(['bed']);
+    const scheduler = createMediaScheduler({ bundle: voiced, timeline: {}, store });
+    scheduler.resume();
+    assert.equal(scheduler.blocker(0, 900), null);
+    const hold = scheduler.blocker(900, 1100);
+    assert.equal(hold.atMs, 1000);
+    scheduler.tick(1050);
+    assert.equal(audio.made.some((m) => m.src === 'mem:line'), false, 'a line that has not landed was opened');
+    let landed = false;
+    void hold.until().then(() => { landed = true; });
+    store.land('line');
+    await settle();
+    assert.equal(landed, true);
+    scheduler.tick(1060);
+    assert.equal(audio.made.at(-1).src, 'mem:line');
+    assert.equal(audio.made.at(-1).currentTime, 0.06, 'a line noticed inside its lead-in starts where the clock is');
+    scheduler.destroy();
+  } finally {
+    audio.restore();
+  }
+});
+
+test('a line finishing past its window is cut at once by a seek', () => {
+  const audio = installListeningAudio();
+  try {
+    const scheduler = createMediaScheduler({ bundle: voiced, timeline: {} });
+    scheduler.resume();
+    scheduler.tick(5500);
+    const line = audio.made[1];
+    scheduler.tick(6200);
+    assert.equal(line.paused, false, 'a line still speaking was cut at the end of its window');
+    scheduler.seek(12000);
+    assert.equal(line.paused, true, 'a seek left the last line talking');
+    scheduler.destroy();
   } finally {
     audio.restore();
   }

@@ -314,6 +314,8 @@ export function fakeStageElements() {
     video: fakeElement('video'),
     subtitle: fakeElement(),
     mediaNote: fakeElement(),
+    waiting: fakeElement(),
+    hold: fakeElement(),
     end: fakeElement(),
   };
 }
