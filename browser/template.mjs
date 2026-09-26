@@ -61,6 +61,12 @@ export function createPlayerTemplate(root, { stylesheet = STYLESHEET, kicker, ch
     element(document, 'p', { text: 'the storyteller is still writing…' }),
   ]);
   waiting.hidden = true;
+  // Sound or pictures the story has reached have not landed, and the story holds on its last frame
+  // until they do. Only a spinner, and only after a moment: most holds end before it would show.
+  const hold = element(document, 'div', { className: 'hold-overlay', role: 'status', 'aria-label': 'loading', hidden: '' }, [
+    element(document, 'span', { className: 'waiting-spinner', 'aria-hidden': 'true' }),
+  ]);
+  hold.hidden = true;
   const end = element(document, 'div', { className: 'end-overlay', hidden: '' }, [
     element(document, 'span', { className: 'end-moon', 'aria-hidden': 'true' }),
     element(document, 'p', { text: 'the end' }),
@@ -92,7 +98,7 @@ export function createPlayerTemplate(root, { stylesheet = STYLESHEET, kicker, ch
     className: 'stage-frame', 'aria-label': 'story stage', tabindex: '-1',
   }, [
     element(document, 'div', { className: 'stage-letterbox', 'aria-hidden': 'true' }),
-    stage, flash, badge.root, actions, ceremony, waiting, subtitleArea, end,
+    stage, flash, badge.root, actions, ceremony, waiting, hold, subtitleArea, end,
     controls.root, card.layer, card.title.layer,
   ]);
   const shell = element(document, 'main', { className: 'player-shell' }, [frame]);
@@ -130,7 +136,7 @@ export function createPlayerTemplate(root, { stylesheet = STYLESHEET, kicker, ch
     // the picture is the play switch, the mark is what a click leaves on it,
     // and the actions row appears with the bar when the story begins.
     controls: { ...controls, frame, stage, actions, flash },
-    stage: { frame, stage, canvas, plate, poster, video, subtitle, mediaNote, waiting, end },
+    stage: { frame, stage, canvas, plate, poster, video, subtitle, mediaNote, waiting, hold, end },
     debug: {
       panel: debugPanel, toggle: debugToggle, close: debugClose, copy: debugCopy,
       download: debugDownload, list: debugList, status: debugStatus, perf: debugPerf,

@@ -28,7 +28,8 @@ story.json → compileTimeline(bundle) → stateAt(timeline, bundle, t) → canv
 The story clock is pausable and seekable behind play/pause, skip and progress
 controls; sprite sheets load as display-sized webp renditions, a few frames at a
 time, instead of the originals; a weak device is put on a cheaper tier rather
-than into a slideshow.
+than into a slideshow. A performance holds on its last frame, rather than cutting a
+word or showing a scene with parts missing, until what it reaches has landed.
 `tooling.v0` exports the same `compileTimeline`, `stateAt`, render rules and
 `V0_POLICY` that the engine's tools and the phone client run, so every client
 plays one schedule.
@@ -75,13 +76,12 @@ npm run verify:repository
 `dist/story-player.js` is generated and never committed. Local verification
 performs no external storage writes.
 
-Three branches, and only one of them is deployed:
+Two branches, and one of them is deployed:
 
 | Branch | Runs | Result |
 | --- | --- | --- |
 | `dev` | `deploy-dev.yml` | builds and uploads to the `story-player-dev` bucket. No tests — it is a preview rail |
-| `main` | `ci.yml` | the full suite. Means "ready for production"; publishes nothing |
-| `production` | `deploy-player.yml` | reruns the full suite, then publishes the release the cluster mirrors |
+| `main` | `deploy-player.yml` | the full suite, then publishes the release the cluster mirrors |
 
 See [Embedding and operations](docs/embedding.md#branches-and-deployment) for
 what each rail writes and why the two delivery shapes differ.

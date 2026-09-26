@@ -129,6 +129,7 @@ export function createCanvasStage(elements, {
   let backing = [0, 0];
   let renderScale = 0;
   let last = null;
+  let drawnScene = null;
   let observer = null;
   let destroyed = false;
 
@@ -193,6 +194,12 @@ export function createCanvasStage(elements, {
   /** Paint one instant. `sheets` is `sceneSheets` or anything with its shape. */
   function draw(state, sheets) {
     if (!context || destroyed) return null;
+    // A node's last frame is a stand-in within its scene; the next scene's node of the same id
+    // is somebody else.
+    if (state?.renderNodes && state.sceneIndex !== drawnScene) {
+      performanceDrawn.delete(context);
+      drawnScene = state.sceneIndex;
+    }
     const list = buildDrawList(state, sheets, elements.frame.getBoundingClientRect());
     sizeStage(list.width, list.height);
     last = { list, state, sheets, lookup: lookupOf(sheets), counter: counterOf(sheets) };
@@ -452,8 +459,7 @@ export function paintDrawList(context, list, {
       continue;
     }
     if (command.op === 'performance') {
-      const drawable = command.shape ? shapeDrawable(context, command) : lookup(command.url);
-      if (drawable) paintPerformanceNode(context, command, drawable, scale);
+      paintPerformanceCommand(context, command, lookup, scale);
       if (command.hud) underCamera();
       continue;
     }
@@ -1046,6 +1052,28 @@ function sourceHeight(drawable) {
 
 function positive(value) {
   return Number.isFinite(value) && value > 0 ? value : 0;
+}
+
+// The last command each performance node was drawn with, per canvas. A cut is shown only once its
+// scene is decoded, so a node reaching for a sheet that is not there is a last resort — a swap whose
+// sheet failed — and it keeps the frame it last had rather than vanishing.
+const performanceDrawn = new WeakMap();
+function paintPerformanceCommand(context, command, lookup, scale) {
+  if (command.shape) {
+    paintPerformanceNode(context, command, shapeDrawable(context, command), scale);
+    return;
+  }
+  let drawn = performanceDrawn.get(context);
+  if (!drawn) { drawn = new Map(); performanceDrawn.set(context, drawn); }
+  const drawable = lookup(command.url);
+  if (drawable) {
+    drawn.set(command.id, command);
+    paintPerformanceNode(context, command, drawable, scale);
+    return;
+  }
+  const held = drawn.get(command.id);
+  const stand = held && lookup(held.url);
+  if (stand) paintPerformanceNode(context, held, stand, scale);
 }
 
 // WHT consumes evaluated source-space commands. Motion/contact/depth/effect

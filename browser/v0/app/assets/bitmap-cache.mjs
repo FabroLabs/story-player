@@ -50,6 +50,9 @@ export function createBitmapCache({
   const inFlight = new Map();
   let budgetBytes = startingBudgetBytes;
   let kept = new Set();
+  // The next scene's sheets, decoded ahead within the budget. A load never evicts them to make
+  // room for itself: they were decoded because they fit.
+  let soon = new Set();
   let heldBytes = 0;
   let destroyed = false;
 
@@ -112,6 +115,29 @@ export function createBitmapCache({
       kept = new Set(urls);
     },
 
+    /** The sheets decoded ahead for the next scene, spared by eviction until the next call. */
+    keepNext(urls) {
+      soon = new Set(urls);
+    },
+
+    /**
+     * Download without decoding, into the browser's HTTP cache.
+     *
+     * A later scene's sheets are fetched here during playback, one at a time, and decoded only
+     * when their scene is next: a decoded 3584² sheet is 49 MB of memory, its download a few.
+     * The request is the one `decodeDrawable` makes, so the decode is answered from the cache.
+     */
+    async prefetch(url, { signal = null } = {}) {
+      if (entries.has(url) || inFlight.has(url)) return;
+      const response = await fetch(url, { ...FETCH, signal });
+      if (!response.ok) throw new Error(`asset ${url} answered ${response.status}`);
+      await response.arrayBuffer();
+    },
+
+    get budget() {
+      return budgetBytes;
+    },
+
     /**
      * Lower the ceiling mid-story, which is what a demotion does.
      *
@@ -140,6 +166,7 @@ export function createBitmapCache({
       entries.clear();
       inFlight.clear();
       kept = new Set();
+      soon = new Set();
       heldBytes = 0;
     },
   };
@@ -147,7 +174,7 @@ export function createBitmapCache({
   function evict(justLoaded = null) {
     for (const [url, entry] of entries) {
       if (heldBytes <= budgetBytes) return;
-      if (kept.has(url) || url === justLoaded) continue;
+      if (kept.has(url) || soon.has(url) || url === justLoaded) continue;
       entries.delete(url);
       heldBytes -= entry.bytes;
       entry.drawable?.close?.();
@@ -187,8 +214,10 @@ function positive(value) {
  * are what keeps the canvas untainted; the assets bucket serves the headers for
  * it (`tools/assets_bucket_cors.py` on the engine side).
  */
+const FETCH = { credentials: 'omit', mode: 'cors' };
+
 export async function decodeDrawable(url, { signal = null } = {}) {
-  const response = await fetch(url, { credentials: 'omit', mode: 'cors', signal });
+  const response = await fetch(url, { ...FETCH, signal });
   if (!response.ok) throw new Error(`asset ${url} answered ${response.status}`);
   const blob = await response.blob();
   throwIfAborted(signal);

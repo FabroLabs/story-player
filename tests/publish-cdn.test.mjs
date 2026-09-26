@@ -405,11 +405,9 @@ test('repository commands, protected workflows, and public examples describe onl
   assert.match(dev, /cancel-in-progress: true/);
 
   const deploy = read('.github/workflows/deploy-player.yml');
-  // `production` is the deploy branch, and the trigger must stay `push`: a
-  // `workflow_run` trigger only fires for the copy of a workflow on the DEFAULT
-  // branch, so this file — which exists to live on `production` and react to
-  // `production` — would silently never run.
-  assert.match(deploy, /on:[\s\S]*?push:[\s\S]*?branches: \[production\]/);
+  // `main` is the deploy branch, and the trigger stays `push`: it runs this file
+  // from the merged commit, so a change to it ships with the merge carrying it.
+  assert.match(deploy, /on:[\s\S]*?push:[\s\S]*?branches: \[main\]/);
   assert.doesNotMatch(deploy, /workflow_run:/);
   // The release must not be reachable without the full suite passing first.
   assert.match(deploy, /jobs:[\s\S]*verify:[\s\S]*release:/);
@@ -419,8 +417,8 @@ test('repository commands, protected workflows, and public examples describe onl
   }
   // A queued run from three merges ago must not overwrite `latest` with an
   // older player than the one already published.
-  assert.match(deploy, /git fetch origin production --depth=1/);
-  assert.match(deploy, /git rev-parse origin\/production/);
+  assert.match(deploy, /git fetch origin main --depth=1/);
+  assert.match(deploy, /git rev-parse origin\/main/);
   // Two publishes racing would leave `latest` on a build nobody chose.
   assert.match(deploy, /cancel-in-progress: false/);
   assert.match(deploy, /permissions:[\s\S]*contents: write/);
