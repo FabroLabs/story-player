@@ -19,6 +19,11 @@ import { createAudioStore } from './audio-store.mjs';
 
 // `HTMLMediaElement.HAVE_FUTURE_DATA`: enough to start playing.
 const PLAYABLE = 3;
+// A bed or song is opened this far ahead of its start, so the story rarely has to wait for it.
+const TRACK_AHEAD_MS = 3000;
+// And never waited for longer than this: a phone that buffers nothing before `play()` would
+// otherwise hold every story at every track. Past it, the track joins when it can.
+const TRACK_WAIT_MS = 1500;
 
 export function createPerformanceMediaScheduler({ bundle, onWarning, store = null }) {
   let story = bundle;
@@ -32,7 +37,8 @@ export function createPerformanceMediaScheduler({ bundle, onWarning, store = nul
   const active = new Map();
   const finishing = new Map();
   const ahead = new Map();
-  const sounds = new Set();
+  // One-shots sounding now, with their cues: a hold pauses them and a resume goes on with them.
+  const sounds = new Map();
   const delivered = new Set();
   const report = (cue, error) => onWarning({ type: 'media', asset: cue.kind,
     message: 'Required story audio failed: ' + (error?.message ?? error), cue: cue.id });
@@ -55,7 +61,7 @@ export function createPerformanceMediaScheduler({ bundle, onWarning, store = nul
         if (delivered.has(cue.id)) continue;
         delivered.add(cue.id);
         const media = open(cue);
-        sounds.add(media);
+        sounds.set(media, cue);
         media.addEventListener('ended', () => { sounds.delete(media); release(media); }, { once: true });
         start(media, cue);
       }
@@ -77,12 +83,19 @@ export function createPerformanceMediaScheduler({ bundle, onWarning, store = nul
       clearSounds();
       for (const item of [...active.values(), ...finishing.values()]) halt(item.media);
     },
+    // A hold is a pause the story comes back from where it stood: one-shots wait with it.
+    hold() {
+      playing = false;
+      for (const media of sounds.keys()) halt(media);
+      for (const item of [...active.values(), ...finishing.values()]) halt(item.media);
+    },
     settle() { this.pause(); },
     // A line that has already finished stays finished: play() would start it again from 0.
     resume() {
       if (destroyed) return;
       playing = true;
       for (const item of [...active.values(), ...finishing.values()]) if (!item.media.ended) start(item.media, item.cue);
+      for (const [media, cue] of sounds) if (!media.ended) start(media, cue);
     },
     unlock() { return Promise.resolve(); },
     setStory(next) { story = next.bundle; sync(now); },
@@ -112,7 +125,7 @@ export function createPerformanceMediaScheduler({ bundle, onWarning, store = nul
     const tracks = story.audio.filter(c => continuous(c) && c.start_ms <= until);
     return Promise.all([
       ...opening.map(cue => lines.whenReady(cue)),
-      ...tracks.map(cue => playable(preopen(cue))),
+      ...tracks.map(cue => waitFor(preopen(cue))),
     ]).then(() => {});
   }
 
@@ -133,7 +146,7 @@ export function createPerformanceMediaScheduler({ bundle, onWarning, store = nul
         if (cue.kind === 'narration' && !lines.ready(cue)) return { atMs, until: () => lines.whenReady(cue) };
         if (continuous(cue) && cue.start_ms === atMs) {
           const item = preopen(cue);
-          if (!isPlayable(item.media)) return { atMs, until: () => playable(item) };
+          if (!isPlayable(item.media) && !item.waited) return { atMs, until: () => waitFor(item) };
         }
       }
     }
@@ -156,6 +169,9 @@ export function createPerformanceMediaScheduler({ bundle, onWarning, store = nul
     }
     for (const [id, item] of ahead) {
       if (windowEnd(item.cue) <= tMs) { release(item.media); ahead.delete(id); }
+    }
+    for (const cue of story.audio) {
+      if (continuous(cue) && cue.start_ms > tMs && cue.start_ms <= tMs + TRACK_AHEAD_MS) preopen(cue);
     }
     for (const cue of wanted) {
       let item = active.get(cue.id);
@@ -201,6 +217,12 @@ export function createPerformanceMediaScheduler({ bundle, onWarning, store = nul
   /** A bed's or song's element, opened paused at its start so the gate or a hold can wait on it. */
   function preopen(cue) {
     let item = ahead.get(cue.id);
+    // An element that failed has nothing more to say: a retry opens the file afresh.
+    if (item?.media.error) {
+      release(item.media);
+      ahead.delete(cue.id);
+      item = null;
+    }
     if (!item) {
       item = { media: open(cue), cue };
       ahead.set(cue.id, item);
@@ -232,7 +254,7 @@ export function createPerformanceMediaScheduler({ bundle, onWarning, store = nul
     return media;
   }
 
-  function clearSounds() { for (const media of sounds) release(media); sounds.clear(); }
+  function clearSounds() { for (const media of sounds.keys()) release(media); sounds.clear(); }
 }
 
 function continuous(cue) {
@@ -252,5 +274,15 @@ function playable(item) {
   return new Promise((resolve) => {
     item.media.addEventListener('canplay', resolve, { once: true });
     item.media.addEventListener('error', resolve, { once: true });
+  });
+}
+
+/** Playable, or `TRACK_WAIT_MS` gone by — after which the story no longer waits for this track. */
+function waitFor(item) {
+  let timer = null;
+  const patience = new Promise((resolve) => { timer = setTimeout(resolve, TRACK_WAIT_MS); });
+  return Promise.race([playable(item), patience]).finally(() => {
+    clearTimeout(timer);
+    item.waited = true;
   });
 }

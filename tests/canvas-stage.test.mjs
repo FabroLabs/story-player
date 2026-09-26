@@ -1097,3 +1097,22 @@ test('a performance node whose swap sheet is missing keeps the frame it last had
   assert.equal(draws.length, 2, 'the node disappeared when its next sheet was missing');
   assert.deepEqual(draws[1].slice(1, 6), [sheet, 0, 0, 5, 5], 'the node was not held on the frame it last had');
 });
+
+test('a node keeps its last frame only within its scene: the next scene’s node of that id is someone else', (t) => {
+  const { stage, context } = mounted(t);
+  context.transform = () => {};
+  const node = (url) => ({ id: 'hero', url, source: [0, 0, 5, 5], matrix: [1, 0, 0, 1, 0, 0], opacity: 1, lights: [], particles: [] });
+  const frame = (sceneIndex, url) => ({
+    sceneIndex, renderNodes: [node(url)], plate: { resolution: [100, 100] }, camera: { scale: 1, x: 0, y: 0 }, transition: null,
+  });
+  const sheets = { drawable: (url) => (url === 'first.png' ? bitmap(10, 10) : null) };
+  const images = () => {
+    const from = context.calls.findLastIndex(([name]) => name === 'clearRect');
+    return context.calls.slice(from + 1).filter(([name]) => name === 'drawImage').length;
+  };
+  stage.draw(frame(0, 'first.png'), sheets);
+  stage.draw(frame(0, 'missing.png'), sheets);
+  assert.equal(images(), 1, 'within its scene a node with a missing sheet vanished');
+  stage.draw(frame(1, 'missing.png'), sheets);
+  assert.equal(images(), 0, 'the next scene drew the last scene’s node in its place');
+});

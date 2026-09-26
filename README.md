@@ -76,13 +76,12 @@ npm run verify:repository
 `dist/story-player.js` is generated and never committed. Local verification
 performs no external storage writes.
 
-Three branches, and only one of them is deployed:
+Two branches, and one of them is deployed:
 
 | Branch | Runs | Result |
 | --- | --- | --- |
 | `dev` | `deploy-dev.yml` | builds and uploads to the `story-player-dev` bucket. No tests — it is a preview rail |
-| `main` | `ci.yml` | the full suite. Means "ready for production"; publishes nothing |
-| `production` | `deploy-player.yml` | reruns the full suite, then publishes the release the cluster mirrors |
+| `main` | `deploy-player.yml` | the full suite, then publishes the release the cluster mirrors |
 
 See [Embedding and operations](docs/embedding.md#branches-and-deployment) for
 what each rail writes and why the two delivery shapes differ.

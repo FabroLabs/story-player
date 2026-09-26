@@ -660,11 +660,11 @@ itself, or the next pause, seek or `destroy`.
 A performance (wht, grow, bedtime, learn's songs) never plays a gap instead. Its
 narration is downloaded whole into memory from the moment it is prepared, and
 `ready` waits for the opening's sheets, its first two lines and the bed or song
-under them. When the story reaches a line that has not landed, the start of a
-bed or song that cannot play yet, or a scene cut whose sheets are not all
-decoded, it holds on its last frame—picture, voice and music together—and goes
-on the moment they land; a line noticed late starts at its first word, never
-inside it. The transport and `getState().playing` read playing through a hold,
+under them (the sound part at most 20 s). When the story reaches a line that has
+not landed, or a scene cut whose sheets are not all decoded, it holds on its
+last frame—picture, voice and music together—and goes on the moment they land;
+a bed or song is waited for at most 1.5 s. A line noticed late starts at its
+first word, never inside it. The transport and `getState().playing` read playing through a hold,
 pause ends it, and a seek lands the same way. A small spinner shows once a hold
 passes 300 ms; one that has not ended after 20 s stops the story with a note,
 and play asks again. The next scene's sheets are decoded while the current one
@@ -794,13 +794,13 @@ why the symptom looks like missing characters rather than a missing background.
 
 ## Branches and deployment
 
-Three branches, and only one of them reaches a child's bedtime. `dev` is where
-work is tried, `main` is where work lands and means "ready for production", and
-**`production` is what is deployed** — merging into it is the deliberate act
-that publishes a player, and nothing else in this repository moves what the
-cluster serves.
+Two branches, and one of them reaches a child's bedtime. `dev` is where work is
+tried, and **`main` is what is deployed** — merging into it is the deliberate
+act that publishes a player, and nothing else in this repository moves what the
+cluster serves. Pull requests into `main` run the full suite (`ci.yml`) before
+the merge.
 
-A merge into `production` runs **Deploy player**
+A merge into `main` runs **Deploy player**
 (`.github/workflows/deploy-player.yml`):
 
 1. `verify` — unit tests, a deterministic build, real Chromium
@@ -833,7 +833,7 @@ reach production even in principle — `scripts/storage-config.mjs` enforces the
 two names as an allow-list, and the workflow contract test asserts each rail
 never names the other's bucket or environment.
 
-Dev publishes no GitHub release. `production` does that because the cluster
+Dev publishes no GitHub release. `main` does that because the cluster
 mirrors releases over a pull-shaped path it cannot invert; the dev store answers
 directly, so the build is written where it is read and `latest` keeps meaning
 exactly one thing — the newest production player.
@@ -844,24 +844,10 @@ that refuses to publish a broken build cannot show you the break — a dev page
 rendering wrong is faster feedback than a red tick. The consequence is worth
 holding onto: a commit pushed straight to `dev` is tested nowhere, because CI
 runs on pull requests and on `main`. The pull request into `main` is the first
-gate, and `production` reruns the whole suite before it publishes anything.
+gate, and the release reruns the whole suite before it publishes anything.
 
-A push to a `patch/**` branch runs the same workflow and uploads its build
-beside the others **without** moving `stable/`: a patch is cut from the build one
-story plays, carries only that story's fix, and is reached by commit, never by
-`stable`. Only maintainers may create `patch/**` branches.
-
-The same push runs **Deploy patch** (`.github/workflows/deploy-patch.yml`)
-for production: the full verify suite, then — once a reviewer approves the
-`cdn-production` environment — the build is uploaded through the backend's
-write-once route (`PUT /api/stories/player/builds/<commit>`, an admin's API key
-in `PLAYER_UPLOAD_API_KEY`), re-read from production and byte-compared, and kept
-as a `build-<commit>` release marked **not** latest, so the cluster's updater
-never makes it everyone's player. The story is then pointed at it by the
-backend's `player_builds.json`.
-
-There is no `workflow_dispatch` either — the trigger is a push to `dev` or
-`patch/**` and nothing else. To republish without a new commit (after creating the bucket, or
+There is no `workflow_dispatch` either — the trigger is a push to `dev` and
+nothing else. To republish without a new commit (after creating the bucket, or
 rotating a key), rerun the last run: `gh run rerun <id>`.
 
 ### Naming, and why the two halves differ

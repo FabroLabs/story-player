@@ -360,3 +360,62 @@ test('a line finishing past its window is cut at once by a seek', () => {
     audio.restore();
   }
 });
+
+const later = {
+  performance: { kind: 'wht' },
+  audio: [
+    { id: 'bed', kind: 'music', media: 'pack/bed.m4a', start_ms: 5000, end_ms: 20000, duration_ms: 15000, volume: 1 },
+  ],
+};
+const flush = () => new Promise((resolve) => { setImmediate(resolve); });
+
+test('a bed that starts mid-story is opened ahead, and waited for at most a moment', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const audio = installListeningAudio();
+  // an element that buffers nothing until it is played, as a phone's does
+  globalThis.Audio.prototype.readyState = 0;
+  try {
+    const scheduler = createMediaScheduler({ bundle: later, timeline: {}, store: manualStore() });
+    scheduler.resume();
+    scheduler.tick(1000);
+    assert.equal(audio.made.length, 0, 'opened far ahead of its start');
+    scheduler.tick(2500);
+    assert.equal(audio.made.length, 1, 'not opened ahead of its start');
+    assert.equal(audio.made[0].paused, true, 'played before its start');
+    const hold = scheduler.blocker(4900, 5001);
+    assert.equal(hold?.atMs, 5000);
+    let over = false;
+    void hold.until().then(() => { over = true; });
+    t.mock.timers.tick(1499);
+    await flush();
+    assert.equal(over, false);
+    t.mock.timers.tick(1);
+    await flush();
+    assert.equal(over, true, 'the story waited on a track past the moment it is given');
+    assert.equal(scheduler.blocker(4900, 5001), null, 'the story held for the same track again');
+    scheduler.tick(5000);
+    assert.equal(audio.made.length, 1, 'the track opened ahead was not the one played');
+    assert.equal(audio.made[0].paused, false);
+    scheduler.destroy();
+  } finally {
+    audio.restore();
+  }
+});
+
+test('a track whose file failed is opened afresh when the story asks for it again', () => {
+  const audio = installListeningAudio();
+  globalThis.Audio.prototype.readyState = 0;
+  try {
+    const scheduler = createMediaScheduler({ bundle: later, timeline: {}, store: manualStore() });
+    scheduler.resume();
+    scheduler.tick(2500);
+    const failed = audio.made[0];
+    failed.error = { code: 4 };
+    assert.ok(scheduler.blocker(4900, 5001));
+    assert.equal(audio.made.length, 2, 'the failed element was waited on again');
+    assert.equal(failed.paused, true);
+    scheduler.destroy();
+  } finally {
+    audio.restore();
+  }
+});

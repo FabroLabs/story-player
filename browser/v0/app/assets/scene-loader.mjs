@@ -380,6 +380,8 @@ export function createSceneLoader({
   // so every plan already answered is still the answer.
   let story = { timeline, bundle };
   let warming = null;
+  // Which call to `prepareScene` is the current one: a scene opened since stops the one before.
+  let preparing = 0;
 
   return { plan, loadScene, holdScene, queueRemainingScenes, sceneCount, setStory, sceneReady, prepareScene };
 
@@ -398,7 +400,11 @@ export function createSceneLoader({
    * again, and says so if it has to.
    */
   async function prepareScene(sceneIndex, onScreen, viewport = {}) {
-    if (sceneIndex >= sceneCount()) return;
+    const mine = ++preparing;
+    if (sceneIndex >= sceneCount()) {
+      cache.keepNext([]);
+      return;
+    }
     const showing = plan(onScreen, viewport).props;
     const current = new Set(showing.map(({ url }) => url));
     let bytes = showing.reduce((sum, prop) => sum + prop.bytes, 0);
@@ -411,6 +417,7 @@ export function createSceneLoader({
     }
     cache.keepNext(next);
     for (const url of next) {
+      if (mine !== preparing) return;
       throwIfAborted(signal);
       try {
         await cache.load(url, { signal });

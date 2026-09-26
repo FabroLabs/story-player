@@ -126,21 +126,26 @@ to `V0_POLICY.audio.narrationGraceMs`; a seek or destroy cuts it at once.
 ## Loading and holds
 
 The opening gate waits for scene 0's sheets, the first two narration lines and
-every bed or song that sounds before the second line, playable from its start.
+every bed or song that sounds before the second line, playable from its start;
+the sound part waits at most 20 s, then the story opens and holds where it must.
 After that the story never plays a gap: when the clock reaches a line that has
-not landed, the start of a bed or song that cannot play yet, or a scene cut
-whose sheets—segment swaps included—are not all decoded, the whole story holds
-on its last frame (picture, voice and music) and goes on the moment they land.
-A cut is all or nothing, a seek lands the same way, and the transport reads
-playing throughout. A spinner shows once a hold passes 300 ms; a hold that has
-not ended after 20 s stops the story with a note, and play asks again.
+not landed, or a scene—on a cut, or the scene a seek lands in—whose sheets,
+segment swaps included, are not all decoded, the whole story holds at that
+instant (picture, voice and music, sound effects paused rather than ended) and
+goes on the moment they land. A bed or song is opened 3 s before its start and
+waited for at most 1.5 s; past that it joins when it can. A cut is all or
+nothing, and the transport reads playing throughout; pause ends a hold, and a
+drag out of one stays silent until the pointer lands. A spinner shows once a
+hold passes 300 ms. A hold that has not ended after 20 s—a sheet or a line that
+keeps failing—stops the story with a note, and play asks again.
 
 While a scene plays, the sheets the next scene adds are decoded as far as the
 bitmap budget allows (asset `width × height × 4` bytes each); the rest are
 decoded at the cut, under a hold. Later scenes are downloaded during playback,
-after the narration, into the browser's HTTP cache, and decoded only when their
-scene is next. Within a scene, a node whose swap sheet failed keeps the frame
-it last had.
+after every narration line has landed or failed once, into the browser's HTTP
+cache, and decoded only when their scene is next. A scene whose sheets were
+pushed out while another scene loaded (a seek away and back) is decoded again
+before it is drawn.
 
 ## Timed captions
 

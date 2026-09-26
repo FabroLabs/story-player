@@ -77,3 +77,20 @@ test('a failed line is asked for again later, and waiting on it resolves when it
   assert.equal(landed, true);
   store.destroy();
 });
+
+test('every line here or tried once is enough for the pictures to start downloading', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+  const network = manualFetch();
+  const store = createAudioStore(cues.slice(0, 2), network);
+  store.start(0);
+  let settled = false;
+  void store.whenAll().then(() => { settled = true; });
+  network.answer('a.m4a');
+  await settle();
+  assert.equal(settled, false);
+  network.fail('b.m4a');
+  await settle();
+  assert.equal(settled, true, 'one failing line held back every later scene');
+  assert.equal(store.ready(cues[1]), false, 'a failed line counted as here');
+  store.destroy();
+});

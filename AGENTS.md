@@ -62,10 +62,9 @@
   credential — only the job's own token. The one store credential in this
   repository lives in the `cdn-dev` environment, is named `S3_DEV_*`, and must
   never be able to write the production bucket.
-- Three branches. `dev` is where work is tried, `main` is where it lands and
-  means "ready for production", and **`production` is what is deployed**. A
-  merge into `production` runs `deploy-player.yml`, which gates the release on
-  the full suite and then moves the rolling `latest` tag.
+- Two branches. `dev` is where work is tried, and **`main` is what is
+  deployed**. A merge into `main` runs `deploy-player.yml`, which gates the
+  release on the full suite and then moves the rolling `latest` tag.
 - Production CD is **pull, not push**: the cluster's MinIO is ClusterIP-only, so
   a runner cannot write to it. A CronJob in the cluster fetches `latest`,
   verifies `build.json` and promotes `stable/`.
@@ -75,11 +74,6 @@
   page is the feedback. Never let it address the production bucket:
   `storage-config.mjs` holds both names as an allow-list and the workflow
   contract test asserts each rail never names the other's bucket or environment.
-- A push to `patch/**` runs `deploy-dev.yml` too and never promotes `stable/`: a
-  patch build is reached by commit, by the one story that points at it. It also
-  runs `deploy-patch.yml`: reviewer-gated (`cdn-production`), uploaded through the
-  backend's write-once route, released `--latest=false`. Never let a patch move
-  `latest` or `stable/`.
 - `build.json` is the whole contract — commit, byte count, SHA-256. Never
   publish one of the two files without the other, and never edit an immutable
   release.

@@ -129,6 +129,7 @@ export function createCanvasStage(elements, {
   let backing = [0, 0];
   let renderScale = 0;
   let last = null;
+  let drawnScene = null;
   let observer = null;
   let destroyed = false;
 
@@ -193,6 +194,12 @@ export function createCanvasStage(elements, {
   /** Paint one instant. `sheets` is `sceneSheets` or anything with its shape. */
   function draw(state, sheets) {
     if (!context || destroyed) return null;
+    // A node's last frame is a stand-in within its scene; the next scene's node of the same id
+    // is somebody else.
+    if (state?.renderNodes && state.sceneIndex !== drawnScene) {
+      performanceDrawn.delete(context);
+      drawnScene = state.sceneIndex;
+    }
     const list = buildDrawList(state, sheets, elements.frame.getBoundingClientRect());
     sizeStage(list.width, list.height);
     last = { list, state, sheets, lookup: lookupOf(sheets), counter: counterOf(sheets) };
@@ -1047,7 +1054,6 @@ function positive(value) {
   return Number.isFinite(value) && value > 0 ? value : 0;
 }
 
-// WHT consumes evaluated source-space commands. Motion/contact/depth/effect
 // The last command each performance node was drawn with, per canvas. A cut is shown only once its
 // scene is decoded, so a node reaching for a sheet that is not there is a last resort — a swap whose
 // sheet failed — and it keeps the frame it last had rather than vanishing.
@@ -1070,6 +1076,7 @@ function paintPerformanceCommand(context, command, lookup, scale) {
   if (stand) paintPerformanceNode(context, held, stand, scale);
 }
 
+// WHT consumes evaluated source-space commands. Motion/contact/depth/effect
 // phase is already resolved by the shared core; this function only paints.
 const performanceLayers = new WeakMap();
 function paintPerformanceNode(context, command, drawable, viewportScale = 1) {

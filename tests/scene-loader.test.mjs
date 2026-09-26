@@ -831,3 +831,19 @@ test('a performance\'s later scenes are downloaded during playback, not decoded'
   assert.deepEqual(cache.loaded, [], 'the warm-up decoded sheets');
   assert.deepEqual(cache.prefetched.map(name), ['room.png', 'hero.png', 'wave.png', 'far.png']);
 });
+
+test('a preparation a newer scene replaced stops decoding', async () => {
+  const cache = { ...fakeCache(), budget: 1e12, next: [] };
+  cache.keepNext = (urls) => { cache.next = urls; };
+  const loaded = [];
+  const landing = [];
+  cache.load = (url) => { loaded.push(url); return new Promise((resolve) => { landing.push(resolve); }); };
+  const loader = createSceneLoader({ timeline: null, bundle: performanceScenes(), cache });
+  void loader.prepareScene(1, 0);
+  void loader.prepareScene(2, 1);
+  await Promise.resolve();
+  landing.shift()();
+  await new Promise((resolve) => { setImmediate(resolve); });
+  assert.deepEqual(loaded.map(name), ['hero.png', 'far.png'], 'the replaced preparation went on decoding');
+  assert.deepEqual(cache.next.map(name), ['far.png']);
+});

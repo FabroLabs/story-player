@@ -393,7 +393,7 @@ export function createTimelinePlayer({
     // the end does. The append that arrives later finds nothing to resume.
     // Out of a hold, though, the story goes on playing from where it landed —
     // and holds again there if that is not ready either.
-    if (waiting && t < durationMs) leaveWaiting(waiting === 'media');
+    if (waiting && t < durationMs) leaveWaiting(waiting === 'media', { hushed: scrubbing });
     render(t, { force: true });
   }
 
@@ -502,11 +502,13 @@ export function createTimelinePlayer({
   function render(tMs, { force = false } = {}) {
     if (destroyed) return;
     let t = clamp(tMs);
-    // Sound or a cut this frame would cross that has not landed: the story
-    // stops just short of it, draws that instant, and holds there.
+    // Sound or a cut this frame would reach that has not landed: the story
+    // stands at that instant and holds there. Nothing is crossed on the frame
+    // that finds it — a sound effect started here would be cut by the hold a
+    // moment later — so what fell before it is started when the hold ends.
     const hold = started && clock.running && !scrubbing && !waiting ? holdAt(t) : null;
     if (hold) {
-      t = Math.max(hold.atMs - 1, mediaNextMs - 1, 0);
+      t = hold.atMs;
       clock.seek(t);
     }
     const state = cursor.at(t);
@@ -522,7 +524,7 @@ export function createTimelinePlayer({
     // in the sliver since the last frame, reading itself out over a frozen
     // picture. A story being dragged is running but hushed: its sound is placed
     // once, where the pointer lands, not started at every instant it passes.
-    if (started && clock.running && !scrubbing) {
+    if (started && clock.running && !scrubbing && !hold) {
       if (t >= mediaNextMs) {
         media.advance(mediaNextMs, t + 1);
         mediaNextMs = t + 1;
@@ -538,8 +540,10 @@ export function createTimelinePlayer({
     plate.frost(boardStanding(state.slate) && state.slate?.mode !== 'cards', state.plate?.resolution?.[1]);
     // A cut whose sheets are not decoded is not drawn at all: the last frame
     // stays up until every one of them is, never a scene with parts missing.
-    if (shown) paint(state, force);
-    say(state.subtitle);
+    if (shown) {
+      paint(state, force);
+      say(state.subtitle);
+    }
     if (hold) {
       holdFor(hold);
       return;
@@ -582,7 +586,7 @@ export function createTimelinePlayer({
     updateControls({ tMs: clock.now(), playing: resumeAfterAppend, ended: false });
   }
 
-  function leaveWaiting(resume) {
+  function leaveWaiting(resume, { hushed = false } = {}) {
     if (!waiting) return;
     waiting = null;
     clearHoldTimers();
@@ -590,7 +594,21 @@ export function createTimelinePlayer({
     if (elements.stage.hold) elements.stage.hold.hidden = true;
     const wanted = resumeAfterAppend;
     resumeAfterAppend = false;
-    if (resume && wanted) play();
+    if (!resume || !wanted) return;
+    if (hushed) runHushed();
+    else play();
+  }
+
+  /**
+   * The story runs on under a drag that began in a hold, and stays silent until
+   * the pointer lands: `placeSound` starts the sound there, as for any drag.
+   */
+  function runHushed() {
+    resumeWhenVisible = false;
+    clock.start();
+    plate.play();
+    recorder?.resume();
+    startLoop();
   }
 
   /**
@@ -727,7 +745,14 @@ export function createTimelinePlayer({
    * holds on the last frame rather than show a scene with parts missing.
    */
   function openScene(state) {
-    if (state.sceneIndex === sceneIndex) return true;
+    if (state.sceneIndex === sceneIndex) {
+      // A performance's scene can lose its sheets while it is on screen: a seek
+      // into a scene that was not ready decoded that one in their place. Seeking
+      // back fetches them again rather than drawing the scene without them.
+      if (cutReady(sceneIndex)) return true;
+      awaitCut(sceneIndex);
+      return false;
+    }
     if (!cutReady(state.sceneIndex)) {
       awaitCut(state.sceneIndex);
       return false;
@@ -806,9 +831,16 @@ export function createTimelinePlayer({
     return found.sort((a, b) => a.atMs - b.atMs)[0] ?? null;
   }
 
+  /**
+   * A scene the story reaches in `(fromMs, tMs]`, or the one standing at `tMs`,
+   * whose sheets are not all decoded. Not a scene the story is leaving: holding
+   * for it would take the next one's sheets back, and the two would trade them.
+   */
   function cutBlocker(fromMs, tMs) {
     for (const [index, scene] of (story.bundle.scenes ?? []).entries()) {
-      if (scene.end_ms <= fromMs || scene.start_ms > tMs || index === sceneIndex || cutReady(index)) continue;
+      const reached = scene.start_ms >= fromMs && scene.start_ms <= tMs;
+      const standing = scene.start_ms <= tMs && tMs < scene.end_ms;
+      if ((!reached && !standing) || cutReady(index)) continue;
       return { atMs: Math.max(scene.start_ms, fromMs), until: () => sceneLanded(index) };
     }
     return null;
@@ -841,7 +873,9 @@ export function createTimelinePlayer({
     clock.pause();
     stopLoop();
     plate.pause();
-    media.pause();
+    // Sound effects too, and they go on with the story: a pause ends them.
+    if (media.hold) media.hold();
+    else media.pause();
     recorder?.pause();
     holds += 1;
     const mine = holds;

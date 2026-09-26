@@ -26,6 +26,8 @@ export function createAudioStore(cues, { fetchFile = fetchWhole } = {}) {
       url: null, loading: false, retryAt: 0, failures: 0, waiters: [] });
   }
   const timers = new Set();
+  // Waiting for every line to have landed or failed once — what the pictures' download waits on.
+  let settledWaiters = [];
   let started = false;
   let destroyed = false;
   let playheadMs = 0;
@@ -63,9 +65,17 @@ export function createAudioStore(cues, { fetchFile = fetchWhole } = {}) {
     return new Promise((resolve) => { entry.waiters.push(resolve); });
   }
 
-  /** Every line here: what the pictures' download waits behind. */
+  /**
+   * Every line here, or tried once and failed: what the pictures' download waits behind. A line
+   * that keeps failing is retried on, but must not keep every later scene from being downloaded.
+   */
   function whenAll() {
-    return Promise.all([...entries.values()].map(({ source }) => whenReady({ media: source }))).then(() => {});
+    if (allSettled()) return Promise.resolve();
+    return new Promise((resolve) => { settledWaiters.push(resolve); });
+  }
+
+  function allSettled() {
+    return !started || [...entries.values()].every((entry) => entry.url !== null || entry.failures > 0);
   }
 
   function destroy() {
@@ -76,6 +86,7 @@ export function createAudioStore(cues, { fetchFile = fetchWhole } = {}) {
       if (entry.url?.startsWith('blob:')) URL.revokeObjectURL(entry.url);
       entry.waiters = [];
     }
+    settledWaiters = [];
   }
 
   function pump() {
@@ -121,6 +132,10 @@ export function createAudioStore(cues, { fetchFile = fetchWhole } = {}) {
     } finally {
       entry.loading = false;
       loading -= 1;
+      if (!destroyed && allSettled()) {
+        for (const resolve of settledWaiters) resolve();
+        settledWaiters = [];
+      }
       pump();
     }
   }

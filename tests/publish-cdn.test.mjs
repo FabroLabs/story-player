@@ -382,9 +382,7 @@ test('repository commands, protected workflows, and public examples describe onl
   // no release. This is asserted rather than trusted because a one-word edit
   // here would silently point dev builds at real users.
   const dev = read('.github/workflows/deploy-dev.yml');
-  assert.match(dev, /on:[\s\S]*?push:[\s\S]*?branches: \[dev, 'patch\/\*\*'\]/);
-  // Only `dev` moves `stable/`; a patch build is reached by commit alone.
-  assert.match(dev, /STORY_PLAYER_PROMOTE: \$\{\{ github\.ref_name == 'dev' \}\}/);
+  assert.match(dev, /on:[\s\S]*?push:[\s\S]*?branches: \[dev\]/);
   assert.match(dev, /environment: cdn-dev/);
   assert.match(dev, /STORY_PLAYER_BUCKET: story-player-dev/);
   // The production bucket, named without the `-dev` suffix, must never appear
@@ -407,11 +405,9 @@ test('repository commands, protected workflows, and public examples describe onl
   assert.match(dev, /cancel-in-progress: true/);
 
   const deploy = read('.github/workflows/deploy-player.yml');
-  // `production` is the deploy branch, and the trigger must stay `push`: a
-  // `workflow_run` trigger only fires for the copy of a workflow on the DEFAULT
-  // branch, so this file — which exists to live on `production` and react to
-  // `production` — would silently never run.
-  assert.match(deploy, /on:[\s\S]*?push:[\s\S]*?branches: \[production\]/);
+  // `main` is the deploy branch, and the trigger stays `push`: it runs this file
+  // from the merged commit, so a change to it ships with the merge carrying it.
+  assert.match(deploy, /on:[\s\S]*?push:[\s\S]*?branches: \[main\]/);
   assert.doesNotMatch(deploy, /workflow_run:/);
   // The release must not be reachable without the full suite passing first.
   assert.match(deploy, /jobs:[\s\S]*verify:[\s\S]*release:/);
@@ -421,8 +417,8 @@ test('repository commands, protected workflows, and public examples describe onl
   }
   // A queued run from three merges ago must not overwrite `latest` with an
   // older player than the one already published.
-  assert.match(deploy, /git fetch origin production --depth=1/);
-  assert.match(deploy, /git rev-parse origin\/production/);
+  assert.match(deploy, /git fetch origin main --depth=1/);
+  assert.match(deploy, /git rev-parse origin\/main/);
   // Two publishes racing would leave `latest` on a build nobody chose.
   assert.match(deploy, /cancel-in-progress: false/);
   assert.match(deploy, /permissions:[\s\S]*contents: write/);
@@ -520,33 +516,3 @@ function sha256(bytes) {
 function read(relative) {
   return fs.readFileSync(path.join(ROOT, relative), 'utf8');
 }
-
-test('a patch build is published beside the others and never moves stable', async () => {
-  const store = fakeStore({ exists: true, configured: true });
-  const report = await publishCdn({
-    artifact: SCRIPT, commit: COMMIT, config: CONFIG, fetchImpl: store.fetch, log: () => {}, promote: false, store,
-  });
-  assert.equal(report.stableKey, null);
-  assert.ok(store.objects.has(`builds/${COMMIT}/story-player.js`));
-  assert.ok(store.objects.has(`builds/${COMMIT}/build.json`));
-  assert.equal(store.objects.has('stable/story-player.js'), false, 'a patch build became every story\'s player');
-  assert.equal(store.objects.has('stable/build.json'), false);
-});
-
-test('a patch reaches production only by commit: reviewed, write-once, never latest or stable', () => {
-  // What the steps do, not what the comments explain.
-  const patch = read('.github/workflows/deploy-patch.yml').split('\n')
-    .filter((line) => !line.trimStart().startsWith('#')).join('\n');
-  assert.match(patch, /on:[\s\S]*?push:[\s\S]*?branches: \['patch\/\*\*'\]/);
-  assert.doesNotMatch(patch, /branches: \[[^\]]*(?:production|main|dev)/);
-  // A reviewer approves every patch that reaches production's store.
-  assert.match(patch, /environment: cdn-production/);
-  // The cluster's updater follows GitHub's latest release: a patch must never become it.
-  assert.match(patch, /--latest=false/);
-  assert.doesNotMatch(patch, /gh release (?:edit|upload) latest|releases\/latest/);
-  assert.doesNotMatch(patch, /stable\//);
-  // In through the backend's write-once route, with an admin's key — no store credential.
-  assert.match(patch, /-X PUT[\s\S]*\$PLAYER_API\/builds\/\$SHA/);
-  assert.match(patch, /\$\{\{\s*secrets\.PLAYER_UPLOAD_API_KEY\s*\}\}/);
-  assert.doesNotMatch(patch, /S3_|STORY_PLAYER_BUCKET|publish:cdn/);
-});
