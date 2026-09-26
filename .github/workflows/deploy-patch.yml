@@ -1,0 +1,108 @@
+name: Deploy patch
+
+# Push to `patch/**` → one story's fix reaches production's store, beside every
+# other build. Nothing else moves.
+#
+# A patch is cut from the build one story plays (`patch/<its commit>-<name>`),
+# carries only that story's fix, and is reached by commit alone: the backend
+# points that story at it (`player_builds.json` → `templates`). Every other
+# story keeps the build it was made with, so this job must never move what they
+# play — it creates no `latest`, and it never writes `stable/`.
+#
+# Production's store is not writable from a runner (see deploy-player.yml), and
+# the cluster's updater follows `latest` only, so a patch goes in through the
+# backend's write-once upload route instead, authenticated with an admin's API
+# key. A reviewer approves each run: the `cdn-production` environment is the
+# gate a patch has to pass before it can reach a child's story.
+
+on:
+  push:
+    branches: ['patch/**']
+
+# The immutable `build-<sha>` release is the record of what was uploaded.
+permissions:
+  contents: write
+
+concurrency:
+  group: story-player-patch-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npx playwright install --with-deps chromium
+      - run: npm test
+      - run: npm run build:cdn
+        env:
+          STORY_PLAYER_COMMIT: ${{ github.sha }}
+      - run: npm run test:e2e
+      - run: npm run verify:repository
+
+  publish:
+    needs: verify
+    runs-on: ubuntu-latest
+    environment: cdn-production
+    env:
+      PLAYER_API: https://www.moonykids.com/api/stories/player
+      SHA: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts
+
+      - name: Build
+        run: node scripts/build-cdn.mjs > build-report.json
+        env:
+          STORY_PLAYER_COMMIT: ${{ github.sha }}
+
+      - name: Upload into production's store, write-once
+        env:
+          PLAYER_UPLOAD_API_KEY: ${{ secrets.PLAYER_UPLOAD_API_KEY }}
+        run: |
+          set -euo pipefail
+          node -e '
+            const fs = require("fs");
+            const crypto = require("crypto");
+            const script = fs.readFileSync("dist/story-player.js");
+            const report = JSON.parse(fs.readFileSync("build-report.json", "utf8"));
+            const sha256 = crypto.createHash("sha256").update(script).digest("hex");
+            if (sha256 !== report.sha256) throw new Error("build report disagrees with the artifact");
+            fs.writeFileSync("upload.json", JSON.stringify({ script: script.toString("base64"), sha256 }));
+          '
+          curl -fsS --retry 3 --retry-delay 2 -X PUT \
+            -H "X-API-Key: $PLAYER_UPLOAD_API_KEY" -H "content-type: application/json" \
+            --data-binary @upload.json "$PLAYER_API/builds/$SHA" > receipt.json
+          cat receipt.json
+
+      - name: Prove production serves the built bytes
+        run: |
+          set -euo pipefail
+          curl -fsSL --retry 3 --retry-delay 2 -o served.js "$PLAYER_API/builds/$SHA/story-player.js"
+          cmp dist/story-player.js served.js
+          echo "production serves exactly what this run built, under builds/$SHA only"
+
+      - name: Keep the immutable release
+        # A record, never `latest`: the cluster's updater follows `latest`, and
+        # moving it would make this patch every story's player.
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if gh release view "build-$SHA" >/dev/null 2>&1; then
+            echo "build-$SHA already published, leaving it untouched"
+          else
+            gh release create "build-$SHA" dist/story-player.js \
+              --title "story-player $SHA (patch)" \
+              --notes "Patch build of $SHA from ${GITHUB_REF_NAME}; reached by commit, never by stable" \
+              --target "$SHA" --latest=false
+          fi

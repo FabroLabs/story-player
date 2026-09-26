@@ -837,6 +837,15 @@ beside the others **without** moving `stable/`: a patch is cut from the build on
 story plays, carries only that story's fix, and is reached by commit, never by
 `stable`. Only maintainers may create `patch/**` branches.
 
+The same push runs **Deploy patch** (`.github/workflows/deploy-patch.yml`)
+for production: the full verify suite, then — once a reviewer approves the
+`cdn-production` environment — the build is uploaded through the backend's
+write-once route (`PUT /api/stories/player/builds/<commit>`, an admin's API key
+in `PLAYER_UPLOAD_API_KEY`), re-read from production and byte-compared, and kept
+as a `build-<commit>` release marked **not** latest, so the cluster's updater
+never makes it everyone's player. The story is then pointed at it by the
+backend's `player_builds.json`.
+
 There is no `workflow_dispatch` either — the trigger is a push to `dev` or
 `patch/**` and nothing else. To republish without a new commit (after creating the bucket, or
 rotating a key), rerun the last run: `gh run rerun <id>`.

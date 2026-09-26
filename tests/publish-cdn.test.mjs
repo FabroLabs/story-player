@@ -532,3 +532,21 @@ test('a patch build is published beside the others and never moves stable', asyn
   assert.equal(store.objects.has('stable/story-player.js'), false, 'a patch build became every story\'s player');
   assert.equal(store.objects.has('stable/build.json'), false);
 });
+
+test('a patch reaches production only by commit: reviewed, write-once, never latest or stable', () => {
+  // What the steps do, not what the comments explain.
+  const patch = read('.github/workflows/deploy-patch.yml').split('\n')
+    .filter((line) => !line.trimStart().startsWith('#')).join('\n');
+  assert.match(patch, /on:[\s\S]*?push:[\s\S]*?branches: \['patch\/\*\*'\]/);
+  assert.doesNotMatch(patch, /branches: \[[^\]]*(?:production|main|dev)/);
+  // A reviewer approves every patch that reaches production's store.
+  assert.match(patch, /environment: cdn-production/);
+  // The cluster's updater follows GitHub's latest release: a patch must never become it.
+  assert.match(patch, /--latest=false/);
+  assert.doesNotMatch(patch, /gh release (?:edit|upload) latest|releases\/latest/);
+  assert.doesNotMatch(patch, /stable\//);
+  // In through the backend's write-once route, with an admin's key — no store credential.
+  assert.match(patch, /-X PUT[\s\S]*\$PLAYER_API\/builds\/\$SHA/);
+  assert.match(patch, /\$\{\{\s*secrets\.PLAYER_UPLOAD_API_KEY\s*\}\}/);
+  assert.doesNotMatch(patch, /S3_|STORY_PLAYER_BUCKET|publish:cdn/);
+});

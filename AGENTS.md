@@ -76,7 +76,10 @@
   `storage-config.mjs` holds both names as an allow-list and the workflow
   contract test asserts each rail never names the other's bucket or environment.
 - A push to `patch/**` runs `deploy-dev.yml` too and never promotes `stable/`: a
-  patch build is reached by commit, by the one story that points at it.
+  patch build is reached by commit, by the one story that points at it. It also
+  runs `deploy-patch.yml`: reviewer-gated (`cdn-production`), uploaded through the
+  backend's write-once route, released `--latest=false`. Never let a patch move
+  `latest` or `stable/`.
 - `build.json` is the whole contract — commit, byte count, SHA-256. Never
   publish one of the two files without the other, and never edit an immutable
   release.
