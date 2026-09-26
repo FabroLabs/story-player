@@ -511,7 +511,10 @@ export function createTimelinePlayer({
     }
     const state = cursor.at(t);
     const shown = openScene(state);
-    if (shown) holdChunks(t, state, force);
+    // A performance keeps its scene whole from the moment it opens, so it has no
+    // chunk window to hold — and holding one would take back the scene on screen
+    // just as a cut hold had made room for the next, trading the two for ever.
+    if (shown && !story.bundle?.performance) holdChunks(t, state, force);
     report(state.warnings);
     // Only a RUNNING story crosses time. A paused one is redrawn at the instant
     // it stands at — by the pause itself, by a scrub, by a resize — and handing
