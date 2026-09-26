@@ -10,13 +10,13 @@ import { installDom, virtualFrames } from './_dom.mjs';
 
 const settle = () => new Promise((resolve) => { setImmediate(resolve); });
 
-function twoScenes() {
+function twoScenes(side = 100) {
   return {
     title: 'Two scenes',
     performance: { kind: 'wht', resolution: [1000, 562.5], required_capabilities: ['transform'] },
     assets: {
-      one: { type: 'image', media: 'pack/one.png', width: 100, height: 100 },
-      two: { type: 'image', media: 'pack/two.png', width: 100, height: 100 },
+      one: { type: 'image', media: 'pack/one.png', width: side, height: side },
+      two: { type: 'image', media: 'pack/two.png', width: side, height: side },
     },
     scenes: [
       { id: 'a', setting_id: 'room', start_ms: 0, end_ms: 2000, nodes: [{ id: 'n', asset: 'one', x: 100, y: 100, width: 100 }] },
@@ -31,7 +31,7 @@ function twoScenes() {
 }
 
 /** Every request answers at once, except the files a test holds back until it lets them go. */
-function heldFetch() {
+function heldFetch(side = 100) {
   const blocked = new Set();
   const waiting = [];
   const requested = [];
@@ -39,7 +39,7 @@ function heldFetch() {
     const href = String(url);
     requested.push(href);
     if ([...blocked].some((name) => href.endsWith(name))) await new Promise((resolve) => { waiting.push({ href, resolve }); });
-    return { ok: true, status: 200, blob: async () => ({ pixels: { width: 100, height: 100 } }), arrayBuffer: async () => new ArrayBuffer(8) };
+    return { ok: true, status: 200, blob: async () => ({ pixels: { width: side, height: side } }), arrayBuffer: async () => new ArrayBuffer(8) };
   };
   return {
     requested,
@@ -72,7 +72,7 @@ function byClass(node, name) {
   return null;
 }
 
-async function mount(t, block = []) {
+async function mount(t, block = [], { side = 100 } = {}) {
   const dom = installDom(); t.after(dom.restore);
   const make = document.createElement.bind(document);
   document.createElement = (tag) => {
@@ -83,12 +83,12 @@ async function mount(t, block = []) {
     }
     return node;
   };
-  const network = heldFetch();
+  const network = heldFetch(side);
   for (const name of block) network.block(name);
   const audio = installAudio(); t.after(audio.restore);
   const frames = virtualFrames(); t.after(frames.restore);
   const host = document.createElement('div');
-  const player = createStoryPlayer(host, { story: twoScenes(), assetBase: 'https://storage.example/', chrome: 'host' });
+  const player = createStoryPlayer(host, { story: twoScenes(side), assetBase: 'https://storage.example/', chrome: 'host' });
   t.after(() => player.destroy());
   await player.ready;
   await player.play();
@@ -160,4 +160,18 @@ test('pausing during a hold stays paused when what it waited for lands', async (
   frames.advanceTo(4000);
   assert.equal(player.getState().playing, false, 'the landing restarted a story the viewer paused');
   assert.equal(player.getState().tMs, 1999);
+});
+
+test('a cut whose two scenes do not fit the budget together still lands, instead of trading sheets back and forth', async (t) => {
+  // 4000² decodes to 64 MB: the old scene's sheet and the new one's cannot both be held in 96 MB.
+  const { player, network, frames } = await mount(t, ['pack/two.png'], { side: 4000 });
+  frames.advanceTo(2300);
+  assert.equal(player.getState().tMs, 1999);
+  network.release('pack/two.png');
+  for (let wall = 2400; wall <= 3000; wall += 100) {
+    await settle(); await settle();
+    frames.advanceTo(wall);
+  }
+  assert.equal(player.getState().sceneIndex, 1, 'the cut kept holding: the old scene took its sheet back');
+  assert.ok(player.getState().tMs > 2000, 'the story did not move on past the cut');
 });
