@@ -190,6 +190,14 @@ test('the caller-supplied React factory renders the same classic player under St
 async function storageHandler(request, response) {
   const url = new URL(request.url, 'http://storage.test');
   requests.push({ method: request.method, origin: request.headers.origin ?? null, path: url.pathname });
+  if (url.pathname === '/fairytale-assets/media/stalled.svg') {
+    response.writeHead(200, {
+      'Content-Type': 'image/svg+xml', 'Content-Length': '1000',
+      'Access-Control-Allow-Origin': '*',
+    });
+    response.flushHeaders();
+    return; // reproduce headers arriving while the body never completes
+  }
   const routes = new Map([
     ['/story-player/stable/story-player.js', file(path.join(temporary, 'story-player.js'), 'text/javascript; charset=utf-8')],
     ['/jobs/e2e/story.json', file(path.join(FIXTURES, 'story.json'), 'application/json; charset=utf-8')],
@@ -215,6 +223,33 @@ async function storageHandler(request, response) {
   if (!route) return send(response, 404, Buffer.from('not found'), 'text/plain', request.method);
   return send(response, 200, route.body, route.type, request.method);
 }
+
+test('an unfinished image body fails within the opening deadline and a fresh mount recovers', async ({ page }) => {
+  await page.goto(`${application.url}/plain-js.html`);
+  await page.evaluate(() => window.__mounted);
+  await page.clock.install();
+  await page.evaluate(() => {
+    const story = structuredClone(window.__story);
+    story.scenes[0].plate.poster = 'fairytale-assets/media/stalled.svg';
+    const host = document.body.appendChild(document.createElement('div'));
+    host.id = 'stalled';
+    window.failedPlayer = FabroStoryPlayer.createStoryPlayer(host, {story, assetBase: window.__assetBase});
+    window.failedPlayer.ready.then(() => { window.openingResult = 'ready'; }, error => { window.openingResult = error.name; });
+  });
+  await expect.poll(() => requests.filter(r => r.path.endsWith('/stalled.svg')).length).toBe(1);
+  await page.clock.fastForward(15_000);
+  await expect.poll(() => requests.filter(r => r.path.endsWith('/stalled.svg')).length).toBe(2);
+  await page.clock.fastForward(15_000);
+  await expect.poll(() => page.evaluate(() => window.openingResult)).toBe('TimeoutError');
+  await page.evaluate(async () => {
+    window.failedPlayer.destroy();
+    const next = FabroStoryPlayer.createStoryPlayer(document.querySelector('#stalled'), {
+      story: window.__story, assetBase: window.__assetBase,
+    });
+    await next.ready;
+  });
+  await expect(page.locator('#stalled .start-button')).toBeEnabled();
+});
 
 async function applicationHandler(request, response) {
   const url = new URL(request.url, 'http://application.test');

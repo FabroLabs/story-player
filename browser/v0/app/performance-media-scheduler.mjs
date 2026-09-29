@@ -9,7 +9,7 @@ import { createAudioStore } from './audio-store.mjs';
  * clock says it is. Three rules make it safe against a slow link:
  *
  *   narration is in memory before it is due — `audio-store.mjs` downloads every line in playing
- *   order from the moment the story is prepared, and `blocker` tells the runtime to hold the story
+ *   order after begin (only the opening lines before it), and `blocker` tells the runtime to hold the story
  *   at a line (or at the start of a bed or song) that has not landed, instead of cutting it
  *   a line starts no later than its first word — when it is noticed late, at most its silent
  *   lead-in is skipped; only a viewer's seek lands inside a line
@@ -30,6 +30,7 @@ export function createPerformanceMediaScheduler({ bundle, onWarning, store = nul
   let playing = false;
   let destroyed = false;
   let now = 0;
+  let prepared = false;
   // The instant a seek landed on, until time moves: a line opened there lands exactly inside it.
   let landedAt = null;
   const narration = () => story.audio.filter(c => c.kind === 'narration');
@@ -93,6 +94,7 @@ export function createPerformanceMediaScheduler({ bundle, onWarning, store = nul
     // A line that has already finished stays finished: play() would start it again from 0.
     resume() {
       if (destroyed) return;
+      if (prepared) lines.start(now);
       playing = true;
       for (const item of [...active.values(), ...finishing.values()]) if (!item.media.ended) start(item.media, item.cue);
       for (const [media, cue] of sounds) if (!media.ended) start(media, cue);
@@ -116,11 +118,13 @@ export function createPerformanceMediaScheduler({ bundle, onWarning, store = nul
    * The gate: the opening's sound, ready to play from its start.
    *
    * The first two narration lines in memory, and every bed or song sounding before the second
-   * one playable from its own beginning. Everything after keeps downloading behind it.
+   * one playable from its own beginning. Later lines wait until begin.
    */
   function prepare() {
-    lines.start(0);
+    prepared = true;
     const opening = narration().sort((a, b) => a.start_ms - b.start_ms).slice(0, 2);
+    if (lines.prime) lines.prime(opening);
+    else lines.start(0);
     const until = opening.at(-1)?.start_ms ?? 0;
     const tracks = story.audio.filter(c => continuous(c) && c.start_ms <= until);
     return Promise.all([
@@ -250,7 +254,13 @@ export function createPerformanceMediaScheduler({ bundle, onWarning, store = nul
     media.src = cue.kind === 'narration' ? lines.url(cue) : cue.url ?? cue.media;
     media.volume = cue.volume ?? 1;
     media.loop = cue.loop === true;
-    media.addEventListener('error', () => report(cue, new Error('media unavailable')));
+    media.addEventListener('error', () => {
+      if (destroyed) return;
+      const detail = media.error;
+      report(cue, new Error(detail
+        ? `media unavailable (code ${detail.code}: ${detail.message || 'no decoder detail'})`
+        : 'media unavailable'));
+    });
     return media;
   }
 

@@ -3,7 +3,8 @@
  *
  * A line's file used to be opened only when its cue was due, and the wait for it came out of the
  * line's first words. Here every narration file is fetched in playing order from the moment the
- * story is prepared — a few megabytes a story — and a line is played from memory. The runtime
+ * story begins — a few megabytes a story — and a line is played from memory. The opening primes
+ * only its first lines so the rest cannot compete with the first pictures. The runtime
  * holds the story at a line whose bytes have not landed (`timeline-player.mjs`), so nothing is cut
  * to catch up.
  *
@@ -13,6 +14,8 @@
  * A failed fetch is tried again, a second later and then less often, for as long as the story is
  * open. What gives up is the hold waiting on it, and it says so.
  */
+
+import { fetchAssetBlob } from './assets/asset-request.mjs';
 
 const PARALLEL = 2;
 const RETRY_MS = [1000, 2000, 4000, 8000];
@@ -32,18 +35,30 @@ export function createAudioStore(cues, { fetchFile = fetchWhole } = {}) {
   let destroyed = false;
   let playheadMs = 0;
   let loading = 0;
+  let priming = null;
+  const controller = new AbortController();
 
-  return { start, seek, ready, url, whenReady, whenAll, destroy };
+  return { prime, start, seek, ready, url, whenReady, whenAll, destroy };
+
+  /** Download only the opening's required lines until a viewer begins. */
+  function prime(opening) {
+    if (destroyed) return;
+    priming = new Set(opening.map(cue => cue.url ?? cue.media));
+    started = true;
+    pump();
+  }
 
   /** Begin downloading, from the line at `fromMs` onwards, then the ones before it. */
   function start(fromMs = 0) {
     if (destroyed) return;
+    priming = null;
     started = true;
     seek(fromMs);
   }
 
   /** The playhead moved: the lines ahead of it come first. */
   function seek(tMs) {
+    priming = null;
     playheadMs = tMs;
     pump();
   }
@@ -80,6 +95,7 @@ export function createAudioStore(cues, { fetchFile = fetchWhole } = {}) {
 
   function destroy() {
     destroyed = true;
+    controller.abort();
     for (const timer of timers) clearTimeout(timer);
     timers.clear();
     for (const entry of entries.values()) {
@@ -103,6 +119,7 @@ export function createAudioStore(cues, { fetchFile = fetchWhole } = {}) {
     let ahead = null;
     let behind = null;
     for (const entry of entries.values()) {
+      if (priming && !priming.has(entry.source)) continue;
       if (entry.url !== null || entry.loading || entry.retryAt > now) continue;
       if (entry.endMs > playheadMs) { if (!ahead || entry.startMs < ahead.startMs) ahead = entry; }
       else if (!behind || entry.startMs < behind.startMs) behind = entry;
@@ -114,7 +131,7 @@ export function createAudioStore(cues, { fetchFile = fetchWhole } = {}) {
     entry.loading = true;
     loading += 1;
     try {
-      const landed = await fetchFile(entry.source);
+      const landed = await fetchFile(entry.source, { signal: controller.signal });
       if (destroyed) {
         if (landed.startsWith('blob:')) URL.revokeObjectURL(landed);
         return;
@@ -147,10 +164,8 @@ export function createAudioStore(cues, { fetchFile = fetchWhole } = {}) {
  * Where the environment cannot mint an object URL for what came back, the file's own URL stands
  * in: its bytes have arrived, and nothing better can be done with them there.
  */
-async function fetchWhole(source) {
-  const response = await fetch(source, { credentials: 'omit', mode: 'cors' });
-  if (!response.ok) throw new Error(`audio ${source} answered ${response.status}`);
-  const blob = await response.blob();
+async function fetchWhole(source, { signal }) {
+  const blob = await fetchAssetBlob(source, { signal });
   try {
     return URL.createObjectURL(blob);
   } catch {
