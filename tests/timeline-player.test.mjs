@@ -1289,6 +1289,7 @@ test('a counter picture landing on a paused, settled board is painted when it la
   assert.equal(player.frames.pending(), 0, 'the story is still running: this test is about the frame that never comes');
   assert.equal(counterPictures(player).length, 0, 'the picture was drawn before it had landed');
   assert.equal(typeof land, 'function', 'the counter picture was never asked for');
+  await settle(); // let unrelated scene loads finish before measuring this one landing
   const painted = paints(player);
 
   land();

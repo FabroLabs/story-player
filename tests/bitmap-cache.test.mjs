@@ -309,9 +309,7 @@ test('destroying the player mid-decode stops the image and revokes its blob', as
   };
 
   const decoding = decodeDrawable('https://storage.example/a.webp', { signal: controller.signal });
-  await Promise.resolve();
-  await Promise.resolve();
-  await Promise.resolve();
+  await new Promise(setImmediate);
   controller.abort();
 
   await assert.rejects(decoding, (error) => error.name === 'AbortError');

@@ -45,6 +45,7 @@ import { knownCardBoard } from '../../core/card-board.mjs';
 import { PAN_SCALE_FLOOR, PUSH_SCALE } from '../../policy.mjs';
 import { drawnSpriteHeightPx } from '../stage/presentation-policy.mjs';
 import { KEEP_WINDOW, chunkWindow, sheetFor, wantedCellPx } from './rendition-picker.mjs';
+import { withAssetDeadline } from './asset-request.mjs';
 
 /**
  * How often the runtime re-asks which chunks are under the playhead.
@@ -453,6 +454,14 @@ export function createSceneLoader({
   async function loadScene(sceneIndex, viewport = {}, {
     onProgress = () => {}, onRequiredImage = () => {}, keep = false, concurrency = 0,
   } = {}) {
+    return withAssetDeadline((loadSignal) => loadSceneAssets(sceneIndex, viewport, {
+      onProgress, onRequiredImage, keep, concurrency, loadSignal,
+    }), { signal });
+  }
+
+  async function loadSceneAssets(sceneIndex, viewport, {
+    onProgress, onRequiredImage, keep, concurrency, loadSignal,
+  }) {
     const scenePlan = plan(sceneIndex, viewport);
     reportLegacySheets(scenePlan);
     // `keep` is what tells the two callers apart: the scene being OPENED is the
@@ -479,14 +488,14 @@ export function createSceneLoader({
     const fetchOne = async ({ url, ...what }) => {
       let landed;
       try {
-        landed = await attempt(url, what);
+        landed = await attempt(url, what, loadSignal);
       } catch (error) {
         stopped = true;
         throw error;
       }
       if (stopped) return;
       if (!landed) failed += 1;
-      throwIfAborted(signal);
+      throwIfAborted(loadSignal);
       done += 1;
       if (landed && what.required) onRequiredImage();
       onProgress(done, total);
@@ -620,12 +629,12 @@ export function createSceneLoader({
    * those as a teardown would reject the gate — leaving the begin button
    * disabled for good with nothing in the log to say why.
    */
-  async function attempt(url, what) {
+  async function attempt(url, what, loadSignal = signal) {
     try {
-      await cache.load(url, { signal });
+      await cache.load(url, { signal: loadSignal });
       return true;
     } catch (error) {
-      if (signal?.aborted) throw error;
+      if (loadSignal?.aborted || error?.name === 'TimeoutError') throw error;
       refused.add(url);
       // Once per URL: a sheet two clips share must not be two lines in the log,
       // and a scene re-planned at a new size must not repeat itself.
