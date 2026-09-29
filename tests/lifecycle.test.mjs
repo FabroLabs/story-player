@@ -305,7 +305,9 @@ test('destroy clears debug download timers and revokes its object URL', async (t
   await player.ready;
 
   findByText(host.shadowRoot, 'download').dispatch('click');
-  assert.equal(timers.size, 2);
+  // Opening/background asset work has its own deadlines now. The download
+  // owns two timers; destroy must clear those and every pending asset timer.
+  assert.ok(timers.size >= 2);
   player.destroy();
   assert.equal(timers.size, 0);
   assert.deepEqual(revoked, ['blob:story-log']);
@@ -393,4 +395,3 @@ function findByClass(root, name) {
   }
   return null;
 }
-

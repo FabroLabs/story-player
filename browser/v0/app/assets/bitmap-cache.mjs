@@ -22,6 +22,8 @@
  * downstream branches; only `close()` does, and only bitmaps have it.
  */
 
+import { fetchAssetBlob } from './asset-request.mjs';
+
 const MEGABYTE = 1024 * 1024;
 export const DEFAULT_BUDGET_BYTES = 96 * MEGABYTE;
 export const SMALL_DEVICE_BUDGET_BYTES = 48 * MEGABYTE;
@@ -129,9 +131,7 @@ export function createBitmapCache({
      */
     async prefetch(url, { signal = null } = {}) {
       if (entries.has(url) || inFlight.has(url)) return;
-      const response = await fetch(url, { ...FETCH, signal });
-      if (!response.ok) throw new Error(`asset ${url} answered ${response.status}`);
-      await response.arrayBuffer();
+      await fetchAssetBlob(url, { signal, body: 'arrayBuffer' });
     },
 
     get budget() {
@@ -214,12 +214,8 @@ function positive(value) {
  * are what keeps the canvas untainted; the assets bucket serves the headers for
  * it (`tools/assets_bucket_cors.py` on the engine side).
  */
-const FETCH = { credentials: 'omit', mode: 'cors' };
-
 export async function decodeDrawable(url, { signal = null } = {}) {
-  const response = await fetch(url, { ...FETCH, signal });
-  if (!response.ok) throw new Error(`asset ${url} answered ${response.status}`);
-  const blob = await response.blob();
+  const blob = await fetchAssetBlob(url, { signal });
   throwIfAborted(signal);
   let refusal = null;
   if (typeof globalThis.createImageBitmap === 'function') {

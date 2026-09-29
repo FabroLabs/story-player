@@ -128,6 +128,14 @@ to `V0_POLICY.audio.narrationGraceMs`; a seek or destroy cuts it at once.
 The opening gate waits for scene 0's sheets, the first two narration lines and
 every bed or song that sounds before the second line, playable from its start;
 the sound part waits at most 20 s, then the story opens and holds where it must.
+Only the first two narration files download before Begin. The remaining narration
+queue starts with playback (or an explicit seek), so it cannot compete with the
+opening images. Teardown aborts outstanding narration downloads.
+Image requests have a 15 s deadline covering headers and body, with one retry for
+transient network/server failures. A scene load has a 30 s overall deadline and
+cancels its requests on failure or teardown; its rejected `ready` lets the host
+offer a fresh mount. This does not time out the streaming wait for future scenes.
+Invalid image decoding and permanent HTTP failures are not automatically retried.
 After that the story never plays a gap: when the clock reaches a line that has
 not landed, or a scene—on a cut, or the scene a seek lands in—whose sheets,
 segment swaps included, are not all decoded, the whole story holds at that

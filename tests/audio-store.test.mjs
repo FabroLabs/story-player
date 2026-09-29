@@ -35,6 +35,33 @@ test('before it is started nothing is fetched and every line plays from its own 
   assert.equal(store.url(cues[0]), 'a.m4a');
 });
 
+test('opening narration leaves bandwidth for pictures until the viewer begins', async () => {
+  const network = manualFetch();
+  const store = createAudioStore(cues, network);
+  store.prime(cues.slice(0, 2));
+  assert.deepEqual(network.pending.map(p => p.source), ['a.m4a', 'b.m4a']);
+  network.answer('a.m4a');
+  network.answer('b.m4a');
+  await settle();
+  assert.deepEqual(network.pending, [], 'later narration competed with opening images');
+  assert.equal(store.ready(cues[2]), false);
+  store.start(0);
+  assert.deepEqual(network.pending.map(p => p.source), ['c.m4a', 'd.m4a']);
+  store.destroy();
+});
+
+test('destroy aborts active narration downloads', () => {
+  const signals = [];
+  const store = createAudioStore(cues, {fetchFile: (_source, {signal}) => {
+    signals.push(signal);
+    return new Promise(() => {});
+  }});
+  store.start();
+  store.destroy();
+  assert.equal(signals.length, 2);
+  assert.ok(signals.every(signal => signal.aborted));
+});
+
 test('lines download two at a time, from the playhead onwards, then the ones behind it', async () => {
   const network = manualFetch();
   const store = createAudioStore(cues, network);
