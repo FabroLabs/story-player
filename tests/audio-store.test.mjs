@@ -121,3 +121,24 @@ test('every line here or tried once is enough for the pictures to start download
   assert.equal(store.ready(cues[1]), false, 'a failed line counted as here');
   store.destroy();
 });
+
+test('lines beyond the look-ahead wait until the story comes near them, and do not hold the pictures back', async () => {
+  const network = manualFetch();
+  const far = [
+    { id: 'near', kind: 'narration', media: 'near.m4a', start_ms: 0, duration_ms: 1000 },
+    { id: 'far', kind: 'narration', media: 'far.m4a', start_ms: 90_000, duration_ms: 1000 },
+  ];
+  const store = createAudioStore(far, network);
+  store.start(0);
+  let settled = false;
+  void store.whenAll().then(() => { settled = true; });
+  assert.deepEqual(network.pending.map((p) => p.source), ['near.m4a'], 'a line a minute and a half away took the link');
+  network.answer('near.m4a');
+  await settle();
+  assert.equal(settled, true, 'the pictures waited for a line nobody needs yet');
+  store.advance(20_000);
+  assert.deepEqual(network.pending, [], 'the line was fetched long before it was near');
+  store.advance(40_000);
+  assert.deepEqual(network.pending.map((p) => p.source), ['far.m4a']);
+  store.destroy();
+});

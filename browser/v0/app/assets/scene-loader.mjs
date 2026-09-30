@@ -45,7 +45,7 @@ import { knownCardBoard } from '../../core/card-board.mjs';
 import { PAN_SCALE_FLOOR, PUSH_SCALE } from '../../policy.mjs';
 import { drawnSpriteHeightPx } from '../stage/presentation-policy.mjs';
 import { KEEP_WINDOW, chunkWindow, sheetFor, wantedCellPx } from './rendition-picker.mjs';
-import { withAssetDeadline } from './asset-request.mjs';
+import { onAssetProgress, withAssetDeadline } from './asset-request.mjs';
 
 /**
  * How often the runtime re-asks which chunks are under the playhead.
@@ -454,9 +454,14 @@ export function createSceneLoader({
   async function loadScene(sceneIndex, viewport = {}, {
     onProgress = () => {}, onRequiredImage = () => {}, keep = false, concurrency = 0,
   } = {}) {
-    return withAssetDeadline((loadSignal) => loadSceneAssets(sceneIndex, viewport, {
-      onProgress, onRequiredImage, keep, concurrency, loadSignal,
-    }), { signal });
+    // Given up only when nothing has arrived for a while: each request already answers for its own
+    // silence, and this catches a decoder that never settles.
+    return withAssetDeadline((loadSignal, touch) => {
+      const unwatch = onAssetProgress(touch);
+      return loadSceneAssets(sceneIndex, viewport, {
+        onProgress, onRequiredImage, keep, concurrency, loadSignal,
+      }).finally(unwatch);
+    }, { signal });
   }
 
   async function loadSceneAssets(sceneIndex, viewport, {

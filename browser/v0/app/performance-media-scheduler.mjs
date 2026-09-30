@@ -9,7 +9,7 @@ import { createAudioStore } from './audio-store.mjs';
  * clock says it is. Three rules make it safe against a slow link:
  *
  *   narration is in memory before it is due — `audio-store.mjs` downloads every line in playing
- *   order after begin (only the opening lines before it), and `blocker` tells the runtime to hold the story
+ *   order after begin, a minute ahead (only the opening lines before it), and `blocker` tells the runtime to hold the story
  *   at a line (or at the start of a bed or song) that has not landed, instead of cutting it
  *   a line starts no later than its first word — when it is noticed late, at most its silent
  *   lead-in is skipped; only a viewer's seek lands inside a line
@@ -160,6 +160,7 @@ export function createPerformanceMediaScheduler({ bundle, onWarning, store = nul
   function sync(tMs, seeking = false) {
     if (tMs !== landedAt) landedAt = null;
     now = tMs;
+    lines.advance?.(tMs);
     const wanted = performanceAudioAt(story, tMs);
     const ids = new Set(wanted.map(c => c.id));
     for (const [id, item] of active) {
@@ -250,7 +251,9 @@ export function createPerformanceMediaScheduler({ bundle, onWarning, store = nul
 
   function open(cue) {
     const media = new Audio();
-    media.preload = 'auto';
+    // A bed or song asks for its metadata only: preloaded in full, a 30 MB ambience took the link
+    // from the next scene's pictures. It still buffers enough to start, and streams as it plays.
+    media.preload = continuous(cue) ? 'metadata' : 'auto';
     media.src = cue.kind === 'narration' ? lines.url(cue) : cue.url ?? cue.media;
     media.volume = cue.volume ?? 1;
     media.loop = cue.loop === true;

@@ -6,6 +6,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createStoryPlayer } from '../browser/embed.mjs';
+import { fetchAssetBlob } from '../browser/v0/app/assets/asset-request.mjs';
 import { installDom, virtualFrames } from './_dom.mjs';
 
 const settle = () => new Promise((resolve) => { setImmediate(resolve); });
@@ -31,8 +32,8 @@ function twoScenes(side = 100, sounds = []) {
   };
 }
 
-/** Every request answers at once, except the files a test holds back until it lets them go. */
-function heldFetch(side = 100) {
+/** Every request answers at once, except the files a test holds back until it lets them go, or never has. */
+function heldFetch(side = 100, missing = []) {
   const blocked = new Set();
   const waiting = [];
   const requested = [];
@@ -40,6 +41,7 @@ function heldFetch(side = 100) {
     const href = String(url);
     requested.push(href);
     if ([...blocked].some((name) => href.endsWith(name))) await new Promise((resolve) => { waiting.push({ href, resolve }); });
+    if (missing.some((name) => href.endsWith(name))) return { ok: false, status: 404 };
     return { ok: true, status: 200, blob: async () => ({ pixels: { width: side, height: side } }), arrayBuffer: async () => new ArrayBuffer(8) };
   };
   return {
@@ -74,7 +76,7 @@ function byClass(node, name) {
   return null;
 }
 
-async function mount(t, block = [], { side = 100, sounds = [], chrome = 'host' } = {}) {
+async function mount(t, block = [], { side = 100, sounds = [], chrome = 'host', missing = [] } = {}) {
   const dom = installDom(); t.after(dom.restore);
   const make = document.createElement.bind(document);
   const contexts = [];
@@ -92,7 +94,7 @@ async function mount(t, block = [], { side = 100, sounds = [], chrome = 'host' }
     const from = calls.findLastIndex(([name]) => name === 'clearRect');
     return calls.slice(from + 1).filter(([name]) => name === 'drawImage').length;
   };
-  const network = heldFetch(side);
+  const network = heldFetch(side, missing);
   for (const name of block) network.block(name);
   const audio = installAudio(); t.after(audio.restore);
   const frames = virtualFrames(); t.after(frames.restore);
@@ -160,6 +162,32 @@ test('a hold that never ends stops the story with a note, and play asks again', 
   frames.advanceTo(2400);
   assert.equal(player.getState().sceneIndex, 1);
   assert.equal(player.getState().playing, true);
+});
+
+test('a hold keeps waiting while bytes are still arriving, and gives up only once the link goes quiet', async (t) => {
+  const { player, frames, note } = await mount(t, ['pack/two.png']);
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  frames.advanceTo(2300);
+  assert.equal(player.getState().tMs, 2000);
+  // Something else on the link lands every fifteen seconds: slow, but alive.
+  for (let wall = 0; wall < 60_000; wall += 15_000) {
+    t.mock.timers.tick(15_000);
+    await fetchAssetBlob('https://storage.example/pack/elsewhere.png');
+  }
+  assert.equal(player.getState().playing, true, 'a slow link still delivering was given up on');
+  assert.doesNotMatch(note.textContent ?? '', /could not be loaded/);
+  t.mock.timers.tick(20_000);
+  assert.equal(player.getState().playing, false, 'a link gone quiet held the story for ever');
+  assert.match(note.textContent, /could not be loaded/);
+});
+
+test('a file the store does not have ends the hold at once instead of waiting out the link', async (t) => {
+  const { player, frames, note } = await mount(t, [], { missing: ['pack/two.png'] });
+  frames.advanceTo(2300);
+  await settle(); await settle(); await settle();
+  assert.equal(player.getState().tMs, 2000);
+  assert.equal(player.getState().playing, false, 'a missing file kept the story holding');
+  assert.match(note.textContent, /could not be loaded/);
 });
 
 test('pausing during a hold stays paused when what it waited for lands', async (t) => {
