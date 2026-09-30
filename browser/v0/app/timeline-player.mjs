@@ -22,6 +22,7 @@ import { oceanAnimationMs } from '../core/ocean-board.mjs';
 import { farmAnimationMs, sceneHasFarmBoard } from '../core/farm-board.mjs';
 import { journeyCamera } from '../core/farm-journey.mjs';
 import { FLASH, HIGHLIGHT } from '../policy.mjs';
+import { onAssetProgress } from './assets/asset-request.mjs';
 import { KEEP_CADENCE_MS } from './assets/scene-loader.mjs';
 import { DEFAULT_DRAW_HZ, tierSettings } from './capability.mjs';
 import { createControls } from './controls.mjs';
@@ -33,8 +34,9 @@ import { createVideoPlate } from './stage/video-plate.mjs';
 const SKIP_MS = 10_000;
 // A performance that reaches sound or pictures that have not landed holds on
 // its last frame until they do. The spinner shows only once a hold outlasts a
-// blink; a hold that does not end stops the story with a note, and play asks
-// again. A scene whose sheets would not load is asked for again this often.
+// blink; a hold during which nothing arrives for HOLD_TIMEOUT_MS stops the
+// story with a note, and play asks again — a slow link still delivering is
+// waited for. A scene whose sheets would not load is asked for again this often.
 const HOLD_SPINNER_MS = 300;
 const HOLD_TIMEOUT_MS = 20_000;
 const RETRY_MS = 1_000;
@@ -137,9 +139,10 @@ export function createTimelinePlayer({
   // held until it lands. See `seekTo`.
   let scrubbing = false;
   let destroyed = false;
-  // Which hold is current, and its spinner and give-up timers.
+  // Which hold is current, its spinner and give-up timers, and its ear on the link.
   let holds = 0;
   let holdTimers = [];
+  let unwatchHold = null;
   // The scene a paused seek landed in before its sheets did, being fetched.
   let awaitedCut = null;
   // Which arrival at the end the screen is still owed. An end card is played
@@ -853,7 +856,8 @@ export function createTimelinePlayer({
         await loader.loadScene(index, sceneView ?? viewport(), { keep: true });
         return;
       } catch (error) {
-        if (signal?.aborted) throw error;
+        // A file the store does not have does not arrive by waiting: the hold says so at once.
+        if (signal?.aborted || error?.retryable === false) throw error;
         await new Promise((resolve) => { setTimeout(resolve, RETRY_MS); });
       }
     }
@@ -877,25 +881,38 @@ export function createTimelinePlayer({
     if (media.hold) media.hold();
     else media.pause();
     recorder?.pause();
+    clearHoldTimers();
     holds += 1;
     const mine = holds;
     const current = () => mine === holds && waiting === 'media';
+    const giveUp = () => {
+      if (!current()) return;
+      leaveWaiting(false);
+      showNote('Story media could not be loaded. Press play to try again.');
+      updateControls({ tMs: clock.now(), playing: false, ended: false });
+    };
+    const quiet = () => setTimeout(giveUp, HOLD_TIMEOUT_MS);
     holdTimers = [
       setTimeout(() => { if (current() && elements.stage.hold) elements.stage.hold.hidden = false; }, HOLD_SPINNER_MS),
-      setTimeout(() => {
-        if (!current()) return;
-        leaveWaiting(false);
-        showNote('Story media could not be loaded. Press play to try again.');
-        updateControls({ tMs: clock.now(), playing: false, ended: false });
-      }, HOLD_TIMEOUT_MS),
+      quiet(),
     ];
-    void hold.until().then(() => { if (current()) leaveWaiting(true); }, () => {});
+    // Every byte that lands restarts the count: only a link gone silent ends the hold.
+    unwatchHold = onAssetProgress(() => {
+      clearTimeout(holdTimers[1]);
+      holdTimers[1] = quiet();
+    });
+    void hold.until().then(
+      () => { if (current()) leaveWaiting(true); },
+      (error) => { if (error?.retryable === false) giveUp(); },
+    );
     updateControls({ tMs: clock.now(), playing: true, ended: false });
   }
 
   function clearHoldTimers() {
     for (const timer of holdTimers) clearTimeout(timer);
     holdTimers = [];
+    unwatchHold?.();
+    unwatchHold = null;
   }
 
   function imageArrived(opened) {
