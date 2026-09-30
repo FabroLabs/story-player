@@ -90,6 +90,21 @@ test('browser seek stops one-shots, restores continuous offset and replay permit
   }
 });
 
+test('a bed or song opens for its metadata only, so a long track cannot crowd the pictures off the link', () => {
+  const audio = installPendingAudio();
+  try {
+    const scheduler = createMediaScheduler({ bundle: story, timeline: {} });
+    scheduler.resume();
+    scheduler.advance(0, 2100);
+    const opened = Object.fromEntries(audio.made.map((media) => [media.src, media.preload]));
+    assert.equal(opened['art/music.mp3'], 'metadata', 'the bed was downloaded ahead in full');
+    assert.equal(opened['art/chime.wav'], 'auto', 'a one-shot must be whole when it is due');
+    scheduler.destroy();
+  } finally {
+    audio.restore();
+  }
+});
+
 /** An Audio whose play() stays pending until the test lets it start; pause() aborts it. */
 function installPendingAudio() {
   const prior = globalThis.Audio;

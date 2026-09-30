@@ -116,8 +116,8 @@ metadata is data. A cue ending where the next begins hands over in the same
 frame without a pause. A play() request the player itself interrupted (pause,
 seek, release) is not a media failure and never pauses the story.
 
-Narration is downloaded whole, in playing order from the playhead, from the
-moment the story is prepared, and each line plays from memory. A line starts no
+Narration is downloaded whole, in playing order from the playhead and at most
+60 s ahead of it, and each line plays from memory. A line starts no
 later than its first word: noticed late, it skips at most its silent
 `metadata.lead_in_ms` and is late rather than cut; only a viewer's seek lands
 inside a line. A line still speaking when its window closes may run on for up
@@ -130,9 +130,12 @@ every bed or song that sounds before the second line, playable from its start;
 the sound part waits at most 20 s, then the story opens and holds where it must.
 Only the first two narration files download before Begin. The remaining narration
 queue starts with playback (or an explicit seek), so it cannot compete with the
-opening images. Teardown aborts outstanding narration downloads.
-Image requests have a 15 s deadline covering headers and body, with one retry for
-transient network/server failures. A scene load has a 30 s overall deadline and
+opening images, and fetches a line once it is within 60 s of the playhead.
+Teardown aborts outstanding narration downloads.
+Deadlines measure silence, not duration: an image or narration request is given
+up after 15 s in which nothing of it arrived, headers or body, with one retry for
+transient network/server failures, and a slow download still arriving is never
+cut. A scene load is given up after 30 s in which no download made progress and
 cancels its requests on failure or teardown; its rejected `ready` lets the host
 offer a fresh mount. This does not time out the streaming wait for future scenes.
 Invalid image decoding and permanent HTTP failures are not automatically retried.
@@ -140,17 +143,19 @@ After that the story never plays a gap: when the clock reaches a line that has
 not landed, or a scene—on a cut, or the scene a seek lands in—whose sheets,
 segment swaps included, are not all decoded, the whole story holds at that
 instant (picture, voice and music, sound effects paused rather than ended) and
-goes on the moment they land. A bed or song is opened 3 s before its start and
-waited for at most 1.5 s; past that it joins when it can. A cut is all or
+goes on the moment they land. A bed or song is opened 3 s before its start, for
+its metadata only (`preload="metadata"`) so a long track is not downloaded ahead
+of the pictures, and waited for at most 1.5 s; past that it joins when it can. A cut is all or
 nothing, and the transport reads playing throughout; pause ends a hold, and a
 drag out of one stays silent until the pointer lands. A spinner shows once a
-hold passes 300 ms. A hold that has not ended after 20 s—a sheet or a line that
-keeps failing—stops the story with a note, and play asks again.
+hold passes 300 ms. A hold during which nothing has arrived for 20 s—a link gone
+quiet—stops the story with a note, and play asks again; a file the store answers
+as missing (4xx) stops it at once. A slow link still delivering is waited for.
 
 While a scene plays, the sheets the next scene adds are decoded as far as the
 bitmap budget allows (asset `width × height × 4` bytes each); the rest are
 decoded at the cut, under a hold. Later scenes are downloaded during playback,
-after every narration line has landed or failed once, into the browser's HTTP
+after every narration line within the look-ahead has landed or failed once, into the browser's HTTP
 cache, and decoded only when their scene is next. A scene whose sheets were
 pushed out while another scene loaded (a seek away and back) is decoded again
 before it is drawn.

@@ -3,8 +3,9 @@
  *
  * A line's file used to be opened only when its cue was due, and the wait for it came out of the
  * line's first words. Here every narration file is fetched in playing order from the moment the
- * story begins — a few megabytes a story — and a line is played from memory. The opening primes
- * only its first lines so the rest cannot compete with the first pictures. The runtime
+ * story begins, up to a minute ahead of the playhead, and a line is played from memory. The
+ * opening primes only its first lines, and the look-ahead keeps the rest from competing with the
+ * next scenes' pictures. The runtime
  * holds the story at a line whose bytes have not landed (`timeline-player.mjs`), so nothing is cut
  * to catch up.
  *
@@ -18,6 +19,9 @@
 import { fetchAssetBlob } from './assets/asset-request.mjs';
 
 const PARALLEL = 2;
+// Lines further ahead than this wait their turn: early on, the next scenes' pictures are what a slow
+// link is short of, and a line is small and quick once it is near.
+const LOOKAHEAD_MS = 60_000;
 const RETRY_MS = [1000, 2000, 4000, 8000];
 
 export function createAudioStore(cues, { fetchFile = fetchWhole } = {}) {
@@ -38,7 +42,7 @@ export function createAudioStore(cues, { fetchFile = fetchWhole } = {}) {
   let priming = null;
   const controller = new AbortController();
 
-  return { prime, start, seek, ready, url, whenReady, whenAll, destroy };
+  return { prime, start, seek, advance, ready, url, whenReady, whenAll, destroy };
 
   /** Download only the opening's required lines until a viewer begins. */
   function prime(opening) {
@@ -61,6 +65,12 @@ export function createAudioStore(cues, { fetchFile = fetchWhole } = {}) {
     priming = null;
     playheadMs = tMs;
     pump();
+  }
+
+  /** The story played on: lines coming into the look-ahead may start downloading. */
+  function advance(tMs) {
+    playheadMs = tMs;
+    if (loading < PARALLEL) pump();
   }
 
   function ready(cue) {
@@ -90,7 +100,7 @@ export function createAudioStore(cues, { fetchFile = fetchWhole } = {}) {
   }
 
   function allSettled() {
-    return !started || [...entries.values()].every((entry) => entry.url !== null || entry.failures > 0);
+    return !started || [...entries.values()].every((entry) => entry.url !== null || entry.failures > 0 || later(entry));
   }
 
   function destroy() {
@@ -120,11 +130,16 @@ export function createAudioStore(cues, { fetchFile = fetchWhole } = {}) {
     let behind = null;
     for (const entry of entries.values()) {
       if (priming && !priming.has(entry.source)) continue;
+      if (later(entry)) continue;
       if (entry.url !== null || entry.loading || entry.retryAt > now) continue;
       if (entry.endMs > playheadMs) { if (!ahead || entry.startMs < ahead.startMs) ahead = entry; }
       else if (!behind || entry.startMs < behind.startMs) behind = entry;
     }
     return ahead ?? behind;
+  }
+
+  function later(entry) {
+    return entry.startMs > playheadMs + LOOKAHEAD_MS;
   }
 
   async function load(entry) {
