@@ -519,7 +519,6 @@ test('a story mounted before it has a scene opens on its card and waits behind i
   assert.equal(player.waiting.hidden, true, 'the spinner outlived the scene it was waiting for');
   assert.equal(player.controls.hidden, false, 'the scene landed and the story never started');
   assert.ok(player.frames.pending() > 0);
-  assert.equal(player.badge.textContent, 'scene 1 of 3', 'the badge lost the count the manifest gave it');
 });
 
 test('a scene that lands during the card is played the moment the curtain falls', async (t) => {
@@ -2308,7 +2307,6 @@ async function mount(t, {
     controls: findByClass(root, 'controls'),
     waiting: findByClass(root, 'waiting-overlay'),
     end: findByClass(root, 'end-overlay'),
-    badge: findByClass(root, 'story-scene'),
     title: findByClass(root, 'start-ceremony').children.find((node) => node.tag === 'h1'),
     start: findByClass(root, 'start-button'),
     toggle: findByClass(root, 'play-button'),

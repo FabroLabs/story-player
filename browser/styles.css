@@ -11,13 +11,18 @@
   border-radius: inherit;
   color-scheme: dark;
   --shell: #0e1416;
-  --accent: #4ed08a;
-  --accent-soft: #8fe3b6;
-  --track: rgba(255, 255, 255, 0.22);
+  /* The web app's watch player: mint for the one thing to press, and its line's
+     three colours. */
+  --accent: #92e3c4;
+  --accent-soft: #53d7ac;
+  --track: #527a6d;
+  --progress: #13e9b0;
+  --rail: #49756a;
+  --thumb: #b3f2d8;
   --chip: rgba(255, 255, 255, 0.07);
   --text: #eaf3f0;
   --text-dim: #9fb3ae;
-  --caption: rgba(12, 24, 27, 0.78);
+  --caption: rgb(7 26 24 / 0.9);
   --ink: #091012;
   --ink-soft: #142020;
   --on-accent: #0b2b1e;
@@ -46,7 +51,6 @@ button:focus-visible {
 
 .quiet-button,
 .icon-button,
-.round-button,
 .debug-actions button {
   color: var(--text);
   border: 1px solid var(--line);
@@ -77,6 +81,14 @@ button:focus-visible {
   overflow: hidden;
   isolation: isolate;
   background: var(--ink);
+  /* Everything over the picture is sized against the PLAYER, never the window:
+     the same build is a card on a laptop, a tablet's width, a phone's whole
+     screen, and a strip 219 pixels tall inside an app. The first value of each
+     pair below is for a browser without container units (iOS 15), which is a
+     phone. */
+  container: player / size;
+  --edge: 10px;
+  --edge: clamp(8px, 2.2cqw, 24px);
 }
 
 /* The frame is focusable so the keys have somewhere to live when the overlay
@@ -177,25 +189,23 @@ button:focus-visible {
   z-index: 5;
   top: 0;
   left: 0;
-  padding: clamp(0.7rem, 2vw, 1.15rem) clamp(0.9rem, 2.4vw, 1.5rem);
+  padding: var(--edge) calc(var(--edge) + 0.25rem);
   pointer-events: none;
   text-shadow: 0 0.15rem 1.2rem rgba(2, 8, 9, 0.75);
 }
 
 .story-name {
   margin: 0;
-  font-size: clamp(0.85rem, 1.6vw, 1.15rem);
+  font-size: 13px;
+  font-size: clamp(12px, 3.2cqmin, 18px);
   font-weight: 650;
 }
 
-.story-scene {
-  margin: 0.18rem 0 0;
-  color: var(--text-dim);
-  font-size: clamp(0.62rem, 1.05vw, 0.78rem);
-}
+.story-name:empty { display: none; }
 
-.story-name:empty,
-.story-scene:empty { display: none; }
+/* The name arrives with the transport: over the opening it would say the
+   title twice. */
+.stage-frame:has(> .controls[hidden]) .story-badge { visibility: hidden; }
 
 /* The mark a click leaves in the middle of the picture.
 
@@ -229,7 +239,8 @@ button:focus-visible {
 .flash-mark {
   display: grid;
   place-content: center;
-  width: clamp(3.6rem, 9vw, 5.4rem);
+  width: 56px;
+  width: clamp(48px, 15cqmin, 86px);
   aspect-ratio: 1;
   border-radius: 50%;
   color: var(--on-accent);
@@ -261,6 +272,26 @@ button:focus-visible {
   );
 }
 
+/* A double tap's skip, on the side it was tapped: the same circle, carrying
+   how far the story moved. */
+.stage-flash.is-back { place-content: center start; padding-inline: 12%; }
+.stage-flash.is-forward { place-content: center end; padding-inline: 12%; }
+
+.stage-flash.is-back .flash-mark::before,
+.stage-flash.is-forward .flash-mark::before {
+  content: '−10';
+  width: auto;
+  height: auto;
+  margin: 0;
+  border: 0;
+  background: none;
+  font-size: 17px;
+  font-size: clamp(14px, 4.4cqmin, 24px);
+  font-weight: 800;
+}
+
+.stage-flash.is-forward .flash-mark::before { content: '+10'; }
+
 /* The player's own two toggles, opposite the name. Everything else a viewer
    expects up here — close, cast, parental, overflow — belongs to the page that
    mounted us, which is why this row is short and pinned to the corner rather
@@ -273,7 +304,7 @@ button:focus-visible {
   display: flex;
   align-items: center;
   gap: 0.4rem;
-  padding: clamp(0.7rem, 2vw, 1.15rem) clamp(0.9rem, 2.4vw, 1.5rem);
+  padding: var(--edge) calc(var(--edge) + 0.25rem);
 }
 
 /* The row is withdrawn until the story begins, and `display: flex` above would
@@ -299,7 +330,8 @@ button:focus-visible {
   padding: 2rem;
   background: rgba(9, 16, 18, 0.58);
   color: var(--text);
-  font-size: 0.95rem;
+  font-size: 14px;
+  font-size: clamp(12px, 3.4cqmin, 16px);
 }
 
 /* `display: grid` above outranks the attribute, the same way it does for the
@@ -342,7 +374,8 @@ button:focus-visible {
   place-content: center;
   justify-items: center;
   text-align: center;
-  padding: 2rem;
+  padding: 16px;
+  padding: clamp(10px, 5cqmin, 32px);
   /* A gradient, and nothing behind it. `backdrop-filter` here blurred the
      whole stage under the overlay — a full-frame filter over a playing video
      and a canvas, on the two occasions a story is least able to spare it: the
@@ -359,7 +392,8 @@ button:focus-visible {
 
 .ceremony-glow {
   position: absolute;
-  width: min(42vw, 34rem);
+  width: min(42%, 34rem);
+  width: min(42cqw, 34rem);
   aspect-ratio: 1;
   border-radius: 50%;
   background: radial-gradient(circle, rgba(78, 208, 138, 0.14), transparent 65%);
@@ -367,74 +401,99 @@ button:focus-visible {
 }
 
 .eyebrow {
-  margin: 0 0 0.8rem;
+  margin: 0 0 0.6rem;
+  margin: 0 0 clamp(4px, 2.2cqmin, 13px);
   color: var(--accent-soft);
-  font-size: clamp(0.58rem, 1vw, 0.74rem);
+  font-size: 10px;
+  font-size: clamp(9px, 2.6cqmin, 12px);
   font-weight: 700;
   letter-spacing: 0.24em;
   text-transform: uppercase;
 }
 
+/* The web app's opening: no line over the name — what kind of story this is
+   was chosen before it was opened — the name set large, and one round button.
+   The kicker is still taken from hosts that pass one. */
+.start-ceremony .eyebrow { display: none; }
+
 .start-ceremony h1 {
-  max-width: 18ch;
-  margin: 0 0 clamp(1.3rem, 3vw, 2.4rem);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  max-width: 100%;
+  margin: 0 0 8px;
   color: #fbfffd;
-  font-family: ui-serif, Georgia, serif;
-  font-size: clamp(1.8rem, 5.4vw, 5.4rem);
-  font-weight: 500;
-  line-height: 1.02;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 32px;
   text-wrap: balance;
   text-shadow: 0 0.35rem 2.6rem rgba(0, 0, 0, 0.5);
 }
 
 .start-button {
-  min-height: 3.5rem;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.85rem;
-  padding: 0.85rem 1.55rem;
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  aspect-ratio: 1;
+  padding: 0;
   color: var(--on-accent);
   border: 1px solid rgba(255, 255, 255, 0.24);
-  border-radius: 999px;
+  border-radius: 50%;
   background: var(--accent);
-  box-shadow: 0 0.9rem 3rem rgba(78, 208, 138, 0.22);
-  font-weight: 760;
+  box-shadow: 0 0.9rem 3rem rgba(78, 208, 138, 0.3);
   cursor: pointer;
   transition: transform 180ms ease, box-shadow 180ms ease, opacity 180ms ease;
 }
 
+/* The triangle sits a hair right of centre, where the eye reads it as centred. */
+.start-button .glyph { width: 30px; height: 30px; margin-left: 3px; }
+
+@container player (min-width: 520px) {
+  .start-ceremony h1 { -webkit-line-clamp: 3; max-width: 80%; margin-bottom: clamp(1.1rem, 3cqw, 2.4rem); }
+  .start-button { width: clamp(3.8rem, 9cqw, 5.4rem); }
+}
+
+@container player (min-width: 600px) {
+  .start-ceremony h1 { font-size: 28px; line-height: 36px; }
+}
+
 .start-button:not(:disabled):hover {
-  transform: translateY(-2px);
-  box-shadow: 0 1.2rem 3.4rem rgba(78, 208, 138, 0.3);
+  transform: scale(1.06);
+  box-shadow: 0 1.2rem 3.4rem rgba(78, 208, 138, 0.4);
 }
 
 .start-button:disabled { opacity: 0.45; cursor: wait; }
 
-.play-mark {
-  width: 0;
-  height: 0;
-  margin-left: 0.12rem;
-  border-top: 0.38rem solid transparent;
-  border-bottom: 0.38rem solid transparent;
-  border-left: 0.62rem solid var(--on-accent);
+.start-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .load-status {
   min-height: 1.2em;
-  margin: 0.9rem 0 0;
+  margin: 0.6rem 0 0;
+  margin: clamp(6px, 2.4cqmin, 15px) 0 0;
   color: var(--text-dim);
-  font-size: clamp(0.7rem, 1.2vw, 0.86rem);
+  font-size: 12px;
+  font-size: clamp(10px, 2.6cqmin, 14px);
 }
 
 .load-status.is-error { color: #ffc3bc; }
+
+/* Said while the opening loads, and gone once the button can be pressed: the
+   button is the "ready". */
+.start-button:not(:disabled) + .load-status { visibility: hidden; }
 
 /* Stated explicitly rather than left to the UA default, for the same reason
    `.quiet-button[hidden]` is: a later `display:` on .subtitle-wrap would
    silently win and the toggle would stop working with every test still green. */
 .subtitle-wrap[hidden] { display: none; }
-
-/* Pressed = subtitles ON, so the dimmed state is the one where they are off. */
-.quiet-button[aria-pressed='false'] { opacity: 0.5; }
 
 /* The subtitle area is a container and nothing more: it is in the DOM from the
    first frame to the last, so anything painted here is painted over a story
@@ -442,14 +501,14 @@ button:focus-visible {
    which cost the picture a third of the stage with the text empty. Everything
    visible now belongs to the text below, which comes and goes with the words.
 
-   The type size lives here rather than on .subtitle because the line length is
-   measured by the container — and `ch` only means "a character of the subtitle"
-   if the container is set in the subtitle's own size. The mockup's caption is a
-   long single line at about a fifty-character measure, which is why this is
-   wider and smaller than the two-line block it replaced.
+   The web app's watch caption, by the player's width as the web app sizes it:
+   15px under 520 pixels, 17px under 600, 20px from there. The bottom padding
+   clears the dock — its two rows on a phone, its one row from 600 up — and
+   follows it down to 12 pixels when a tap takes it away.
 
-   The bottom padding clears the control bar: the words sit above the transport
-   rather than behind it — and follow it down when a tap takes it away. */
+   On a player under 260 pixels tall the bare line is a promise to the teaching
+   boards, which keep their counters above it (`ocean-board-layout.mjs`): at
+   most 15.2px type and 25.6px off the foot. */
 .subtitle-wrap {
   position: absolute;
   z-index: 6;
@@ -457,36 +516,37 @@ button:focus-visible {
   right: 0;
   bottom: 0;
   margin-inline: auto;
-  max-width: 56ch;
-  padding: 0 1ch clamp(4.8rem, 13vw, 8.5rem);
-  font-size: clamp(0.95rem, 1.45vw, 1.5rem);
-  line-height: 1.55;
+  max-width: calc(100% - 24px);
+  padding: 0 0 100px;
+  font-size: 15px;
+  line-height: 20px;
   text-align: center;
-  text-wrap: balance;
   pointer-events: none;
-  transition: padding-bottom 180ms ease;
 }
 
-.stage-frame.is-bare .subtitle-wrap { padding-bottom: clamp(1.6rem, 4vw, 3rem); }
+.stage-frame.is-bare .subtitle-wrap { padding-bottom: 12px; }
 
-/* One box around the whole line, hugging the words rather than the stage: the
-   mockup draws a single rounded plate under the caption, not a padded box per
-   line. `inline-block` is what gives that — it shrink-wraps like an inline box
-   but takes the container's measure, so a sentence that does wrap stays inside
-   one shape instead of a ragged stack of them.
+@container player (min-width: 520px) {
+  .subtitle-wrap { font-size: 17px; line-height: 24px; }
+  .stage-frame .subtitle { padding: 6px 12px; }
+}
 
-   Lighter than it was, too. At 650 against a moving picture the caption read as
-   a label; the design's weight is a reading voice, and the plate behind it is
-   what carries the contrast. */
+@container player (min-width: 600px) {
+  .subtitle-wrap { max-width: 80%; padding-bottom: 72px; font-size: 20px; line-height: 26px; }
+}
+
+/* One box around the whole line, hugging the words rather than the stage.
+   `inline-block` is what gives that — it shrink-wraps like an inline box but
+   takes the container's measure, so a sentence that does wrap stays inside one
+   shape instead of a ragged stack of them. */
 .subtitle {
   display: inline-block;
   margin: 0;
-  padding: 0.34em 0.9em;
+  padding: 4px 8px;
   color: #ffffff;
-  font-weight: 500;
-  letter-spacing: 0.005em;
+  font-weight: 400;
   background: var(--caption);
-  border-radius: 0.55em;
+  border-radius: 8px;
 }
 
 /* An inline box with padding still paints that padding when it holds no text,
@@ -505,7 +565,8 @@ button:focus-visible {
   margin: 0.5em auto 0;
   padding: 0.15em 0.6em;
   color: var(--accent-soft);
-  font-size: clamp(0.58rem, 0.9vw, 0.72rem);
+  font-size: 10px;
+  font-size: clamp(9px, 2.2cqmin, 12px);
   letter-spacing: 0.16em;
   text-transform: uppercase;
   background: var(--caption);
@@ -518,22 +579,26 @@ button:focus-visible {
 }
 
 .end-overlay p {
-  margin: 1rem 0 0.35rem;
+  margin: 0.6rem 0 0.25rem;
+  margin: clamp(6px, 2.8cqmin, 16px) 0 clamp(2px, 1cqmin, 6px);
   color: #f2fff8;
   font-family: ui-serif, Georgia, serif;
-  font-size: clamp(2.6rem, 8vw, 7rem);
+  font-size: 36px;
+  font-size: clamp(30px, 14cqmin, 112px);
   line-height: 1;
 }
 
 .end-overlay > span:last-child {
   color: var(--text-dim);
-  font-size: clamp(0.66rem, 1vw, 0.82rem);
+  font-size: 10px;
+  font-size: clamp(9px, 2.4cqmin, 13px);
   letter-spacing: 0.24em;
   text-transform: uppercase;
 }
 
 .end-moon {
-  width: clamp(3rem, 7vw, 5.5rem);
+  width: 36px;
+  width: clamp(30px, 11cqmin, 88px);
   aspect-ratio: 1;
   border-radius: 50%;
   background: var(--accent-soft);
@@ -624,12 +689,14 @@ button:focus-visible {
   position: absolute;
   left: 0;
   right: 0;
-  bottom: clamp(3.2rem, 12vh, 7rem);
+  bottom: 26px;
+  bottom: clamp(16px, 12cqh, 7rem);
   margin: 0;
   padding: 0 1.5rem;
   color: #fbfffd;
   font-family: ui-serif, Georgia, serif;
-  font-size: clamp(1.3rem, 3.6vw, 3.4rem);
+  font-size: 20px;
+  font-size: clamp(16px, 5.6cqmin, 54px);
   line-height: 1.1;
   text-align: center;
   text-shadow: 0 0.35rem 2.6rem rgba(0, 0, 0, 0.62);
@@ -657,7 +724,8 @@ button:focus-visible {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: clamp(0.5rem, 2vh, 1.3rem);
+  gap: 8px;
+  gap: clamp(6px, 2.4cqmin, 21px);
   padding: 0 1.5rem;
   pointer-events: none;
   opacity: 0;
@@ -703,7 +771,8 @@ button:focus-visible {
   margin: 0;
   color: #fbfffd;
   font-family: ui-serif, Georgia, serif;
-  font-size: clamp(1.2rem, 4.4vw, 4rem);
+  font-size: 22px;
+  font-size: clamp(18px, 7.5cqmin, 64px);
   line-height: 1.1;
   text-align: center;
   text-shadow: 0 0.35rem 2.6rem rgba(0, 0, 0, 0.62);
@@ -716,16 +785,18 @@ button:focus-visible {
    cannot find. */
 .card-skip {
   position: absolute;
-  top: clamp(0.7rem, 2vw, 1.15rem);
-  right: clamp(0.9rem, 2.4vw, 1.5rem);
-  min-height: 2.4rem;
-  padding: 0.5rem 1.1rem;
+  top: var(--edge);
+  right: calc(var(--edge) + 0.25rem);
+  min-height: 32px;
+  min-height: clamp(30px, 9cqmin, 40px);
+  padding: 0.4rem 1rem;
   color: var(--text);
   border: 1px solid rgba(255, 255, 255, 0.28);
   border-radius: 999px;
   background: rgba(6, 16, 18, 0.55);
   font: inherit;
-  font-size: clamp(0.72rem, 1.1vw, 0.86rem);
+  font-size: 11px;
+  font-size: clamp(10px, 2.6cqmin, 14px);
   letter-spacing: 0.14em;
   text-transform: uppercase;
   cursor: pointer;
@@ -737,33 +808,65 @@ button:focus-visible {
    overlay covers the stage, and the transport it turns into a replay has to
    stay reachable through it; while the story waits for its writer the waiting
    overlay covers it the same way, and the transport underneath still means
-   "carry on when the scene lands". */
+   "carry on when the scene lands".
+
+   The web app's watch dock (frontend-app `WatchControls` and
+   `watch.module.css`), drawn by the player so the app and every other host
+   get the same one: play and the two skips, the line with its times, then
+   subtitles and full screen. Two arrangements, chosen by the width of the
+   PLAYER as the web app chooses them: a phone's two rows — the line, then five
+   buttons spread across it — and one row from 600 pixels up. */
 .controls {
   position: absolute;
   z-index: 8;
   left: 0;
   right: 0;
   bottom: 0;
-  display: grid;
-  gap: 0.15rem;
-  /* The bar rides low, the way every video transport does: what is under it is
-     two short rows, not a stack. */
-  padding: clamp(1.4rem, 4vw, 2.6rem) clamp(0.8rem, 2.4vw, 1.6rem) clamp(0.45rem, 1.1vw, 0.7rem);
-  background: linear-gradient(to top, rgba(3, 10, 12, 0.72), rgba(3, 10, 12, 0.34) 45%, transparent);
+  padding-top: 24px;
+  color: #f5fbf7;
+  background: linear-gradient(0deg, rgb(3 22 18 / 0.82), rgb(3 22 18 / 0.44) 65%, transparent);
 }
 
 .controls[hidden] { display: none; }
 
+.dock {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  align-items: center;
+  min-height: 88px;
+  padding: 6px 16px;
+}
+
+.timeline {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+}
+
+/* The buttons are the grid's on a phone, and their groups' from 600 up. */
+.transport,
+.side-buttons { display: contents; }
+
+.round-button { grid-row: 2; justify-self: center; }
+.play-button { grid-column: 1; justify-self: start; }
+.skip-back { grid-column: 2; }
+.skip-forward { grid-column: 3; }
+.cc-button { grid-column: 4; }
+.fullscreen-button { grid-column: 5; justify-self: end; }
+
 /* The overlay withdraws from a story nobody is pointing at, and comes back the
-   moment they are — the whole overlay, because a name and a subtitle toggle
-   floating over a story with no transport under them read as leftovers rather
-   than as chrome. `visibility` rather than `opacity` alone: a control faded to
-   nothing is still in the tab order and still takes the click that was meant
-   for the picture. */
+   moment they are — the whole overlay, because a name floating over a story
+   with no transport under it reads as a leftover rather than as chrome.
+   `visibility` rather than `opacity` alone: a control faded to nothing is
+   still in the tab order and still takes the click that was meant for the
+   picture. */
 .controls,
 .story-badge,
 .stage-actions {
-  transition: opacity 180ms ease, visibility 0s;
+  transition: opacity 160ms ease, visibility 0s;
 }
 
 .stage-frame.is-bare .controls,
@@ -771,165 +874,161 @@ button:focus-visible {
 .stage-frame.is-bare .stage-actions {
   opacity: 0;
   visibility: hidden;
-  transition: opacity 180ms ease, visibility 0s linear 180ms;
+  transition: opacity 160ms ease, visibility 0s linear 160ms;
 }
 
+/* The line: a 7px track a finger can find, 32px tall. */
 .scrub {
   position: relative;
-  height: 1.1rem;
+  flex: 1;
+  min-width: 0;
+  height: 32px;
   cursor: pointer;
   touch-action: none;
 }
 
-.scrub::before {
+.scrub::before,
+.scrub-fill {
   content: "";
   position: absolute;
   left: 0;
-  right: 0;
   top: 50%;
-  height: 0.25rem;
+  height: 7px;
   transform: translateY(-50%);
   border-radius: 999px;
-  background: var(--track);
 }
 
-.scrub-fill {
-  position: absolute;
-  left: 0;
-  top: 50%;
-  width: 0%;
-  height: 0.25rem;
-  transform: translateY(-50%);
-  border-radius: 999px;
-  background: var(--accent-soft);
-}
+.scrub::before { right: 0; background: var(--rail); }
+.scrub-fill { width: 0%; background: var(--progress); }
 
 .scrub-handle {
   position: absolute;
   top: 50%;
   left: 0%;
-  width: 0.7rem;
-  height: 0.7rem;
-  margin-left: -0.35rem;
+  width: 18px;
+  height: 18px;
+  margin-left: -9px;
   transform: translateY(-50%);
   border-radius: 50%;
-  background: var(--accent);
+  background: var(--thumb);
 }
 
+/* "0:27 / 8:32", after the line. */
 .times {
+  flex-shrink: 0;
   display: flex;
-  justify-content: space-between;
-  color: var(--text-dim);
-  font-size: clamp(0.62rem, 1vw, 0.76rem);
+  gap: 0.3em;
+  font-size: 15px;
+  line-height: 22px;
   font-variant-numeric: tabular-nums;
-}
-
-/* Three columns rather than a flex row, so the transport is centred on the
-   stage and not on whatever the chip beside it happens to say. */
-.control-row {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  align-items: center;
-  gap: 0.6rem;
-}
-
-.chip {
-  justify-self: start;
-  padding: 0.35rem 0.7rem;
-  border-radius: 999px;
-  background: var(--chip);
-  color: var(--text-dim);
-  font-size: clamp(0.62rem, 1vw, 0.74rem);
   white-space: nowrap;
 }
 
-.chip:empty { display: none; }
+.time-at::after { content: "/"; margin-left: 0.3em; }
 
-.transport {
-  display: flex;
-  align-items: center;
-  gap: clamp(0.6rem, 1.6vw, 1rem);
-}
-
-.side-buttons {
-  justify-self: end;
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-}
-
+/* A button: only its glyph, on a square a finger can hit. */
 .round-button {
-  width: clamp(2.1rem, 4.4vw, 2.5rem);
-  aspect-ratio: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-}
-
-.play-button {
-  width: clamp(2.9rem, 6vw, 3.4rem);
-  aspect-ratio: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--on-accent);
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 6px;
+  color: inherit;
   border: 0;
-  border-radius: 50%;
-  background: var(--accent);
+  border-radius: 10px;
+  background: transparent;
   cursor: pointer;
 }
 
-.play-button:disabled { opacity: 0.45; cursor: default; }
+/* `display` above beats the UA rule behind `hidden`: the full-screen button is
+   withdrawn where nothing can fill the screen. */
+.round-button[hidden] { display: none; }
 
-/* The two transport glyphs are drawn rather than typed: an icon font is one
-   more thing to load into a Shadow DOM and a text arrow is a different shape in
-   every browser. Play is one triangle; pause is the same box with two bars
-   painted across it. */
-.transport-mark {
-  width: 0;
-  height: 0;
-  margin-left: 0.16rem;
-  border-top: 0.5rem solid transparent;
-  border-bottom: 0.5rem solid transparent;
-  border-left: 0.8rem solid currentColor;
+.round-button:hover:not(:disabled) { background: rgb(146 227 196 / 0.12); }
+.round-button:disabled { opacity: 0.5; cursor: default; }
+
+/* Subtitles: the letters in a box, filled while they are on. */
+.cc-button > span {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 28px;
+  border: 2px solid currentColor;
+  border-radius: 4px;
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 22px;
+  text-transform: uppercase;
 }
 
-.play-button.is-playing .transport-mark {
-  width: 0.78rem;
-  height: 0.96rem;
-  margin-left: 0;
-  border: 0;
-  background: linear-gradient(
-    to right,
-    currentColor 0 0.26rem,
-    transparent 0.26rem 0.52rem,
-    currentColor 0.52rem 0.78rem
-  );
+.cc-button[aria-pressed='true'] > span {
+  color: #092623;
+  background: #ecf8f2;
 }
 
-.skip-mark {
-  position: relative;
-  display: block;
-  width: 0.92rem;
-  height: 0.62rem;
+/* The glyphs are drawn from the web app's own paths, as masks the button's
+   colour shows through: no icon font to load into a ShadowRoot. */
+.glyph {
+  width: 32px;
+  height: 32px;
+  background: currentColor;
+  -webkit-mask: var(--glyph) center / contain no-repeat;
+  mask: var(--glyph) center / contain no-repeat;
 }
 
-.skip-mark::before,
-.skip-mark::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  width: 0;
-  height: 0;
-  border-top: 0.31rem solid transparent;
-  border-bottom: 0.31rem solid transparent;
+.play-button,
+.start-button {
+  --glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M8 5.8 19.2 12 8 18.2Z' stroke='%23000' stroke-width='3.2' stroke-linejoin='round'/%3E%3C/svg%3E");
 }
 
-.skip-back .skip-mark::before { left: 0; border-right: 0.44rem solid currentColor; }
-.skip-back .skip-mark::after { left: 0.46rem; border-right: 0.44rem solid currentColor; }
-.skip-forward .skip-mark::before { right: 0.46rem; border-left: 0.44rem solid currentColor; }
-.skip-forward .skip-mark::after { right: 0; border-left: 0.44rem solid currentColor; }
+.play-button.is-playing {
+  --glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='6' y='4' width='4' height='16' rx='1'/%3E%3Crect x='14' y='4' width='4' height='16' rx='1'/%3E%3C/svg%3E");
+}
+
+.play-button.is-replay {
+  --glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 12a9 9 0 1 0 2.64-6.36L3 8.3'/%3E%3Cpath d='M3 3.5v4.8h4.8'/%3E%3C/svg%3E");
+}
+
+.skip-back {
+  --glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 5a12 12 0 1 1-11.5 8.5' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round'/%3E%3Cpath d='m10 5 7-4v8z'/%3E%3Ctext x='16' y='22' text-anchor='middle' font-family='sans-serif' font-size='12' font-weight='500'%3E10%3C/text%3E%3C/svg%3E");
+}
+
+.skip-forward {
+  --glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cg transform='translate(32 0) scale(-1 1)'%3E%3Cpath d='M16 5a12 12 0 1 1-11.5 8.5' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round'/%3E%3Cpath d='m10 5 7-4v8z'/%3E%3C/g%3E%3Ctext x='16' y='22' text-anchor='middle' font-family='sans-serif' font-size='12' font-weight='500'%3E10%3C/text%3E%3C/svg%3E");
+}
+
+.fullscreen-button {
+  --glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5'/%3E%3C/svg%3E");
+}
+
+.fullscreen-button[aria-pressed='true'] {
+  --glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5'/%3E%3C/svg%3E");
+}
+
+/* From 600 pixels up, one row: play and the skips, the line with its times,
+   subtitles and full screen. */
+@container player (min-width: 600px) {
+  .dock {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 12px;
+    min-height: 60px;
+    padding: 8px 16px;
+  }
+
+  .transport,
+  .side-buttons {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .transport { grid-column: 1; grid-row: 1; }
+  .timeline { grid-column: 2; gap: 12px; }
+  .side-buttons { grid-column: 3; grid-row: 1; width: 96px; justify-content: flex-end; }
+  .round-button { padding: 4px; }
+  .glyph { width: 30px; height: 30px; }
+  .cc-button > span { width: 28px; height: 24px; font-size: 16px; line-height: 20px; }
+}
 
 /* Absolute, not fixed: a panel positioned against the viewport would climb out
    of the embed and cover the page that mounted it. */
@@ -1017,23 +1116,9 @@ button:focus-visible {
 .event-list strong { color: var(--accent-soft); font-weight: 600; }
 .event-list .warning { color: #ffc9a4; }
 
-@media (max-width: 700px) {
-  .start-button { min-height: 2.8rem; padding: 0.62rem 1rem; font-size: 0.8rem; }
-  .load-status { margin-top: 0.55rem; }
-  /* Keep captions above the scrubber while phone controls are visible. */
-  .stage-frame:not(.is-bare) .subtitle-wrap { padding-bottom: 6.5rem; }
-  .controls { gap: 0.25rem; padding: 1.2rem 0.6rem 0.55rem; }
-}
-
-@media (max-width: 400px) {
-  /* Share the time row with transport to keep long captions inside short frames. */
-  .stage-frame.has-farm-overlay .controls { grid-template-columns: minmax(0, 1fr); }
-  .stage-frame.has-farm-overlay .scrub { grid-area: 1 / 1; }
-  .stage-frame.has-farm-overlay .times { grid-area: 2 / 1; align-self: center; pointer-events: none; }
-  .stage-frame.has-farm-overlay .control-row { grid-area: 2 / 1; }
-  .stage-frame.has-farm-overlay .chip { visibility: hidden; }
+/* A farm lesson on a narrow player keeps its board clear of a tighter caption. */
+@container player (max-width: 400px) {
   .stage-frame.has-farm-overlay .subtitle-wrap { font-size: 13px; line-height: 1.3; }
-  .stage-frame.has-farm-overlay:not(.is-bare) .subtitle-wrap { padding-bottom: 92px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

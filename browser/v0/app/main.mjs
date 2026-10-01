@@ -7,6 +7,7 @@ import { createCardPhase } from './card-phase.mjs';
 import { createCardTitle } from './card-title.mjs';
 import { StoryClock } from './clock.mjs';
 import { DebugPanel, ObservableEventLog } from './debug-panel.mjs';
+import { createFullscreen } from './fullscreen.mjs';
 import { createTimelinePlayer } from './timeline-player.mjs';
 import {
   appendStoryScene, requireBoardBlock, requireCardsBlock, requirePlatesBlock, resolveStoryAssets,
@@ -46,17 +47,20 @@ const SUBTITLES_KEY = 'storytime:subtitles';
  */
 export function createV0Player({
   root, elements, story, assetBase, plates = null, stream = null, cards = null, board = null,
-  signal, debug = false, perf = false,
+  fullscreen = null, signal, debug = false, perf = false,
 }) {
   // The host's own four arguments, settled before anything is built from them:
   // each is refused here or never again, since the compiler cannot report a bad
-  // hint, a bad `stream` would only show up as a badge counting wrong, a bad
+  // hint, a bad `stream` is a host that does not know what it is mounting, a bad
   // card would be a black rectangle after the ceremony had already gone, and a
   // bad counter picture would be the apple standing in for it with no word why.
   const streaming = requireStream(stream);
   const platesHint = requirePlatesBlock(plates);
   const cardsBlock = requireCardsBlock(cards, assetBase);
   const boardBlock = requireBoardBlock(board, assetBase);
+  if (fullscreen !== null && typeof fullscreen !== 'function') {
+    throw new TypeError('fullscreen must be a function the player calls with true or false');
+  }
   // Optional for a whole story — it can only answer for a place no scene stands
   // in — but not for a growing one: without it a healed step into a place the
   // published scenes have not opened yet is staged one way now and another way
@@ -80,7 +84,10 @@ export function createV0Player({
   const clock = new StoryClock();
   const panel = new DebugPanel(elements.debug, debug, { eventTarget: root });
   const log = new ObservableEventLog(clock, (entry, entries) => panel.addEntry(entry, entries));
-  const cleanups = [wireSubtitleToggle(elements)];
+  const screenFill = createFullscreen({
+    button: elements.controls.fullscreen, target: root.host ?? null, request: fullscreen,
+  });
+  const cleanups = [wireSubtitleToggle(elements), screenFill.destroy];
   const warn = (detail) => routeWarning(detail, null, log);
   // Read once, before anything is decoded or drawn: the cache is sized from it,
   // the canvas is backed from it, and the loop is paced by it.
@@ -168,6 +175,10 @@ export function createV0Player({
       elements.subtitles.setAttribute('aria-pressed', String(on));
       elements.subtitles.setAttribute('aria-label', on ? 'hide subtitles' : 'show subtitles');
       writePreference(SUBTITLES_KEY, on ? 'on' : 'off');
+    },
+    setFullscreen: (on) => {
+      if (typeof on !== 'boolean') throw new TypeError('full screen must be true or false');
+      screenFill.set(on);
     },
     getState: () => runtime?.getState() ?? null,
     getTimeline: () => timeline,
@@ -289,7 +300,6 @@ export function createV0Player({
       onWarning: warn,
       signal,
       publishedComplete: streaming === null,
-      expectedScenes: streaming?.scenes ?? null,
       onState: publish,
       onEnd: () => (card?.hasEnd ? playCard(() => card.playEnd()) : null),
       onEndLeft: () => card?.cancel(),
@@ -581,9 +591,9 @@ export function createV0Player({
  * `stream` says the story is still being written, and how long it will be.
  *
  * Its absence is the ordinary case and the one every host had before this
- * existed: a whole story, mounted once. `scenes` is the manifest's count, which
- * the badge needs from the first frame — a story cannot say "scene 1 of 6"
- * while only one scene exists unless somebody tells it about the other five.
+ * existed: a whole story, mounted once. `scenes` is the manifest's count. It
+ * was shown as "scene 1 of 6" until the scene counter left the picture, and is
+ * still taken from hosts that send it, so none of them breaks over its going.
  */
 function requireStream(stream) {
   if (stream == null) return null;
@@ -591,8 +601,8 @@ function requireStream(stream) {
     throw new Error('stream must be an object');
   }
   const unknown = Object.keys(stream).filter((key) => key !== 'scenes');
-  // A misspelled key is indistinguishable from a deliberate omission — both
-  // leave the badge counting up from one — so it is named instead of ignored.
+  // A misspelled key is indistinguishable from a deliberate omission, so it is
+  // named instead of ignored.
   if (unknown.length > 0) {
     throw new Error(`stream carries ${unknown.map((key) => JSON.stringify(key)).join(', ')}, which it does not take`);
   }

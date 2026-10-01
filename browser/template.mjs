@@ -9,12 +9,18 @@ export function createPlayerTemplate(root, { stylesheet = STYLESHEET, kicker, ch
   const document = root.ownerDocument ?? globalThis.document;
   const link = element(document, 'link', { rel: 'stylesheet', href: stylesheet });
   // No chrome of our own above the picture: what a site embeds is a rectangle
-  // of video. The two buttons that used to live in a brand strip are playback
-  // controls, so they moved into the control bar with the others, and closing,
-  // fullscreen and casting belong to the page that mounted us.
+  // of video. Subtitles and full screen sit together at the right of the
+  // control bar, where every video player keeps them; closing and casting
+  // belong to the page that mounted us.
   const subtitles = element(document, 'button', {
-    className: 'quiet-button', type: 'button', 'aria-label': 'hide subtitles', 'aria-pressed': 'true',
+    className: 'round-button cc-button', type: 'button', 'aria-label': 'hide subtitles', 'aria-pressed': 'true',
   }, [element(document, 'span', { text: 'cc', 'aria-hidden': 'true' })]);
+  // Withdrawn until something can fill the screen: the host, or the browser.
+  const fullscreen = element(document, 'button', {
+    className: 'round-button fullscreen-button', type: 'button', 'aria-label': 'full screen', 'aria-pressed': 'false',
+    hidden: '',
+  }, [glyph(document)]);
+  fullscreen.hidden = true;
   const debugToggle = element(document, 'button', {
     className: 'quiet-button', type: 'button', 'aria-label': 'open event log', 'aria-expanded': 'false',
   }, [element(document, 'span', { text: 'log', 'aria-hidden': 'true' })]);
@@ -39,8 +45,10 @@ export function createPlayerTemplate(root, { stylesheet = STYLESHEET, kicker, ch
   ]);
   const title = element(document, 'h1', { text: 'preparing your story…' });
   const start = element(document, 'button', { className: 'start-button', type: 'button', disabled: '' }, [
-    element(document, 'span', { className: 'play-mark', 'aria-hidden': 'true' }),
-    element(document, 'span', { text: 'begin story' }),
+    glyph(document),
+    // Read out, not shown: the round button is the web app's opening, and a
+    // play mark is the one word every child already knows.
+    element(document, 'span', { className: 'start-label', text: 'begin story' }),
   ]);
   start.disabled = true;
   const status = element(document, 'p', { className: 'load-status', role: 'status', text: 'loading the story bundle' });
@@ -75,15 +83,13 @@ export function createPlayerTemplate(root, { stylesheet = STYLESHEET, kicker, ch
   end.hidden = true;
   const card = createCardLayer(document);
   const badge = createBadge(document);
-  const controls = createControlBar(document);
-  // The two toggles the player owns, over the picture and out of the
-  // transport's way — where the mockup puts the subtitle toggle. The host's own
-  // chrome (close, cast, parental, overflow) continues this row on the page
-  // that mounted us; the player never draws those.
-  // Withdrawn until the story begins, like the transport it used to live in:
-  // a `cc` pill painted over the opening ceremony is both the first thing a
-  // Tab lands on and a control for a story nobody has started.
-  const actions = element(document, 'div', { className: 'stage-actions', hidden: '' }, [subtitles, debugToggle]);
+  const controls = createControlBar(document, [subtitles, fullscreen]);
+  // The event log's button, over the picture and out of the transport's way.
+  // The host's own chrome (close, cast, parental, overflow) continues this row
+  // on the page that mounted us; the player never draws those.
+  // Withdrawn until the story begins, like the transport: a button painted over
+  // the opening ceremony is the first thing a Tab lands on.
+  const actions = element(document, 'div', { className: 'stage-actions', hidden: '' }, [debugToggle]);
   actions.hidden = true;
   // The mark a click leaves in the middle of the picture: the same shape every
   // video player draws when the pointer, rather than the transport, changed the
@@ -199,9 +205,8 @@ function createTitleLayer(document) {
  */
 function createBadge(document) {
   const name = element(document, 'p', { className: 'story-name' });
-  const scene = element(document, 'p', { className: 'story-scene' });
-  const root = element(document, 'div', { className: 'story-badge' }, [name, scene]);
-  return { root, name, scene };
+  const root = element(document, 'div', { className: 'story-badge' }, [name]);
+  return { root, name };
 }
 
 /**
@@ -212,8 +217,13 @@ function createBadge(document) {
  * already has, and a range input would need its own value plumbing to say the
  * same thing. Everything a pointer can do here, the keyboard can do too — the
  * handlers live in `v0/app/controls.mjs`.
+ *
+ * The web app's watch dock, element for element: play and the two skips, the
+ * line with its times, then subtitles and full screen. Where they stand — one
+ * row on a big player, two on a phone — is the stylesheet's, read off the
+ * player's own size.
  */
-function createControlBar(document) {
+function createControlBar(document, toggles) {
   const fill = element(document, 'div', { className: 'scrub-fill' });
   const handle = element(document, 'div', { className: 'scrub-handle' });
   const scrub = element(document, 'div', {
@@ -227,30 +237,36 @@ function createControlBar(document) {
   }, [fill, handle]);
   const at = element(document, 'span', { className: 'time-at', text: '0:00' });
   const total = element(document, 'span', { className: 'time-total', text: '0:00' });
-  const remaining = element(document, 'span', { className: 'chip', text: '' });
+  const toggle = element(document, 'button', {
+    className: 'round-button play-button', type: 'button', 'aria-label': 'play', disabled: '',
+  }, [glyph(document)]);
+  toggle.disabled = true;
   const back = element(document, 'button', {
     className: 'round-button skip-back', type: 'button', 'aria-label': 'back ten seconds',
-  }, [element(document, 'span', { className: 'skip-mark', 'aria-hidden': 'true' })]);
+  }, [glyph(document)]);
   const forward = element(document, 'button', {
     className: 'round-button skip-forward', type: 'button', 'aria-label': 'forward ten seconds',
-  }, [element(document, 'span', { className: 'skip-mark', 'aria-hidden': 'true' })]);
-  const toggle = element(document, 'button', {
-    className: 'play-button', type: 'button', 'aria-label': 'play', disabled: '',
-  }, [element(document, 'span', { className: 'transport-mark', 'aria-hidden': 'true' })]);
-  toggle.disabled = true;
+  }, [glyph(document)]);
   const root = element(document, 'div', {
     className: 'controls', role: 'group', 'aria-label': 'playback controls', hidden: '',
   }, [
-    scrub,
-    element(document, 'div', { className: 'times' }, [at, total]),
-    element(document, 'div', { className: 'control-row' }, [
-      remaining,
-      element(document, 'div', { className: 'transport' }, [back, toggle, forward]),
-      element(document, 'div', { className: 'side-buttons' }),
+    element(document, 'div', { className: 'dock' }, [
+      element(document, 'div', { className: 'transport' }, [toggle, back, forward]),
+      element(document, 'div', { className: 'timeline' }, [
+        scrub,
+        element(document, 'span', { className: 'times' }, [at, total]),
+      ]),
+      element(document, 'div', { className: 'side-buttons' }, toggles),
     ]),
   ]);
   root.hidden = true;
-  return { root, scrub, fill, handle, at, total, remaining, back, forward, toggle };
+  const [, fullscreen] = toggles;
+  return { root, scrub, fill, handle, at, total, back, forward, toggle, fullscreen };
+}
+
+/** A glyph the stylesheet draws from a path: see `.glyph` in `styles.css`. */
+function glyph(document) {
+  return element(document, 'span', { className: 'glyph', 'aria-hidden': 'true' });
 }
 
 function eyebrowText(kicker) {

@@ -34,9 +34,6 @@ test('a story that catches up with its writer waits, and the next scene starts i
   // Nothing here ever reported itself playing, so nothing was mid-sentence when
   // the wait came: the line a viewer WOULD have been hearing is the test below.
   assert.equal(player.audio.every((media) => media.paused), true, 'a line kept reading itself out under the spinner');
-  // The manifest's count, from the first frame: a viewer must not watch
-  // "scene 1 of 1" become "scene 2 of 2" and wonder how long this goes on.
-  assert.equal(player.badge.textContent, 'scene 1 of 3');
   const wasLong = player.total.textContent;
   const heard = player.audio.length;
 
@@ -178,9 +175,6 @@ test('the host saying the writer stopped turns the wait into the end', async (t)
   assert.equal(player.waiting.hidden, true, 'the spinner outlived the story');
   assert.equal(player.end.hidden, false, 'a story nobody will finish never ended');
   assert.equal(player.toggle.getAttribute('aria-label'), 'replay');
-  // The manifest promised three; one was written. The badge counts what exists,
-  // or it argues with the end screen next to it.
-  assert.equal(player.badge.textContent, 'scene 1 of 1');
 
   await assert.rejects(() => player.appendScene(1), /already finished/);
 });
@@ -201,7 +195,7 @@ test('a scene naming somebody the story never carried is refused, and the prefix
   assert.equal(player.waiting.hidden, true, 'a refused scene stopped the story');
   await player.appendScene(1);
   player.frames.advanceTo(player.durationOf(2) - 200);
-  assert.equal(player.badge.textContent, 'scene 2 of 3', 'the story never reached the scene it accepted');
+  assert.equal(player.handle.getState().sceneIndex, 1, 'the story never reached the scene it accepted');
 });
 
 test('a player mounted for a finished story says so rather than growing one', async (t) => {
@@ -333,16 +327,15 @@ test('a sound at the last instant of the prefix is not heard again when the stor
   assert.equal(creaks(), 1, 'the door creaked a second time as the next scene started');
 });
 
-test('a stream that does not say how long the story is counts what it has', async (t) => {
+test('a stream that does not say how long the story is still grows', async (t) => {
   const player = await mount(t, { stream: {} });
   player.start();
   player.frames.advanceTo(1_000);
-  assert.equal(player.badge.textContent, 'scene 1 of 1');
+  assert.equal(player.handle.getState().sceneIndex, 0);
 
   await player.appendScene(1);
-  assert.equal(player.badge.textContent, 'scene 1 of 2', 'the badge waited for a cut to admit the story had grown');
   player.frames.advanceTo(player.durationOf(2) - 200);
-  assert.equal(player.badge.textContent, 'scene 2 of 2');
+  assert.equal(player.handle.getState().sceneIndex, 1, 'the story never reached the scene appended to it');
 });
 
 /**
@@ -537,7 +530,6 @@ async function mount(t, {
     finishStory: (status) => handle.finishStory(status),
     waiting: findByClass(root, 'waiting-overlay'),
     end: findByClass(root, 'end-overlay'),
-    badge: findByClass(root, 'story-scene'),
     subtitle: findByClass(root, 'subtitle'),
     total: findByClass(root, 'time-total'),
     // The schedule the player is really playing, taken out the way a bug report
