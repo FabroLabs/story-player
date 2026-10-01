@@ -91,7 +91,11 @@ The plain `createStoryPlayer` handle exposes `play()`, `pause()`, `toggle()`,
 streaming methods and `destroy()`.
 `subscribe` immediately reports current state when available and returns an
 unsubscribe function. State is `{tMs,durationMs,playing,ended,started,sceneIndex,
-subtitle}`; scene indices are zero-based and times are milliseconds. The timeline
+subtitle,afterStory}`; scene indices are zero-based and times are milliseconds.
+`afterStory` is what follows a bedtime story (see Bedtime below): `null` while
+the story is on screen, then `'winddown'`, then `'quiet'`. A build that plays
+the wind-down always carries the key, so a host can tell it apart from an older
+one that left the wind-down to the page. The timeline
 is read-only host data. Await `ready` before enabling controls; the first `play`
 spends the user gesture and begins the story, and playing an ended story replays.
 
@@ -643,6 +647,27 @@ is what the button shows. Without one, the button fills the screen with the
 element the player was mounted into through the browser's Fullscreen API and
 asks for landscape on top (a phone's browser grants it; a laptop's refuses it
 harmlessly); where neither exists, as on iPhone Safari, there is no button.
+
+### Bedtime
+
+A bedtime story (`performance.kind: 'bedtime'`) gets two extras, drawn as the
+web app draws them — unless the host passes `chrome: 'host'`, in which case it
+draws its own:
+
+- The moon dims the picture, under the captions and the controls, so the words
+  keep their contrast. It is a sixth button in a phone's dock and a labelled
+  button under the dock on a big player. Pass `dim: true` to open the story
+  dimmed (the family's "dim after bedtime", say); the moon's state is never
+  written back.
+- The moonlit wind-down (`metadata.post_story`). When the narrative ends the
+  picture goes to the base colour and the sky picture comes up over it while
+  the same ambience bed plays on from where the story left it. The dock counts
+  it down — `Wind-down · 11:41 left`, play/pause for the sound, Stop — and when
+  it runs out or is stopped the sky stays and the sound does not: the quiet,
+  with `Sleep well` or `Stopped` and a replay. A seek back into the story takes
+  it all away. No end screen is shown over it, and a host that opens something
+  of its own when a story ends should wait for `afterStory` to leave
+  `'winddown'`.
 
 Keyboard, while the stage frame has focus: space or `k` toggles play, the arrow
 keys skip ten seconds, `Home` and `End` seek to the start and the end. Any key

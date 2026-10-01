@@ -83,7 +83,8 @@ export function createPlayerTemplate(root, { stylesheet = STYLESHEET, kicker, ch
   end.hidden = true;
   const card = createCardLayer(document);
   const badge = createBadge(document);
-  const controls = createControlBar(document, [subtitles, fullscreen]);
+  const bedtime = createBedtimeLayers(document);
+  const controls = createControlBar(document, { subtitles, fullscreen });
   // The event log's button, over the picture and out of the transport's way.
   // The host's own chrome (close, cast, parental, overflow) continues this row
   // on the page that mounted us; the player never draws those.
@@ -104,7 +105,7 @@ export function createPlayerTemplate(root, { stylesheet = STYLESHEET, kicker, ch
     className: 'stage-frame', 'aria-label': 'story stage', tabindex: '-1',
   }, [
     element(document, 'div', { className: 'stage-letterbox', 'aria-hidden': 'true' }),
-    stage, flash, badge.root, actions, ceremony, waiting, hold, subtitleArea, end,
+    stage, bedtime.sky, bedtime.scrim, flash, badge.root, actions, ceremony, waiting, hold, subtitleArea, end,
     controls.root, card.layer, card.title.layer,
   ]);
   const shell = element(document, 'main', { className: 'player-shell' }, [frame]);
@@ -143,6 +144,15 @@ export function createPlayerTemplate(root, { stylesheet = STYLESHEET, kicker, ch
     // and the actions row appears with the bar when the story begins.
     controls: { ...controls, frame, stage, actions, flash },
     stage: { frame, stage, canvas, plate, poster, video, subtitle, mediaNote, waiting, hold, end },
+    // A bedtime story's two extras, drawn by the player so every host gets the
+    // same ones: the moon's dimming, and the moonlit wind-down after the story.
+    dimming: { frame, scrim: bedtime.scrim, buttons: [controls.dim, controls.dimLabel] },
+    windDown: {
+      frame, sky: bedtime.sky, layer: bedtime.layer, picture: bedtime.picture, shade: bedtime.shade,
+      toggle: controls.toggle,
+      line: controls.windLine, fill: controls.windFill, times: controls.windTimes,
+      stop: controls.stop, chip: controls.chip,
+    },
     debug: {
       panel: debugPanel, toggle: debugToggle, close: debugClose, copy: debugCopy,
       download: debugDownload, list: debugList, status: debugStatus, perf: debugPerf,
@@ -210,6 +220,23 @@ function createBadge(document) {
 }
 
 /**
+ * A bedtime story's layers over the picture: the moonlit sky its wind-down
+ * comes up on, and the moon's scrim — under the captions and the controls, so
+ * the picture darkens and the words do not.
+ */
+function createBedtimeLayers(document) {
+  // The sky comes up over its base colour: the ground is opaque from the first
+  // instant, and the layer on it is what the reveal fades in.
+  const picture = element(document, 'img', { className: 'sky-picture', alt: '', decoding: 'async' });
+  const shade = element(document, 'span', { className: 'sky-shade' });
+  const layer = element(document, 'div', { className: 'sky-layer' }, [picture, shade]);
+  const sky = element(document, 'div', { className: 'sky', 'aria-hidden': 'true', hidden: '' }, [layer]);
+  sky.hidden = true;
+  const scrim = element(document, 'span', { className: 'stage-dim', 'aria-hidden': 'true' });
+  return { sky, layer, picture, shade, scrim };
+}
+
+/**
  * The control bar: position, transport, and the two toggles.
  *
  * The scrub is a `div` with `role="slider"` rather than an `<input type=range>`
@@ -219,11 +246,12 @@ function createBadge(document) {
  * handlers live in `v0/app/controls.mjs`.
  *
  * The web app's watch dock, element for element: play and the two skips, the
- * line with its times, then subtitles and full screen. Where they stand — one
- * row on a big player, two on a phone — is the stylesheet's, read off the
- * player's own size.
+ * line with its times, then subtitles, the bedtime moon and full screen, and
+ * under them the bedside row — the moon with its words, the wind-down's Stop,
+ * and the word the quiet after it ends on. Where they stand — one row on a big
+ * player, two on a phone — is the stylesheet's, read off the player's own size.
  */
-function createControlBar(document, toggles) {
+function createControlBar(document, { subtitles, fullscreen }) {
   const fill = element(document, 'div', { className: 'scrub-fill' });
   const handle = element(document, 'div', { className: 'scrub-handle' });
   const scrub = element(document, 'div', {
@@ -247,6 +275,26 @@ function createControlBar(document, toggles) {
   const forward = element(document, 'button', {
     className: 'round-button skip-forward', type: 'button', 'aria-label': 'forward ten seconds',
   }, [glyph(document)]);
+  const dim = element(document, 'button', {
+    className: 'round-button dim-button', type: 'button', 'aria-label': 'dim the screen for bedtime',
+    'aria-pressed': 'false', hidden: '',
+  }, [glyph(document)]);
+  dim.hidden = true;
+  const dimLabel = element(document, 'button', {
+    className: 'bedside-button dim-label', type: 'button', 'aria-pressed': 'false',
+  }, [glyph(document), element(document, 'span', { text: 'Dim screen for bedtime' })]);
+  // The wind-down's own line and readout: it counts down a sound, not the
+  // story, so nothing on it can be dragged.
+  const windFill = element(document, 'div', { className: 'wind-fill' });
+  const windLine = element(document, 'div', {
+    className: 'wind-line', role: 'progressbar', 'aria-label': 'wind-down',
+    'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': '0',
+  }, [windFill]);
+  const windTimes = element(document, 'span', { className: 'wind-times' });
+  const stop = element(document, 'button', { className: 'bedside-button stop-button', type: 'button' }, [
+    glyph(document), element(document, 'span', { text: 'Stop' }),
+  ]);
+  const chip = element(document, 'span', { className: 'quiet-chip' });
   const root = element(document, 'div', {
     className: 'controls', role: 'group', 'aria-label': 'playback controls', hidden: '',
   }, [
@@ -255,13 +303,18 @@ function createControlBar(document, toggles) {
       element(document, 'div', { className: 'timeline' }, [
         scrub,
         element(document, 'span', { className: 'times' }, [at, total]),
+        windLine,
+        windTimes,
       ]),
-      element(document, 'div', { className: 'side-buttons' }, toggles),
+      element(document, 'div', { className: 'side-buttons' }, [subtitles, dim, fullscreen]),
     ]),
+    element(document, 'div', { className: 'bedside' }, [dimLabel, stop, chip]),
   ]);
   root.hidden = true;
-  const [, fullscreen] = toggles;
-  return { root, scrub, fill, handle, at, total, back, forward, toggle, fullscreen };
+  return {
+    root, scrub, fill, handle, at, total, back, forward, toggle, fullscreen,
+    dim, dimLabel, windLine, windFill, windTimes, stop, chip,
+  };
 }
 
 /** A glyph the stylesheet draws from a path: see `.glyph` in `styles.css`. */

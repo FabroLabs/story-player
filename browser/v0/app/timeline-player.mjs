@@ -48,13 +48,16 @@ export function createTimelinePlayer({
   counter = null,
   capability = tierSettings('high'), perf = false, onWarning = () => {}, signal = null,
   publishedComplete = true,
-  // The four seams the presentation phases either side of the story hang on.
-  // All four default to nothing, so a mount without cards runs the file it ran
-  // before them: `onEnd` may hand back a promise to hold the end screen behind,
-  // `onEndLeft` takes back whatever `onEnd` started, `onReplay` may claim the
-  // way back to the start, and `onSceneOpen` says which scene is on screen.
+  // The seams the presentation phases either side of the story hang on. All
+  // default to nothing, so a mount without cards runs the file it ran before
+  // them: `onEnd` may hand back a promise to hold the end screen behind, and is
+  // told whether the story was playing when it got there; `onEndLeft` takes
+  // back whatever `onEnd` started; `onEndToggle` may claim play/pause while the
+  // story is over (a wind-down's sound); `onReplay` may claim the way back to
+  // the start; and `onSceneOpen` says which scene is on screen.
   onState = () => {},
-  onEnd = () => null, onEndLeft = () => {}, onReplay = () => false, onSceneOpen = () => {},
+  onEnd = () => null, onEndLeft = () => {}, onEndToggle = () => false, onReplay = () => false,
+  onSceneOpen = () => {},
 }) {
   // The story as it stands. A host watching a writer grows it under the runtime
   // — `appendScene` swaps both halves at once — so nothing below reads the two
@@ -347,6 +350,7 @@ export function createTimelinePlayer({
       else play();
       return;
     }
+    if (ended && onEndToggle()) return;
     if (ended || !clock.running) play();
     else pause();
   }
@@ -1022,6 +1026,7 @@ export function createTimelinePlayer({
    * cannot go on is over, and idling is the only honest thing to show.
    */
   function finish() {
+    const wasRunning = clock.running;
     ended = true;
     resumeWhenVisible = false;
     clock.pause();
@@ -1034,7 +1039,7 @@ export function createTimelinePlayer({
     media.settle();
     recorder?.flush('end');
     recorder?.pause();
-    revealEnd();
+    revealEnd(wasRunning);
     updateControls({ tMs: durationMs, playing: false, ended: true });
   }
 
@@ -1050,10 +1055,10 @@ export function createTimelinePlayer({
    * back into the story in the middle of one has left an end that must not turn
    * up behind them, and a failure to play the card is still an end reached.
    */
-  function revealEnd() {
+  function revealEnd(playing) {
     endArrival += 1;
     const mine = endArrival;
-    const card = onEnd();
+    const card = onEnd({ playing });
     if (!card?.then) {
       elements.stage.end.hidden = false;
       return;
