@@ -532,6 +532,7 @@ button:focus-visible {
   line-height: 20px;
   text-align: center;
   pointer-events: none;
+  transition: padding-bottom 180ms ease;
 }
 
 .stage-frame.is-bare .subtitle-wrap { padding-bottom: 12px; }
