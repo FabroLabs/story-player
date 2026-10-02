@@ -474,7 +474,21 @@ button:focus-visible {
   box-shadow: 0 1.2rem 3.4rem rgba(78, 208, 138, 0.4);
 }
 
-.start-button:disabled { opacity: 0.45; cursor: wait; }
+/* Loading is said by the button alone, as the web app's opening says it: a
+   ring turning where the triangle will be. */
+.start-button:disabled { cursor: wait; }
+.start-button:disabled .glyph { display: none; }
+.start-button:disabled::after {
+  content: '';
+  width: 42%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 3px solid rgba(11, 43, 30, 0.25);
+  border-top-color: var(--on-accent);
+  animation: start-spin 0.9s linear infinite;
+}
+
+@keyframes start-spin { to { transform: rotate(360deg); } }
 
 .start-label {
   position: absolute;
@@ -496,9 +510,16 @@ button:focus-visible {
 
 .load-status.is-error { color: #ffc3bc; }
 
-/* Said while the opening loads, and gone once the button can be pressed: the
-   button is the "ready". */
-.start-button:not(:disabled) + .load-status { visibility: hidden; }
+/* How far the opening has loaded is for a screen reader: on screen the
+   button's ring says it. Only a failure is written out. */
+.load-status:not(.is-error) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
 
 /* Stated explicitly rather than left to the UA default, for the same reason
    `.quiet-button[hidden]` is: a later `display:` on .subtitle-wrap would
