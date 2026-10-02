@@ -7,11 +7,14 @@ import { createCardPhase } from './card-phase.mjs';
 import { createCardTitle } from './card-title.mjs';
 import { StoryClock } from './clock.mjs';
 import { DebugPanel, ObservableEventLog } from './debug-panel.mjs';
+import { createFullscreen } from './fullscreen.mjs';
 import { createTimelinePlayer } from './timeline-player.mjs';
 import {
-  appendStoryScene, requireBoardBlock, requireCardsBlock, requirePlatesBlock, resolveStoryAssets,
+  appendStoryScene, requireBoardBlock, requireCardsBlock, requirePlatesBlock, resolveMediaUrl, resolveStoryAssets,
 } from './urls.mjs';
 import { routeWarning } from './warning-router.mjs';
+import { readPostStory } from './wind-down.mjs';
+import { createWindDownPhase } from './wind-down-phase.mjs';
 
 const SUBTITLES_KEY = 'storytime:subtitles';
 
@@ -46,17 +49,21 @@ const SUBTITLES_KEY = 'storytime:subtitles';
  */
 export function createV0Player({
   root, elements, story, assetBase, plates = null, stream = null, cards = null, board = null,
-  signal, debug = false, perf = false,
+  fullscreen = null, dim = null, chrome = 'player', signal, debug = false, perf = false,
 }) {
   // The host's own four arguments, settled before anything is built from them:
   // each is refused here or never again, since the compiler cannot report a bad
-  // hint, a bad `stream` would only show up as a badge counting wrong, a bad
+  // hint, a bad `stream` is a host that does not know what it is mounting, a bad
   // card would be a black rectangle after the ceremony had already gone, and a
   // bad counter picture would be the apple standing in for it with no word why.
   const streaming = requireStream(stream);
   const platesHint = requirePlatesBlock(plates);
   const cardsBlock = requireCardsBlock(cards, assetBase);
   const boardBlock = requireBoardBlock(board, assetBase);
+  if (fullscreen !== null && typeof fullscreen !== 'function') {
+    throw new TypeError('fullscreen must be a function the player calls with true or false');
+  }
+  if (dim !== null && typeof dim !== 'boolean') throw new TypeError('dim must be true or false');
   // Optional for a whole story — it can only answer for a place no scene stands
   // in — but not for a growing one: without it a healed step into a place the
   // published scenes have not opened yet is staged one way now and another way
@@ -80,7 +87,25 @@ export function createV0Player({
   const clock = new StoryClock();
   const panel = new DebugPanel(elements.debug, debug, { eventTarget: root });
   const log = new ObservableEventLog(clock, (entry, entries) => panel.addEntry(entry, entries));
-  const cleanups = [wireSubtitleToggle(elements)];
+  const screenFill = createFullscreen({
+    button: elements.controls.fullscreen, target: root.host ?? null, request: fullscreen,
+  });
+  // A bedtime story's two extras are the player's own chrome: a host that draws
+  // its own (`chrome: 'host'`) draws these too.
+  const bedtime = story?.performance?.kind === 'bedtime' && chrome !== 'host';
+  const post = bedtime ? readPostStory(story) : null;
+  const windDown = post
+    ? createWindDownPhase({
+      elements: elements.windDown,
+      post,
+      resolve: (media) => resolveMediaUrl(media, assetBase),
+      onChange: () => publish(runtime?.getState() ?? null),
+    })
+    : null;
+  const cleanups = [
+    wireSubtitleToggle(elements), wireDimming(elements.dimming, { enabled: bedtime, on: dim === true }),
+    screenFill.destroy, () => windDown?.destroy(),
+  ];
   const warn = (detail) => routeWarning(detail, null, log);
   // Read once, before anything is decoded or drawn: the cache is sized from it,
   // the canvas is backed from it, and the loop is paced by it.
@@ -156,8 +181,15 @@ export function createV0Player({
   return {
     ready,
     play,
-    pause: () => runtime?.pause(),
-    toggle: () => runtime?.getState().playing ? runtime.pause() : play(),
+    pause: () => {
+      windDown?.pause();
+      runtime?.pause();
+    },
+    toggle: () => {
+      // Over a wind-down, play/pause is its sound's, as the dock's own button is.
+      if (runtime?.getState().ended && windDown?.toggle()) return undefined;
+      return runtime?.getState().playing ? runtime.pause() : play();
+    },
     seek: (milliseconds) => {
       if (!Number.isFinite(milliseconds)) throw new TypeError('seek requires finite milliseconds');
       runtime?.seekTo(milliseconds);
@@ -169,7 +201,11 @@ export function createV0Player({
       elements.subtitles.setAttribute('aria-label', on ? 'hide subtitles' : 'show subtitles');
       writePreference(SUBTITLES_KEY, on ? 'on' : 'off');
     },
-    getState: () => runtime?.getState() ?? null,
+    setFullscreen: (on) => {
+      if (typeof on !== 'boolean') throw new TypeError('full screen must be true or false');
+      screenFill.set(on);
+    },
+    getState: () => withAfterStory(runtime?.getState() ?? null),
     getTimeline: () => timeline,
     subscribe(listener) {
       if (typeof listener !== 'function') throw new TypeError('subscriber must be a function');
@@ -206,10 +242,21 @@ export function createV0Player({
 
   function publish(state) {
     if (destroyed || !state) return;
+    const told = withAfterStory(state);
     for (const listener of subscribers) {
-      try { listener(state); }
+      try { listener(told); }
       catch (error) { warn({type: 'host', message: `host state listener failed: ${error?.message ?? error}`}); }
     }
+  }
+
+  /**
+   * What comes after a bedtime story, beside the story's own state: `null`
+   * while the story is on screen, `'winddown'`, then `'quiet'`. Always present
+   * on a build that plays the wind-down, so a host can tell it apart from one
+   * that leaves it to the page.
+   */
+  function withAfterStory(state) {
+    return state && { ...state, afterStory: windDown?.phase() ?? null };
   }
 
   async function initialize() {
@@ -289,10 +336,16 @@ export function createV0Player({
       onWarning: warn,
       signal,
       publishedComplete: streaming === null,
-      expectedScenes: streaming?.scenes ?? null,
       onState: publish,
-      onEnd: () => (card?.hasEnd ? playCard(() => card.playEnd()) : null),
-      onEndLeft: () => card?.cancel(),
+      onEnd: (end) => {
+        if (windDown) return windDown.begin(end);
+        return card?.hasEnd ? playCard(() => card.playEnd()) : null;
+      },
+      onEndLeft: () => {
+        windDown?.leave();
+        card?.cancel();
+      },
+      onEndToggle: () => windDown?.toggle() ?? false,
       onReplay: () => {
         if (!card?.hasIntro) return false;
         void replay();
@@ -474,6 +527,7 @@ export function createV0Player({
     beginRequested = true;
     elements.start.disabled = true;
     elements.ceremony.classList.add('is-gone');
+    windDown?.prime();
     if (!card?.hasIntro) {
       await enterStory();
       return;
@@ -581,9 +635,9 @@ export function createV0Player({
  * `stream` says the story is still being written, and how long it will be.
  *
  * Its absence is the ordinary case and the one every host had before this
- * existed: a whole story, mounted once. `scenes` is the manifest's count, which
- * the badge needs from the first frame — a story cannot say "scene 1 of 6"
- * while only one scene exists unless somebody tells it about the other five.
+ * existed: a whole story, mounted once. `scenes` is the manifest's count. It
+ * was shown as "scene 1 of 6" until the scene counter left the picture, and is
+ * still taken from hosts that send it, so none of them breaks over its going.
  */
 function requireStream(stream) {
   if (stream == null) return null;
@@ -591,8 +645,8 @@ function requireStream(stream) {
     throw new Error('stream must be an object');
   }
   const unknown = Object.keys(stream).filter((key) => key !== 'scenes');
-  // A misspelled key is indistinguishable from a deliberate omission — both
-  // leave the badge counting up from one — so it is named instead of ignored.
+  // A misspelled key is indistinguishable from a deliberate omission, so it is
+  // named instead of ignored.
   if (unknown.length > 0) {
     throw new Error(`stream carries ${unknown.map((key) => JSON.stringify(key)).join(', ')}, which it does not take`);
   }
@@ -618,6 +672,28 @@ function wireSubtitleToggle(elements) {
     area.hidden = !on;
     button.setAttribute('aria-pressed', String(on));
     button.setAttribute('aria-label', on ? 'hide subtitles' : 'show subtitles');
+  }
+}
+
+/**
+ * The moon: a scrim over the picture, under the captions and the controls.
+ *
+ * Only a bedtime story has one, and only for tonight — seeded by the host
+ * (the family's "dim after bedtime", say) and never written back, so dimming
+ * one story never rewrites anybody's preference.
+ */
+function wireDimming({ frame, buttons }, { enabled, on }) {
+  if (!enabled) return () => {};
+  frame.classList.add('is-dimmable');
+  for (const button of buttons) button.hidden = false;
+  apply(on);
+  const onClick = () => apply(!frame.classList.contains('is-dimmed'));
+  for (const button of buttons) button.addEventListener('click', onClick);
+  return () => { for (const button of buttons) button.removeEventListener('click', onClick); };
+
+  function apply(dimmed) {
+    frame.classList.toggle('is-dimmed', dimmed);
+    for (const button of buttons) button.setAttribute('aria-pressed', String(dimmed));
   }
 }
 

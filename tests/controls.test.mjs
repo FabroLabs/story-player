@@ -45,7 +45,7 @@ test('the bar stays out of the way until the story begins', (t) => {
   assert.equal(seen.toggles, 1);
 });
 
-test('the bar says where the story is, in numbers and in words', (t) => {
+test('the bar says where the story is', (t) => {
   const { bar, controls } = bench(t);
   controls.arm(STORY_MS);
 
@@ -53,7 +53,6 @@ test('the bar says where the story is, in numbers and in words', (t) => {
   assert.equal(bar.at.textContent, '4:12');
   assert.equal(bar.fill.style.width, '42%');
   assert.equal(bar.handle.style.left, '42%');
-  assert.equal(bar.remaining.textContent, '6 min left');
   assert.equal(bar.scrub.getAttribute('aria-valuenow'), '252');
   assert.equal(bar.scrub.getAttribute('aria-valuemax'), '600');
   assert.equal(bar.scrub.getAttribute('aria-valuetext'), '4:12 of 10:00');
@@ -77,7 +76,6 @@ test('play, pause and replay are the same button in three states', (t) => {
   assert.equal(bar.toggle.classList.contains('is-replay'), true);
   assert.equal(bar.toggle.classList.contains('is-playing'), false);
   assert.equal(bar.at.textContent, '10:00');
-  assert.equal(bar.remaining.textContent, '0 s left');
 });
 
 test('a pointer on the bar seeks to where it landed, and stops when it is let go', (t) => {
@@ -287,12 +285,70 @@ test('a tap does not take the transport away', (t) => {
   controls.arm(STORY_MS);
   controls.show();
   controls.update({ tMs: 0, playing: true });
+  bar.frame.dispatch('pointerleave');
+  assert.equal(bar.frame.classList.contains('is-bare'), true);
 
-  bar.frame.dispatch('pointerdown', { pointerType: 'touch' });
-  bar.stage.dispatch('click');
+  touch(bar, 0.5);
   bar.frame.dispatch('pointerleave', { pointerType: 'touch' });
 
   assert.equal(bar.frame.classList.contains('is-bare'), false, 'the tap ended by hiding what it had just revealed');
+});
+
+test('on touch the picture shows and hides the controls, and never stops the story', async (t) => {
+  // A finger cannot hover: a tap is how a phone asks for the controls, and a
+  // tap that paused the story to show them would stop it for somebody who only
+  // wanted to see how long was left.
+  const { bar, controls, seen } = bench(t, { idleMs: 5_000, doubleTapMs: 20 });
+  controls.arm(STORY_MS);
+  controls.show();
+  controls.update({ tMs: 0, playing: true });
+  bar.frame.dispatch('pointerleave');
+
+  touch(bar, 0.5);
+  assert.equal(bar.frame.classList.contains('is-bare'), false, 'a tap did not bring the controls back');
+
+  // Put away once a second tap can no longer make the first one a skip: before
+  // that, the controls going away under a double tap would be a flicker.
+  touch(bar, 0.5);
+  assert.equal(bar.frame.classList.contains('is-bare'), false, 'the controls went away inside the double-tap window');
+  await tick(40);
+  assert.equal(bar.frame.classList.contains('is-bare'), true, 'a tap did not put the controls away');
+  assert.equal(seen.toggles, 0, 'a tap on the picture played or paused the story');
+
+  // A touch on anything else in the meantime is a viewer reaching for it.
+  touch(bar, 0.5);
+  touch(bar, 0.5);
+  bar.frame.dispatch('pointerdown', { pointerType: 'touch' });
+  await tick(40);
+  assert.equal(bar.frame.classList.contains('is-bare'), false, 'the controls went away under a finger reaching for them');
+});
+
+test('a double tap on either side skips, as it does on every phone', async (t) => {
+  const { bar, controls, seen } = bench(t, { doubleTapMs: 200, flashMs: 60 });
+  controls.arm(STORY_MS);
+  controls.show();
+  controls.update({ tMs: 60_000, playing: true });
+
+  touch(bar, 0.9);
+  touch(bar, 0.9);
+  assert.deepEqual(seen.skips, [10_000]);
+  await tick();
+  assert.equal(bar.flash.classList.contains('is-on'), true, 'the skip left no mark');
+  assert.equal(bar.flash.classList.contains('is-forward'), true, 'the skip mark is not on the side tapped');
+
+  // A third tap keeps going, and the other side goes back.
+  touch(bar, 0.9);
+  touch(bar, 0.1);
+  touch(bar, 0.1);
+  assert.deepEqual(seen.skips, [10_000, 10_000, -10_000]);
+  await tick();
+  assert.equal(bar.flash.classList.contains('is-back'), true);
+
+  // The middle is not a skip, and no tap is a play or a pause.
+  touch(bar, 0.5);
+  touch(bar, 0.5);
+  assert.deepEqual(seen.skips, [10_000, 10_000, -10_000]);
+  assert.equal(seen.toggles, 0);
 });
 
 test('what a keyboard is on is not taken away under it', async (t) => {
@@ -380,6 +436,18 @@ test('the stylesheet carries the two rules this behaviour leans on', () => {
   assert.equal(Number(animation[1]), FLASH_MS, 'the mark is stripped at a different moment than it is drawn');
 });
 
+test('everything over the picture is sized to the player, never to the window', () => {
+  // The same build is a card on a laptop, a tablet, a phone's whole screen and
+  // a strip 219 pixels tall inside an app. A size read off the window is right
+  // for at most one of them — which is how the caption came to sit in the middle
+  // of a phone's picture and the buttons to shrink inside a big one.
+  const css = fs.readFileSync(new URL('../browser/styles.css', import.meta.url), 'utf8')
+    .replace(/\/\*[\s\S]*?\*\//g, '');
+
+  assert.deepEqual(css.match(/[\d.]+(vw|vh|vmin|vmax|dvh|svh|lvh)\b/g) ?? [], []);
+  assert.match(css, /\.stage-frame\s*\{[^}]*container:\s*player\s*\/\s*size/, 'the frame is not the container the sizes are read off');
+});
+
 test('the picture is not a switch until the story has begun', (t) => {
   // The ceremony is on top of the stage, so this cannot normally be reached
   // before begin — but the bar is what decides what "live" means, and a click
@@ -408,7 +476,19 @@ function tick(ms = 0) {
   return new Promise((resolve) => { setTimeout(resolve, ms); });
 }
 
-function bench(t, { idleMs, flashMs } = {}) {
+/**
+ * A finger on the picture, at `at` across it, as a browser delivers it: the
+ * stage hears the touch before the frame it is inside, then the click.
+ */
+function touch(bar, at) {
+  const event = { pointerType: 'touch', clientX: at * 1920 };
+  bar.stage.dispatch('pointerdown', event);
+  bar.frame.dispatch('pointerdown', event);
+  bar.frame.dispatch('pointerup', event);
+  bar.stage.dispatch('click', { clientX: event.clientX });
+}
+
+function bench(t, { idleMs, flashMs, doubleTapMs } = {}) {
   const dom = installDom();
   t.after(dom.restore);
   const host = document.createElement('div');
@@ -428,6 +508,7 @@ function bench(t, { idleMs, flashMs } = {}) {
     onSkip: (milliseconds) => seen.skips.push(milliseconds),
     ...(idleMs === undefined ? {} : { idleMs }),
     ...(flashMs === undefined ? {} : { flashMs }),
+    ...(doubleTapMs === undefined ? {} : { doubleTapMs }),
   });
   t.after(() => controls.destroy());
   return { bar: elements.controls, controls, seen, landed };

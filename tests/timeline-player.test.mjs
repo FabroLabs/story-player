@@ -559,10 +559,11 @@ test('a cut swaps the plate and says which scene the story is in', async (t) => 
   assert.ok(cut, 'the corpus story has no second scene to cut to');
   player.start();
   player.frames.advanceTo(cut.t_ms - 100);
-  const first = { src: player.video.src, badge: player.badge.textContent };
+  const first = { src: player.video.src };
+  assert.equal(player.getState().sceneIndex, 0);
 
   player.frames.advanceTo(cut.t_ms + 100);
-  assert.equal(player.badge.textContent, `scene 2 of ${player.bundle.scenes.length}`);
+  assert.equal(player.getState().sceneIndex, 1, 'the cut did not move the story into the next scene');
   assert.notEqual(player.video.src, first.src, 'the plate stayed on the last scene');
   assert.equal(player.video.src, player.bundle.scenes[1].plate.video);
   player.destroy();
@@ -1356,7 +1357,6 @@ async function mount(t, {
       root: findByClass(root, 'controls'),
     },
     frame: findByClass(root, 'stage-frame'),
-    badge: findByClass(root, 'story-scene'),
     ceremony: findByClass(root, 'start-ceremony'),
     startButton: findByClass(root, 'start-button'),
     entries: () => findByClass(root, 'event-list').children.length,

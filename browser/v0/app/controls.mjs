@@ -16,12 +16,13 @@ const SKIP_MS = 10_000;
 
 export function createControls(elements, {
   onToggle = () => {}, onSeek = () => {}, onSkip = () => {},
-  // How long the overlay outlives the pointer that woke it, and how long the
-  // mark a click leaves lives. Named so a test does not have to wait them out.
-  idleMs = 2600, flashMs = 620,
+  // How long the overlay outlives the pointer that woke it, how long the mark a
+  // click leaves lives, and how close two taps are to be one double tap. Named
+  // so a test does not have to wait them out.
+  idleMs = 2600, flashMs = 620, doubleTapMs = 300,
 } = {}) {
   const listeners = [];
-  const last = { fraction: null, at: null, total: null, remaining: null, mode: null };
+  const last = { fraction: null, at: null, total: null, mode: null };
   let durationMs = 0;
   let dragging = false;
   let draggedToMs = null;
@@ -34,6 +35,12 @@ export function createControls(elements, {
   let idleTimer = null;
   let flashOn = null;
   let flashOff = null;
+  // The finger on the picture: whether the overlay was away when it came down,
+  // the last tap (for a double), and the overlay's going away, which waits to
+  // see whether a second tap makes the first one a skip.
+  let touchDown = null;
+  let lastTap = null;
+  let tapTimer = null;
   // The bar was taken away for a performance that is not the story's, and is
   // owed back when that one is over.
   let concealed = false;
@@ -80,10 +87,24 @@ export function createControls(elements, {
   // end card never reaches this listener at all. No blocklist to keep in step
   // with the template — the picture is simply the only thing under it.
   //
-  // The picture is the play/pause switch, as it is in every video player. The
-  // OVERLAY is not what a click decides: that is the pointer's business below.
-  listen(elements.stage, 'click', () => {
+  // Under a mouse the picture is the play/pause switch, as it is in every video
+  // player, and the OVERLAY follows the pointer (below). A finger cannot hover,
+  // so on touch the picture is the overlay's switch instead — a tap that paused
+  // the story would stop it for somebody who only wanted the controls — and a
+  // double tap on either side skips, as it does on every phone's video player.
+  //
+  // Read before the frame's own listener wakes the overlay: the stage is inside
+  // the frame, so its `pointerdown` arrives first.
+  listen(elements.stage, 'pointerdown', (event) => {
+    touchDown = event?.pointerType === 'touch' || event?.pointerType === 'pen' ? { bare: hidden } : null;
+  });
+  listen(elements.stage, 'click', (event) => {
     if (!live()) return;
+    if (touchDown) {
+      tapped(event, touchDown);
+      touchDown = null;
+      return;
+    }
     // Which glyph, decided before the toggle: the bar still shows what the
     // story was doing when the click landed.
     flash(last.mode === 'pause' ? 'pause' : 'play');
@@ -94,6 +115,9 @@ export function createControls(elements, {
   for (const type of ['pointerenter', 'pointermove', 'pointerdown', 'pointerup']) {
     listen(elements.frame, type, () => {
       steering = 'pointer';
+      // Any new touch is a viewer reaching for something: an overlay waiting to
+      // see whether the last tap had a second one stays where it is.
+      if (type === 'pointerdown') cancelTap();
       wake();
     });
   }
@@ -234,7 +258,48 @@ export function createControls(elements, {
   }
 
   /**
-   * The mark a click leaves in the middle of the picture.
+   * A finger on the picture, let go.
+   *
+   * The touch itself already brought a withdrawn overlay back (the frame wakes
+   * on every `pointerdown`), so a tap only has to put a SHOWN one away — and
+   * that waits out the double-tap window, or the second tap of a skip would
+   * flicker the controls off and on. A tap on either third right after another
+   * on the same third is a skip; a third tap keeps skipping, as phones do.
+   */
+  function tapped(event, down) {
+    const now = Date.now();
+    const side = sideOf(event);
+    const double = side !== 0 && lastTap?.side === side && now - lastTap.at <= doubleTapMs;
+    lastTap = { at: now, side };
+    if (double) {
+      cancelTap();
+      flash(side < 0 ? 'back' : 'forward');
+      onSkip(side * SKIP_MS);
+      return;
+    }
+    if (down.bare) return;
+    tapTimer = setTimeout(() => {
+      tapTimer = null;
+      bare(true);
+    }, doubleTapMs);
+  }
+
+  function cancelTap() {
+    clearTimeout(tapTimer);
+    tapTimer = null;
+  }
+
+  /** Which third of the picture a tap landed on: −1, 0 or 1. */
+  function sideOf(event) {
+    const box = elements.frame?.getBoundingClientRect?.();
+    if (!box || !(box.width > 0) || !Number.isFinite(event?.clientX)) return 0;
+    const at = (event.clientX - box.left) / box.width;
+    return at < 1 / 3 ? -1 : at > 2 / 3 ? 1 : 0;
+  }
+
+  /**
+   * The mark a click leaves on the picture: play or pause in the middle, a skip
+   * on the side the double tap was on.
    *
    * Put back on the next task rather than now: a class removed and re-added in
    * one go does not replay a CSS animation, so a second click inside the first
@@ -245,6 +310,8 @@ export function createControls(elements, {
     if (!mark?.classList) return;
     mark.classList.remove('is-on');
     mark.classList.toggle('is-pause', kind === 'pause');
+    mark.classList.toggle('is-back', kind === 'back');
+    mark.classList.toggle('is-forward', kind === 'forward');
     clearTimeout(flashOn);
     clearTimeout(flashOff);
     flashOn = setTimeout(() => mark.classList.add('is-on'), 0);
@@ -264,9 +331,6 @@ export function createControls(elements, {
       elements.scrub.setAttribute('aria-valuetext', `${clockText(clamped)} of ${clockText(durationMs)}`);
     });
     write('at', clockText(clamped), (text) => { elements.at.textContent = text; });
-    write('remaining', remainingText(durationMs - clamped), (text) => {
-      elements.remaining.textContent = text;
-    });
     write('mode', ended ? 'replay' : playing ? 'pause' : 'play', (mode) => {
       elements.toggle.setAttribute('aria-label', mode);
       elements.toggle.classList.toggle('is-playing', mode === 'pause');
@@ -288,6 +352,7 @@ export function createControls(elements, {
     clearTimeout(idleTimer);
     clearTimeout(flashOn);
     clearTimeout(flashOff);
+    cancelTap();
     idleTimer = flashOn = flashOff = null;
     for (const [target, type, handler] of listeners) target.removeEventListener(type, handler);
     listeners.length = 0;
@@ -386,18 +451,6 @@ function clockText(milliseconds) {
   const total = Math.max(0, Math.round((milliseconds ?? 0) / 1000));
   const minutes = Math.floor(total / 60);
   return `${minutes}:${String(total % 60).padStart(2, '0')}`;
-}
-
-/**
- * How much story is left, in the words a parent uses at bedtime.
- *
- * Rounded UP to the minute: "1 min left" with fifty seconds to go is a promise
- * the story keeps, and "0 min left" is not a sentence anybody wants to read.
- */
-function remainingText(milliseconds) {
-  const left = Math.max(0, milliseconds ?? 0);
-  if (left < 60_000) return `${Math.ceil(left / 1000)} s left`;
-  return `${Math.ceil(left / 60_000)} min left`;
 }
 
 function isActivatable(target) {

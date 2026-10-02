@@ -86,11 +86,16 @@ booleans, both off by default:
 ## Host controls
 
 The plain `createStoryPlayer` handle exposes `play()`, `pause()`, `toggle()`,
-`seek(milliseconds)`, `setSubtitles(boolean)`, `getState()`, `getTimeline()` and
-`subscribe(listener)` alongside `ready`, streaming methods and `destroy()`.
+`seek(milliseconds)`, `setSubtitles(boolean)`, `setFullscreen(boolean)`,
+`getState()`, `getTimeline()` and `subscribe(listener)` alongside `ready`,
+streaming methods and `destroy()`.
 `subscribe` immediately reports current state when available and returns an
 unsubscribe function. State is `{tMs,durationMs,playing,ended,started,sceneIndex,
-subtitle}`; scene indices are zero-based and times are milliseconds. The timeline
+subtitle,afterStory}`; scene indices are zero-based and times are milliseconds.
+`afterStory` is what follows a bedtime story (see Bedtime below): `null` while
+the story is on screen, then `'winddown'`, then `'quiet'`. A build that plays
+the wind-down always carries the key, so a host can tell it apart from an older
+one that left the wind-down to the page. The timeline
 is read-only host data. Await `ready` before enabling controls; the first `play`
 spends the user gesture and begins the story, and playing an ended story replays.
 
@@ -402,13 +407,8 @@ object, and a Storylang version this build does not know throw synchronously.
 
 While the story grows:
 
-- The badge reads `scene 1 of N` from the first frame when `stream.scenes` says
-  how long the story will be. Pass it: it is the manifest's count, and without
-  it a viewer watches `scene 1 of 1` become `scene 2 of 2`, a story that never
-  seems to get anywhere. It is a floor rather than a promise—publish more scenes
-  than you declared and the badge counts what is really there—and `finishStory`
-  drops it to what actually arrived, so a story that ended early is never left
-  counting up to a total nobody wrote.
+- `stream.scenes`, the manifest's count, is still accepted, and no longer shown:
+  the player draws no scene count.
 - The remaining time on the bar grows with each append. An append never moves an
   event the viewer has already crossed, so seeking back over a scene boundary
   lands on the frame it landed on before.
@@ -613,22 +613,61 @@ at the end of the prefix. A React host following a writer calls
 
 ## Controls
 
-The player owns its transport, inside the Shadow DOM. It appears when the story
-begins, not while the opening ceremony is still up, and it withdraws again for
-as long as a card is playing — each card has a skip of its own: play/pause, skip back and
-forward ten seconds, and a draggable progress bar with the elapsed time and the
-minutes left, below the stage; the subtitle toggle sits over the picture at the
-top right, with the story's name opposite it. A host that draws its own chrome
-up there — close, cast, parental, overflow — owns that row; the player never
-adds to it.
+The player owns its transport, inside the Shadow DOM, drawn as the web app's
+watch dock (frontend-app `WatchControls`): play, back and forward ten seconds,
+the draggable line with `0:27 / 8:32`, then subtitles and full screen. It
+appears when the story begins, not while the opening is still up, and it
+withdraws again for as long as a card is playing — each card has a skip of its
+own. The story's name sits over the picture at the top left. A host that draws
+its own chrome up there — close, cast, parental, overflow — owns that corner;
+the player never adds to it.
 
-The picture itself is the play/pause switch, and a click on it leaves the round
-mark every video player draws. The overlay follows the pointer: it comes back
+Everything over the picture is sized to the player's own box, never the window,
+so one build serves a laptop card, a tablet, full screen and a phone webview:
+under 600 pixels wide the dock is two rows (the line, then the five buttons
+spread across it), from 600 up it is one row; the caption is 15px under 520,
+17px under 600 and 20px from there, and sits just above the dock, dropping to
+the foot of the picture when the dock withdraws.
+
+Under a mouse the picture itself is the play/pause switch, and a click on it
+leaves the round mark every video player draws. On touch a tap on the picture
+shows or hides the controls and never pauses, and a double tap on the left or
+right third skips ten seconds back or forward. The overlay follows the pointer: it comes back
 whenever the pointer moves over the player, and withdraws after about two and a
 half seconds of stillness or as soon as the pointer leaves. A story that is
 paused or over keeps its transport while the pointer is on it, and so does a bar
 being dragged or a control holding focus. Touch is exempt from the leave rule,
 because a device with no hover reports one after every tap.
+
+Full screen is the host's when it passes `fullscreen`, a function the player
+calls with `true` or `false` when the button is pressed: an app in a webview
+turns the phone, which only it can do, and reports what actually happened —
+including a phone turned by hand — with `handle.setFullscreen(boolean)`, which
+is what the button shows. Without one, the button fills the screen with the
+element the player was mounted into through the browser's Fullscreen API and
+asks for landscape on top (a phone's browser grants it; a laptop's refuses it
+harmlessly); where neither exists, as on iPhone Safari, there is no button.
+
+### Bedtime
+
+A bedtime story (`performance.kind: 'bedtime'`) gets two extras, drawn as the
+web app draws them — unless the host passes `chrome: 'host'`, in which case it
+draws its own:
+
+- The moon dims the picture, under the captions and the controls, so the words
+  keep their contrast. It is a sixth button in a phone's dock and a labelled
+  button under the dock on a big player. Pass `dim: true` to open the story
+  dimmed (the family's "dim after bedtime", say); the moon's state is never
+  written back.
+- The moonlit wind-down (`metadata.post_story`). When the narrative ends the
+  picture goes to the base colour and the sky picture comes up over it while
+  the same ambience bed plays on from where the story left it. The dock counts
+  it down — `Wind-down · 11:41 left`, play/pause for the sound, Stop — and when
+  it runs out or is stopped the sky stays and the sound does not: the quiet,
+  with `Sleep well` or `Stopped` and a replay. A seek back into the story takes
+  it all away. No end screen is shown over it, and a host that opens something
+  of its own when a story ends should wait for `afterStory` to leave
+  `'winddown'`.
 
 Keyboard, while the stage frame has focus: space or `k` toggles play, the arrow
 keys skip ten seconds, `Home` and `End` seek to the start and the end. Any key

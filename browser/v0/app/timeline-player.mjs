@@ -47,14 +47,17 @@ export function createTimelinePlayer({
   // It rides with every scene's sheets, because a board can be raised in any.
   counter = null,
   capability = tierSettings('high'), perf = false, onWarning = () => {}, signal = null,
-  publishedComplete = true, expectedScenes = null,
-  // The four seams the presentation phases either side of the story hang on.
-  // All four default to nothing, so a mount without cards runs the file it ran
-  // before them: `onEnd` may hand back a promise to hold the end screen behind,
-  // `onEndLeft` takes back whatever `onEnd` started, `onReplay` may claim the
-  // way back to the start, and `onSceneOpen` says which scene is on screen.
+  publishedComplete = true,
+  // The seams the presentation phases either side of the story hang on. All
+  // default to nothing, so a mount without cards runs the file it ran before
+  // them: `onEnd` may hand back a promise to hold the end screen behind, and is
+  // told whether the story was playing when it got there; `onEndLeft` takes
+  // back whatever `onEnd` started; `onEndToggle` may claim play/pause while the
+  // story is over (a wind-down's sound); `onReplay` may claim the way back to
+  // the start; and `onSceneOpen` says which scene is on screen.
   onState = () => {},
-  onEnd = () => null, onEndLeft = () => {}, onReplay = () => false, onSceneOpen = () => {},
+  onEnd = () => null, onEndLeft = () => {}, onEndToggle = () => false, onReplay = () => false,
+  onSceneOpen = () => {},
 }) {
   // The story as it stands. A host watching a writer grows it under the runtime
   // — `appendScene` swaps both halves at once — so nothing below reads the two
@@ -70,10 +73,6 @@ export function createTimelinePlayer({
   // knows: a prefix compiles its own `end` op because a compiler handed three
   // scenes cannot know a fourth is coming.
   let complete = publishedComplete !== false;
-  // What the badge counts up to while the story is still being written. Without
-  // it a viewer watches "scene 1 of 1" become "scene 2 of 2" — a story that
-  // never seems to get anywhere.
-  let expected = Number.isInteger(expectedScenes) && expectedScenes > 0 ? expectedScenes : null;
   // 24 fps is the ceiling the phone client holds and the cadence the sprite
   // sheets were authored at; a weak machine is given half of it rather than a
   // number of its own, so the loop skips every other tick exactly.
@@ -351,6 +350,7 @@ export function createTimelinePlayer({
       else play();
       return;
     }
+    if (ended && onEndToggle()) return;
     if (ended || !clock.running) play();
     else pause();
   }
@@ -636,7 +636,6 @@ export function createTimelinePlayer({
     media.setStory(story);
     loader.setStory(story);
     controls.arm(durationMs);
-    showBadge();
     // The one scene in a story that nothing warms. Scene 0 is gated before the
     // first frame and every later one is queued while the story plays, but a
     // scene the viewer is already waiting on is reached the instant it is
@@ -682,11 +681,6 @@ export function createTimelinePlayer({
   function finishStory() {
     if (destroyed || complete) return;
     complete = true;
-    // The manifest's promise is over: a story that stopped after two of six
-    // scenes has two, and a badge still counting to six under an end screen
-    // would be the player insisting on an ending nobody wrote.
-    expected = null;
-    showBadge();
     // The scene on screen has not changed, but what comes after it has: a
     // viewer already inside the last scene when the writer stopped would
     // otherwise reach an end card nothing had warmed.
@@ -766,7 +760,6 @@ export function createTimelinePlayer({
     // One perf section per scene, so a log from a slow phone says WHERE it was
     // slow rather than that it was.
     recorder?.scene(sceneIndex);
-    showBadge();
     // Which scene is on screen, and whether there is anything after it. What
     // reads this is the end card, warming its film as the last scene opens:
     // early enough to be there when the story stops, late enough not to take
@@ -984,20 +977,6 @@ export function createTimelinePlayer({
     return false;
   }
 
-  function showBadge() {
-    elements.badge.scene.textContent = sceneIndex === null
-      ? ''
-      : `scene ${sceneIndex + 1} of ${sceneTotal()}`;
-  }
-
-  // The manifest's count while the story is still being written, so the badge
-  // does not count up from one as scenes land. A host that named fewer scenes
-  // than it went on to publish is answered with what is actually there.
-  function sceneTotal() {
-    const published = sceneCount() || sceneIndex + 1;
-    return expected === null ? published : Math.max(expected, published);
-  }
-
   function sceneCount() {
     return story.bundle?.scenes?.length ?? 0;
   }
@@ -1047,6 +1026,7 @@ export function createTimelinePlayer({
    * cannot go on is over, and idling is the only honest thing to show.
    */
   function finish() {
+    const wasRunning = clock.running;
     ended = true;
     resumeWhenVisible = false;
     clock.pause();
@@ -1059,7 +1039,7 @@ export function createTimelinePlayer({
     media.settle();
     recorder?.flush('end');
     recorder?.pause();
-    revealEnd();
+    revealEnd(wasRunning);
     updateControls({ tMs: durationMs, playing: false, ended: true });
   }
 
@@ -1075,10 +1055,10 @@ export function createTimelinePlayer({
    * back into the story in the middle of one has left an end that must not turn
    * up behind them, and a failure to play the card is still an end reached.
    */
-  function revealEnd() {
+  function revealEnd(playing) {
     endArrival += 1;
     const mine = endArrival;
-    const card = onEnd();
+    const card = onEnd({ playing });
     if (!card?.then) {
       elements.stage.end.hidden = false;
       return;
