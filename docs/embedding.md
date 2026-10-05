@@ -29,8 +29,8 @@ base, for example `https://storage.example/`.
 
 Beside `story` and `assetBase`, `options` accepts the manifest's `plates` block,
 the `stream` object that says the story is still being written, the `cards`
-either side of the story, the `board` block naming what the counting board's
-counters are drawn as, the `kicker` line the ceremony opens with, and two
+either side of the story, the `board` block choosing a lesson's presentation and
+what the counting board's counters are drawn as, the `kicker` line the ceremony opens with, and two
 booleans, both off by default:
 
 - `plates` is the manifest block of the same name, `{place: {time: plate}}`,
@@ -55,7 +55,7 @@ booleans, both off by default:
 - `cards` are the manifest's `intro` and `end_card` blocks, passed under those
   two names. See [the cards either side of the
   story](#the-cards-either-side-of-the-story).
-- `board` names what the counting board draws its counters as. Its one key,
+- `board.counter` names what the counting board draws its counters as.
   `counter`, is a bucket-qualified picture—`board: {counter:
   'fairytale-assets/counters/nut.png'}`—fetched once at the mount and drawn in
   the apple's place on every board in the story, fitted whole inside the gold
@@ -63,10 +63,223 @@ booleans, both off by default:
   it lands, and for good if it cannot be fetched (named once in the log), the
   board draws the apple it always drew—a board already standing when the
   picture lands is repainted with it then, paused or not; a mount without the
-  block is that apple everywhere. A key other than `counter` is refused by name.
+  block is that apple everywhere. Unknown board keys are refused by name.
   The draw list marks such a counter `image: true`, so another renderer of the
   same list knows to draw the picture too; a list built without the block is
   byte for byte the list it was.
+- `board: {layout: 'lesson-guide', guide: 'squirrel'}` selects a named guide
+  for ordinary picture-card lessons. `guide` is the cast slug to keep visible;
+  it must be a non-empty string without whitespace, and `layout` must be exactly
+  `lesson-guide`. Either key without its partner is refused. The guide uses its
+  current native clip in a fixed corner HUD cell 32% of the stage height,
+  centred at the original 90% horizontal line with feet at the original 99%
+  line. It fits below the original one-to-four-card row; panel, cards, prompt,
+  title and transport keep their original geometry. A guide not
+  visible at that instant leaves the corner empty; another cast member does
+  not take its place. The empty opening board uses the same guide placement.
+  Counting, ocean and farm boards retain their existing presentation. The
+  option can coexist with `counter`; without one it fetches no counter picture.
+  The guide's actual HUD cell sizes its rendition request, so a small physical
+  character remains sharp when enlarged. This is host presentation only:
+  story JSON, timelines and `V0_POLICY` do not change. Omit it to retain the
+  original first companion at 27% height. Native captions keep their CC
+  behavior in a bottom-left area capped at 70% of stage width,
+  reserving the right corner for the guide. Visible native controls may cover
+  that corner while paused. Guide players up to 400px wide use 13px text with
+  1.3 line spacing so longer explanations clear the fixed cards; wider players
+  retain their usual caption size. The presentation class lasts for the mount and is
+  removed on destroy; the board and card geometry remains unchanged.
+  The native end overlay shows a star with “Great exploring!” and “See you next time!”
+  for this layout; ordinary mounts keep “the end” and “sleep well”.
+- `board.ledge` optionally adds a persistent canvas shelf behind the named
+  guide, after the teaching board is drawn. It is `[left, top, width, height]`
+  in stage fractions, with four finite numbers, positive width/height and the
+  whole box inside the stage. It requires `layout: 'lesson-guide'`; for example,
+  `ledge: [.855, .82, .092, .006]`. It does not move or resize the panel, cards,
+  prompt, title, captions or controls, and remains fixed during choreography
+  and seeks. The host positions the seated sprite's actual hip/palm support on
+  the shelf and verifies its visible body clears the teaching cards and captions.
+- `board.choreography` optionally moves that guide and a supplied card image
+  during finite windows. It is an array of `{id, kind, start_ms, end_ms, actor,
+  prop?, caption?}` tracks, ordered without overlapping windows; `kind` is
+  `peek`, `push`, `carry`, `perch`, `run`, `hop` or `grab`. These labels describe
+  the action for diagnostics; all use the same keyframe presentation. Times
+  are absolute story milliseconds, start inclusive and end
+  exclusive. The story still selects the clip and frame through its ordinary
+  commands. This option changes presentation only, including on a backward seek
+  or paused repaint; outside every window the original corner and card images
+  return. It requires the lesson-guide layout.
+  Optional `caption: 'top'` puts native captions 12 pixels from the stage top
+  during that window, retaining the guide's 70% width, responsive type and CC control.
+  This lane restores on window end, seek, an absent guide or destroy. Omit it
+  for the normal bottom-left lane. Author short comic lines and clear the board
+  prompt during top-caption windows; captions do not change or hide teaching
+  content themselves. The host must verify the line fits above its fixed cards.
+  `actor.keyframes` contains ordered `{at, box, opacity?, clip?}` entries with
+  both `at: 0` and `at: 1`. `at` is a fraction of the window. `box` is
+  `[centerX, feetY, size]`: center and feet are fractions of stage width/height,
+  and size is a fraction of stage height, preserving a square native sprite
+  cell. Opacity defaults to one; zero is permitted. `clip` is a stage-fraction
+  `[left, top, right, bottom]` mask, defaulting to the full stage. It can hide a
+  guide's body behind the board rim while leaving the board untouched.
+  `actor.mirror: true` reflects only the actor about its cell center, including
+  its neutral poses; the host must author the transition back to idle accordingly.
+  Optional `prop` carries `{slug, cards, card_index, hide_card_image?, keyframes}`.
+  The slug is an existing story object, `cards` lists the expected one-to-four
+  unique card slugs in order, and the slot is one-based and must match the slug.
+  Any different card, order or quantity, or an absent guide, disables the entire
+  track, so a changed answer board stays intact. `hide_card_image: true` hides only that image;
+  its card shell, focus, prompt and every other card keep their original paint.
+  Prop keyframes are `{at, anchor, box, opacity?}`. `anchor` is `card`, `actor`
+  or `stage`; `box: [centerX, centerY, width, height]` gives fractions within
+  the fixed inset card-image rectangle, the current actor cell, or the stage,
+  respectively. Local actor coordinates refer to the displayed cell, including
+  when mirrored. Linear interpolation blends the resolved rectangles and
+  opacity. A card box `[.5, .5, 1, 1]` docks exactly to the original image fit;
+  the SVG stays whole and centered. The overlay paints in front of the guide.
+  Author the actor's last box at its normal corner and end skits before any
+  child-answer pause; the player does not move the board or rewrite narration.
+- `board.world` optionally stages a guide lesson inside an illustrated world.
+  It requires `layout: 'lesson-guide'` and carries:
+  ```js
+  {
+    background: 'garden',
+    board: { style: 'garden', panel: [.10, .40, .80, .44] },
+    actor_box: [.82, .94, .40],
+    phases: [
+      { id: 'explore', start_ms: 0, end_ms: 2000, mode: 'world',
+        props: [{ slug: 'ball', keyframes: [
+          { at: 0, box: [.25, .8, .12, .12] },
+          { at: 1, box: [.60, .8, .12, .12] },
+        ] }] },
+      { id: 'teach', start_ms: 2000, end_ms: 12000, mode: 'lesson', props: [] },
+    ],
+  }
+  ```
+  Background and prop slugs must name `story.objects`; their `svg` media field
+  may carry SVG or raster artwork. They use the existing validated storage root,
+  and every referenced image decodes before the first scene opens, including
+  objects without a native `put` and props carried by choreography. The background
+  fills the stage with centered cover cropping; ordinary props keep their whole
+  image. Missing or undecodable world objects fail with
+  the offending slug. The cache keeps all world images available through scene
+  changes and seeks. No independent URL, script, or scene-fetching mechanism is added.
+  IDs and slugs use letters, digits, underscores or hyphens, beginning with a
+  letter or digit. Unknown fields are refused. Phases must start at zero and
+  remain contiguous, with unique IDs and positive durations; author them through
+  the full runtime. The final phase holds at the endpoint. Each phase explicitly
+  supplies `props`, including an empty array. Prop keyframes run from `at: 0` to
+  `at: 1`, strictly increasing, and linearly interpolate the normalized stage box
+  `[centerX, centerY, width, height]` and optional opacity (zero through one).
+  `actor_box` uses `[centerX, feetY, size]` in the same units as choreography,
+  and contributes to the guide's rendition size.
+  Outdoor (`world`) phases show background, props and Bibo with no board. Teaching
+  (`lesson`) phases add a warm, opaque board inside `panel`, then the native cards
+  in their original order with the original focus and prompt. The panel is
+  `[left, top, width, height]` wholly inside the stage. Styles are `garden`,
+  `royal`, `camp` and `travel`; all use a framed board with legs and a top ledge,
+  with palette and corner details for each world. The garden uses wooden rails
+  and subtle leaves. The world remains bright, with no full-stage darkening.
+  To use generated artwork, add `art: '<object-slug>'` and
+  `art_box: [left, top, width, height]` together inside `world.board`. The image
+  replaces the vector frame and interior, retains transparency, and fits whole
+  and centered inside that normalized stage box. Its dimensions must be positive;
+  the box may extend outside the stage to accommodate transparent image padding.
+  The art slug uses the same required preload and missing-image errors as every
+  other world image. `panel` still sets the card and prompt layout; calibrate it
+  and Bibo's support against the artwork's actual visible rim. Without artwork,
+  the exact panel top is the sitting rim. Cards reserve the upper interior for a
+  seated guide's legs; authors must align the actual sprite support with the rim
+  and verify its body and captions clear the cards at the smallest viewport.
+  A reveal from outdoors fades in over 300 milliseconds; the sitting rim and
+  every card remain fixed throughout. Consecutive teaching phases do not restart
+  that entrance.
+  Optional `world.board.content` supplies separate card and prompt rectangles as
+  fractions of the panel, rather than of the stage:
+
+  ```js
+  content: {
+    cards: [.015, .045, .97, .72],
+    prompt: [.04, .80, .92, .18],
+  }
+  ```
+
+  Both `[left, top, width, height]` boxes must have positive dimensions, stay
+  inside the panel and not overlap. Cards remain square, centered in their box,
+  equally spaced and ordered. This layout uses cream cards with quiet pastel
+  borders and a small shadow; no slot gets extra emphasis before an answer.
+  The prompt has a fixed text band and a separate lower thinking-indicator band,
+  so starting or ending a cue never moves its text. Keep prompts short enough to
+  read at the smallest supported viewport. Omitting `content` preserves the
+  existing card geometry and paint.
+  Optional `world.cues` adds authored question and answer presentation:
+
+  ```js
+  cues: [
+    { id: 'find-c-pause', kind: 'thinking', start_ms: 4000, end_ms: 7000,
+      cards: ['a', 'b', 'c', 'd'] },
+    { id: 'show-c', kind: 'reveal', start_ms: 7000, end_ms: 8600,
+      cards: ['a', 'b', 'c', 'd'], answer_index: 3 },
+  ]
+  ```
+
+  Cue IDs are unique safe slugs. Windows use finite, nonnegative absolute story
+  milliseconds, include their start and exclude their end, and must be ordered
+  and nonoverlapping. `cards` names one through four unique expected object slugs
+  in their exact order. A different deck, order or count disables the cue; cues
+  also stay off during outdoor phases. `thinking` accepts no answer index and
+  temporarily clears native focus while three neutral dots breathe beneath the
+  prompt. It adds no pause itself: author the child's pause in the story.
+  `reveal` requires a one-based `answer_index` in that expected deck and highlights
+  only that slot. The answer pops once, with a warm glow, a checkmark and eight
+  deterministic gold, teal and coral stars with white outlines. The stars stay
+  around the card edge, clear of its center and confined to the panel. They hold
+  full color briefly before fading. The pop settles within
+  450 milliseconds, the stars fade within 1200 milliseconds, and all cue effects
+  end with the window; shorter windows compress these effects. A 1–2 second
+  reveal is usually sufficient. This celebrates the authored answer being shown;
+  the player does not hear or score the child. Native focus resumes afterward.
+  The pop changes only paint, never a card slot or docking target. Schedule it
+  after any transfer image has handed off to its native card. All cue progress
+  comes from story time, including paused seeks and reverse seeks.
+  A reveal can instead add `presentation: 'spotlight'`: the answer card briefly
+  compresses, rises and grows by up to 12%, holds a calm raised pose, then settles
+  before the cue ends. Its paper stays neutral, with a soft grounding shadow and
+  a gray outline; it adds no checkmark, colored fill, particles or distractor dimming.
+  The answer paints in front of the other cards without changing their targets,
+  and its lift is constrained to the panel. Author around 1800 milliseconds for
+  the full gesture; shorter windows compress it. Reduced-motion viewers get a
+  stationary outline and shadow during the same window. Omit `presentation` to
+  retain the original reveal style; this field is invalid on thinking cues.
+  Use native `focus: null` on spotlight answer boards to keep them neutral after
+  the authored cue ends, since cues do not overwrite timeline state.
+  Keep successive phases in `mode: 'lesson'` to keep the board present while
+  objects play in front of it. Optional phase `content_opacity` fades only card
+  shells, images, focus and prompt; the board and guide stay visible. It accepts
+  either a number from zero through one, or strictly increasing endpoint keyframes
+  such as `[{at: 0, opacity: 0}, {at: 1, opacity: 1}]`. Omit it for full opacity.
+  All phase props paint after the board and before Bibo, including ordinary props
+  without a docking target.
+  A phase prop can name `cards`, `card_index` and optional `hide_card_image` using
+  the same exact ordered-card and matching-slug guard as choreography. Its
+  keyframes may then use `anchor: 'card'` and `box: [.5, .5, 1, 1]` to dock into
+  that card's exact inset image rectangle. Omitted anchors and `anchor: 'stage'`
+  use normalized stage coordinates. Rectangles interpolate in stage space, so
+  a prop can travel from a world position into its teaching cell. The native board
+  must already name those cards during the transfer; content opacity can keep
+  their shells hidden until desired. A changed card, order or quantity disables
+  the targeted prop and leaves every card image intact. `hide_card_image: true`
+  hides only its target image for that phase; the shell and focus retain their
+  own paint, and the image returns at the next phase. Ending at the exact card
+  anchor and then removing the prop gives an identical image handoff without a
+  duplicate. Give both paths the same final opacity when authoring that handoff.
+  `board.ledge` is superseded by this board's own rim. Choreography can move the
+  guide and a carried prop while outdoors, even without a native slate; its
+  expected cards supply hidden docking targets. During teaching, the existing
+  exact-card guard still prevents a skit from altering a different answer board.
+  A `card` anchor docks to the themed card's actual inset rectangle. Every world
+  frame follows story time, including held native animation cells, pauses and
+  arbitrary seeks. Omit `world` to keep existing lesson and ordinary story layouts.
 - `kicker` is the line over the story's name on the opening screen, for a host
   mounting something that is not a bedtime story—`kicker: 'a counting lesson'`.
   Anything that is not a string with words in it leaves the default,
@@ -86,11 +299,16 @@ booleans, both off by default:
 ## Host controls
 
 The plain `createStoryPlayer` handle exposes `play()`, `pause()`, `toggle()`,
-`seek(milliseconds)`, `setSubtitles(boolean)`, `getState()`, `getTimeline()` and
-`subscribe(listener)` alongside `ready`, streaming methods and `destroy()`.
+`seek(milliseconds)`, `setSubtitles(boolean)`, `setFullscreen(boolean)`,
+`getState()`, `getTimeline()` and `subscribe(listener)` alongside `ready`,
+streaming methods and `destroy()`.
 `subscribe` immediately reports current state when available and returns an
 unsubscribe function. State is `{tMs,durationMs,playing,ended,started,sceneIndex,
-subtitle}`; scene indices are zero-based and times are milliseconds. The timeline
+subtitle,afterStory}`; scene indices are zero-based and times are milliseconds.
+`afterStory` is what follows a bedtime story (see Bedtime below): `null` while
+the story is on screen, then `'winddown'`, then `'quiet'`. A build that plays
+the wind-down always carries the key, so a host can tell it apart from an older
+one that left the wind-down to the page. The timeline
 is read-only host data. Await `ready` before enabling controls; the first `play`
 spends the user gesture and begins the story, and playing an ended story replays.
 
@@ -402,13 +620,8 @@ object, and a Storylang version this build does not know throw synchronously.
 
 While the story grows:
 
-- The badge reads `scene 1 of N` from the first frame when `stream.scenes` says
-  how long the story will be. Pass it: it is the manifest's count, and without
-  it a viewer watches `scene 1 of 1` become `scene 2 of 2`, a story that never
-  seems to get anywhere. It is a floor rather than a promise—publish more scenes
-  than you declared and the badge counts what is really there—and `finishStory`
-  drops it to what actually arrived, so a story that ended early is never left
-  counting up to a total nobody wrote.
+- `stream.scenes`, the manifest's count, is still accepted, and no longer shown:
+  the player draws no scene count.
 - The remaining time on the bar grows with each append. An append never moves an
   event the viewer has already crossed, so seeking back over a scene boundary
   lands on the frame it landed on before.
@@ -613,22 +826,61 @@ at the end of the prefix. A React host following a writer calls
 
 ## Controls
 
-The player owns its transport, inside the Shadow DOM. It appears when the story
-begins, not while the opening ceremony is still up, and it withdraws again for
-as long as a card is playing — each card has a skip of its own: play/pause, skip back and
-forward ten seconds, and a draggable progress bar with the elapsed time and the
-minutes left, below the stage; the subtitle toggle sits over the picture at the
-top right, with the story's name opposite it. A host that draws its own chrome
-up there — close, cast, parental, overflow — owns that row; the player never
-adds to it.
+The player owns its transport, inside the Shadow DOM, drawn as the web app's
+watch dock (frontend-app `WatchControls`): play, back and forward ten seconds,
+the draggable line with `0:27 / 8:32`, then subtitles and full screen. It
+appears when the story begins, not while the opening is still up, and it
+withdraws again for as long as a card is playing — each card has a skip of its
+own. The story's name sits over the picture at the top left. A host that draws
+its own chrome up there — close, cast, parental, overflow — owns that corner;
+the player never adds to it.
 
-The picture itself is the play/pause switch, and a click on it leaves the round
-mark every video player draws. The overlay follows the pointer: it comes back
+Everything over the picture is sized to the player's own box, never the window,
+so one build serves a laptop card, a tablet, full screen and a phone webview:
+under 600 pixels wide the dock is two rows (the line, then the five buttons
+spread across it), from 600 up it is one row; the caption is 15px under 520,
+17px under 600 and 20px from there, and sits just above the dock, dropping to
+the foot of the picture when the dock withdraws.
+
+Under a mouse the picture itself is the play/pause switch, and a click on it
+leaves the round mark every video player draws. On touch a tap on the picture
+shows or hides the controls and never pauses, and a double tap on the left or
+right third skips ten seconds back or forward. The overlay follows the pointer: it comes back
 whenever the pointer moves over the player, and withdraws after about two and a
 half seconds of stillness or as soon as the pointer leaves. A story that is
 paused or over keeps its transport while the pointer is on it, and so does a bar
 being dragged or a control holding focus. Touch is exempt from the leave rule,
 because a device with no hover reports one after every tap.
+
+Full screen is the host's when it passes `fullscreen`, a function the player
+calls with `true` or `false` when the button is pressed: an app in a webview
+turns the phone, which only it can do, and reports what actually happened —
+including a phone turned by hand — with `handle.setFullscreen(boolean)`, which
+is what the button shows. Without one, the button fills the screen with the
+element the player was mounted into through the browser's Fullscreen API and
+asks for landscape on top (a phone's browser grants it; a laptop's refuses it
+harmlessly); where neither exists, as on iPhone Safari, there is no button.
+
+### Bedtime
+
+A bedtime story (`performance.kind: 'bedtime'`) gets two extras, drawn as the
+web app draws them — unless the host passes `chrome: 'host'`, in which case it
+draws its own:
+
+- The moon dims the picture, under the captions and the controls, so the words
+  keep their contrast. It is a sixth button in a phone's dock and a labelled
+  button under the dock on a big player. Pass `dim: true` to open the story
+  dimmed (the family's "dim after bedtime", say); the moon's state is never
+  written back.
+- The moonlit wind-down (`metadata.post_story`). When the narrative ends the
+  picture goes to the base colour and the sky picture comes up over it while
+  the same ambience bed plays on from where the story left it. The dock counts
+  it down — `Wind-down · 11:41 left`, play/pause for the sound, Stop — and when
+  it runs out or is stopped the sky stays and the sound does not: the quiet,
+  with `Sleep well` or `Stopped` and a replay. A seek back into the story takes
+  it all away. No end screen is shown over it, and a host that opens something
+  of its own when a story ends should wait for `afterStory` to leave
+  `'winddown'`.
 
 Keyboard, while the stage frame has focus: space or `k` toggles play, the arrow
 keys skip ten seconds, `Home` and `End` seek to the start and the end. Any key

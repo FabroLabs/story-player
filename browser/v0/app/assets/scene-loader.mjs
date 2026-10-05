@@ -44,6 +44,9 @@ import { stateAt } from '../../core/state/state.mjs';
 import { knownCardBoard } from '../../core/card-board.mjs';
 import { PAN_SCALE_FLOOR, PUSH_SCALE } from '../../policy.mjs';
 import { drawnSpriteHeightPx } from '../stage/presentation-policy.mjs';
+import { lessonGuideHeight } from '../stage/lesson-guide-choreography.mjs';
+import { worldObjectSlugs } from '../stage/lesson-world.mjs';
+import { DEFAULT_STAGE_RESOLUTION } from '../../policy.mjs';
 import { KEEP_WINDOW, chunkWindow, sheetFor, wantedCellPx } from './rendition-picker.mjs';
 import { onAssetProgress, withAssetDeadline } from './asset-request.mjs';
 
@@ -69,6 +72,16 @@ export const KEEP_CADENCE_MS = 80;
  * network, no DOM and no clock. `viewport` is `{ fitScale, dpr, dprCap }`.
  */
 export function sceneAssetPlan(timeline, bundle, sceneIndex, viewport = {}) {
+  const worldObjects = viewport.board?.world ? worldObjectSlugs(viewport.board.world, viewport.board.choreography).map((slug) => {
+    const url = bundle?.objects?.[slug]?.svg;
+    if (typeof url !== 'string' || !url.trim()) {
+      const error = new Error(`world object ${JSON.stringify(slug)} is missing an SVG in the story objects`);
+      error.code = 'WORLD_OBJECT_MISSING';
+      error.slug = slug;
+      throw error;
+    }
+    return { slug, url };
+  }) : [];
   if (bundle?.performance) {
     const scene = bundle.scenes[sceneIndex];
     if (!scene) throw new Error('performance scene is missing');
@@ -79,7 +92,7 @@ export function sceneAssetPlan(timeline, bundle, sceneIndex, viewport = {}) {
       slug: id, url: bundle.assets[id].url ?? bundle.assets[id].media,
       bytes: (bundle.assets[id].width ?? 0) * (bundle.assets[id].height ?? 0) * 4,
     }));
-    return { sceneIndex, cameraScale: 1, poster: null, sheets: [], props };
+    return { sceneIndex, cameraScale: 1, poster: null, sheets: [], props, ...(worldObjects.length ? { worldObjects } : {}) };
   }
   const events = (timeline?.events ?? [])
     .filter((event) => event.source === 'stage' && event.scene_index === sceneIndex);
@@ -87,11 +100,19 @@ export function sceneAssetPlan(timeline, bundle, sceneIndex, viewport = {}) {
   const { drawnHeights, openingFrames } = measureDrawnHeights(timeline, bundle, sceneIndex, events);
 
   const sheets = [];
-  for (const [key, drawnHeightPx] of drawnHeights) {
+  for (const [key, floorHeightPx] of drawnHeights) {
     const [slug, clipKey] = splitKey(key);
     const clip = bundle?.cast?.[slug]?.clips?.[clipKey];
     if (!clip) continue;
-    const wantedPx = wantedCellPx({ drawnHeightPx, cameraScale, ...viewport });
+    // HUD guide size is independent of physical centimetres and camera zoom.
+    const [width, height] = bundle.scenes[sceneIndex]?.plate?.resolution ?? DEFAULT_STAGE_RESOLUTION;
+    const guideHeightPx = viewport.board?.layout === 'lesson-guide' && viewport.board.guide === slug
+      ? lessonGuideHeight(viewport.board, height) : 0;
+    const drawnHeightPx = Math.max(floorHeightPx, guideHeightPx);
+    const wantedPx = Math.max(
+      wantedCellPx({ drawnHeightPx: floorHeightPx, cameraScale, ...viewport }),
+      wantedCellPx({ drawnHeightPx: guideHeightPx, ...viewport }),
+    );
     const sheet = sheetFor(clip, wantedPx);
     if (!sheet.url) continue;
     sheets.push({
@@ -139,6 +160,7 @@ export function sceneAssetPlan(timeline, bundle, sceneIndex, viewport = {}) {
     sheets,
     props,
     ...(boardCards.length > 0 ? { boardCards } : {}),
+    ...(worldObjects.length > 0 ? { worldObjects } : {}),
   };
 }
 
@@ -165,6 +187,7 @@ export function planAssets(plan, { window = 1 } = {}) {
       assets.push(asset);
     }
   };
+  for (const object of plan.worldObjects ?? []) add({ ...object, asset: 'world-object', required: true });
   for (const card of plan.boardCards ?? []) add({ ...card, asset: 'board-card', required: true });
   add({ url: plan.poster, asset: 'poster' });
   for (const sheet of plan.sheets) {
@@ -215,6 +238,9 @@ function keepAssets(plan, actors = null) {
       assets.push(asset);
     }
   };
+  // Host world objects have no native actor entries; keep every phase reference
+  // so a phase change during a pause is drawable without another scene gate.
+  for (const object of plan?.worldObjects ?? []) add({ ...object, asset: 'world-object', required: true });
   // These are teaching targets, not floor actors: the actor filter below must
   // never evict them while the board stands, even in a chunked scene.
   for (const card of plan?.boardCards ?? []) add({ ...card, asset: 'board-card', required: true });
@@ -438,7 +464,10 @@ export function createSceneLoader({
   }
 
   function plan(sceneIndex, viewport = {}) {
-    const key = `${sceneIndex}:${viewport.fitScale ?? 1}:${viewport.dpr ?? 1}:${viewport.dprCap ?? ''}`;
+    const [, height] = story.bundle.scenes[sceneIndex]?.plate?.resolution ?? DEFAULT_STAGE_RESOLUTION;
+    const guideSize = viewport.board?.layout === 'lesson-guide' ? lessonGuideHeight(viewport.board, height) : 0;
+    const world = viewport.board?.world ? JSON.stringify([viewport.board.world, worldObjectSlugs(viewport.board.world, viewport.board.choreography)]) : '';
+    const key = `${sceneIndex}:${viewport.fitScale ?? 1}:${viewport.dpr ?? 1}:${viewport.dprCap ?? ''}:${viewport.board?.layout ?? ''}:${viewport.board?.guide ?? ''}:${guideSize}:${world}`;
     if (!plans.has(key)) plans.set(key, sceneAssetPlan(story.timeline, story.bundle, sceneIndex, viewport));
     return plans.get(key);
   }
@@ -446,8 +475,8 @@ export function createSceneLoader({
   /**
    * Decode everything scene `sceneIndex` draws, then report what failed.
    *
-   * Ordinary broken sheets settle with a placeholder. Required board images
-   * reject the gate: missing teaching content cannot be presented as ready.
+   * Ordinary broken sheets settle with a placeholder. Required board and world
+   * images reject the gate: missing teaching content cannot be presented as ready.
    * Once rejected, later arrivals must not overwrite the terminal error with
    * progress. An abort also rejects — that is the player being destroyed.
    */
@@ -647,8 +676,9 @@ export function createSceneLoader({
         type: 'media', ...what, url, message: error?.message ?? 'asset failed',
       });
       if (what.required) {
-        const refusal = new Error(`board image ${JSON.stringify(what.slug)} could not be loaded: ${error?.message ?? 'asset failed'}`);
-        refusal.code = 'BOARD_IMAGE_UNAVAILABLE';
+        const world = what.asset === 'world-object';
+        const refusal = new Error(`${world ? 'world object' : 'board image'} ${JSON.stringify(what.slug)} could not be loaded: ${error?.message ?? 'asset failed'}`);
+        refusal.code = world ? 'WORLD_OBJECT_UNAVAILABLE' : 'BOARD_IMAGE_UNAVAILABLE';
         refusal.slug = what.slug;
         throw refusal;
       }

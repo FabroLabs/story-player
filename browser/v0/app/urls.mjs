@@ -1,4 +1,5 @@
 import { validatePerformance } from '../core/performance/validation.mjs';
+import { requireLessonWorld } from './stage/lesson-world.mjs';
 /**
  * Storage-root addressing for bucket-qualified v0 media, and the mount-time
  * shape checks for what a host hands over beside the story — `requirePlatesBlock`
@@ -9,6 +10,7 @@ import { validatePerformance } from '../core/performance/validation.mjs';
  */
 
 import { knownCardBoard } from '../core/card-board.mjs';
+import { requireChoreography } from './stage/lesson-guide-choreography.mjs';
 
 const SEGMENT = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 const BUCKET = /^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/;
@@ -313,23 +315,50 @@ function requireCardLead(lead, slot) {
 /**
  * The host's `board` block: what the counting board draws its counters as.
  *
- * One key, `counter` — the picture every counter on the board is drawn from, a
+ * `counter` is the picture every counter on the board is drawn from, a
  * bucket-qualified media path like everything else this player fetches. It is
  * resolved at the door for the reason the cards are: a bad path found when the
  * first board goes up would be the drawn apple standing in for it with no word
  * about why, and a refusal here is one the host reads before a frame. A block
  * naming no counter is the mount every host had before this key existed — the
- * apple — and is the same nothing as no block at all.
+ * apple — and is the same nothing as no block at all. Lesson-guide presentation
+ * and its finite choreography stay outside the shared timeline contract.
  */
 export function requireBoardBlock(board, assetBase) {
   if (board == null) return null;
   if (!isRecord(board)) throw new Error('board must be an object carrying its counter');
-  const unknown = Object.keys(board).filter((key) => key !== 'counter');
+  const unknown = Object.keys(board).filter((key) => !['counter', 'layout', 'guide', 'choreography', 'ledge', 'world'].includes(key));
   if (unknown.length > 0) {
     throw new Error(`board carries ${unknown.map((key) => JSON.stringify(key)).join(', ')}, which it does not take`);
   }
-  if (board.counter == null) return null;
-  return deepFreeze({ counter: resolveMediaUrl(board.counter, normalizeAssetBase(assetBase), 'board counter') });
+  const hasLayout = Object.hasOwn(board, 'layout');
+  if (hasLayout && board.layout !== 'lesson-guide') throw new Error('board layout must be lesson-guide');
+  if (Object.hasOwn(board, 'guide') && !hasLayout) throw new Error('board guide requires the lesson-guide layout');
+  if (hasLayout && (typeof board.guide !== 'string' || !board.guide || /\s/.test(board.guide))) {
+    throw new Error('board guide must be a non-empty cast slug without whitespace');
+  }
+  const resolved = {};
+  if (board.counter != null) resolved.counter = resolveMediaUrl(board.counter, normalizeAssetBase(assetBase), 'board counter');
+  if (hasLayout) Object.assign(resolved, { layout: board.layout, guide: board.guide });
+  if (Object.hasOwn(board, 'world')) {
+    if (!hasLayout) throw new Error('board world requires the lesson-guide layout');
+    resolved.world = requireLessonWorld(board.world);
+  }
+  if (Object.hasOwn(board, 'ledge')) {
+    if (!hasLayout) throw new Error('board ledge requires the lesson-guide layout');
+    const box = board.ledge;
+    if (!Array.isArray(box) || box.length !== 4 || !box.every(Number.isFinite)
+      || box[0] < 0 || box[1] < 0 || box[2] <= 0 || box[3] <= 0
+      || box[0] + box[2] > 1 || box[1] + box[3] > 1) {
+      throw new Error('board ledge must be [left, top, width, height] wholly inside the stage');
+    }
+    resolved.ledge = [...box];
+  }
+  if (Object.hasOwn(board, 'choreography')) {
+    if (!hasLayout) throw new Error('board choreography requires the lesson-guide layout');
+    resolved.choreography = requireChoreography(board.choreography);
+  }
+  return Object.keys(resolved).length ? deepFreeze(resolved) : null;
 }
 
 function projectScene(scene, resolve, index) {

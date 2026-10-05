@@ -36,7 +36,27 @@ plays one schedule.
 
 Lessons can also put one to four catalog picture or glyph cards on that same
 glass board, with a focused slot and a short prompt. Their images must decode
-before the lesson can play; a missing teaching image stops it visibly.
+before the lesson can play; a missing teaching image stops it visibly. A host
+can opt into `board: {layout: 'lesson-guide', guide: '<cast-slug>'}` to reserve
+a named guide in a slightly larger corner cell while preserving the board layout.
+Native captions stay beside that guide in a bottom-left area with native CC behavior;
+players up to 400px wide use 13px captions to keep longer lines below the cards.
+Optional `board.choreography` supplies seekable guide and card-image skits;
+the fixed teaching tiles stay in place. Its `caption: 'top'` lane leaves room
+for comic movement below them. See the embedding contract for its
+normalized keyframes and finite story-time windows.
+An optional `board.ledge` supplies a fixed canvas shelf beneath the guide;
+guide lessons end with “Great exploring!” and “See you next time!”.
+`board.world` gives a guide lesson an illustrated world with timed outdoor and
+teaching phases. Outdoor phases show the guide and props; teaching phases reveal
+a freestanding themed board with fixed answer slots. World images preload through
+the same trusted storage paths as story objects, and all motion follows story time.
+Optional board artwork, content fades and exact object-to-card docking let that
+board stay present through play and teaching. Separate content bands can enlarge
+cards and prompts; authored thinking and answer-reveal cues add neutral pause
+indicators and a finite celebration of the shown answer, without scoring a child.
+Reveal cues can opt into `presentation: 'spotlight'` for a neutral card lift and
+soft shadow, with stationary emphasis for reduced-motion viewers.
 
 A story does not have to be finished to be watched: a host that has published
 one scene mounts it and hands over the rest as they land, and the timeline only

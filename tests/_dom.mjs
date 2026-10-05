@@ -204,6 +204,8 @@ export function fakeContext() {
     textBaseline: null,
     clearRect: record('clearRect'),
     beginPath: record('beginPath'),
+    rect: record('rect'),
+    clip: record('clip'),
     arc: record('arc'),
     ellipse: record('ellipse'),
     moveTo: record('moveTo'),

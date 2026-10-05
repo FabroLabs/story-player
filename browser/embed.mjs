@@ -20,7 +20,7 @@ export function createStoryPlayer(container, options) {
     throw new Error('container ShadowRoot is not empty');
   }
   const abort = new AbortController();
-  const elements = createPlayerTemplate(root, { kicker: options.kicker, chrome: options.chrome });
+  const elements = createPlayerTemplate(root, { kicker: options.kicker, chrome: options.chrome, board: options.board });
   const token = {};
   root[OWNER] = token;
   let performer = null;
@@ -29,7 +29,8 @@ export function createStoryPlayer(container, options) {
     performer = factory({
       root, elements, story: options.story, assetBase: options.assetBase,
       plates: options.plates ?? null, stream: options.stream ?? null,
-      cards: options.cards ?? null, board: options.board ?? null,
+      cards: options.cards ?? null, board: options.board ?? null, fullscreen: options.fullscreen ?? null,
+      dim: options.dim ?? null, chrome: options.chrome === 'host' ? 'host' : 'player',
       signal: abort.signal, debug: options.debug === true, perf: options.perf === true,
     });
   } catch (error) {
@@ -47,6 +48,7 @@ export function createStoryPlayer(container, options) {
     toggle: () => destroyed ? undefined : performer?.toggle?.(),
     seek: (milliseconds) => { if (!destroyed) performer?.seek?.(milliseconds); },
     setSubtitles: (on) => { if (!destroyed) performer?.setSubtitles?.(on); },
+    setFullscreen: (on) => { if (!destroyed) performer?.setFullscreen?.(on); },
     getState: () => destroyed ? null : performer?.getState?.() ?? null,
     getTimeline: () => destroyed ? null : performer?.getTimeline?.() ?? null,
     subscribe: (listener) => destroyed ? () => {} : performer?.subscribe?.(listener) ?? (() => {}),

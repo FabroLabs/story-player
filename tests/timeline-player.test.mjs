@@ -559,10 +559,11 @@ test('a cut swaps the plate and says which scene the story is in', async (t) => 
   assert.ok(cut, 'the corpus story has no second scene to cut to');
   player.start();
   player.frames.advanceTo(cut.t_ms - 100);
-  const first = { src: player.video.src, badge: player.badge.textContent };
+  const first = { src: player.video.src };
+  assert.equal(player.getState().sceneIndex, 0);
 
   player.frames.advanceTo(cut.t_ms + 100);
-  assert.equal(player.badge.textContent, `scene 2 of ${player.bundle.scenes.length}`);
+  assert.equal(player.getState().sceneIndex, 1, 'the cut did not move the story into the next scene');
   assert.notEqual(player.video.src, first.src, 'the plate stayed on the last scene');
   assert.equal(player.video.src, player.bundle.scenes[1].plate.video);
   player.destroy();
@@ -1085,6 +1086,118 @@ function cardStory() {
   };
 }
 
+test('a mounted lesson draws its named 32% corner guide without fetching a counter', async (t) => {
+  const story = cardStory();
+  story.cast = { bibo: read(STEM, 'bundle').cast.robin };
+  story.scenes[0].steps.unshift({ kind: 'cmd', cmd: 'put', subjects: ['bibo'], objects: [],
+    position: 'center', facing: null, beside: null, zone: null });
+  const player = await mount(t, {
+    story, options: { board: { layout: 'lesson-guide', guide: 'bibo' } },
+  });
+  player.start(); player.frames.advanceTo(500);
+  assert.ok(player.canvas.context.of('drawImage').some(args => args.length === 10 && args[7] === 345.6 && args[8] === 345.6),
+    'the guide option must reach the actual native sprite draw');
+  assert.equal(player.frame.classList.contains('has-lesson-guide'), true);
+  assert.equal(player.fetched().some(url => url.includes('undefined')), false);
+  assert.equal(player.warnings().some(message => message.includes('counter picture')), false);
+  player.destroy();
+});
+
+test('native choreography repaints held sprite frames, restores the board and stops outside its window', async (t) => {
+  const story = cardStory();
+  story.cast = { bibo: read(STEM, 'bundle').cast.robin };
+  for (const clip of Object.values(story.cast.bibo.clips)) { clip.frames = 1; clip.grid = [1, 1]; }
+  story.scenes[0].steps = [
+    { kind: 'cmd', cmd: 'put', subjects: ['bibo'], objects: [], position: 'center', facing: null, beside: null, zone: null },
+    story.scenes[0].steps[0], { kind: 'cmd', cmd: 'pause', seconds: 8 },
+  ];
+  const player = await mount(t, { story, options: { board: {
+    layout: 'lesson-guide', guide: 'bibo', choreography: [{
+      id: 'held-frame-motion', kind: 'push', start_ms: 1000, end_ms: 5000,
+      actor: { keyframes: [{ at: 0, box: [.9, .99, .32] }, { at: .5, box: [.65, .99, .32] }, { at: 1, box: [.9, .99, .32] }] },
+      prop: { slug: 'letter', cards: ['letter', 'apple'], card_index: 1, hide_card_image: true, keyframes: [
+        { at: 0, anchor: 'card', box: [.5, .5, 1, 1] },
+        { at: 1, anchor: 'actor', box: [.7, .6, .35, .35] },
+      ] },
+    }],
+  } } });
+  const context = player.canvas.context;
+  const picture = () => context.calls.slice(context.names().lastIndexOf('clearRect'));
+  const frame = at => { const from = context.calls.length; player.frames.advanceTo(at); return context.calls.slice(from); };
+  player.start(); frame(900);
+  const ordinary = picture();
+  frame(1400); const left = spriteXs(context)[0];
+  assert.ok(frame(1600).some(([op]) => op === 'clearRect'), 'unchanged sprite frame suppressed authored movement');
+  assert.ok(spriteXs(context)[0] < left, 'the cell did not advance along its path');
+  const soughtPicture = picture();
+  frame(4900);
+  assert.ok(frame(5000).some(([op]) => op === 'clearRect'), 'track end never restored default paint');
+  assert.deepEqual(picture(), ordinary, 'actor and target image must return to their original paint');
+  assert.deepEqual(frame(5080), [], 'finite choreography kept a settled lesson painting');
+  player.bar.toggle.dispatch('click');
+  const scrubBox = player.bar.scrub.getBoundingClientRect();
+  const seek = async fraction => {
+    const at = { clientX: scrubBox.left + scrubBox.width * fraction, pointerId: 1 };
+    player.bar.scrub.dispatch('pointerdown', at); player.bar.scrub.dispatch('pointerup', at);
+    await settle();
+  };
+  await seek(.3);
+  assert.equal(player.getState().tMs, 2400);
+  const pausedPicture = picture();
+  frame(50000);
+  assert.deepEqual(picture(), pausedPicture, 'wall time must not move a paused skit');
+  await seek(.2);
+  assert.equal(player.getState().tMs, 1600);
+  assert.deepEqual(picture(), soughtPicture, 'backward paused seek must recover the exact earlier image');
+  player.destroy();
+});
+
+test('world props and board arrival repaint held cells and reproduce paused seeks exactly', async (t) => {
+  const story = cardStory();
+  story.cast = { bibo: read(STEM, 'bundle').cast.robin };
+  for (const clip of Object.values(story.cast.bibo.clips)) { clip.frames = 1; clip.grid = [1, 1]; }
+  story.objects.garden = { svg: 'assets/garden.png', height_cm: 30 };
+  story.scenes[0].steps = [
+    { kind: 'cmd', cmd: 'put', subjects: ['bibo'], objects: [], position: 'center', facing: null, beside: null, zone: null },
+    story.scenes[0].steps[0], { kind: 'cmd', cmd: 'pause', seconds: 8 },
+  ];
+  const player = await mount(t, { story, options: { board: {
+    layout: 'lesson-guide', guide: 'bibo', world: {
+      background: 'garden', board: { style: 'garden', panel: [.1, .36, .8, .48] }, actor_box: [.82, .93, .42],
+      phases: [
+        { id: 'garden', start_ms: 0, end_ms: 2000, mode: 'world', props: [{ slug: 'apple', keyframes: [
+          { at: 0, box: [.2, .8, .1, .1] }, { at: 1, box: [.8, .8, .1, .1] },
+        ] }] },
+        { id: 'board', start_ms: 2000, end_ms: 8000, mode: 'lesson', props: [] },
+      ],
+    },
+  } } });
+  const context = player.canvas.context;
+  const picture = () => context.calls.slice(context.names().lastIndexOf('clearRect'));
+  const frame = at => { const from = context.calls.length; player.frames.advanceTo(at); return context.calls.slice(from); };
+  player.start(); frame(1000);
+  const before = picture();
+  assert.ok(frame(1200).some(([op]) => op === 'clearRect'), 'world prop motion must repaint even with no native animation');
+  const moving = picture();
+  assert.notDeepEqual(moving, before);
+  assert.ok(frame(2100).some(([op]) => op === 'clearRect'), 'board phase change must repaint');
+  assert.ok(frame(2200).some(([op]) => op === 'clearRect'), 'board entrance must repaint between native cells');
+  player.bar.toggle.dispatch('click');
+  const scrubBox = player.bar.scrub.getBoundingClientRect();
+  const seek = async fraction => {
+    const at = { clientX: scrubBox.left + scrubBox.width * fraction, pointerId: 1 };
+    player.bar.scrub.dispatch('pointerdown', at); player.bar.scrub.dispatch('pointerup', at);
+    await settle();
+  };
+  await seek(.15);
+  assert.equal(player.getState().tMs, 1200);
+  assert.deepEqual(picture(), moving, 'seek must recover exact world prop position');
+  const paused = picture(); frame(50000);
+  assert.deepEqual(picture(), paused, 'wall time cannot move the paused world');
+  assert.ok(player.fetched().some(url => url.endsWith('/assets/garden.png')), 'background needs no native put event');
+  player.destroy();
+});
+
 test('a card focus and prompt change repaints a still lesson on its own', async (t) => {
   const player = await mount(t, { story: cardStory() });
   player.start();
@@ -1356,7 +1469,6 @@ async function mount(t, {
       root: findByClass(root, 'controls'),
     },
     frame: findByClass(root, 'stage-frame'),
-    badge: findByClass(root, 'story-scene'),
     ceremony: findByClass(root, 'start-ceremony'),
     startButton: findByClass(root, 'start-button'),
     entries: () => findByClass(root, 'event-list').children.length,
