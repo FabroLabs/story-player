@@ -123,7 +123,7 @@ export function tierSettings(tier) {
  * tier built for the machines that cannot keep up.
  *
  * `prefers-reduced-motion` is reported for the runtime to honour where it can
- * (the opening flourish, not the story). It does not lower the tier either:
+ * (the opening flourish and optional spotlight card lift). It does not lower the tier either:
  * in this player motion is the content, and a still story is not a story.
  */
 export function probeCapability(win = globalThis) {

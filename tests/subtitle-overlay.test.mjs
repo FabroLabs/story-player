@@ -72,12 +72,14 @@ test('the subtitle container paints nothing — an empty line must cost zero pix
   assert.equal(painted.length, 0, `.subtitle-wrap paints a background over the stage: ${describe(painted)}`);
 
   // Naming `min-height` alone would let the same reservation back in through
-  // `height`, through a top padding, or through a `top` that stretches an
-  // element already anchored to `bottom: 0` — all three grow the box the same
-  // way and all three would sail past a min-height-only guard.
+  // `height` or top padding. A top anchor can also stretch a bottom-anchored
+  // box, but the optional comic lane resets bottom to auto; the browser suite
+  // measures that lane empty rather than inferring its resolved height here.
   const reserved = wrap.filter(
     (one) =>
-      ['height', 'min-height', 'top', 'inset'].includes(one.property) ||
+      ['height', 'min-height', 'inset'].includes(one.property) ||
+      (one.property === 'top' && !(one.selector.includes('.has-top-guide-caption')
+        && wrap.some(other => other.selector === one.selector && other.property === 'bottom' && other.value === 'auto'))) ||
       one.property === 'padding-top' ||
       (one.property === 'padding' && !/^0(\D|$)/.test(one.value)),
   );

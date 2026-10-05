@@ -29,6 +29,7 @@ import { createControls } from './controls.mjs';
 import { createMediaScheduler } from './media-scheduler.mjs';
 import { createPerfRecorder } from './perf.mjs';
 import { createCanvasStage, sceneSheets } from './stage/canvas-stage.mjs';
+import { choreographyPhase } from './stage/lesson-guide-choreography.mjs';
 import { createVideoPlate } from './stage/video-plate.mjs';
 
 const SKIP_MS = 10_000;
@@ -45,7 +46,7 @@ export function createTimelinePlayer({
   elements, bundle, timeline, clock, loader, cache, log = null,
   // The board's counter picture, when the host gave one (`counter-picture.mjs`).
   // It rides with every scene's sheets, because a board can be raised in any.
-  counter = null,
+  counter = null, board = null,
   capability = tierSettings('high'), perf = false, onWarning = () => {}, signal = null,
   publishedComplete = true,
   // The seams the presentation phases either side of the story hang on. All
@@ -87,7 +88,7 @@ export function createTimelinePlayer({
   };
   let frameIntervalMs = 1000 / tier.drawHz;
   const stage = createCanvasStage(elements.stage, {
-    onWarning, dprCap: capability.dprCap, shadows: capability.shadows,
+    onWarning, dprCap: capability.dprCap, shadows: capability.shadows, board, reducedMotion: capability.reducedMotion === true,
   });
   const plate = createVideoPlate(elements.stage, { onWarning });
   const media = createMediaScheduler({ timeline, bundle, onWarning: mediaWarned });
@@ -220,6 +221,7 @@ export function createTimelinePlayer({
       fitScale: stage.fitScale(),
       dpr: globalThis.devicePixelRatio ?? 1,
       dprCap: tier.dprCap,
+      ...(board?.layout ? { board } : {}),
     };
   }
 
@@ -540,7 +542,7 @@ export function createTimelinePlayer({
     // its own compositor layer that the canvas never touches, so the blur has
     // to be asked for here — from the same instant, on the same clock.
     // The opaque card panel protects the lesson; its surrounding forest stays visible.
-    plate.frost(boardStanding(state.slate) && state.slate?.mode !== 'cards', state.plate?.resolution?.[1]);
+    plate.frost(!board?.world && boardStanding(state.slate) && state.slate?.mode !== 'cards', state.plate?.resolution?.[1]);
     // A cut whose sheets are not decoded is not drawn at all: the last frame
     // stays up until every one of them is, never a scene with parts missing.
     if (shown) {
@@ -693,7 +695,7 @@ export function createTimelinePlayer({
   }
 
   function paint(state, force) {
-    const next = signatureOf(state);
+    const next = signatureOf(state, board);
     if (!force && next === signature) return;
     signature = next;
     stage.draw(state, sheets);
@@ -1119,7 +1121,7 @@ function within(promise, ms) {
  * their own progress in here the string is constant for the scene and the board
  * never arrives, the pop never runs and the ring never pulses.
  */
-export function signatureOf(state) {
+export function signatureOf(state, board = null) {
   if (state.renderNodes) return JSON.stringify([state.camera, state.renderNodes, state.transition]);
   const parts = [
     state.sceneIndex,
@@ -1161,6 +1163,9 @@ export function signatureOf(state) {
     const span = Math.max(oceanAnimationMs(state.slate), farmAnimationMs(state.slate));
     if (span > 0) parts.push(overlayPhase(state.tMs, state.slate.sinceMs, span));
   }
+  const choreography = choreographyPhase(board, state);
+  if (choreography !== null) parts.push('choreography', choreography);
+  if (board?.world) parts.push('world', state.tMs);
   return parts.join('|');
 }
 

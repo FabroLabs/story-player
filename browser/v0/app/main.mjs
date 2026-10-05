@@ -121,7 +121,7 @@ export function createV0Player({
   // The board's counter picture, asked for now rather than when the first board
   // goes up: a lesson raises its board seconds into the story, and a picture
   // fetched then would land a beat after the counters it was for.
-  const counterPicture = boardBlock
+  const counterPicture = boardBlock?.counter
     ? loadCounterPicture(boardBlock.counter, { signal, onWarning: warn })
     : null;
   // Who the intro's title beat is about, when the manifest says so. Built here
@@ -330,6 +330,7 @@ export function createV0Player({
       loader,
       cache: bitmaps,
       counter: counterPicture,
+      board: boardBlock,
       capability,
       log,
       perf,

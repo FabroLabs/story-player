@@ -19,6 +19,7 @@
 import { DPR_CAP, chunkAt } from '../assets/rendition-picker.mjs';
 import { CARD_BOARD, DEFAULT_STAGE_RESOLUTION, FLASH, HIGHLIGHT, SLATE } from '../../policy.mjs';
 import { buildDrawList } from './draw-list.mjs';
+import { choreographyCaption } from './lesson-guide-choreography.mjs';
 
 // The ink of the shadow and of the placeholder, kept here rather than in the
 // pure list: a colour is a paint decision, and the list is meant to survive a
@@ -47,6 +48,8 @@ const CARD_PAINT = Object.freeze({
   card: '#fffef8', cardEdge: '#90a7ab', shadow: 'rgba(24, 52, 57, 0.16)',
   answer: '#fff0b2', answerEdge: '#c48a12',
 });
+const WORLD_CARD_EDGES = ['#a6bfa7', '#a5b9ce', '#c7ae9c', '#bdaec9'];
+const REVEAL_STAR_INKS = ['#e8ad24', '#29998e', '#e56d59'];
 const SLATE_GROUP_INKS = ['236, 92, 86', '96, 184, 120', '94, 158, 224', '196, 132, 224'];
 const SLATE_PAD_TINTS = ['255, 186, 166', '170, 226, 184', '176, 206, 248', '224, 192, 248'];
 // A plain count is not two groups of anything, so its counters are one calm
@@ -114,7 +117,7 @@ const MEMORY_SLUGS = 12;
  * put in them.
  */
 export function createCanvasStage(elements, {
-  onWarning = () => {}, dprCap = DPR_CAP, shadows = true,
+  onWarning = () => {}, dprCap = DPR_CAP, shadows = true, board = null, reducedMotion = false,
   now = () => globalThis.performance?.now?.() ?? 0,
 } = {}) {
   const context = elements.canvas?.getContext?.('2d') ?? null;
@@ -132,6 +135,8 @@ export function createCanvasStage(elements, {
   let drawnScene = null;
   let observer = null;
   let destroyed = false;
+  elements.frame.classList.toggle('has-lesson-guide', board?.layout === 'lesson-guide');
+  elements.frame.classList.remove('has-top-guide-caption');
 
   if (!context) {
     // Said once, at construction, and then never again: a stage with no context
@@ -193,14 +198,16 @@ export function createCanvasStage(elements, {
 
   /** Paint one instant. `sheets` is `sceneSheets` or anything with its shape. */
   function draw(state, sheets) {
-    if (!context || destroyed) return null;
+    if (destroyed) return null;
+    elements.frame.classList.toggle('has-top-guide-caption', choreographyCaption(board, state) === 'top');
+    if (!context) return null;
     // A node's last frame is a stand-in within its scene; the next scene's node of the same id
     // is somebody else.
     if (state?.renderNodes && state.sceneIndex !== drawnScene) {
       performanceDrawn.delete(context);
       drawnScene = state.sceneIndex;
     }
-    const list = buildDrawList(state, sheets, elements.frame.getBoundingClientRect());
+    const list = buildDrawList(state, sheets, viewport(), board);
     sizeStage(list.width, list.height);
     last = { list, state, sheets, lookup: lookupOf(sheets), counter: counterOf(sheets) };
     paint(list, last.lookup, last.counter);
@@ -293,6 +300,8 @@ export function createCanvasStage(elements, {
   function destroy() {
     if (destroyed) return;
     elements.frame.classList.remove('has-farm-overlay');
+    elements.frame.classList.remove('has-lesson-guide');
+    elements.frame.classList.remove('has-top-guide-caption');
     elements.stage.style.top = '';
     destroyed = true;
     observer?.disconnect();
@@ -344,7 +353,7 @@ export function createCanvasStage(elements, {
       fitStage();
       return;
     }
-    last.list = buildDrawList(last.state, last.sheets, elements.frame.getBoundingClientRect());
+    last.list = buildDrawList(last.state, last.sheets, viewport(), board);
     sizeStage(last.list.width, last.list.height);
     // Through `paint`, not around it: a cell that is not decoded at this
     // instant is ordinary now the renditions are cut up — every chunk boundary
@@ -371,6 +380,11 @@ export function createCanvasStage(elements, {
     elements.stage.style.setProperty('--fit-scale', scale);
     return scale;
   }
+
+  function viewport() {
+    const { width, height } = elements.frame.getBoundingClientRect();
+    return { width, height, reducedMotion };
+  }
 }
 
 /**
@@ -389,7 +403,7 @@ export function createCanvasStage(elements, {
 export function sceneSheets(plan, cache, counter = null) {
   const sheets = new Map();
   for (const sheet of plan?.sheets ?? []) sheets.set(`${sheet.slug} ${sheet.clip}`, sheet);
-  const props = new Map([...(plan?.props ?? []), ...(plan?.boardCards ?? [])].map((prop) => [prop.slug, { url: prop.url }]));
+  const props = new Map([...(plan?.props ?? []), ...(plan?.boardCards ?? []), ...(plan?.worldObjects ?? [])].map((prop) => [prop.slug, { url: prop.url }]));
   return {
     counter: () => counter,
     // Per FRAME, not per clip: where the bundle carries a chunk ladder, which
@@ -485,6 +499,32 @@ export function paintDrawList(context, list, {
       if (command.hud) underCamera();
       continue;
     }
+    if (command.op === 'ledge') {
+      context.save();
+      context.beginPath();
+      context.rect(command.x, command.y, command.w, command.h);
+      context.fillStyle = SLATE_PANEL_EDGE;
+      context.fill();
+      context.strokeStyle = CARD_PAINT.cardEdge;
+      context.lineWidth = Math.max(1, command.h * .25);
+      context.stroke();
+      context.restore();
+      if (command.hud) underCamera();
+      continue;
+    }
+    const isolated = command.clip || command.mirror;
+    if (isolated) {
+      context.save();
+      if (command.clip) {
+        context.beginPath();
+        context.rect(command.clip.x, command.clip.y, command.clip.w, command.clip.h);
+        context.clip();
+      }
+      if (command.mirror) {
+        context.translate(2 * command.dx + command.dw, 0);
+        context.scale(-1, 1);
+      }
+    }
     const drawable = command.url ? lookup(command.url) : null;
     // A sheet still decoding is the ordinary case, not a failure: the scene
     // loader gates the opening and warms the rest during playback, so a later
@@ -493,13 +533,15 @@ export function paintDrawList(context, list, {
     // bury the log.
     if (!drawable) {
       if (!onMissing(context, command)) paintMissing(context, command);
+      if (isolated) context.restore();
       if (command.hud) underCamera();
       continue;
     }
     context.globalAlpha = command.opacity;
-    if (command.op === 'prop') paintProp(context, command, drawable);
+    if (command.op === 'prop') paintProp(context, command, drawable, command.anchor ?? 'bottom');
     else paintSprite(context, command, drawable);
     context.globalAlpha = 1;
+    if (isolated) context.restore();
     if (command.hud) underCamera();
     onPainted(command, drawable);
   }
@@ -557,6 +599,13 @@ function paintProp(context, command, drawable, anchor = 'bottom') {
     context.drawImage(drawable, command.dx, command.dy, command.dw, command.dh);
     return;
   }
+  if (command.fit === 'cover') {
+    const scale = Math.max(command.dw / width, command.dh / height);
+    const sw = command.dw / scale, sh = command.dh / scale;
+    context.drawImage(drawable, (width - sw) / 2, (height - sh) / 2, sw, sh,
+      command.dx, command.dy, command.dw, command.dh);
+    return;
+  }
   const fit = Math.min(command.dw / width, command.dh / height);
   const drawnWidth = width * fit;
   const drawnHeight = height * fit;
@@ -591,26 +640,60 @@ function paintCardBoard(context, command, lookup, width, height) {
   if (command.ocean) return paintOceanBoard(context, command, lookup, width, height);
   const { panel, cards, prompt, quizHighlight } = command;
   context.save();
-  context.fillStyle = CARD_PAINT.backdrop;
-  roundedRect(context, 0, 0, width, height, 0);
-  context.fill();
-  paintPanel(context, panel, CARD_PAINT);
-  for (const card of cards) {
-    const { dx, dy, dw, dh, focused } = card;
-    const radius = Math.min(dw, dh) * CARD_BOARD.cornerRadius;
-    roundedRect(context, dx, dy + dh * 0.025, dw, dh, radius);
-    context.fillStyle = CARD_PAINT.shadow;
+  if (command.world) {
+    context.globalAlpha *= command.world.opacity;
+    if (command.world.art) {
+      const drawable = command.world.art.url ? lookup(command.world.art.url) : null;
+      if (drawable) paintProp(context, command.world.art, drawable, 'center');
+    } else paintWorldPanel(context, panel, command.world.style);
+    context.globalAlpha *= command.world.contentOpacity ?? 1;
+  }
+  else {
+    context.fillStyle = CARD_PAINT.backdrop;
+    roundedRect(context, 0, 0, width, height, 0);
     context.fill();
+    paintPanel(context, panel, CARD_PAINT);
+  }
+  const ordered = [...cards.entries()].sort((a, b) => Number(Boolean(a[1].spotlight)) - Number(Boolean(b[1].spotlight)));
+  for (const [index, card] of ordered) {
+    const { dx, dy, dw, dh, focused, reveal, spotlight } = card;
+    const paper = command.world?.cardStyle === 'paper';
+    const radius = Math.min(dw, dh) * CARD_BOARD.cornerRadius;
+    if (reveal) paintRevealGlow(context, card);
+    if (spotlight) paintSpotlightShadow(context, card);
+    context.save();
+    if (reveal) {
+      context.translate(dx + dw / 2, dy + dh / 2);
+      context.scale(reveal.scale, reveal.scale);
+      context.translate(-dx - dw / 2, -dy - dh / 2);
+    }
+    if (spotlight) {
+      context.translate(dx + dw / 2, dy + dh / 2 - spotlight.lift);
+      context.scale(spotlight.scaleX, spotlight.scaleY);
+      context.translate(-dx - dw / 2, -dy - dh / 2);
+    } else {
+      roundedRect(context, dx, dy + dh * 0.025, dw, dh, radius);
+      context.fillStyle = paper ? 'rgba(86, 63, 37, 0.14)' : CARD_PAINT.shadow;
+      context.fill();
+    }
     roundedRect(context, dx, dy, dw, dh, radius);
     context.fillStyle = focused ? CARD_PAINT.answer : CARD_PAINT.card;
     context.fill();
-    context.strokeStyle = focused ? CARD_PAINT.answerEdge : CARD_PAINT.cardEdge;
+    context.strokeStyle = spotlight?.emphasis > 0 ? '#697778'
+      : focused ? CARD_PAINT.answerEdge : paper ? WORLD_CARD_EDGES[index % WORLD_CARD_EDGES.length] : CARD_PAINT.cardEdge;
     context.lineWidth = focused
       ? Math.max(CARD_BOARD.focusMinWidth, dw * CARD_BOARD.focusWidth)
-      : Math.max(2, dw * 0.009);
+      : Math.max(2, dw * (paper ? .012 : .009));
     context.stroke();
+    if (paper) {
+      const inset = dw * .018;
+      roundedRect(context, dx + inset, dy + inset, dw - 2 * inset, dh - 2 * inset, radius * .8);
+      context.strokeStyle = 'rgba(255, 255, 255, 0.8)'; context.lineWidth = Math.max(1, dw * .005); context.stroke();
+    }
     const drawable = card.url ? lookup(card.url) : null;
-    if (drawable) {
+    if (card.imageHidden) {
+      // The host moves the image in a separate overlay; its teaching tile stays put.
+    } else if (drawable) {
       const inset = Math.min(dw, dh) * CARD_BOARD.imageInset;
       paintProp(context, { dx: dx + inset, dy: dy + inset, dw: dw - 2 * inset, dh: dh - 2 * inset }, drawable, 'center');
     } else {
@@ -620,10 +703,116 @@ function paintCardBoard(context, command, lookup, width, height) {
       context.textBaseline = 'middle';
       context.fillText('image unavailable', dx + dw / 2, dy + dh / 2, dw * 0.9);
     }
-    if (focused) paintAnswerStars(context, card);
+    if (reveal) paintRevealBadge(context, card);
+    else if (focused) paintAnswerStars(context, card);
+    context.restore();
+    if (reveal) paintRevealSparkles(context, reveal.sparkles);
   }
   if (quizHighlight) paintCountingRing(context, quizHighlight);
   paintCardPrompt(context, prompt);
+  if (command.engagement?.kind === 'thinking') {
+    for (const dot of command.engagement.dots) {
+      context.save(); context.globalAlpha *= dot.opacity;
+      circle(context, dot.cx, dot.cy, dot.r);
+      context.fillStyle = '#708b78'; context.fill(); context.restore();
+    }
+  }
+  context.restore();
+}
+
+function paintSpotlightShadow(context, { dx, dy, dw, dh, spotlight }) {
+  const size = Math.min(dw, dh);
+  context.save();
+  for (const [spread, alpha] of [[.032, .035], [.02, .055], [.008, .09]]) {
+    const reach = size * spread * spotlight.emphasis;
+    roundedRect(context, dx - reach, dy + size * .025 - reach, dw + reach * 2, dh + reach * 2, size * CARD_BOARD.cornerRadius);
+    context.fillStyle = `rgba(35, 47, 47, ${alpha})`; context.fill();
+  }
+  context.restore();
+}
+
+function paintRevealGlow(context, { dx, dy, dw, dh, reveal }) {
+  context.save();
+  context.globalAlpha *= reveal.glow;
+  for (const [spread, alpha] of [[.036, .06], [.024, .12], [.012, .22]]) {
+    const halo = dw * spread;
+    roundedRect(context, dx - halo, dy - halo, dw + halo * 2, dh + halo * 2, dw * .09);
+    context.fillStyle = `rgba(255, 199, 70, ${alpha})`; context.fill();
+  }
+  context.restore();
+}
+
+function paintRevealBadge(context, { dx, dy, dw, dh, reveal }) {
+  const radius = Math.min(dw, dh) * .062, cx = dx + dw * .91, cy = dy + dh * .09;
+  context.save(); context.globalAlpha *= reveal.glow;
+  circle(context, cx, cy, radius);
+  context.fillStyle = '#d19b24'; context.fill();
+  context.strokeStyle = '#fffdf2'; context.lineWidth = radius * .2; context.stroke();
+  context.beginPath(); context.moveTo(cx - radius * .46, cy);
+  context.lineTo(cx - radius * .1, cy + radius * .32); context.lineTo(cx + radius * .48, cy - radius * .35);
+  context.stroke(); context.restore();
+}
+
+function paintRevealSparkles(context, sparkles) {
+  for (const [index, sparkle] of sparkles.entries()) {
+    if (sparkle.opacity <= 0) continue;
+    context.save(); context.globalAlpha *= sparkle.opacity;
+    context.beginPath();
+    for (let point = 0; point < 10; point++) {
+      const angle = -Math.PI / 2 + point * Math.PI / 5;
+      const reach = sparkle.r * (point % 2 ? .42 : 1);
+      const x = sparkle.cx + Math.cos(angle) * reach, y = sparkle.cy + Math.sin(angle) * reach;
+      if (point === 0) context.moveTo(x, y); else context.lineTo(x, y);
+    }
+    context.closePath(); context.fillStyle = REVEAL_STAR_INKS[index % REVEAL_STAR_INKS.length]; context.fill();
+    context.strokeStyle = '#fffdf2'; context.lineWidth = sparkle.edge; context.lineJoin = 'round'; context.stroke();
+    context.restore();
+  }
+}
+
+/** A freestanding object in the world; the exact panel top is its sitting rim. */
+function paintWorldPanel(context, { x, y, w, h, r }, style) {
+  const palettes = {
+    garden: ['#a46e3c', '#80502c', '#d9ad70', '#fff8e7', '#62864b'],
+    royal: ['#a77a39', '#74502b', '#e9cd84', '#fff9e9', '#846394'],
+    camp: ['#936842', '#67472f', '#c9955d', '#fff6df', '#547a51'],
+    travel: ['#9c6946', '#70492e', '#d1a276', '#fff8e9', '#567f91'],
+  };
+  const [wood, edge, light, paper, accent] = palettes[style];
+  const rail = h * .052;
+  context.save();
+  for (const leg of [x + w * .075, x + w * .88]) {
+    roundedRect(context, leg, y + h - rail, w * .045, h * .21, rail * .2);
+    context.fillStyle = edge; context.fill();
+    roundedRect(context, leg + w * .006, y + h - rail, w * .012, h * .195, rail * .15);
+    context.fillStyle = wood; context.fill();
+  }
+  roundedRect(context, x, y, w, h, r);
+  context.fillStyle = wood; context.fill();
+  context.strokeStyle = edge; context.lineWidth = Math.max(2, h * .006); context.stroke();
+  roundedRect(context, x + rail, y + rail, w - 2 * rail, h - 2 * rail, r * .6);
+  context.fillStyle = paper; context.fill();
+  context.strokeStyle = light; context.lineWidth = Math.max(2, h * .005); context.stroke();
+  // The ledge starts exactly at panel.y, so a seated pose can anchor to it.
+  roundedRect(context, x - rail * .35, y, w + rail * .7, rail, rail * .24);
+  context.fillStyle = light; context.fill();
+  context.strokeStyle = edge; context.lineWidth = Math.max(2, rail * .07); context.stroke();
+  roundedRect(context, x - rail * .15, y + h - rail * .7, w + rail * .3, rail * .7, rail * .18);
+  context.fillStyle = wood; context.fill();
+  context.fillStyle = accent;
+  for (const [cx, direction] of [[x + rail * .3, 1], [x + w - rail * .3, -1]]) {
+    if (style === 'garden' || style === 'camp') {
+      for (let index = 0; index < 3; index++) {
+        context.beginPath();
+        context.ellipse(cx + direction * rail * index * .65, y + rail * (.45 + index * .3), rail * .65, rail * .25, direction * -.6, 0, TAU);
+        context.fill();
+      }
+    } else {
+      context.beginPath();
+      context.arc(cx, y + rail * .5, rail * .22, 0, TAU);
+      context.fill();
+    }
+  }
   context.restore();
 }
 
