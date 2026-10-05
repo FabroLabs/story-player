@@ -788,6 +788,154 @@ test('a bundle without renditions plays from the originals and says so once per 
   assert.equal(warnings.length, 2, 'the same clip said it twice');
 });
 
+
+function worldFixture() {
+  const bundle = ladderStory();
+  bundle.objects = Object.fromEntries(['grove', 'leaf', 'berry', 'grove_alt', 'flower']
+    .map((slug) => [slug, { svg: `assets/${slug}.svg` }]));
+  bundle.scenes[0].steps.push({ kind: 'cmd', cmd: 'pause', seconds: 1 });
+  bundle.scenes.push({
+    place: 'dell', plate: { poster: 'assets/second-scene.jpg' },
+    steps: [{ kind: 'cmd', cmd: 'pause', seconds: 1 }],
+  });
+  const world = {
+    background: 'grove', board: { style: 'garden', panel: [.1, .05, .7, .5] },
+    actor_box: [.75, .98, .5],
+    phases: [
+      { id: 'early', start_ms: 0, end_ms: 1000, mode: 'world', props: [
+        { slug: 'leaf', keyframes: [{ at: 0, box: [.2, .8, .1, .1] }, { at: 1, box: [.3, .8, .1, .1] }] },
+      ] },
+      { id: 'later', start_ms: 1000, end_ms: 2000, mode: 'world', props: [
+        { slug: 'berry', keyframes: [{ at: 0, box: [.5, .8, .1, .1] }, { at: 1, box: [.6, .8, .1, .1] }] },
+        { slug: 'leaf', keyframes: [{ at: 0, box: [.2, .8, .1, .1] }, { at: 1, box: [.2, .8, .1, .1] }] },
+      ] },
+    ],
+  };
+  return { bundle, timeline: compileTimeline(bundle), viewport: { board: { layout: 'lesson-guide', guide: 'rabbit', world } } };
+}
+
+test('every scene preloads the world background and all phase props without native placement', async () => {
+  const { bundle, timeline, viewport } = worldFixture();
+  for (const sceneIndex of [0, 1]) {
+    const cache = fakeCache();
+    const loader = createSceneLoader({ timeline, bundle, cache });
+    const plan = loader.plan(sceneIndex, viewport);
+    assert.deepEqual((plan.worldObjects ?? []).map(({ slug, url }) => [slug, url]), [
+      ['grove', 'assets/grove.svg'], ['leaf', 'assets/leaf.svg'], ['berry', 'assets/berry.svg'],
+    ]);
+    assert.deepEqual(planAssets(plan).filter(({ asset }) => asset === 'world-object')
+      .map(({ slug, required }) => [slug, required]), [['grove', true], ['leaf', true], ['berry', true]]);
+    assert.equal(loader.sceneReady(sceneIndex, viewport), false);
+    await loader.loadScene(sceneIndex, viewport, { keep: true });
+    assert.equal(loader.sceneReady(sceneIndex, viewport), true);
+    for (const slug of ['grove', 'leaf', 'berry']) {
+      assert.equal(cache.loaded.filter((url) => url === `assets/${slug}.svg`).length, 1);
+      assert.ok(cache.kept().includes(`assets/${slug}.svg`));
+    }
+  }
+});
+
+test('world refs stay resident when a chunked scene has no corresponding native actors', () => {
+  const { bundle, timeline, viewport } = worldFixture();
+  bundle.cast.rabbit.clips.idle.rendition_chunks = Object.fromEntries([200, 320, 384, 512]
+    .map((tier) => [tier, { frames_per_chunk: 1, keys: [`assets/rabbit-${tier}-chunk.webp`] }]));
+  const plan = sceneAssetPlan(timeline, bundle, 0, viewport);
+  assert.ok(plan.sheets.some((sheet) => sheet.chunks), 'this must exercise the native actor residency filter');
+  const held = sceneKeepUrls(plan, []);
+  assert.ok(['grove', 'leaf', 'berry'].every((slug) => held.includes(`assets/${slug}.svg`)));
+  assert.ok(!held.some((url) => url.includes('rabbit-')), 'no native actor is retained by this empty actor list');
+});
+
+test('a guide carrying a future card outdoors has its image ready before any native scene names it', async () => {
+  const { bundle, timeline, viewport } = worldFixture();
+  viewport.board.choreography = [{ id: 'bring', kind: 'carry', start_ms: 0, end_ms: 1000,
+    actor: { keyframes: [{ at: 0, box: [.5, .9, .4] }, { at: 1, box: [.5, .9, .4] }] },
+    prop: { slug: 'flower', cards: ['flower'], card_index: 1,
+      keyframes: [{ at: 0, anchor: 'actor', box: [.5, .5, .3, .3] }, { at: 1, anchor: 'card', box: [.5, .5, 1, 1] }] },
+  }];
+  const cache = fakeCache(), loader = createSceneLoader({ timeline, bundle, cache });
+  const original = loader.plan(0, { ...viewport, board: { ...viewport.board, choreography: [] } });
+  const plan = loader.plan(0, viewport);
+  assert.notStrictEqual(plan, original, 'cache identity must include carry references');
+  await loader.loadScene(0, viewport, { keep: true });
+  assert.ok(plan.worldObjects.some(p => p.slug === 'flower'));
+  assert.ok(cache.loaded.includes('assets/flower.svg'));
+  assert.ok(cache.kept().includes('assets/flower.svg'));
+});
+
+test('a missing world object or SVG fails before any asset request and names the reference', async () => {
+  for (const slug of ['grove', 'berry']) {
+    const { bundle, timeline, viewport } = worldFixture();
+    if (slug === 'grove') delete bundle.objects[slug];
+    else bundle.objects[slug] = {};
+    const cache = fakeCache();
+    const loader = createSceneLoader({ timeline, bundle, cache });
+    await assert.rejects(loader.loadScene(0, viewport), (error) => {
+      assert.equal(error.code, 'WORLD_OBJECT_MISSING');
+      assert.equal(error.slug, slug);
+      assert.match(error.message, new RegExp(`world object "${slug}".*SVG`));
+      return true;
+    });
+    assert.deepEqual(cache.loaded, [], 'even the poster must wait for reference validation');
+  }
+});
+
+test('a world SVG decode failure refuses readiness and identifies the world object', async () => {
+  const { bundle, timeline, viewport } = worldFixture();
+  const cache = fakeCache({ fails: (url) => url === 'assets/grove.svg' });
+  const loader = createSceneLoader({ timeline, bundle, cache });
+  await assert.rejects(loader.loadScene(0, viewport), (error) => {
+    assert.equal(error.code, 'WORLD_OBJECT_UNAVAILABLE');
+    assert.equal(error.slug, 'grove');
+    assert.match(error.message, /world object "grove" could not be loaded.*404/);
+    return true;
+  });
+  assert.equal(loader.sceneReady(0, viewport), false);
+});
+
+test('generated board artwork preloads without a native put and missing art refuses the opening gate', async () => {
+  const { bundle, timeline, viewport } = worldFixture();
+  viewport.board.world.board.art = 'wooden_board';
+  viewport.board.world.board.art_box = [.06, .277, .88, .782];
+  bundle.objects.wooden_board = { svg: 'assets/wooden_board.png' };
+  const cache = fakeCache(), loader = createSceneLoader({ timeline, bundle, cache });
+  await loader.loadScene(0, viewport, { keep: true });
+  assert.ok(cache.loaded.includes('assets/wooden_board.png'));
+  assert.ok(cache.kept().includes('assets/wooden_board.png'));
+  delete bundle.objects.wooden_board;
+  const missing = createSceneLoader({ timeline, bundle, cache: fakeCache() });
+  await assert.rejects(missing.loadScene(0, viewport), error => error.code === 'WORLD_OBJECT_MISSING' && error.slug === 'wooden_board');
+  bundle.objects.wooden_board = { svg: 'assets/wooden_board.png' };
+  const broken = createSceneLoader({ timeline, bundle, cache: fakeCache({ fails: url => url.endsWith('wooden_board.png') }) });
+  await assert.rejects(broken.loadScene(0, viewport), error => error.code === 'WORLD_OBJECT_UNAVAILABLE' && error.slug === 'wooden_board');
+});
+
+test('the plan cache distinguishes world refs even when the guide size and scene are unchanged', () => {
+  const { bundle, timeline, viewport } = worldFixture();
+  const loader = createSceneLoader({ timeline, bundle, cache: fakeCache() });
+  const first = loader.plan(0, viewport);
+  const changed = structuredClone(viewport);
+  changed.board.world.background = 'grove_alt';
+  changed.board.world.phases[0].props[0].slug = 'flower';
+  changed.board.world.phases[1].props.pop();
+  const second = loader.plan(0, changed);
+  assert.notEqual(second, first);
+  assert.deepEqual(second.worldObjects.map(({ slug }) => slug), ['grove_alt', 'flower', 'berry']);
+  assert.equal(loader.plan(0, structuredClone(viewport)), first, 'unchanged world options reuse the decoded plan');
+  const ordinary = loader.plan(0, { board: { layout: 'lesson-guide', guide: 'rabbit' } });
+  assert.equal(ordinary.worldObjects, undefined);
+});
+
+test('world guide size reaches the rendition request without camera magnifying the HUD', () => {
+  const { bundle, timeline, viewport } = worldFixture();
+  const normal = sceneAssetPlan(timeline, bundle, 0, { fitScale: .7, board: { layout: 'lesson-guide', guide: 'rabbit' } });
+  const enlarged = sceneAssetPlan(timeline, bundle, 0, { ...viewport, fitScale: .7 });
+  assert.equal(normal.sheets[0].tier, 320);
+  assert.equal(enlarged.sheets[0].drawnHeightPx, .5 * 1080);
+  assert.equal(enlarged.sheets[0].wantedPx, .5 * 1080 * .7);
+  assert.equal(enlarged.sheets[0].tier, 384);
+});
+
 /** Three performance scenes; each sheet 100² (40 000 bytes decoded), scene 1 adding two to scene 0's one. */
 function performanceScenes() {
   const sheet = (name) => ({ type: 'image', media: `https://storage.example/${name}.png`, width: 100, height: 100 });

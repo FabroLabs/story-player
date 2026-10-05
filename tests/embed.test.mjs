@@ -62,6 +62,22 @@ test('mounts one self-contained Shadow DOM player from parsed JSON', async (t) =
   assert.equal(typeof player.destroy, 'function');
 });
 
+test('lesson guide endings celebrate exploring while ordinary endings keep the bedtime words', async (t) => {
+  const dom = installDom(); t.after(dom.restore);
+  for (const [board, expected] of [[undefined, ['the end', 'sleep well']],
+    [{ counter: 'assets/nut.png' }, ['the end', 'sleep well']],
+    [{ layout: 'lesson-guide', guide: 'bibo' }, ['Great exploring!', 'See you next time!']]]) {
+    const host = document.createElement('div');
+    const player = createStoryPlayer(host, { story: VALID_STORY, assetBase: 'https://storage.example/', board });
+    await player.ready;
+    const end = findByClass(host.shadowRoot, 'end-overlay');
+    assert.deepEqual(end.children.slice(1).map(node => node.textContent), expected);
+    assert.equal(end.children[0].className, board?.layout === 'lesson-guide' ? 'end-star' : 'end-moon');
+    assert.equal(end.children[0].textContent ?? '', board?.layout === 'lesson-guide' ? '✦' : '');
+    player.destroy();
+  }
+});
+
 test('the board block fetches its counter picture once, at the mount, under the asset base', async (t) => {
   const dom = installDom();
   t.after(dom.restore);

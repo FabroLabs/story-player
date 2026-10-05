@@ -47,6 +47,9 @@
  */
 
 import { frameCell } from '../../core/clips.mjs';
+import { lessonGuideBox } from './lesson-guide-layout.mjs';
+import { lessonGuideChoreography } from './lesson-guide-choreography.mjs';
+import { lessonWorldAt, lessonWorldActorBox, lessonWorldBoard, lessonWorldProps } from './lesson-world.mjs';
 import { normaliseCardBoard } from '../../core/card-board.mjs';
 import { readOceanBoard } from '../../core/ocean-board.mjs';
 import { readFarmBoard, farmBoardMotion } from '../../core/farm-board.mjs';
@@ -81,7 +84,7 @@ const NO_SHEETS = Object.freeze({ sheet: () => null, prop: () => null });
  * draw its counters as (`counter-picture.mjs`), and a sheets object written
  * before it existed simply does not answer it.
  */
-export function buildDrawList(state, sheets = NO_SHEETS, viewport = null) {
+export function buildDrawList(state, sheets = NO_SHEETS, viewport = null, boardOptions = null) {
   if (state?.renderNodes) {
     const [width, height] = state.plate.resolution;
     return { width, height, camera: state.camera, transition: state.transition,
@@ -91,6 +94,23 @@ export function buildDrawList(state, sheets = NO_SHEETS, viewport = null) {
   const fit = Math.min(Number(viewport?.width) / width, Number(viewport?.height) / height);
   const cssHeight = Number.isFinite(fit) && fit > 0 ? height * fit : null;
   const actors = state?.actors ?? [];
+  const world = lessonWorldAt(boardOptions, state?.tMs ?? 0);
+  if (world) {
+    let slate = state?.slate;
+    // A carried object can target a future teaching cell while the board is hidden.
+    if (world.phase.mode === 'world') {
+      const track = boardOptions.choreography?.find(item => state.tMs >= item.start_ms && state.tMs < item.end_ms);
+      if (track?.prop) slate = { mode: 'cards', cards: track.prop.cards, focus: null, prompt: '' };
+    }
+    const native = slate?.mode === 'cards' ? cardBoardFor(slate, width, height, sheets, state.tMs, cssHeight) : null;
+    const board = lessonWorldBoard(native, world, state?.tMs ?? 0, width, height, sheets, viewport?.reducedMotion === true);
+    const commands = boardCommands(board, actors, state?.tMs, width, height, sheets, boardOptions);
+    const [background, ...props] = lessonWorldProps(world, width, height, sheets, board);
+    if (world.phase.mode === 'world') commands.shift();
+    else commands.splice(1, 0, ...props);
+    return { width, height, camera: WIDE_CAMERA,
+      commands: world.phase.mode === 'world' ? [background, ...props, ...commands] : [background, ...commands] };
+  }
   if (readFarmJourney(state?.slate)?.kind === 'journey') {
     return {width,height,camera:journeyCamera(state),commands:[
       ...stageCommands(actors,state?.tMs,width,height,sheets),...journeyLabel(state,width,height),
@@ -104,8 +124,10 @@ export function buildDrawList(state, sheets = NO_SHEETS, viewport = null) {
   // rather than filtered out of one, because "which actors survive a board" is
   // exactly the question that gets answered differently in two places and
   // leaves a card floating under the glass.
+  const guideOptions = board && !board.farm && !readOceanBoard(state?.slate)
+    && (board.mode === 'cards' || board.count === 0) ? boardOptions : null;
   const commands = board
-    ? board.farm ? farmCommands(board, actors, state?.tMs, width, height, sheets) : boardCommands(board, actors, state?.tMs, width, height, sheets)
+    ? board.farm ? farmCommands(board, actors, state?.tMs, width, height, sheets) : boardCommands(board, actors, state?.tMs, width, height, sheets, guideOptions)
     : stageCommands(actors, state?.tMs, width, height, sheets);
 
   return { width, height, camera: framing(state?.camera), commands };
@@ -170,10 +192,23 @@ function stageCommands(actors, tMs, width, height, sheets) {
  * glass. The lesson's own laws still put the pile down and ring the card; this
  * is where those stop being pictures and become the board's arithmetic.
  */
-function boardCommands(board, actors, tMs, width, height, sheets) {
+function boardCommands(board, actors, tMs, width, height, sheets, options = null) {
   const commands = [board];
-  const companion = companionOf(actors);
-  const box = companion ? cornerBox(companion, width, height) : null;
+  const guided = options?.layout === 'lesson-guide';
+  const companion = guided
+    ? actors.find(actor => actor.slug === options.guide && actor.kind !== 'object' && onScreen(actor)) ?? null
+    : companionOf(actors);
+  const box = companion ? guided
+    ? { ...(options.world ? lessonWorldActorBox(options.world, width, height) : lessonGuideBox(width, height)), opacity: round(clamped(companion.opacity), 4) }
+    : cornerBox(companion, width, height) : null;
+  const skit = companion && guided
+    ? lessonGuideChoreography(options, board, tMs, width, height, box.opacity, sheets) : null;
+  if (skit) commands[0] = skit.board;
+  if (guided && options.ledge && !options.world) {
+    const [left, top, w, h] = options.ledge;
+    commands.push({ op: 'ledge', hud: true, x: round(left * width), y: round(top * height),
+      w: round(w * width), h: round(h * height) });
+  }
 
   // A ring on somebody the board hid moves onto the counter; a ring on the
   // companion stays ON the companion, who is still up there in the corner.
@@ -189,8 +224,9 @@ function boardCommands(board, actors, tMs, width, height, sheets) {
   if (onBoard) commands.push(onBoard);
 
   if (companion) {
-    commands.push({ ...figure(companion, box, sheets), hud: true });
-    const own = ringFor(companion, box, tMs);
+    commands.push({ ...figure(companion, skit?.actor ?? box, sheets), hud: true });
+    if (skit?.prop) commands.push(skit.prop);
+    const own = ringFor(companion, skit?.actor ?? box, tMs);
     if (own) commands.push({ ...own, hud: true });
   }
   return commands;

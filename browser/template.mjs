@@ -5,7 +5,7 @@ const STYLESHEET = new URL('./styles.css', import.meta.url).href;
 // and the bedtime line is the one every story in this player can honestly wear.
 const KICKER = 'a bedtime story';
 
-export function createPlayerTemplate(root, { stylesheet = STYLESHEET, kicker, chrome } = {}) {
+export function createPlayerTemplate(root, { stylesheet = STYLESHEET, kicker, chrome, board } = {}) {
   const document = root.ownerDocument ?? globalThis.document;
   const link = element(document, 'link', { rel: 'stylesheet', href: stylesheet });
   // No chrome of our own above the picture: what a site embeds is a rectangle
@@ -76,9 +76,10 @@ export function createPlayerTemplate(root, { stylesheet = STYLESHEET, kicker, ch
   ]);
   hold.hidden = true;
   const end = element(document, 'div', { className: 'end-overlay', hidden: '' }, [
-    element(document, 'span', { className: 'end-moon', 'aria-hidden': 'true' }),
-    element(document, 'p', { text: 'the end' }),
-    element(document, 'span', { text: 'sleep well' }),
+    element(document, 'span', { className: board?.layout === 'lesson-guide' ? 'end-star' : 'end-moon',
+      text: board?.layout === 'lesson-guide' ? '✦' : '', 'aria-hidden': 'true' }),
+    element(document, 'p', { text: board?.layout === 'lesson-guide' ? 'Great exploring!' : 'the end' }),
+    element(document, 'span', { text: board?.layout === 'lesson-guide' ? 'See you next time!' : 'sleep well' }),
   ]);
   end.hidden = true;
   const card = createCardLayer(document);

@@ -8,6 +8,8 @@ import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
 
 import { buildCdn } from '../../scripts/build-cdn.mjs';
+import { lessonGuideBox } from '../../browser/v0/app/stage/lesson-guide-layout.mjs';
+import { buildDrawList } from '../../browser/v0/app/stage/draw-list.mjs';
 
 const ROOT = fileURLToPath(new URL('../../', import.meta.url));
 const FIXTURES = path.join(ROOT, 'tests', 'e2e', 'fixtures');
@@ -89,6 +91,55 @@ test('plain JavaScript mounts two players, plays qualified media, and destroys/r
   await page.locator('#first .start-button').click();
   await expect(page.locator('#first .end-overlay')).toBeVisible();
 });
+
+for (const width of [390, 798]) {
+  for (const debug of [false, true]) {
+    test(`closed debug drawer cannot scroll the native stage at ${width}px (debug=${debug})`, async ({ page }) => {
+      await page.goto(`${application.url}/plain-js.html`);
+      await page.evaluate(() => window.__mounted);
+      await page.evaluate(async ({ width, debug, assetBase }) => {
+        const host = document.body.appendChild(document.createElement('div'));
+        host.id = 'debug-probe';
+        Object.assign(host.style, { width: `${width}px`, position: 'fixed', top: '0', left: '0', zIndex: '100' });
+        window.__debugProbe = FabroStoryPlayer.createStoryPlayer(host, { story: window.__story, assetBase, debug });
+        await window.__debugProbe.ready;
+      }, { width, debug, assetBase: storage.url });
+      if (debug) await page.locator('#debug-probe .debug-panel [aria-label="close event log"]').click();
+      await page.locator('#debug-probe .start-button').click();
+      await page.evaluate(() => window.__debugProbe.pause());
+      await page.locator('#debug-probe .cc-button').click();
+
+      const geometry = () => page.locator('#debug-probe').evaluate((host) => {
+        host.scrollLeft = 10000;
+        const root = host.shadowRoot;
+        const shell = root.querySelector('.player-shell').getBoundingClientRect();
+        const panel = root.querySelector('.debug-panel');
+        return { width: host.clientWidth, scrollWidth: host.scrollWidth, scrollLeft: host.scrollLeft,
+          shellLeft: shell.left, hostLeft: host.getBoundingClientRect().left,
+          panelDisplay: getComputedStyle(panel).display, open: panel.getAttribute('aria-hidden') === 'false' };
+      });
+      const closed = await geometry();
+      expect(closed.scrollWidth).toBe(closed.width);
+      expect(closed.scrollLeft).toBe(0);
+      expect(closed.shellLeft).toBe(closed.hostLeft);
+      expect(closed.panelDisplay).toBe('none');
+      if (debug) {
+        await page.locator('#debug-probe .stage-actions [aria-label="open event log"]').click();
+        await expect(page.locator('#debug-probe .debug-panel')).toBeVisible();
+        await expect(page.locator('#debug-probe .debug-panel')).toHaveAttribute('aria-hidden', 'false');
+        await page.waitForTimeout(350);
+        const opened = await geometry();
+        expect(opened.open).toBe(true);
+        expect(opened.scrollWidth).toBe(opened.width);
+        expect(opened.scrollLeft).toBe(0);
+        await page.locator('#debug-probe .debug-panel [aria-label="close event log"]').click();
+        await expect(page.locator('#debug-probe .debug-panel')).toBeHidden();
+        expect(await geometry()).toMatchObject({ scrollLeft: 0, panelDisplay: 'none', open: false });
+      }
+      await page.evaluate(() => window.__debugProbe.destroy());
+    });
+  }
+}
 
 /**
  * The one thing no fake can answer about a card: whether the layer a real
@@ -228,6 +279,12 @@ test('an unfinished image body fails within the opening deadline and a fresh mou
   await page.goto(`${application.url}/plain-js.html`);
   await page.evaluate(() => window.__mounted);
   await page.clock.install();
+  let stalledFetches = 0;
+  page.on('request', request => {
+    if (request.resourceType() === 'fetch' && request.url().endsWith('/stalled.svg')) stalledFetches++;
+  });
+  const stalledResponse = response => response.url().endsWith('/stalled.svg');
+  const firstHeaders = page.waitForResponse(stalledResponse);
   await page.evaluate(() => {
     const story = structuredClone(window.__story);
     story.scenes[0].plate.poster = 'fairytale-assets/media/stalled.svg';
@@ -236,11 +293,17 @@ test('an unfinished image body fails within the opening deadline and a fresh mou
     window.failedPlayer = FabroStoryPlayer.createStoryPlayer(host, {story, assetBase: window.__assetBase});
     window.failedPlayer.ready.then(() => { window.openingResult = 'ready'; }, error => { window.openingResult = error.name; });
   });
-  await expect.poll(() => requests.filter(r => r.path.endsWith('/stalled.svg')).length).toBe(1);
+  // Observe player fetch attempts, not transparent transport retries; headers
+  // must reach the browser before this advances a BODY-stall deadline.
+  await firstHeaders;
+  expect(stalledFetches).toBe(1);
+  const retryHeaders = page.waitForResponse(stalledResponse);
   await page.clock.fastForward(15_000);
-  await expect.poll(() => requests.filter(r => r.path.endsWith('/stalled.svg')).length).toBe(2);
+  await retryHeaders;
+  expect(stalledFetches).toBe(2);
   await page.clock.fastForward(15_000);
   await expect.poll(() => page.evaluate(() => window.openingResult)).toBe('TimeoutError');
+  expect(stalledFetches).toBe(2);
   await page.evaluate(async () => {
     window.failedPlayer.destroy();
     const next = FabroStoryPlayer.createStoryPlayer(document.querySelector('#stalled'), {
@@ -337,3 +400,318 @@ test('Farm phone captions sit above the timeline with visible controls', async (
   expect(bounds.bottom).toBeLessThanOrEqual(bounds.timeline);
   expect(bounds.top).toBeGreaterThanOrEqual(bounds.frameTop);
 });
+
+test('a world opens without a board, reveals real garden wood and restores identical pixels after a seek', async ({ page }) => {
+  await page.goto(`${application.url}/plain-js.html`);
+  await page.evaluate(() => window.__mounted);
+  const result = await page.evaluate(async assetBase => {
+    const host = document.body.appendChild(document.createElement('div'));
+    host.style.width = '960px';
+    const story = structuredClone(window.__story), svg = story.scenes[0].plate.poster;
+    story.cast = { helper: { height_cm: 30, capability: { idle: { camera: 'idle' } },
+      clips: { idle: { spritesheet: svg, frames: 1, fps: 1, grid: [1, 1] } } } };
+    story.objects = Object.fromEntries(['garden', 'ball', 'one', 'two', 'three', 'four'].map(slug => [slug, { svg, height_cm: 30 }]));
+    story.scenes[0].steps = [{ kind: 'cmd', cmd: 'put', subjects: ['helper'] },
+      { kind: 'cmd', cmd: 'board', cards: ['one', 'two', 'three', 'four'], subjects: [], prompt: '' },
+      { kind: 'cmd', cmd: 'pause', seconds: 8 }];
+    const handle = FabroStoryPlayer.createStoryPlayer(host, { story, assetBase, board: {
+      layout: 'lesson-guide', guide: 'helper', world: {
+        background: 'garden', board: { style: 'garden', panel: [.1, .4, .8, .44] }, actor_box: [.82, .94, .4],
+        phases: [
+          { id: 'outdoors', start_ms: 0, end_ms: 2000, mode: 'world', props: [{ slug: 'ball', keyframes: [
+            { at: 0, box: [.2, .8, .1, .1] }, { at: 1, box: [.6, .8, .1, .1] },
+          ] }] },
+          { id: 'teaching', start_ms: 2000, end_ms: 8000, mode: 'lesson', props: [] },
+        ],
+      },
+    } });
+    await handle.ready;
+    host.shadowRoot.querySelector('.start-button').click(); handle.pause();
+    const canvas = host.shadowRoot.querySelector('.stage-canvas'), ctx = canvas.getContext('2d');
+    const pixel = (x, y) => Array.from(ctx.getImageData(Math.round(x * canvas.width), Math.round(y * canvas.height), 1, 1).data);
+    handle.seek(1000);
+    const outdoors = canvas.toDataURL(), outdoorPanel = pixel(.5, .46), outdoorEdge = pixel(.02, .46);
+    handle.seek(3000);
+    const lessonPanel = pixel(.5, .46), lessonEdge = pixel(.02, .46), wood = pixel(.5, .411);
+    handle.seek(1000);
+    const same = canvas.toDataURL() === outdoors;
+    handle.destroy();
+    return { outdoorPanel, outdoorEdge, lessonPanel, lessonEdge, wood, same };
+  }, storage.url);
+  expect(result.outdoorPanel).toEqual([16, 21, 45, 255]);
+  expect(result.lessonPanel).toEqual([255, 248, 231, 255]);
+  expect(result.wood).toEqual([217, 173, 112, 255]);
+  expect(result.lessonEdge).toEqual(result.outdoorEdge);
+  expect(result.same).toBe(true);
+});
+
+test('generated board art stays visible while a foreground object docks without a pixel jump', async ({ page }) => {
+  await page.route('**/fairytale-assets/media/board-art.svg', route => route.fulfill({ contentType: 'image/svg+xml',
+    body: '<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900"><rect x="20" y="20" width="1560" height="860" fill="#f7ebd0"/></svg>' }));
+  await page.route('**/fairytale-assets/media/transfer-apple.svg', route => route.fulfill({ contentType: 'image/svg+xml',
+    body: '<svg xmlns="http://www.w3.org/2000/svg" width="300" height="400"><rect width="300" height="400" fill="#e94c3a"/></svg>' }));
+  await page.goto(`${application.url}/plain-js.html`);
+  await page.evaluate(() => window.__mounted);
+  const result = await page.evaluate(async assetBase => {
+    const host = document.body.appendChild(document.createElement('div')); host.style.width = '960px';
+    const story = structuredClone(window.__story), svg = story.scenes[0].plate.poster;
+    story.cast = { helper: { height_cm: 30, capability: { idle: { camera: 'idle' } },
+      clips: { idle: { spritesheet: svg, frames: 1, fps: 1, grid: [1, 1] } } } };
+    story.objects = { garden: { svg }, letter: { svg },
+      art: { svg: 'fairytale-assets/media/board-art.svg' }, apple: { svg: 'fairytale-assets/media/transfer-apple.svg' } };
+    story.scenes[0].steps = [{ kind: 'cmd', cmd: 'put', subjects: ['helper'] },
+      { kind: 'cmd', cmd: 'board', cards: ['letter', 'apple'], subjects: [], prompt: '' },
+      { kind: 'cmd', cmd: 'pause', seconds: 10 }];
+    const handle = FabroStoryPlayer.createStoryPlayer(host, { story, assetBase, board: {
+      layout: 'lesson-guide', guide: 'helper', world: {
+        background: 'garden', actor_box: [.9, .94, .4], board: { style: 'garden', panel: [.1, .4, .8, .44], art: 'art', art_box: [.05, .25, .9, .7] },
+        phases: [
+          { id: 'opening', start_ms: 0, end_ms: 1000, mode: 'world', props: [] },
+          { id: 'transfer', start_ms: 1000, end_ms: 5000, mode: 'lesson',
+            content_opacity: [{ at: 0, opacity: 0 }, { at: .5, opacity: 1 }, { at: 1, opacity: 1 }],
+            props: [{ slug: 'apple', cards: ['letter', 'apple'], card_index: 2, hide_card_image: true, keyframes: [
+              { at: 0, box: [.2, .8, .15, .2] }, { at: .75, anchor: 'card', box: [.5, .5, 1, 1] }, { at: 1, anchor: 'card', box: [.5, .5, 1, 1] },
+            ] }] },
+          { id: 'teaching', start_ms: 5000, end_ms: 8000, mode: 'lesson', props: [] },
+          { id: 'friends', start_ms: 8000, end_ms: 10000, mode: 'lesson', content_opacity: 0,
+            props: [{ slug: 'apple', keyframes: [{ at: 0, box: [.5, .46, .1, .1] }, { at: 1, box: [.5, .46, .1, .1] }] }] },
+        ],
+      },
+    } });
+    await handle.ready; host.shadowRoot.querySelector('.start-button').click(); handle.pause();
+    const canvas = host.shadowRoot.querySelector('.stage-canvas'), ctx = canvas.getContext('2d');
+    const pixel = (x, y) => Array.from(ctx.getImageData(Math.round(x * canvas.width), Math.round(y * canvas.height), 1, 1).data);
+    handle.seek(4500); const landed = canvas.toDataURL(), firstArt = pixel(.5, .46);
+    handle.seek(5000); const handoffSame = canvas.toDataURL() === landed, nextArt = pixel(.5, .46);
+    handle.seek(9000); const foreground = pixel(.5, .46), persistent = pixel(.4, .46);
+    handle.seek(4500); const reverseSame = canvas.toDataURL() === landed;
+    handle.destroy(); return { firstArt, nextArt, foreground, persistent, handoffSame, reverseSame };
+  }, storage.url);
+  expect(result.firstArt).toEqual([247, 235, 208, 255]);
+  expect(result.nextArt).toEqual(result.firstArt);
+  expect(result.persistent).toEqual(result.firstArt);
+  expect(result.foreground).toEqual([233, 76, 58, 255]);
+  expect(result.handoffSame).toBe(true);
+  expect(result.reverseSame).toBe(true);
+});
+
+for (const width of [390, 960]) for (const presentation of ['default', 'spotlight', 'spotlight-reduced']) {
+  test(`world answer cues ${presentation} remain neutral during thinking and restore exact paused pixels at ${width}px`, async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: presentation === 'spotlight-reduced' ? 'reduce' : 'no-preference' });
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto(`${application.url}/plain-js.html`);
+    await page.evaluate(() => window.__mounted);
+    const cards = ['one', 'two', 'three', 'four'];
+    const board = { layout: 'lesson-guide', guide: 'helper', world: {
+      background: 'garden', actor_box: [.92, .97, .28],
+      board: { style: 'garden', panel: [.15, .305, .70, .525], content: {
+        cards: [.015, .045, .97, .72], prompt: [.04, .80, .92, .18],
+      } },
+      phases: [{ id: 'lesson', start_ms: 0, end_ms: 8000, mode: 'lesson', props: [] }],
+      cues: [
+        { id: 'pause', kind: 'thinking', start_ms: 2000, end_ms: 4000, cards },
+        { id: 'reveal', kind: 'reveal', start_ms: 4000, end_ms: 5800, cards, answer_index: 3,
+          ...(presentation === 'default' ? {} : { presentation: 'spotlight' }) },
+      ],
+    } };
+    const geometry = buildDrawList({ tMs: 1900, plate: { resolution: [1920, 1080] }, actors: [],
+      slate: { mode: 'cards', cards, focus: null, prompt: 'Find three' } }, undefined, null, board).commands.find(c => c.op === 'slate').cards;
+    const result = await page.evaluate(async ({ assetBase, width, board, geometry }) => {
+      const host = document.body.appendChild(document.createElement('div')); host.style.width = `${width - 16}px`;
+      const story = structuredClone(window.__story), svg = story.scenes[0].plate.poster;
+      story.cast = { helper: { height_cm: 30, capability: { idle: { camera: 'idle' } },
+        clips: { idle: { spritesheet: svg, frames: 1, fps: 1, grid: [1, 1] } } } };
+      story.objects = Object.fromEntries(['garden', 'one', 'two', 'three', 'four'].map(slug => [slug, { svg }]));
+      story.scenes[0].steps = [{ kind: 'cmd', cmd: 'put', subjects: ['helper'] },
+        { kind: 'cmd', cmd: 'board', cards: ['one', 'two', 'three', 'four'], subjects: [], prompt: 'Find three' },
+        { kind: 'cmd', cmd: 'pause', seconds: 8 }];
+      const handle = FabroStoryPlayer.createStoryPlayer(host, { story, assetBase, board });
+      await handle.ready; host.shadowRoot.querySelector('.start-button').click(); handle.pause();
+      const canvas = host.shadowRoot.querySelector('.stage-canvas'), ctx = canvas.getContext('2d');
+      const crop = (card, inset = 0) => {
+        const scale = canvas.width / 1920;
+        return Array.from(ctx.getImageData(Math.round((card.dx + card.dw * inset) * scale),
+          Math.round((card.dy + card.dh * inset) * scale), Math.round(card.dw * (1 - 2 * inset) * scale),
+          Math.round(card.dh * (1 - 2 * inset) * scale)).data).join(',');
+      };
+      handle.seek(1900); const before = canvas.toDataURL(), cores = geometry.map(card => crop(card, .1)), target = crop(geometry[2]);
+      handle.seek(2500); const thinking = canvas.toDataURL(), neutral = geometry.every((card, index) => crop(card, .1) === cores[index]);
+      handle.seek(2700); const breathChanges = canvas.toDataURL() !== thinking;
+      handle.seek(4225); const peak = canvas.toDataURL(), answerChanges = crop(geometry[2]) !== target;
+      const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+      const burstColorsVisible = [[232, 173, 36], [41, 153, 142], [229, 109, 89]].every(color => {
+        let count = 0;
+        for (let index = 0; index < pixels.length; index += 4) {
+          if (color.every((channel, offset) => Math.abs(channel - pixels[index + offset]) < 10)) count++;
+        }
+        return count >= 2;
+      });
+      const distractorsStable = [0, 1, 3].every(index => crop(geometry[index], .1) === cores[index]);
+      handle.seek(4320); const revealMoves = canvas.toDataURL() !== peak;
+      handle.seek(5800); const finished = canvas.toDataURL() === before;
+      handle.seek(4225); const seekSame = canvas.toDataURL() === peak;
+      handle.seek(2500); const thinkingSame = canvas.toDataURL() === thinking;
+      handle.destroy(); return { neutral, breathChanges, answerChanges, burstColorsVisible, distractorsStable, revealMoves, finished, seekSame, thinkingSame };
+    }, { assetBase: storage.url, width, board, geometry });
+    expect(result).toEqual({ neutral: true, breathChanges: true, answerChanges: true, burstColorsVisible: presentation === 'default', distractorsStable: true,
+      revealMoves: presentation !== 'spotlight-reduced',
+      finished: true, seekSame: true, thinkingSame: true });
+  });
+}
+
+for (const width of [390, 1280]) {
+  test(`lesson guide leaves long native captions beside its full cell at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto(`${application.url}/plain-js.html`);
+    await page.evaluate(() => window.__mounted);
+    const result = await page.evaluate(async ({ assetBase, guide, width }) => {
+      const host = document.body.appendChild(document.createElement('div'));
+      host.style.width = `${width - 16}px`;
+      const handle = FabroStoryPlayer.createStoryPlayer(host, {
+        story: window.__story, assetBase, board: { layout: 'lesson-guide', guide: 'helper' },
+      });
+      await handle.ready;
+      const root = host.shadowRoot;
+      const frame = root.querySelector('.stage-frame');
+      frame.classList.add('is-bare');
+      const text = root.querySelector('.subtitle');
+      text.textContent = "C! Bibo, can you bring it back? Ooh, it's heavy! There we go!";
+      root.querySelector('.subtitle-wrap').hidden = false;
+      await new Promise(resolve => setTimeout(resolve, 220));
+      const caption = text.getBoundingClientRect();
+      const stage = frame.getBoundingClientRect();
+      const style = getComputedStyle(text);
+      const ordinaryText = document.querySelector('#first').shadowRoot.querySelector('.subtitle');
+      const ordinaryStyle = getComputedStyle(ordinaryText);
+      const scale = stage.width / 1920;
+      const bounds = { enabled: frame.classList.contains('has-lesson-guide'),
+        captionRight: caption.right, captionLeft: caption.left, captionTop: caption.top,
+        stageLeft: stage.left, stageTop: stage.top, guideLeft: stage.left + guide.dx * scale,
+        font: style.fontSize, lineHeight: style.lineHeight,
+        ordinaryFont: ordinaryStyle.fontSize, ordinaryLineHeight: ordinaryStyle.lineHeight };
+      handle.setSubtitles(false);
+      bounds.ccHidden = root.querySelector('.subtitle-wrap').hidden;
+      handle.destroy();
+      bounds.classAfterDestroy = frame.classList.contains('has-lesson-guide');
+      return bounds;
+    }, { assetBase: storage.url, width, guide: lessonGuideBox(1920, 1080) });
+    console.log(JSON.stringify({ captionGuideGeometry: width, ...result }));
+    expect(result.captionRight).toBeLessThan(result.guideLeft);
+    expect(result.enabled).toBe(true);
+    expect(result.captionLeft).toBeGreaterThanOrEqual(result.stageLeft);
+    expect(result.captionTop).toBeGreaterThanOrEqual(result.stageTop);
+    expect(result.font).toBe(width <= 400 ? '13px' : result.ordinaryFont);
+    expect(result.lineHeight).toBe(width <= 400 ? '16.9px' : result.ordinaryLineHeight);
+    expect(result.ccHidden).toBe(true);
+    expect(result.classAfterDestroy).toBe(false);
+  });
+}
+
+test('the full shapes explanation clears all four fixed cards and the guide on a phone', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(`${application.url}/plain-js.html`);
+  await page.evaluate(() => window.__mounted);
+  const board = buildDrawList({ plate: { resolution: [1920, 1080] }, actors: [],
+    slate: { mode: 'cards', cards: ['one', 'two', 'three', 'four'], focus: null, prompt: 'A B C D' },
+  }).commands.find(command => command.op === 'slate');
+  const result = await page.evaluate(async ({ assetBase, cardBottom, guide }) => {
+    const host = document.body.appendChild(document.createElement('div'));
+    host.style.width = '374px';
+    const story = structuredClone(window.__story);
+    const svg = story.scenes[0].plate.poster;
+    story.cast = { helper: { height_cm: 30, capability: { idle: { camera: 'idle' } },
+      clips: { idle: { spritesheet: svg, frames: 1, fps: 1, grid: [1, 1] } } } };
+    story.objects = Object.fromEntries(['one', 'two', 'three', 'four'].map(slug => [slug, { svg, height_cm: 30 }]));
+    story.scenes[0].steps = [{ kind: 'cmd', cmd: 'put', subjects: ['helper'] },
+      { kind: 'cmd', cmd: 'board', cards: ['one', 'two', 'three', 'four'], subjects: [], prompt: 'A B C D' },
+      { kind: 'chunk', text: "Every letter has two shapes: a big uppercase and a little lowercase. Let's discover their names and sounds!", duration_s: 8 }];
+    const handle = FabroStoryPlayer.createStoryPlayer(host, { story, assetBase,
+      board: { layout: 'lesson-guide', guide: 'helper' } });
+    await handle.ready;
+    const root = host.shadowRoot;
+    root.querySelector('.start-button').click(); handle.pause(); handle.seek(1000); handle.setSubtitles(true);
+    const frame = root.querySelector('.stage-frame'); frame.classList.add('is-bare');
+    await new Promise(resolve => setTimeout(resolve, 220));
+    const stage = frame.getBoundingClientRect(), text = root.querySelector('.subtitle');
+    const caption = text.getBoundingClientRect(), style = getComputedStyle(text);
+    const result = { top: caption.top, right: caption.right, cardBottom: stage.top + stage.height * cardBottom,
+      guideLeft: stage.left + guide.dx / 1920 * stage.width, font: style.fontSize, lineHeight: style.lineHeight,
+      ordinaryFont: getComputedStyle(document.querySelector('#first').shadowRoot.querySelector('.subtitle')).fontSize };
+    handle.destroy(); return result;
+  }, { assetBase: storage.url, cardBottom: Math.max(...board.cards.map(card => card.dy + card.dh)) / 1080,
+    guide: lessonGuideBox(1920, 1080) });
+  console.log(JSON.stringify({ phoneShapesCaption: result }));
+  expect(result.top).toBeGreaterThanOrEqual(result.cardBottom);
+  expect(result.right).toBeLessThan(result.guideLeft);
+  expect(result.font).toBe('13px');
+  expect(result.lineHeight).toBe('16.9px');
+  expect(result.ordinaryFont).toBe('15px');
+});
+
+for (const width of [390, 1280]) {
+  test(`comic guide captions move above fixed cards and restore after paused seeks at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto(`${application.url}/plain-js.html`);
+    await page.evaluate(() => window.__mounted);
+    const result = await page.evaluate(async ({ assetBase, width }) => {
+      const host = document.body.appendChild(document.createElement('div'));
+      host.style.width = `${width - 16}px`;
+      const story = structuredClone(window.__story);
+      const svg = story.scenes[0].plate.poster;
+      story.cast = { helper: { height_cm: 30, capability: { idle: { camera: 'idle' } },
+        clips: { idle: { spritesheet: svg, frames: 1, fps: 1, grid: [1, 1] } } } };
+      story.objects = Object.fromEntries(['one', 'two', 'three', 'four'].map(slug => [slug, { svg, height_cm: 30 }]));
+      story.scenes[0].steps = [
+        { kind: 'cmd', cmd: 'put', subjects: ['helper'] },
+        { kind: 'cmd', cmd: 'board', cards: ['one', 'two', 'three', 'four'], subjects: [], prompt: '' },
+        { kind: 'chunk', text: 'Look! Bibo runs, jumps, then sits on the board.', duration_s: 8 },
+      ];
+      const handle = FabroStoryPlayer.createStoryPlayer(host, { story, assetBase, board: {
+        layout: 'lesson-guide', guide: 'helper', choreography: [{ id: 'running-caption', kind: 'run', caption: 'top',
+          start_ms: 1000, end_ms: 5000, actor: { keyframes: [
+            { at: 0, box: [.15, .99, .32] }, { at: 1, box: [1.12, .99, .32] },
+          ] } }],
+      } });
+      await handle.ready;
+      const root = host.shadowRoot;
+      root.querySelector('.start-button').click(); handle.pause(); handle.seek(3000);
+      handle.setSubtitles(true);
+      const frame = root.querySelector('.stage-frame');
+      frame.classList.add('is-bare');
+      await new Promise(resolve => setTimeout(resolve, 220));
+      const text = root.querySelector('.subtitle');
+      const stage = frame.getBoundingClientRect();
+      const bounds = text.getBoundingClientRect();
+      const style = getComputedStyle(text);
+      const ordinaryStyle = getComputedStyle(document.querySelector('#first').shadowRoot.querySelector('.subtitle'));
+      const snapshot = { enabled: frame.classList.contains('has-top-guide-caption'), top: bounds.top, bottom: bounds.bottom,
+        stageTop: stage.top, cardTop: stage.top + stage.height * .322565, actorTop: stage.top + stage.height * .67,
+        font: style.fontSize, ordinaryFont: ordinaryStyle.fontSize, lineHeight: style.lineHeight,
+        ordinaryLineHeight: ordinaryStyle.lineHeight };
+      handle.seek(5000); snapshot.restoredAtEnd = !frame.classList.contains('has-top-guide-caption');
+      snapshot.restoredTop = text.getBoundingClientRect().top;
+      handle.seek(3000); snapshot.backwardTop = text.getBoundingClientRect().top;
+      handle.seek(999); snapshot.restoredBefore = !frame.classList.contains('has-top-guide-caption');
+      handle.seek(3000);
+      text.textContent = '';
+      snapshot.emptyCaptionHeight = root.querySelector('.subtitle-wrap').getBoundingClientRect().height;
+      handle.setSubtitles(false); snapshot.ccHidden = root.querySelector('.subtitle-wrap').hidden;
+      handle.destroy(); snapshot.classAfterDestroy = frame.classList.contains('has-top-guide-caption');
+      return snapshot;
+    }, { assetBase: storage.url, width });
+    console.log(JSON.stringify({ comicCaptionGeometry: width, ...result }));
+    expect(result.enabled).toBe(true);
+    expect(result.top - result.stageTop).toBeCloseTo(12, 1);
+    expect(result.bottom).toBeLessThan(result.cardTop);
+    expect(result.bottom).toBeLessThan(result.actorTop);
+    expect(result.font).toBe(width <= 400 ? '13px' : result.ordinaryFont);
+    expect(result.lineHeight).toBe(width <= 400 ? '16.9px' : result.ordinaryLineHeight);
+    expect(result.restoredAtEnd).toBe(true);
+    expect(result.restoredTop).toBeGreaterThan(result.top);
+    expect(result.backwardTop).toBeCloseTo(result.top, 1);
+    expect(result.restoredBefore).toBe(true);
+    expect(result.emptyCaptionHeight).toBe(0);
+    expect(result.ccHidden).toBe(true);
+    expect(result.classAfterDestroy).toBe(false);
+  });
+}

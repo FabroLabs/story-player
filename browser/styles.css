@@ -558,6 +558,22 @@ button:focus-visible {
 
 .stage-frame.is-bare .subtitle-wrap { padding-bottom: 12px; }
 
+/* The guide owns the right corner; narration keeps its native type beside it. */
+.stage-frame.has-lesson-guide .subtitle-wrap {
+  left: 12px;
+  right: auto;
+  margin-inline: 0;
+  max-width: 70%;
+  text-align: left;
+}
+
+/* A comic action can cross the lower lane while its short line stays above it. */
+.stage-frame.has-lesson-guide.has-top-guide-caption .subtitle-wrap {
+  top: 12px;
+  bottom: auto;
+  padding-bottom: 0;
+}
+
 @container player (min-width: 520px) {
   .subtitle-wrap { font-size: 17px; line-height: 24px; }
   .stage-frame .subtitle { padding: 6px 12px; }
@@ -635,6 +651,12 @@ button:focus-visible {
   border-radius: 50%;
   background: var(--accent-soft);
   box-shadow: 0 0 3rem rgba(143, 227, 182, 0.35);
+}
+
+.end-star {
+  color: var(--accent-soft);
+  font-size: clamp(30px, 11cqmin, 88px);
+  line-height: 1;
 }
 
 /* The intro and end cards, over everything — the transport included, since
@@ -1187,6 +1209,9 @@ button:focus-visible {
   transition: transform 300ms ease;
 }
 
+/* A translated drawer still enlarges the host's scrollable area. Withdraw its
+   box while closed so focus/accessibility scrolling cannot move the stage. */
+.debug-panel[aria-hidden="true"] { display: none; }
 .debug-panel.is-open { transform: translateX(0); }
 
 .debug-panel > header {
@@ -1254,9 +1279,10 @@ button:focus-visible {
 .event-list strong { color: var(--accent-soft); font-weight: 600; }
 .event-list .warning { color: #ffc9a4; }
 
-/* A farm lesson on a narrow player keeps its board clear of a tighter caption. */
+/* Narrow lesson players keep their fixed cards clear of longer captions. */
 @container player (max-width: 400px) {
-  .stage-frame.has-farm-overlay .subtitle-wrap { font-size: 13px; line-height: 1.3; }
+  .stage-frame.has-farm-overlay .subtitle-wrap,
+  .stage-frame.has-lesson-guide .subtitle-wrap { font-size: 13px; line-height: 1.3; }
 }
 
 @media (prefers-reduced-motion: reduce) {
