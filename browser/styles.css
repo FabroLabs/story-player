@@ -1283,6 +1283,9 @@ button:focus-visible {
 @container player (max-width: 400px) {
   .stage-frame.has-farm-overlay .subtitle-wrap,
   .stage-frame.has-lesson-guide .subtitle-wrap { font-size: 13px; line-height: 1.3; }
+  /* Four-line font fallbacks still fit between the fixed cards and stage foot. */
+  .stage-frame.has-lesson-guide.is-bare:not(.has-top-guide-caption) .subtitle-wrap { padding-bottom: 8px; }
+  .stage-frame.has-lesson-guide.is-bare:not(.has-top-guide-caption) .subtitle { padding-block: 2px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

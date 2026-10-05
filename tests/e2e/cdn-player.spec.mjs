@@ -607,46 +607,51 @@ for (const width of [390, 1280]) {
   });
 }
 
-test('the full shapes explanation clears all four fixed cards and the guide on a phone', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto(`${application.url}/plain-js.html`);
-  await page.evaluate(() => window.__mounted);
-  const board = buildDrawList({ plate: { resolution: [1920, 1080] }, actors: [],
-    slate: { mode: 'cards', cards: ['one', 'two', 'three', 'four'], focus: null, prompt: 'A B C D' },
-  }).commands.find(command => command.op === 'slate');
-  const result = await page.evaluate(async ({ assetBase, cardBottom, guide }) => {
-    const host = document.body.appendChild(document.createElement('div'));
-    host.style.width = '374px';
-    const story = structuredClone(window.__story);
-    const svg = story.scenes[0].plate.poster;
-    story.cast = { helper: { height_cm: 30, capability: { idle: { camera: 'idle' } },
-      clips: { idle: { spritesheet: svg, frames: 1, fps: 1, grid: [1, 1] } } } };
-    story.objects = Object.fromEntries(['one', 'two', 'three', 'four'].map(slug => [slug, { svg, height_cm: 30 }]));
-    story.scenes[0].steps = [{ kind: 'cmd', cmd: 'put', subjects: ['helper'] },
-      { kind: 'cmd', cmd: 'board', cards: ['one', 'two', 'three', 'four'], subjects: [], prompt: 'A B C D' },
-      { kind: 'chunk', text: "Every letter has two shapes: a big uppercase and a little lowercase. Let's discover their names and sounds!", duration_s: 8 }];
-    const handle = FabroStoryPlayer.createStoryPlayer(host, { story, assetBase,
-      board: { layout: 'lesson-guide', guide: 'helper' } });
-    await handle.ready;
-    const root = host.shadowRoot;
-    root.querySelector('.start-button').click(); handle.pause(); handle.seek(1000); handle.setSubtitles(true);
-    const frame = root.querySelector('.stage-frame'); frame.classList.add('is-bare');
-    await new Promise(resolve => setTimeout(resolve, 220));
-    const stage = frame.getBoundingClientRect(), text = root.querySelector('.subtitle');
-    const caption = text.getBoundingClientRect(), style = getComputedStyle(text);
-    const result = { top: caption.top, right: caption.right, cardBottom: stage.top + stage.height * cardBottom,
-      guideLeft: stage.left + guide.dx / 1920 * stage.width, font: style.fontSize, lineHeight: style.lineHeight,
-      ordinaryFont: getComputedStyle(document.querySelector('#first').shadowRoot.querySelector('.subtitle')).fontSize };
-    handle.destroy(); return result;
-  }, { assetBase: storage.url, cardBottom: Math.max(...board.cards.map(card => card.dy + card.dh)) / 1080,
-    guide: lessonGuideBox(1920, 1080) });
-  console.log(JSON.stringify({ phoneShapesCaption: result }));
-  expect(result.top).toBeGreaterThanOrEqual(result.cardBottom);
-  expect(result.right).toBeLessThan(result.guideLeft);
-  expect(result.font).toBe('13px');
-  expect(result.lineHeight).toBe('16.9px');
-  expect(result.ordinaryFont).toBe('15px');
-});
+for (const fallbackFont of [null, 'monospace']) {
+  test(`the full shapes explanation clears all four fixed cards and the guide on a phone (${fallbackFont ?? 'native font'})`, async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(`${application.url}/plain-js.html`);
+    await page.evaluate(() => window.__mounted);
+    const board = buildDrawList({ plate: { resolution: [1920, 1080] }, actors: [],
+      slate: { mode: 'cards', cards: ['one', 'two', 'three', 'four'], focus: null, prompt: 'A B C D' },
+    }).commands.find(command => command.op === 'slate');
+    const result = await page.evaluate(async ({ assetBase, cardBottom, guide, fallbackFont }) => {
+      const host = document.body.appendChild(document.createElement('div'));
+      host.style.width = '374px';
+      const story = structuredClone(window.__story);
+      const svg = story.scenes[0].plate.poster;
+      story.cast = { helper: { height_cm: 30, capability: { idle: { camera: 'idle' } },
+        clips: { idle: { spritesheet: svg, frames: 1, fps: 1, grid: [1, 1] } } } };
+      story.objects = Object.fromEntries(['one', 'two', 'three', 'four'].map(slug => [slug, { svg, height_cm: 30 }]));
+      story.scenes[0].steps = [{ kind: 'cmd', cmd: 'put', subjects: ['helper'] },
+        { kind: 'cmd', cmd: 'board', cards: ['one', 'two', 'three', 'four'], subjects: [], prompt: 'A B C D' },
+        { kind: 'chunk', text: "Every letter has two shapes: a big uppercase and a little lowercase. Let's discover their names and sounds!", duration_s: 8 }];
+      const handle = FabroStoryPlayer.createStoryPlayer(host, { story, assetBase,
+        board: { layout: 'lesson-guide', guide: 'helper' } });
+      await handle.ready;
+      const root = host.shadowRoot;
+      // Wider fallback metrics reproduce the extra caption line seen on Linux.
+      if (fallbackFont) root.querySelector('.subtitle').style.fontFamily = fallbackFont;
+      root.querySelector('.start-button').click(); handle.pause(); handle.seek(1000); handle.setSubtitles(true);
+      const frame = root.querySelector('.stage-frame'); frame.classList.add('is-bare');
+      await new Promise(resolve => setTimeout(resolve, 220));
+      const stage = frame.getBoundingClientRect(), text = root.querySelector('.subtitle');
+      const caption = text.getBoundingClientRect(), style = getComputedStyle(text);
+      const result = { top: caption.top, bottom: caption.bottom, height: caption.height, stageBottom: stage.bottom, right: caption.right, cardBottom: stage.top + stage.height * cardBottom,
+        guideLeft: stage.left + guide.dx / 1920 * stage.width, font: style.fontSize, lineHeight: style.lineHeight,
+        ordinaryFont: getComputedStyle(document.querySelector('#first').shadowRoot.querySelector('.subtitle')).fontSize };
+      handle.destroy(); return result;
+    }, { assetBase: storage.url, fallbackFont, cardBottom: Math.max(...board.cards.map(card => card.dy + card.dh)) / 1080,
+      guide: lessonGuideBox(1920, 1080) });
+    console.log(JSON.stringify({ phoneShapesCaption: result, fallbackFont }));
+    expect(result.top).toBeGreaterThanOrEqual(result.cardBottom);
+    expect(result.right).toBeLessThan(result.guideLeft);
+    expect(result.font).toBe('13px');
+    expect(result.lineHeight).toBe('16.9px');
+    expect(result.ordinaryFont).toBe('15px');
+    expect(result.bottom).toBeLessThan(result.stageBottom);
+  });
+}
 
 for (const width of [390, 1280]) {
   test(`comic guide captions move above fixed cards and restore after paused seeks at ${width}px`, async ({ page }) => {
