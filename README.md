@@ -69,9 +69,15 @@ its own music and a skip that is always there. Neither is in the compiled
 timeline — they are phases either side of it — so the clock, the scrub bar and
 every `t_ms` still cover the story alone.
 
+A story drawn wholly on the canvas can be saved as a 720p mp4 from the ⋯ menu,
+which also holds subtitles and the bedtime moon. The story replays muted from
+its start into a recorder, so saving takes as long as the story, and the file
+goes to the phone's share sheet, a download, or the host's own `download`
+function; a host with its own controls calls `recordVideo()`.
+
 See [Embedding and operations](docs/embedding.md) for the plain JavaScript and
 React APIs, how it plays, following a story still being written, the cards
-either side of it, controls, renditions and device tiers, stable versus
+either side of it, controls, saving a story as a video, renditions and device tiers, stable versus
 immutable URLs, storage/CORS configuration, publishing, rollback, and GitLab
 migration.
 

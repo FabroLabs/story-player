@@ -12,6 +12,8 @@ import { createTimelinePlayer } from './timeline-player.mjs';
 import {
   appendStoryScene, requireBoardBlock, requireCardsBlock, requirePlatesBlock, resolveMediaUrl, resolveStoryAssets,
 } from './urls.mjs';
+import { recordingSupport, savingSupported } from './video-export.mjs';
+import { createVideoExport } from './video-export-phase.mjs';
 import { routeWarning } from './warning-router.mjs';
 import { readPostStory } from './wind-down.mjs';
 import { createWindDownPhase } from './wind-down-phase.mjs';
@@ -46,10 +48,14 @@ const SUBTITLES_KEY = 'storytime:subtitles';
  * `board` names what the counting board draws its counters as — one picture,
  * fetched once here and handed to the stage (`counter-picture.mjs`). A mount
  * without it draws the apple the board always drew.
+ *
+ * `download` is the host's way to keep a video of the story (`video-export.mjs`):
+ * called with the finished mp4 when the viewer asks to save it. Without one the
+ * player offers the phone's share sheet or a download itself.
  */
 export function createV0Player({
   root, elements, story, assetBase, plates = null, stream = null, cards = null, board = null,
-  fullscreen = null, dim = null, chrome = 'player', signal, debug = false, perf = false,
+  fullscreen = null, dim = null, download = null, chrome = 'player', signal, debug = false, perf = false,
 }) {
   // The host's own four arguments, settled before anything is built from them:
   // each is refused here or never again, since the compiler cannot report a bad
@@ -64,6 +70,9 @@ export function createV0Player({
     throw new TypeError('fullscreen must be a function the player calls with true or false');
   }
   if (dim !== null && typeof dim !== 'boolean') throw new TypeError('dim must be true or false');
+  if (download !== null && typeof download !== 'function') {
+    throw new TypeError('download must be a function the player calls with the video file');
+  }
   // Optional for a whole story — it can only answer for a place no scene stands
   // in — but not for a growing one: without it a healed step into a place the
   // published scenes have not opened yet is staged one way now and another way
@@ -149,6 +158,15 @@ export function createV0Player({
   // The log button opens the panel, so a build that has no panel open to it has
   // no button either — a control that does nothing is worse than one absence.
   elements.debugToggle.hidden = !debug;
+  const exporter = createVideoExport({
+    elements: { status: elements.recording, item: elements.controls.save, canvas: elements.stage.canvas },
+    support: recordingSupport({ story, board: boardBlock, stream: streaming }),
+    saving: savingSupported({ download }),
+    download,
+    runtime: () => (armed ? runtime : null),
+    begin: beginTake,
+    title: () => runtimeStory?.title ?? story?.title,
+  });
   const subscribers = new Set();
   let armed = false;
   let beginRequested = false;
@@ -215,6 +233,8 @@ export function createV0Player({
     },
     appendScene,
     finishStory,
+    recordVideo: () => exporter.record(),
+    canRecordVideo: () => exporter.canRecord(),
     destroy() {
       if (destroyed) return;
       destroyed = true;
@@ -222,6 +242,7 @@ export function createV0Player({
       if (startHandler) elements.start.removeEventListener('click', startHandler);
       for (const cleanup of cleanups) cleanup();
       card?.destroy();
+      exporter.destroy();
       runtime?.destroy();
       bitmaps.destroy();
       counterPicture?.close();
@@ -242,6 +263,7 @@ export function createV0Player({
 
   function publish(state) {
     if (destroyed || !state) return;
+    exporter.sync();
     const told = withAfterStory(state);
     for (const listener of subscribers) {
       try { listener(told); }
@@ -339,6 +361,8 @@ export function createV0Player({
       publishedComplete: streaming === null,
       onState: publish,
       onEnd: (end) => {
+        // A take ends on the story's last frame: no card, no wind-down.
+        if (exporter.active()) return exporter.endOfStory();
         if (windDown) return windDown.begin(end);
         return card?.hasEnd ? playCard(() => card.playEnd()) : null;
       },
@@ -542,6 +566,22 @@ export function createV0Player({
     await playCard(() => card.playIntro());
     if (destroyed || signal.aborted) return;
     await enterStory();
+  }
+
+  /**
+   * A recording's take begins: from the story's start, without its intro card.
+   * A story nobody has begun yet loses its opening ceremony the way the begin
+   * press would have taken it away.
+   */
+  function beginTake() {
+    if (runtime.getState().started) {
+      runtime.play();
+      return;
+    }
+    beginRequested = true;
+    elements.start.disabled = true;
+    elements.ceremony.classList.add('is-gone');
+    runtime.begin();
   }
 
   /**

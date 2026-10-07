@@ -131,6 +131,9 @@ export function createCanvasStage(elements, {
   let plate = [0, 0];
   let backing = [0, 0];
   let renderScale = 0;
+  // A recording's frame, `{width, height}`, while one is being made: the canvas
+  // is backed at that size whatever the player measures on screen.
+  let exportBox = null;
   let last = null;
   let drawnScene = null;
   let observer = null;
@@ -161,7 +164,7 @@ export function createCanvasStage(elements, {
     observer.observe(elements.frame);
   }
 
-  return { fitScale, draw, setTier, setFarmOverlay, destroy };
+  return { fitScale, exportScale, setExportSize, draw, setTier, setFarmOverlay, destroy };
 
   function setFarmOverlay(enabled) {
     if (destroyed) return;
@@ -194,6 +197,27 @@ export function createCanvasStage(elements, {
    */
   function fitScale() {
     return fitStage() ?? 1;
+  }
+
+  /**
+   * Back the canvas at a recording's frame, or (`null`) at the screen again.
+   *
+   * The picture a viewer sees does not change: the canvas is still drawn at the
+   * stage's size in CSS. Only its pixels do, so the file is the same size on a
+   * phone held upright as on a laptop in full screen.
+   */
+  function setExportSize(box) {
+    if (destroyed) return;
+    exportBox = box ? { width: box.width, height: box.height } : null;
+    if (!last) return;
+    sizeStage(last.list.width, last.list.height);
+    paint(last.list, last.lookup, last.counter);
+  }
+
+  /** The recording's scale from the logical stage, while one is being made. */
+  function exportScale() {
+    if (!exportBox) return null;
+    return recordedScale(plate[0] || DEFAULT_STAGE_RESOLUTION[0], plate[1] || DEFAULT_STAGE_RESOLUTION[1], exportBox);
   }
 
   /** Paint one instant. `sheets` is `sceneSheets` or anything with its shape. */
@@ -331,7 +355,9 @@ export function createCanvasStage(elements, {
       elements.stage.style.height = `${height}px`;
     }
     const scale = fitStage() ?? 1;
-    renderScale = scale * Math.min(positive(globalThis.devicePixelRatio) || 1, density);
+    renderScale = exportBox
+      ? recordedScale(width, height, exportBox)
+      : scale * Math.min(positive(globalThis.devicePixelRatio) || 1, density);
     const pixels = [
       Math.max(1, Math.round(width * renderScale)),
       Math.max(1, Math.round(height * renderScale)),
@@ -385,6 +411,18 @@ export function createCanvasStage(elements, {
     const { width, height } = elements.frame.getBoundingClientRect();
     return { width, height, reducedMotion };
   }
+}
+
+/**
+ * The scale a recording draws the logical stage at: the whole stage inside the
+ * frame, with the width landing on an even pixel. A video encoder wants even
+ * sides, and an exact width keeps every frame's `clearRect` on the canvas's own
+ * edge instead of a column short of it.
+ */
+export function recordedScale(width, height, box) {
+  const fit = Math.min(box.width / width, box.height / height);
+  const even = Math.max(2, Math.floor((width * fit) / 2) * 2);
+  return even / width;
 }
 
 /**

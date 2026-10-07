@@ -30,7 +30,8 @@ base, for example `https://storage.example/`.
 Beside `story` and `assetBase`, `options` accepts the manifest's `plates` block,
 the `stream` object that says the story is still being written, the `cards`
 either side of the story, the `board` block choosing a lesson's presentation and
-what the counting board's counters are drawn as, the `kicker` line the ceremony opens with, and two
+what the counting board's counters are drawn as, the `kicker` line the ceremony opens with,
+the `download` function a host keeps saved videos with, and two
 booleans, both off by default:
 
 - `plates` is the manifest block of the same name, `{place: {time: plate}}`,
@@ -284,6 +285,11 @@ booleans, both off by default:
   mounting something that is not a bedtime story—`kicker: 'a counting lesson'`.
   Anything that is not a string with words in it leaves the default,
   `a bedtime story`, rather than an empty line where it would have been.
+- `download` is a function the player calls with the finished mp4 (a `File`)
+  when the viewer saves a story as a video, in place of the share sheet or
+  download the player would offer itself. An Android app's webview has neither,
+  so that app passes one; see [saving a story as a
+  video](#saving-a-story-as-a-video). Anything but a function is refused at mount.
 - `debug: true` shows the log button and its drawer, and the log downloaded from
   that drawer carries the compiled timeline.
 - `perf: true` measures the running player—frame times per scene, long frames,
@@ -301,7 +307,8 @@ booleans, both off by default:
 The plain `createStoryPlayer` handle exposes `play()`, `pause()`, `toggle()`,
 `seek(milliseconds)`, `setSubtitles(boolean)`, `setFullscreen(boolean)`,
 `getState()`, `getTimeline()` and `subscribe(listener)` alongside `ready`,
-streaming methods and `destroy()`.
+streaming methods, `recordVideo()` and `canRecordVideo()` (see [saving a story
+as a video](#saving-a-story-as-a-video)) and `destroy()`.
 `subscribe` immediately reports current state when available and returns an
 unsubscribe function. State is `{tMs,durationMs,playing,ended,started,sceneIndex,
 subtitle,afterStory}`; scene indices are zero-based and times are milliseconds.
@@ -805,7 +812,8 @@ export function Performance({ story }) {
 ```
 
 Changing `story`, `assetBase`, `plates`, `cards`, `board`, `kicker`, `debug`,
-or `perf`
+or `perf`, or passing a `download` function where there was none (or none
+where there was one),
 destroys the previous instance before mounting the replacement — the eyebrow is
 written once, when the ceremony is built, so a `kicker` that changes mid-story
 sends the viewer back to the opening screen. Hold it still, as you would a
@@ -824,12 +832,20 @@ put it on the host `div` as an attribute and mount a player that shows the end
 at the end of the prefix. A React host following a writer calls
 `createStoryPlayer` on its own element instead.
 
+`download` is read through a ref: an inline arrow is a new function on every
+render, and the newest one is the one called, without a remount.
+
 ## Controls
 
 The player owns its transport, inside the Shadow DOM, drawn as the web app's
 watch dock (frontend-app `WatchControls`): play, back and forward ten seconds,
-the draggable line with `0:27 / 8:32`, then subtitles and full screen. It
-appears when the story begins, not while the opening is still up, and it
+the draggable line with `0:27 / 8:32`, then the ⋯ menu and full screen. The
+menu holds what is not playing the story: subtitles, the bedtime moon and
+saving the story as a video, each a row that closes the menu when chosen, so
+a phone's dock stays at five buttons whatever the story offers. A press
+anywhere else closes it — a press on the picture only closes it — Escape
+closes it and hands the keyboard back to ⋯, and an open menu keeps the
+overlay on screen. The transport appears when the story begins, not while the opening is still up, and it
 withdraws again for as long as a card is playing — each card has a skip of its
 own. The story's name sits over the picture at the top left. A host that draws
 its own chrome up there — close, cast, parental, overflow — owns that corner;
@@ -868,10 +884,9 @@ web app draws them — unless the host passes `chrome: 'host'`, in which case it
 draws its own:
 
 - The moon dims the picture, under the captions and the controls, so the words
-  keep their contrast. It is a sixth button in a phone's dock and a labelled
-  button under the dock on a big player. Pass `dim: true` to open the story
-  dimmed (the family's "dim after bedtime", say); the moon's state is never
-  written back.
+  keep their contrast. It is the "dim screen" row of the ⋯ menu. Pass
+  `dim: true` to open the story dimmed (the family's "dim after bedtime", say);
+  the moon's state is never written back.
 - The moonlit wind-down (`metadata.post_story`). When the narrative ends the
   picture goes to the base colour and the sky picture comes up over it while
   the same ambience bed plays on from where the story left it. The dock counts
@@ -887,6 +902,43 @@ keys skip ten seconds, `Home` and `End` seek to the start and the end. Any key
 brings the overlay back first. Keys are ignored while a text field has focus,
 and space and enter are left to whichever button has focus so the drawer and
 toggle stay reachable.
+
+### Saving a story as a video
+
+"Save video" in the ⋯ menu records the story into an mp4 the viewer keeps. The
+recording is the performance played again from its start: the stage canvas,
+backed at 1280×720 whatever the player measures on screen, and every sound the
+story makes, routed through one Web Audio graph into a `MediaRecorder`. So it
+takes as long as the story, and it can only see the canvas. A performance
+(`wht`, `bedtime`, a sung lesson) or a lesson whose `board.world` covers the
+stage is recordable; a story whose background is the plate `<video>` is not,
+and has no row. Captions, the moon's dimming and the vignette are not in the
+file.
+
+While it records, the story replays muted in the room, a pill at the top of the
+picture says `saving video · 2:31 / 8:32`, and its `cancel` stops the take. The
+story can be paused — the recording pauses with it, as it does for a hold on a
+file still downloading or a hidden tab — but not moved: the line, the skips,
+the keys and the double tap are locked until the take is over. At the end the
+last frame is held while the last word finishes, and no end card or wind-down
+is played. The pill then says `video ready` and offers `save video`. That save
+needs its own tap, because a browser opens a share sheet or a download only
+inside one: it is the phone's share sheet on an iPhone or iPad (its Save Video
+puts the file in Photos), and a download everywhere else.
+
+The file is `<story title>.mp4`, about 13 MB a minute: H.264 with AAC where
+the browser can make it, otherwise any mp4 it can (a Chromium without the
+licensed codecs makes VP9 with Opus). A browser that cannot make an mp4 has no
+row. The `download` option hands the file to the host instead of saving it —
+and inside an Android app's webview, which can neither share nor download a
+file made in the page, the row appears only when the host passes one.
+
+A host that draws its own controls calls `recordVideo()` from its own press —
+the recording's sound may only start inside one — and is handed the `File`; the
+promise rejects with `AbortError` when the take is cancelled or the player is
+destroyed, and with the reason when the story cannot be recorded here, which
+`canRecordVideo()` answers beforehand. Feature-detect both: a build from before
+them has neither.
 
 Seeking is a seek of the story, not of a video: the clock moves, the next frame
 is `stateAt` at the new instant, and the narration and music the instant lands

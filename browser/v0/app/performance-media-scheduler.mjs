@@ -25,7 +25,7 @@ const TRACK_AHEAD_MS = 3000;
 // otherwise hold every story at every track. Past it, the track joins when it can.
 const TRACK_WAIT_MS = 1500;
 
-export function createPerformanceMediaScheduler({ bundle, onWarning, store = null }) {
+export function createPerformanceMediaScheduler({ bundle, onWarning, store = null, output = null }) {
   let story = bundle;
   let playing = false;
   let destroyed = false;
@@ -34,7 +34,10 @@ export function createPerformanceMediaScheduler({ bundle, onWarning, store = nul
   // The instant a seek landed on, until time moves: a line opened there lands exactly inside it.
   let landedAt = null;
   const narration = () => story.audio.filter(c => c.kind === 'narration');
+  // A store handed in belongs to whoever handed it over: the runtime keeps one across the
+  // schedulers a recording swaps in and out, so the lines are downloaded once.
   const lines = store ?? createAudioStore(narration());
+  const ownsLines = store === null;
   const active = new Map();
   const finishing = new Map();
   const ahead = new Map();
@@ -110,7 +113,7 @@ export function createPerformanceMediaScheduler({ bundle, onWarning, store = nul
       active.clear();
       finishing.clear();
       ahead.clear();
-      lines.destroy();
+      if (ownsLines) lines.destroy();
     },
   };
 
@@ -250,7 +253,7 @@ export function createPerformanceMediaScheduler({ bundle, onWarning, store = nul
   }
 
   function open(cue) {
-    const media = new Audio();
+    const media = output ? output.audio() : new Audio();
     // A bed or song asks for its metadata only: preloaded in full, a 30 MB ambience took the link
     // from the next scene's pictures. It still buffers enough to start, and streams as it plays.
     media.preload = continuous(cue) ? 'metadata' : 'auto';

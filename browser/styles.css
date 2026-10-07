@@ -29,6 +29,8 @@
   --icon-collapse: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5'/%3E%3C/svg%3E");
   --icon-moon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20.5 13.8A8.6 8.6 0 1 1 10.2 3.5a6.8 6.8 0 0 0 10.3 10.3z'/%3E%3C/svg%3E");
   --icon-stop: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='5.5' y='5.5' width='13' height='13' rx='2.5'/%3E%3C/svg%3E");
+  --icon-more: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='5' cy='12' r='2'/%3E%3Ccircle cx='12' cy='12' r='2'/%3E%3Ccircle cx='19' cy='12' r='2'/%3E%3C/svg%3E");
+  --icon-save: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 4v11M7.5 10.5 12 15l4.5-4.5M5 19.5h14'/%3E%3C/svg%3E");
   --chip: rgba(255, 255, 255, 0.07);
   --text: #eaf3f0;
   --text-dim: #9fb3ae;
@@ -622,6 +624,81 @@ button:focus-visible {
 
 .end-overlay[hidden] { display: none; }
 
+/* A story being saved as a video: a pill at the top of the picture, clear of
+   the corners a host's own chrome owns and of the dock and captions below. It
+   stays when the overlay withdraws — it is not a control, it is what is
+   happening. */
+.recording-status {
+  position: absolute;
+  z-index: 9;
+  top: 12px;
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: calc(100% - 24px);
+  padding: 6px 6px 6px 14px;
+  transform: translateX(-50%);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgb(9 30 26 / 0.9);
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.recording-status[hidden] { display: none; }
+
+.recording-dot {
+  flex-shrink: 0;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #ff6b5e;
+  animation: recording-pulse 1.4s ease-in-out infinite;
+}
+
+.recording-status:is(.is-ready, .is-failed) .recording-dot { animation: none; }
+.recording-status.is-ready .recording-dot { background: var(--progress); }
+.recording-status.is-failed .recording-dot { background: #ffc3bc; }
+
+@keyframes recording-pulse {
+  50% { opacity: 0.3; }
+}
+
+.recording-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-variant-numeric: tabular-nums;
+}
+
+.recording-action,
+.recording-dismiss {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 6px 12px;
+  color: inherit;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+
+.recording-action[hidden],
+.recording-dismiss[hidden] { display: none; }
+
+.recording-action {
+  color: var(--on-accent);
+  background: var(--accent);
+  font-weight: 700;
+}
+
+.recording-action .glyph { width: 18px; height: 18px; }
+.recording-dismiss { color: var(--text-dim); }
+.recording-dismiss:hover { background: rgb(146 227 196 / 0.12); }
+
 .end-overlay {
   background: radial-gradient(circle at 50% 42%, rgba(30, 74, 62, 0.5), rgba(5, 12, 14, 0.92) 62%);
 }
@@ -867,9 +944,11 @@ button:focus-visible {
    The web app's watch dock (frontend-app `WatchControls` and
    `watch.module.css`), drawn by the player so the app and every other host
    get the same one: play and the two skips, the line with its times, then
-   subtitles and full screen. Two arrangements, chosen by the width of the
+   the ⋯ menu and full screen. Two arrangements, chosen by the width of the
    PLAYER as the web app chooses them: a phone's two rows — the line, then five
-   buttons spread across it — and one row from 600 pixels up. */
+   buttons spread across it — and one row from 600 pixels up. Subtitles, the
+   bedtime moon and saving the story are rows of the menu, so a phone's dock
+   stays at five buttons whatever the story offers. */
 .controls {
   position: absolute;
   z-index: 8;
@@ -908,7 +987,7 @@ button:focus-visible {
 .play-button { grid-column: 1; justify-self: start; }
 .skip-back { grid-column: 2; }
 .skip-forward { grid-column: 3; }
-.cc-button { grid-column: 4; }
+.more-button { grid-column: 4; }
 .fullscreen-button { grid-column: 5; justify-self: end; }
 
 /* The overlay withdraws from a story nobody is pointing at, and comes back the
@@ -1001,23 +1080,83 @@ button:focus-visible {
 .round-button:hover:not(:disabled) { background: rgb(146 227 196 / 0.12); }
 .round-button:disabled { opacity: 0.5; cursor: default; }
 
-/* Subtitles: the letters in a box, filled while they are on. */
-.cc-button > span {
+/* The ⋯ menu: a short card at the dock's right end, one row per choice. A
+   phone's picture is too short to hold it above a two-row dock, so there it
+   lies over the dock — which it closes back onto — and never past the top. */
+.more-menu {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  max-height: calc(100cqh - 16px);
+  overflow-y: auto;
   display: grid;
-  place-items: center;
+  min-width: 13.5rem;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgb(9 30 26 / 0.94);
+  box-shadow: 0 10px 28px rgb(0 0 0 / 0.38);
+}
+
+.more-menu[hidden] { display: none; }
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 12px;
+  color: inherit;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  font-size: 15px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.menu-item[hidden] { display: none; }
+.menu-item:hover:not(:disabled) { background: rgb(146 227 196 / 0.12); }
+.menu-item:disabled { opacity: 0.5; cursor: default; }
+.menu-item .glyph { width: 22px; height: 22px; flex-shrink: 0; }
+.menu-label { flex: 1; }
+
+/* A choice that stays chosen shows its state as a small switch at the end of
+   its row, drawn rather than written, so it is never read out twice. */
+.menu-item[aria-pressed]::after {
+  content: "";
+  flex-shrink: 0;
   width: 32px;
-  height: 28px;
+  height: 18px;
+  border-radius: 999px;
+  background: radial-gradient(circle at 9px 50%, #eaf3f0 6px, transparent 6.5px), var(--rail);
+}
+
+.menu-item[aria-pressed='true']::after {
+  background: radial-gradient(circle at 23px 50%, #082a20 6px, transparent 6.5px), var(--progress);
+}
+
+/* Subtitles: the letters in a box, the size of the other rows' glyphs. */
+.cc-mark {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 22px;
+  height: 18px;
   border: 2px solid currentColor;
-  border-radius: 4px;
-  font-size: 17px;
-  font-weight: 700;
-  line-height: 22px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
   text-transform: uppercase;
 }
 
-.cc-button[aria-pressed='true'] > span {
-  color: #092623;
-  background: #ecf8f2;
+/* While a recording runs the line cannot be moved: the take is one run. */
+.controls.is-seek-locked .scrub {
+  cursor: default;
+  opacity: 0.55;
+  pointer-events: none;
 }
 
 /* The glyphs are drawn from the web app's own paths, as masks the button's
@@ -1038,8 +1177,10 @@ button:focus-visible {
 .skip-forward { --glyph: var(--icon-forward); }
 .fullscreen-button { --glyph: var(--icon-expand); }
 .fullscreen-button[aria-pressed='true'] { --glyph: var(--icon-collapse); }
-.dim-button,
-.dim-label { --glyph: var(--icon-moon); }
+.more-button { --glyph: var(--icon-more); }
+.dim-button { --glyph: var(--icon-moon); }
+.save-button,
+.recording-action { --glyph: var(--icon-save); }
 .stop-button { --glyph: var(--icon-stop); }
 
 /* ── Bedtime ──────────────────────────────────────────────
@@ -1082,15 +1223,8 @@ button:focus-visible {
   object-fit: cover;
 }
 
-/* On a phone the moon is one of the dock's buttons, a sixth column. */
-.stage-frame.is-dimmable .dock { grid-template-columns: repeat(6, minmax(0, 1fr)); padding-inline: 8px; }
-.dim-button { grid-column: 5; }
-.stage-frame.is-dimmable .fullscreen-button { grid-column: 6; }
-.dim-button[aria-pressed='true'],
-.dim-label[aria-pressed='true'] { color: var(--accent); }
-
-/* The row under the dock: the moon and its words on a big player, the
-   wind-down's Stop, and the word its quiet ends on. */
+/* The row under the dock, after a bedtime story: the wind-down's Stop, and
+   the word its quiet ends on. */
 .bedside {
   display: none;
   flex-wrap: wrap;
@@ -1121,7 +1255,6 @@ button:focus-visible {
 .bedside-button:hover { background: rgb(146 227 196 / 0.12); }
 .bedside-button .glyph { width: 20px; height: 20px; }
 
-.dim-label,
 .stop-button,
 .quiet-chip,
 .wind-line,
@@ -1129,7 +1262,7 @@ button:focus-visible {
 
 /* The wind-down: its own line and countdown in place of the story's, Stop
    under them, and nothing that steers a story that has ended. */
-.stage-frame:is(.is-wind-down, .is-quiet) :is(.skip-back, .skip-forward, .cc-button, .dim-button),
+.stage-frame:is(.is-wind-down, .is-quiet) :is(.skip-back, .skip-forward),
 .stage-frame.is-wind-down :is(.scrub, .times) { display: none; }
 .stage-frame:is(.is-wind-down, .is-quiet) .bedside { display: flex; }
 .stage-frame.is-wind-down .stop-button { display: inline-flex; }
@@ -1161,7 +1294,7 @@ button:focus-visible {
 .stage-frame.is-wind-down.is-sounding .play-button { --glyph: var(--icon-pause); }
 
 /* From 600 pixels up, one row: play and the skips, the line with its times,
-   subtitles and full screen. */
+   the ⋯ menu and full screen. */
 @container player (min-width: 600px) {
   .dock {
     grid-template-columns: auto minmax(0, 1fr) auto;
@@ -1182,12 +1315,7 @@ button:focus-visible {
   .side-buttons { grid-column: 3; grid-row: 1; width: 96px; justify-content: flex-end; }
   .round-button { padding: 4px; }
   .glyph { width: 30px; height: 30px; }
-  .cc-button > span { width: 28px; height: 24px; font-size: 16px; line-height: 20px; }
-  .stage-frame.is-dimmable .dock { grid-template-columns: auto minmax(0, 1fr) auto; padding-inline: 16px; }
-  .dim-button { display: none; }
-  .stage-frame.is-dimmable .bedside { display: flex; }
-  .stage-frame.is-dimmable:not(.is-wind-down, .is-quiet) .dim-label { display: inline-flex; }
-  .stage-frame.is-dimmable:not(.is-bare) .subtitle-wrap { padding-bottom: 129px; }
+  .more-menu { right: 16px; bottom: calc(100% - 16px); }
 }
 
 /* Absolute, not fixed: a panel positioned against the viewport would climb out

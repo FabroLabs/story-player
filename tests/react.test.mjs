@@ -136,6 +136,35 @@ test('the kicker reaches the ceremony rather than the host element', async (t) =
   assert.equal(eyebrow(), 'a shapes lesson', 'a new kicker never reached the ceremony');
 });
 
+test('a new download function is not a new story, and is not spread onto the host', async (t) => {
+  const browser = installBrowser();
+  t.after(browser.restore);
+  const StoryPlayer = createReactStoryPlayer(React);
+  const target = document.querySelector('#root');
+  const root = createRoot(target);
+  t.after(() => root.unmount());
+
+  const lesson = story('Fifth moon');
+  const render = (download) => act(async () => {
+    root.render(React.createElement(StoryPlayer, {
+      story: lesson, assetBase: 'https://storage.example/', download, className: 'story-slot',
+    }));
+    await settle();
+  });
+  const ceremony = () => target.firstElementChild.shadowRoot.querySelector('.start-ceremony');
+
+  await render(() => {});
+  const first = ceremony();
+  assert.equal(target.firstElementChild.getAttribute('download'), null, 'download was spread onto the host element');
+  // An inline arrow is a new function on every render, and a remount per render
+  // would throw the story away under the viewer.
+  await render(() => {});
+  assert.equal(ceremony(), first, 'a new download function remounted the story');
+  // Having one or not decides whether the player can offer the file at all.
+  await render(null);
+  assert.notEqual(ceremony(), first, 'losing the download function did not reach the player');
+});
+
 test('the component hands the plates block over, and refuses to grow a story', async (t) => {
   const browser = installBrowser();
   t.after(browser.restore);
