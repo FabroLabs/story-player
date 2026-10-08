@@ -44,11 +44,32 @@ export function createControls(elements, {
   // The bar was taken away for a performance that is not the story's, and is
   // owed back when that one is over.
   let concealed = false;
+  // The ⋯ menu is open, and whether the press on the picture under way was
+  // spent closing it rather than on the story.
+  let menuOpen = false;
+  let dismissing = false;
+  // A recording is being made: the take must be one unbroken run of the story,
+  // so nothing on the bar may move it. Play and pause still work — pausing
+  // pauses the recording with the story.
+  let seekLocked = false;
   let destroyed = false;
 
   listen(elements.toggle, 'click', () => live() && onToggle());
-  listen(elements.back, 'click', () => live() && onSkip(-SKIP_MS));
-  listen(elements.forward, 'click', () => live() && onSkip(SKIP_MS));
+  listen(elements.back, 'click', () => live() && !seekLocked && onSkip(-SKIP_MS));
+  listen(elements.forward, 'click', () => live() && !seekLocked && onSkip(SKIP_MS));
+  // Subtitles, the bedtime moon and saving the story live behind one button, so
+  // a phone's dock keeps five. Whatever is chosen in the menu closes it; the
+  // rows' own listeners have already run by the time the click gets here.
+  if (elements.more && elements.menu) {
+    listen(elements.more, 'click', () => {
+      if (!live()) return;
+      if (menuOpen) closeMenu({ focus: false });
+      else openMenu();
+    });
+    listen(elements.menu, 'click', (event) => {
+      if (event.target !== elements.menu) closeMenu({ focus: false });
+    });
+  }
   // A drag is many seeks and one landing. Every pointer position moves the
   // picture at once (`settled: false`) — that is what makes a scrub bar worth
   // dragging — but only the position the pointer is LET GO at is where the
@@ -56,7 +77,7 @@ export function createControls(elements, {
   // opened a narration element per pointer event, dozens a second, each one a
   // fetch and a decoder the next move threw away.
   listen(elements.scrub, 'pointerdown', (event) => {
-    if (!live()) return;
+    if (!live() || seekLocked) return;
     dragging = true;
     capture('set', event.pointerId);
     seekTo(event, false);
@@ -97,9 +118,17 @@ export function createControls(elements, {
   // the frame, so its `pointerdown` arrives first.
   listen(elements.stage, 'pointerdown', (event) => {
     touchDown = event?.pointerType === 'touch' || event?.pointerType === 'pen' ? { bare: hidden } : null;
+    // A press on the picture while the menu is open is a press to close it, and
+    // only that: a viewer reaching past a menu is not asking for the story to stop.
+    dismissing = menuOpen;
   });
   listen(elements.stage, 'click', (event) => {
     if (!live()) return;
+    if (dismissing) {
+      dismissing = false;
+      touchDown = null;
+      return;
+    }
     if (touchDown) {
       tapped(event, touchDown);
       touchDown = null;
@@ -113,11 +142,14 @@ export function createControls(elements, {
   // The overlay follows the pointer, not the clicks: it comes back whenever the
   // pointer moves and withdraws once the story has been left alone for a while.
   for (const type of ['pointerenter', 'pointermove', 'pointerdown', 'pointerup']) {
-    listen(elements.frame, type, () => {
+    listen(elements.frame, type, (event) => {
       steering = 'pointer';
       // Any new touch is a viewer reaching for something: an overlay waiting to
       // see whether the last tap had a second one stays where it is.
-      if (type === 'pointerdown') cancelTap();
+      if (type === 'pointerdown') {
+        cancelTap();
+        if (menuOpen && !insideMenu(event?.target)) closeMenu({ focus: false });
+      }
       wake();
     });
   }
@@ -139,7 +171,48 @@ export function createControls(elements, {
   listen(elements.frame, 'focusin', wake);
   listen(elements.frame, 'focusout', wake);
 
-  return { arm, show, conceal, reveal, update, destroy };
+  return { arm, show, conceal, reveal, update, lockSeeking, destroy };
+
+  /**
+   * A recording is being made, or is over.
+   *
+   * Drawn as well as enforced: the skips go grey and the line stops taking a
+   * pointer, so the bar says what it will do rather than ignoring a press.
+   */
+  function lockSeeking(on) {
+    if (destroyed) return;
+    seekLocked = on === true;
+    if (seekLocked) {
+      dragging = false;
+      draggedToMs = null;
+    }
+    elements.back.disabled = seekLocked;
+    elements.forward.disabled = seekLocked;
+    elements.scrub.setAttribute('aria-disabled', String(seekLocked));
+    elements.root.classList?.toggle('is-seek-locked', seekLocked);
+  }
+
+  function openMenu() {
+    menuOpen = true;
+    elements.menu.hidden = false;
+    elements.more.setAttribute('aria-expanded', 'true');
+    // A keyboard that opened it is taken into it; a pointer can see where to go.
+    if (steering === 'keyboard') [...elements.menu.children].find((item) => !item.hidden)?.focus?.();
+    wake();
+  }
+
+  function closeMenu({ focus }) {
+    if (!menuOpen) return;
+    menuOpen = false;
+    elements.menu.hidden = true;
+    elements.more.setAttribute('aria-expanded', 'false');
+    if (focus) elements.more.focus?.();
+    wake();
+  }
+
+  function insideMenu(target) {
+    return Boolean(target) && (elements.menu.contains(target) || elements.more.contains(target));
+  }
 
   /**
    * The length of what is published is known: the buttons mean something now.
@@ -182,6 +255,7 @@ export function createControls(elements, {
    */
   function conceal() {
     if (destroyed || concealed || elements.root.hidden === true) return;
+    closeMenu({ focus: false });
     concealed = true;
     elements.root.hidden = true;
     if (elements.actions) elements.actions.hidden = true;
@@ -204,8 +278,9 @@ export function createControls(elements, {
   function bare(next) {
     if (destroyed || next === hidden) return;
     // Nothing is taken away from a hand that is on it: a drag holds the bar it
-    // is dragging, and a KEYBOARD holds whatever it is on.
-    if (next && (dragging || holdsKeyboard())) return;
+    // is dragging, a KEYBOARD holds whatever it is on, and an open menu is a
+    // question still being answered.
+    if (next && (dragging || holdsKeyboard() || menuOpen)) return;
     // A button clicked with a mouse keeps focus without keeping attention — and
     // it is about to become `visibility: hidden`, which would drop that focus
     // out of the player entirely and take every key with it. The frame is where
@@ -269,7 +344,7 @@ export function createControls(elements, {
   function tapped(event, down) {
     const now = Date.now();
     const side = sideOf(event);
-    const double = side !== 0 && lastTap?.side === side && now - lastTap.at <= doubleTapMs;
+    const double = !seekLocked && side !== 0 && lastTap?.side === side && now - lastTap.at <= doubleTapMs;
     lastTap = { at: now, side };
     if (double) {
       cancelTap();
@@ -380,6 +455,11 @@ export function createControls(elements, {
     // pointer moves again, whatever has focus is somebody's only way around.
     steering = 'keyboard';
     wake();
+    if (key === 'Escape' && menuOpen) {
+      event.preventDefault?.();
+      closeMenu({ focus: true });
+      return;
+    }
     // Space and Enter belong to whatever button has focus — `cc`, `log`, the
     // transport itself. Swallowing them here (and calling `preventDefault`)
     // would leave a keyboard user unable to press any of them.
@@ -387,6 +467,8 @@ export function createControls(elements, {
     if (key === ' ' || key === 'Spacebar' || key === 'k') {
       event.preventDefault?.();
       onToggle();
+    } else if (seekLocked) {
+      // Every key below moves the story, and a recording takes it in one run.
     } else if (key === 'ArrowRight') {
       event.preventDefault?.();
       onSkip(SKIP_MS);
@@ -447,7 +529,7 @@ export function createControls(elements, {
   }
 }
 
-function clockText(milliseconds) {
+export function clockText(milliseconds) {
   const total = Math.max(0, Math.round((milliseconds ?? 0) / 1000));
   const minutes = Math.floor(total / 60);
   return `${minutes}:${String(total % 60).padStart(2, '0')}`;

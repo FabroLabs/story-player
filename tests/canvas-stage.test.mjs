@@ -31,6 +31,25 @@ function stageState({ actors = [], camera } = {}) {
 
 const bitmap = (width, height) => ({ width, height });
 
+test('saved frames carry the brand outside the camera and burn the current caption into the picture', (t) => {
+  const { stage, elements, context } = mounted(t);
+  elements.brand = { naturalWidth: 646, naturalHeight: 646 };
+  const state = { ...stageState({ camera: { scale: 2, x: -40, y: -20 } }), subtitle: 'The wheel broke.' };
+  stage.draw(state, book());
+  stage.setExportSize({ width: 1280, height: 720 });
+  const mark = context.of('drawImage').find((call) => call[0] === elements.brand);
+  assert.ok(mark, 'the file has no mark');
+  assert.deepEqual(mark.at(-1).transform, [1, 1, 0, 0]);
+  assert.equal(mark.at(-1).alpha, 0.7);
+  assert.ok(Math.abs(mark[3] - 89.6) < 0.01);
+  const caption = context.of('fillText').find((call) => call[0] === 'The wheel broke.');
+  assert.ok(caption, 'the exported picture lost the caption');
+  assert.deepEqual(caption.at(-1).transform, [1, 1, 0, 0]);
+  assert.equal(elements.frame.classList.contains('is-exporting'), true);
+  stage.setExportSize(null);
+  assert.equal(elements.frame.classList.contains('is-exporting'), false);
+});
+
 function book({ url = 'ruby.webp', grid = [1, 1], drawables = {} } = {}) {
   return {
     sheet: () => ({ url, grid }),

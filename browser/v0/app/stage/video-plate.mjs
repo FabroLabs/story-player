@@ -39,6 +39,8 @@ export function createVideoPlate(elements, { onWarning = () => {}, gestureTarget
   let wanted = false;
   let destroyed = false;
   let frosted = null;
+  let capture = null;
+  let capturePoster = null;
 
   plate.style.transformOrigin = CAMERA_ORIGIN;
   // The stylesheet owns WHEN the blur eases; how long it takes is a published
@@ -46,7 +48,61 @@ export function createVideoPlate(elements, { onWarning = () => {}, gestureTarget
   // a second time in CSS where nothing would ever notice the two disagreeing.
   plate.style.setProperty('--frost-ms', `${SLATE.frost.ms}ms`);
 
-  return { showScene, aim, frost, play, pause, quality, destroy };
+  return { showScene, aim, frost, play, pause, quality, destroy, prepareExport, captureReady, captureFrame };
+
+  function captureReady() {
+    if (!scene) return true;
+    return scene.video ? video.readyState >= 2 && !video.seeking : !scene.poster || capturePoster !== null;
+  }
+
+  function captureFrame() {
+    if (!captureReady()) return null;
+    const source = scene?.video ? video : capturePoster;
+    return {
+      source, filter: frosted, cover: !scene?.video,
+      width: source?.videoWidth || source?.naturalWidth || 1,
+      height: source?.videoHeight || source?.naturalHeight || 1,
+    };
+  }
+
+  // Export waits for an origin-clean decoded frame. Ordinary playback can fall
+  // back to a poster; an export must not quietly save a missing background.
+  function prepareExport() {
+    if (destroyed) return Promise.reject(new DOMException('player destroyed', 'AbortError'));
+    if (captureReady()) return Promise.resolve();
+    if (capture) return capture.promise;
+    let done;
+    const promise = new Promise((resolve, reject) => { done = { resolve, reject }; });
+    const owner = scene;
+    const cleanups = [];
+    const finish = (error) => {
+      for (const cleanup of cleanups) cleanup();
+      capture = null;
+      if (error) done.reject(error);
+      else done.resolve();
+    };
+    const timer = setTimeout(() => finish(new Error('the story background could not be loaded for saving')), PLATE_READY_TIMEOUT_MS);
+    cleanups.push(() => clearTimeout(timer));
+    capture = { promise, cancel: () => finish(new DOMException('scene changed', 'AbortError')) };
+    if (owner.video) {
+      const ready = () => { if (captureReady()) finish(); };
+      const failed = () => finish(new Error('the story background could not be decoded for saving'));
+      for (const type of ['loadeddata', 'canplay', 'seeked']) {
+        video.addEventListener(type, ready);
+        cleanups.push(() => video.removeEventListener(type, ready));
+      }
+      video.addEventListener('error', failed);
+      cleanups.push(() => video.removeEventListener('error', failed));
+    } else {
+      const image = new Image();
+      image.crossOrigin = 'anonymous';
+      image.onload = () => { capturePoster = image; finish(); };
+      image.onerror = () => finish(new Error('the story poster could not be loaded for saving'));
+      cleanups.push(() => { image.onload = null; image.onerror = null; });
+      image.src = owner.poster;
+    }
+    return promise;
+  }
 
   /**
    * What the decoder has managed, for whoever is measuring.
@@ -99,6 +155,7 @@ export function createVideoPlate(elements, { onWarning = () => {}, gestureTarget
       video.load?.();
       return;
     }
+    video.crossOrigin = 'anonymous';
     video.src = next.video;
     video.load?.();
 
@@ -280,6 +337,8 @@ export function createVideoPlate(elements, { onWarning = () => {}, gestureTarget
   }
 
   function releaseScene() {
+    capture?.cancel();
+    capturePoster = null;
     clearDeadline();
     disarmRetry();
     for (const [type, handler] of listeners) video.removeEventListener(type, handler);

@@ -6,7 +6,7 @@ export function createReactStoryPlayer(React) {
 
   function StoryPlayer({
     story, assetBase, plates = null, stream = null, cards = null, board = null, kicker = null,
-    debug = false, perf = false, children: _children, ref: _ref, ...host
+    download = null, videoControls = 'player', debug = false, perf = false, children: _children, ref: _ref, ...host
   }) {
     // A story still being written is grown through `appendScene` on the handle,
     // and this component keeps no handle — it remounts whenever the story object
@@ -17,15 +17,24 @@ export function createReactStoryPlayer(React) {
       throw new TypeError('a story that is still being written must be mounted with createStoryPlayer, not this component');
     }
     const hostRef = useRef(null);
+    // Read through a ref: an inline function is a new identity on every render,
+    // and a new identity must not remount a story. Only whether there is one
+    // remounts it, because that decides whether the player can offer the file.
+    const downloadRef = useRef(download);
+    useEffect(() => {
+      downloadRef.current = download;
+    }, [download]);
+    const keepsVideos = typeof download === 'function';
     useEffect(() => {
       const player = createStoryPlayer(hostRef.current, {
-        story, assetBase, plates, cards, board, kicker, debug, perf,
+        story, assetBase, plates, cards, board, kicker, debug, perf, videoControls,
+        download: keepsVideos ? (file) => downloadRef.current?.(file) : null,
       });
       void player.ready.catch(() => {
         // The plain player owns and renders its initialization error surface.
       });
       return () => player.destroy();
-    }, [story, assetBase, plates, cards, board, kicker, debug, perf]);
+    }, [story, assetBase, plates, cards, board, kicker, keepsVideos, debug, perf, videoControls]);
     return createElement('div', { ...host, ref: hostRef });
   }
 

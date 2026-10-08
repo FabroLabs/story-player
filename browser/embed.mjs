@@ -30,7 +30,8 @@ export function createStoryPlayer(container, options) {
       root, elements, story: options.story, assetBase: options.assetBase,
       plates: options.plates ?? null, stream: options.stream ?? null,
       cards: options.cards ?? null, board: options.board ?? null, fullscreen: options.fullscreen ?? null,
-      dim: options.dim ?? null, chrome: options.chrome === 'host' ? 'host' : 'player',
+      dim: options.dim ?? null, download: options.download ?? null, chrome: options.chrome === 'host' ? 'host' : 'player',
+      videoControls: options.videoControls ?? 'player',
       signal: abort.signal, debug: options.debug === true, perf: options.perf === true,
     });
   } catch (error) {
@@ -54,6 +55,14 @@ export function createStoryPlayer(container, options) {
     subscribe: (listener) => destroyed ? () => {} : performer?.subscribe?.(listener) ?? (() => {}),
     appendScene,
     finishStory,
+    // Called from the host's own press: the recording's sound may only start
+    // inside one, so nothing is awaited before the performer is asked.
+    recordVideo: (options) => (destroyed
+      ? Promise.reject(new Error('this player was destroyed'))
+      : performer?.recordVideo?.(options) ?? Promise.reject(new Error('this player cannot record a video'))),
+    canRecordVideo: () => !destroyed && performer?.canRecordVideo?.() === true,
+    cancelVideo: () => { if (!destroyed) performer?.cancelVideo?.(); },
+    getVideoExportState: () => destroyed ? null : performer?.getVideoExportState?.() ?? null,
     destroy() {
       if (destroyed) return;
       destroyed = true;

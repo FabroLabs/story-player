@@ -471,6 +471,112 @@ test('destroy leaves nothing listening', (t) => {
   assert.deepEqual(seen, { toggles: 0, seeks: [], skips: [] });
 });
 
+test('the ⋯ button opens a menu that any choice in it closes', (t) => {
+  const { bar, controls } = bench(t);
+  controls.arm(STORY_MS);
+  controls.show();
+  assert.equal(bar.menu.hidden, true);
+  assert.equal(bar.more.getAttribute('aria-expanded'), 'false');
+
+  bar.more.dispatch('click');
+  assert.equal(bar.menu.hidden, false);
+  assert.equal(bar.more.getAttribute('aria-expanded'), 'true');
+  // A press inside the menu is not a press outside it.
+  bar.frame.dispatch('pointerdown', { target: bar.menu.children[0] });
+  assert.equal(bar.menu.hidden, false, 'reaching for a row closed the menu under the pointer');
+  bar.menu.dispatch('click', { target: bar.menu.children[0] });
+  assert.equal(bar.menu.hidden, true, 'a choice left the menu open');
+  assert.equal(bar.more.getAttribute('aria-expanded'), 'false');
+
+  bar.more.dispatch('click');
+  bar.more.dispatch('click');
+  assert.equal(bar.menu.hidden, true, 'the button did not close what it opened');
+});
+
+test('a press on the picture while the menu is open only closes the menu', (t) => {
+  const { bar, controls, seen } = bench(t);
+  controls.arm(STORY_MS);
+  controls.show();
+  controls.update({ tMs: 0, playing: true });
+  bar.more.dispatch('click');
+
+  const press = () => {
+    bar.stage.dispatch('pointerdown');
+    bar.frame.dispatch('pointerdown', { target: bar.stage });
+    bar.stage.dispatch('click');
+  };
+  press();
+  assert.equal(bar.menu.hidden, true);
+  assert.equal(seen.toggles, 0, 'closing the menu paused the story');
+  press();
+  assert.equal(seen.toggles, 1, 'the next press on the picture was not a press on the picture');
+});
+
+test('a keyboard is taken into the menu and Escape gives it back to its button', (t) => {
+  const { bar, controls, seen } = bench(t);
+  controls.arm(STORY_MS);
+  controls.show();
+  const focused = [];
+  bar.menu.children[0].focus = () => focused.push('subtitles');
+  bar.more.focus = () => focused.push('more');
+  bar.frame.dispatch('keydown', { key: 'Tab' });
+
+  bar.more.dispatch('click');
+  assert.deepEqual(focused, ['subtitles'], 'the first row a keyboard can reach was not focused');
+  bar.frame.dispatch('keydown', { key: 'Escape' });
+  assert.equal(bar.menu.hidden, true);
+  assert.deepEqual(focused, ['subtitles', 'more']);
+  assert.equal(seen.toggles, 0);
+});
+
+test('an open menu keeps the overlay on screen', async (t) => {
+  const { bar, controls } = bench(t, { idleMs: 20 });
+  controls.arm(STORY_MS);
+  controls.show();
+  controls.update({ tMs: 0, playing: true });
+  bar.more.dispatch('click');
+
+  await tick(40);
+  bar.frame.dispatch('pointerleave');
+  assert.equal(bar.frame.classList.contains('is-bare'), false, 'the menu withdrew while it was being read');
+
+  bar.menu.dispatch('click', { target: bar.menu.children[0] });
+  await tick(40);
+  assert.equal(bar.frame.classList.contains('is-bare'), true, 'the overlay stayed once the menu was closed');
+});
+
+test('a recording locks every way of moving the story, and gives them back', (t) => {
+  const { bar, controls, seen } = bench(t, { doubleTapMs: 200 });
+  controls.arm(STORY_MS);
+  controls.show();
+  controls.update({ tMs: 60_000, playing: true });
+
+  controls.lockSeeking(true);
+  assert.equal(bar.back.disabled, true);
+  assert.equal(bar.forward.disabled, true);
+  assert.equal(bar.scrub.getAttribute('aria-disabled'), 'true');
+  assert.equal(bar.root.classList.contains('is-seek-locked'), true);
+  bar.back.dispatch('click');
+  bar.forward.dispatch('click');
+  bar.scrub.dispatch('pointerdown', { clientX: 960, pointerId: 1 });
+  bar.scrub.dispatch('pointerup', { clientX: 960, pointerId: 1 });
+  for (const key of ['ArrowLeft', 'ArrowRight', 'Home', 'End']) bar.frame.dispatch('keydown', { key });
+  touch(bar, 0.9);
+  touch(bar, 0.9);
+  assert.deepEqual(seen.seeks, []);
+  assert.deepEqual(seen.skips, []);
+  // Pausing is still the viewer's: it pauses the recording with the story.
+  bar.frame.dispatch('keydown', { key: 'k' });
+  assert.equal(seen.toggles, 1);
+
+  controls.lockSeeking(false);
+  assert.equal(bar.back.disabled, false);
+  assert.equal(bar.scrub.getAttribute('aria-disabled'), 'false');
+  assert.equal(bar.root.classList.contains('is-seek-locked'), false);
+  bar.back.dispatch('click');
+  assert.deepEqual(seen.skips, [-10_000]);
+});
+
 /** Let the overlay's countdown and the mark's timers run. */
 function tick(ms = 0) {
   return new Promise((resolve) => { setTimeout(resolve, ms); });
