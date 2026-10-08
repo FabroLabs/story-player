@@ -20,6 +20,32 @@ const SCENE = {
   video: 'https://storage.example/fairytale-assets/plates/dell.mp4',
 };
 
+test('export waits for a decoded CORS video frame and never substitutes its poster', async (t) => {
+  const { plate, elements } = harness(t);
+  plate.showScene(SCENE);
+  assert.equal(elements.video.crossOrigin, 'anonymous');
+  assert.equal(plate.captureReady(), false);
+  const ready = plate.prepareExport();
+  elements.video.readyState = 2;
+  elements.video.videoWidth = 160;
+  elements.video.videoHeight = 90;
+  elements.video.dispatch('loadeddata');
+  await ready;
+  assert.equal(plate.captureReady(), true);
+  assert.equal(plate.captureFrame().source, elements.video);
+  assert.equal(plate.captureFrame().width, 160);
+});
+
+test('a missing background rejects export while ordinary playback retains its poster', async (t) => {
+  const { plate, elements } = harness(t);
+  plate.showScene(SCENE);
+  const ready = plate.prepareExport();
+  elements.video.dispatch('error');
+  await assert.rejects(ready, /could not be decoded/);
+  assert.equal(plate.captureFrame(), null);
+  assert.match(elements.poster.style.backgroundImage, /dell/);
+});
+
 function harness(t, { play, watchProperties } = {}) {
   const dom = installDom();
   t.after(dom.restore);

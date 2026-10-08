@@ -38,8 +38,8 @@ test.beforeAll(async () => {
       res.setHeader('Content-Type', 'image/svg+xml');
       res.end(SVG);
     } else if (req.url.endsWith('.webm')) {
-      res.statusCode = 404;
-      res.end();
+      res.setHeader('Content-Type', 'video/mp4');
+      res.end(fs.readFileSync(new URL('./fixtures/media/plate-export.mp4', import.meta.url)));
     } else {
       res.setHeader('Content-Type', 'text/html');
       res.end('<!doctype html><meta charset="utf-8"><div id="player" style="width:640px"></div><script src="/player.js"></script><script>window.ready=fetch("/story.json").then(r=>r.json()).then(story=>{window.player=FabroStoryPlayer.createStoryPlayer(document.querySelector("#player"),{story,assetBase:location.origin});return player.ready;});</script>');
@@ -54,7 +54,7 @@ test.afterAll(async () => {
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
-test('the ⋯ menu records the whole story and saves it as an mp4 with picture and sound', async ({ page }) => {
+test('the ⋯ menu records the whole story and saves it as an mp4 with picture and sound', async ({ page }, testInfo) => {
   test.setTimeout(40_000);
   await page.goto(base);
   await page.evaluate(() => window.ready);
@@ -79,13 +79,23 @@ test('the ⋯ menu records the whole story and saves it as an mp4 with picture a
   await status.getByRole('button', { name: 'save video' }).click();
   const download = await downloading;
   expect(download.suggestedFilename()).toBe('A shared performance.mp4');
-  const file = path.join(dir, 'saved.mp4');
+  const file = testInfo.outputPath('saved.mp4');
   await download.saveAs(file);
   const bytes = fs.readFileSync(file);
   expect(bytes.subarray(4, 8).toString('latin1')).toBe('ftyp');
   // One video track and one sound track, by their handler types.
   expect(bytes.includes(Buffer.from('vide'))).toBe(true);
   expect(bytes.includes(Buffer.from('soun'))).toBe(true);
+  await testInfo.attach('saved-story', { path: file, contentType: 'video/mp4' });
+  const decoded = await inspectFile(page, bytes);
+  expect(decoded.width).toBe(1280);
+  expect(decoded.height).toBe(720);
+  expect(decoded.duration).toBeGreaterThan(3.8);
+  expect(decoded.duration).toBeLessThan(6);
+  expect(decoded.brandPixels).toBeGreaterThan(500);
+  expect(decoded.captionPixels).toBeGreaterThan(40);
+  expect(decoded.audioPeak).toBeGreaterThan(0.01);
+  await testInfo.attach('decoded-frame', { body: Buffer.from(decoded.frame, 'base64'), contentType: 'image/png' });
   await expect(status).toBeHidden();
 
   // After the take the player is the player again: seeking works.
@@ -94,7 +104,9 @@ test('the ⋯ menu records the whole story and saves it as an mp4 with picture a
     return [root.querySelector('.skip-back').disabled, root.querySelector('.scrub').getAttribute('aria-disabled')];
   })).toEqual([false, 'false']);
   const state = await page.evaluate(() => window.player.getState());
-  expect(state.ended).toBe(true);
+  expect(state.ended).toBe(false);
+  expect(state.playing).toBe(false);
+  expect(state.tMs).toBeLessThan(1000);
 });
 
 test('a host keeps the file itself, and a cancelled take hands over nothing', async ({ page }) => {
@@ -131,7 +143,7 @@ test('a host keeps the file itself, and a cancelled take hands over nothing', as
   await expect(page.locator('#player .recording-status')).toBeHidden();
 });
 
-test('a lesson in an illustrated world records its storybook narration, and a plate story is refused', async ({ page }) => {
+test('a lesson in an illustrated world records its storybook narration, and plate capture is available', async ({ page }) => {
   test.setTimeout(40_000);
   await page.goto(base);
   await page.evaluate(() => window.ready);
@@ -184,7 +196,7 @@ test('a lesson in an illustrated world records its storybook narration, and a pl
       };
     }
   });
-  expect(refusedPlate).toBe(false);
+  expect(refusedPlate).toBe(true);
   expect(await page.evaluate(() => window.player.canRecordVideo())).toBe(true);
   await page.getByRole('button', { name: 'record' }).click();
   const kept = await page.evaluate(() => window.take);
@@ -192,3 +204,93 @@ test('a lesson in an illustrated world records its storybook narration, and a pl
   // The narration fixture peaks near 0.03 of full scale.
   expect(kept.peak).toBeGreaterThan(0.01);
 });
+
+test('a legacy video plate, narration, captions and branding survive a streamed native-style save', async ({ page }, testInfo) => {
+  test.setTimeout(40_000);
+  await page.goto(base);
+  await page.evaluate(() => window.ready);
+  await page.evaluate(async () => {
+    window.player.destroy();
+    const story = {
+      storylang_version: 0, title: 'A moving garden', cast: {}, objects: {}, audio: { sfx: {}, bgm: {} },
+      scenes: [{ place: 'garden', plate: { poster: 'pack/poster.svg', video: 'pack/garden.webm' }, steps: [
+        { kind: 'chunk', line: 1, text: 'Look at the garden.', duration_s: 3, audio: 'pack/line.wav' },
+        { kind: 'cmd', cmd: 'pause', seconds: 1 },
+      ] }],
+    };
+    window.player = FabroStoryPlayer.createStoryPlayer(document.querySelector('#player'), {
+      story, assetBase: location.origin, videoControls: 'host',
+    });
+    await window.player.ready;
+    const button = document.createElement('button');
+    button.textContent = 'Save outside the player';
+    button.onclick = () => {
+      const chunks = [];
+      window.take = window.player.recordVideo({ onChunk: async (chunk) => chunks.push(chunk) })
+        .then((info) => {
+          const blob = new Blob(chunks, { type: info.type });
+          window.savedUrl = URL.createObjectURL(blob);
+          return { ...info, bytes: blob.size };
+        });
+    };
+    document.body.append(button);
+  });
+  await page.getByRole('button', { name: 'Save outside the player' }).click();
+  const info = await page.evaluate(() => window.take);
+  expect(info.size).toBe(info.bytes);
+  expect(info.name).toBe('A moving garden.mp4');
+  const encoded = await page.evaluate(async () => {
+    const bytes = new Uint8Array(await (await fetch(window.savedUrl)).arrayBuffer());
+    let binary = '';
+    for (const byte of bytes) binary += String.fromCharCode(byte);
+    return btoa(binary);
+  });
+  const bytes = Buffer.from(encoded, 'base64');
+  const decoded = await inspectFile(page, bytes);
+  expect(decoded.brandPixels).toBeGreaterThan(500);
+  expect(decoded.captionPixels).toBeGreaterThan(40);
+  expect(decoded.audioPeak).toBeGreaterThan(0.01);
+  expect(decoded.colorPixels).toBeGreaterThan(100_000);
+  const file = testInfo.outputPath('legacy.mp4');
+  fs.writeFileSync(file, bytes);
+  await testInfo.attach('legacy-story', { path: file, contentType: 'video/mp4' });
+  await testInfo.attach('legacy-frame', { body: Buffer.from(decoded.frame, 'base64'), contentType: 'image/png' });
+  await expect(page.locator('.save-button')).toBeHidden();
+});
+
+
+async function inspectFile(page, bytes) {
+  return page.evaluate(async (encoded) => {
+    const data = Uint8Array.from(atob(encoded), (c) => c.charCodeAt(0));
+    const file = new Blob([data], { type: 'video/mp4' });
+    const url = URL.createObjectURL(file);
+    const video = document.createElement('video');
+    video.muted = true;
+    video.src = url;
+    await new Promise((resolve, reject) => { video.onloadedmetadata = resolve; video.onerror = reject; });
+    const metadata = { width: video.videoWidth, height: video.videoHeight, duration: video.duration };
+    const sought = new Promise((resolve) => { video.onseeked = resolve; });
+    video.currentTime = 0.5;
+    await sought;
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0);
+    const image = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    let brandPixels = 0, captionPixels = 0, colorPixels = 0;
+    for (let y = 0; y < canvas.height; y++) for (let x = 0; x < canvas.width; x++) {
+      const p = (y * canvas.width + x) * 4;
+      const [r, g, b] = image.data.slice(p, p + 3);
+      if (y > 140 && y < 550 && Math.max(r, g, b) - Math.min(r, g, b) > 80) colorPixels++;
+      if (x > canvas.width * 0.905 && x < canvas.width * 0.982 && y < canvas.height * 0.155 && g > 65 && g > r * 1.2) brandPixels++;
+      if (y > canvas.height * 0.85 && x > canvas.width * 0.3 && x < canvas.width * 0.7 && r > 160 && g > 160 && b > 160) captionPixels++;
+    }
+    const context = new AudioContext();
+    const samples = (await context.decodeAudioData(await file.arrayBuffer())).getChannelData(0);
+    let audioPeak = 0;
+    for (const sample of samples) audioPeak = Math.max(audioPeak, Math.abs(sample));
+    await context.close();
+    URL.revokeObjectURL(url);
+    return { ...metadata, brandPixels, captionPixels, colorPixels, audioPeak, frame: canvas.toDataURL().split(',')[1] };
+  }, bytes.toString('base64'));
+}

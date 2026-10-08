@@ -187,6 +187,21 @@ button:focus-visible {
   height: 100%;
 }
 
+/* Anchored to the picture, outside its camera transform and subtitle band. */
+.story-brand {
+  position: absolute;
+  top: 2%;
+  right: 2%;
+  width: 7%;
+  height: auto;
+  opacity: 0.7;
+  z-index: 4;
+  pointer-events: none;
+  user-select: none;
+}
+.stage-frame.is-exporting .logical-stage > .story-brand,
+.stage-frame.is-exporting .subtitle-wrap { visibility: hidden; }
+
 .stage-vignette {
   z-index: 3;
   pointer-events: none;

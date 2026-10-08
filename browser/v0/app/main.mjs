@@ -55,7 +55,7 @@ const SUBTITLES_KEY = 'storytime:subtitles';
  */
 export function createV0Player({
   root, elements, story, assetBase, plates = null, stream = null, cards = null, board = null,
-  fullscreen = null, dim = null, download = null, chrome = 'player', signal, debug = false, perf = false,
+  fullscreen = null, dim = null, download = null, chrome = 'player', videoControls = 'player', signal, debug = false, perf = false,
 }) {
   // The host's own four arguments, settled before anything is built from them:
   // each is refused here or never again, since the compiler cannot report a bad
@@ -73,6 +73,7 @@ export function createV0Player({
   if (download !== null && typeof download !== 'function') {
     throw new TypeError('download must be a function the player calls with the video file');
   }
+  if (!['player', 'host'].includes(videoControls)) throw new TypeError('videoControls must be player or host');
   // Optional for a whole story — it can only answer for a place no scene stands
   // in — but not for a growing one: without it a healed step into a place the
   // published scenes have not opened yet is staged one way now and another way
@@ -163,6 +164,7 @@ export function createV0Player({
     support: recordingSupport({ story, board: boardBlock, stream: streaming }),
     saving: savingSupported({ download }),
     download,
+    hostControls: chrome === 'host' || videoControls === 'host',
     runtime: () => (armed ? runtime : null),
     begin: beginTake,
     title: () => runtimeStory?.title ?? story?.title,
@@ -201,9 +203,13 @@ export function createV0Player({
     play,
     pause: () => {
       windDown?.pause();
+      if (exporter.active()) return exporter.pause();
       runtime?.pause();
     },
     toggle: () => {
+      if (exporter.active()) {
+        return exporter.state().status === 'paused' ? exporter.resume() : exporter.pause();
+      }
       // Over a wind-down, play/pause is its sound's, as the dock's own button is.
       if (runtime?.getState().ended && windDown?.toggle()) return undefined;
       return runtime?.getState().playing ? runtime.pause() : play();
@@ -228,13 +234,15 @@ export function createV0Player({
     subscribe(listener) {
       if (typeof listener !== 'function') throw new TypeError('subscriber must be a function');
       subscribers.add(listener);
-      if (runtime) listener(runtime.getState());
+      if (runtime) listener(withAfterStory(runtime.getState()));
       return () => subscribers.delete(listener);
     },
     appendScene,
     finishStory,
-    recordVideo: () => exporter.record(),
+    recordVideo: (options) => exporter.record(options),
     canRecordVideo: () => exporter.canRecord(),
+    cancelVideo: () => exporter.cancel(),
+    getVideoExportState: () => exporter.state(),
     destroy() {
       if (destroyed) return;
       destroyed = true;
@@ -256,6 +264,7 @@ export function createV0Player({
 
   function play() {
     if (destroyed) return;
+    if (exporter.active()) return exporter.resume();
     if (!armed) return ready.then(play);
     if (!runtime?.getState().started) return startStory();
     return runtime.play();
@@ -278,7 +287,7 @@ export function createV0Player({
    * that leaves it to the page.
    */
   function withAfterStory(state) {
-    return state && { ...state, afterStory: windDown?.phase() ?? null };
+    return state && { ...state, afterStory: windDown?.phase() ?? null, recording: exporter.active() };
   }
 
   async function initialize() {

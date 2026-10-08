@@ -307,11 +307,13 @@ booleans, both off by default:
 The plain `createStoryPlayer` handle exposes `play()`, `pause()`, `toggle()`,
 `seek(milliseconds)`, `setSubtitles(boolean)`, `setFullscreen(boolean)`,
 `getState()`, `getTimeline()` and `subscribe(listener)` alongside `ready`,
-streaming methods, `recordVideo()` and `canRecordVideo()` (see [saving a story
+streaming methods, `recordVideo()`, `canRecordVideo()`, `cancelVideo()` and
+`getVideoExportState()` (see [saving a story
 as a video](#saving-a-story-as-a-video)) and `destroy()`.
 `subscribe` immediately reports current state when available and returns an
 unsubscribe function. State is `{tMs,durationMs,playing,ended,started,sceneIndex,
-subtitle,afterStory}`; scene indices are zero-based and times are milliseconds.
+subtitle,afterStory,recording}`; scene indices are zero-based and times are milliseconds.
+Hosts exclude `recording: true` updates from watch-time and reward reporting.
 `afterStory` is what follows a bedtime story (see Bedtime below): `null` while
 the story is on screen, then `'winddown'`, then `'quiet'`. A build that plays
 the wind-down always carries the key, so a host can tell it apart from an older
@@ -905,40 +907,62 @@ toggle stay reachable.
 
 ### Saving a story as a video
 
-"Save video" in the ⋯ menu records the story into an mp4 the viewer keeps. The
-recording is the performance played again from its start: the stage canvas,
-backed at 1280×720 whatever the player measures on screen, and every sound the
-story makes, routed through one Web Audio graph into a `MediaRecorder`. So it
-takes as long as the story, and it can only see the canvas. A performance
-(`wht`, `bedtime`, a sung lesson) or a lesson whose `board.world` covers the
-stage is recordable; a story whose background is the plate `<video>` is not,
-and has no row. Captions, the moon's dimming and the vignette are not in the
-file.
+The player owns the Moonykids kid-reaching-star mark. Its original transparent
+asset is embedded in the IIFE: no story JSON changes or external brand request.
+The mark sits outside the camera at 7% of picture width, 2% inset and 70%
+opacity. The exported canvas includes that same mark and the current subtitle
+preference. Ordinary playback retains accessible DOM captions.
 
-While it records, the story replays muted in the room, a pill at the top of the
-picture says `saving video · 2:31 / 8:32`, and its `cancel` stops the take. The
-story can be paused — the recording pauses with it, as it does for a hold on a
-file still downloading or a hidden tab — but not moved: the line, the skips,
-the keys and the double tap are locked until the take is over. At the end the
-last frame is held while the last word finishes, and no end card or wind-down
-is played. The pill then says `video ready` and offers `save video`. That save
-needs its own tap, because a browser opens a share sheet or a download only
-inside one: it is the phone's share sheet on an iPhone or iPad (its Save Video
-puts the file in Photos), and a download everywhere else.
+`recordVideo()` performs a complete story again at up to 1280×720 / 24 fps,
+routes narration and music through one Web Audio graph and resolves with an
+MP4 `File`. Legacy plates are copied into the canvas only while exporting;
+an unavailable or origin-unclean background fails the take instead of producing
+a cast on black. Intro/end cards and the long bedtime wind-down are omitted.
+Saving takes approximately the story's duration. Seeking is locked during the
+take; the viewer's prior position is restored, paused, afterward.
 
-The file is `<story title>.mp4`, about 13 MB a minute: H.264 with AAC where
-the browser can make it, otherwise any mp4 it can (a Chromium without the
-licensed codecs makes VP9 with Opus). A browser that cannot make an mp4 has no
-row. The `download` option hands the file to the host instead of saving it —
-and inside an Android app's webview, which can neither share nor download a
-file made in the page, the row appears only when the host passes one.
+Pass `videoControls: 'host'` at mount to place Save video beside the host's story
+actions. It removes the player's menu row and recording pill, while keeping
+ordinary player controls. `chrome: 'host'` also implies host export controls.
+Older builds lack these methods; feature-detect before offering the action:
 
-A host that draws its own controls calls `recordVideo()` from its own press —
-the recording's sound may only start inside one — and is handed the `File`; the
-promise rejects with `AbortError` when the take is cancelled or the player is
-destroyed, and with the reason when the story cannot be recorded here, which
-`canRecordVideo()` answers beforehand. Feature-detect both: a build from before
-them has neither.
+```js
+// Call directly from a press to unlock the recording's AudioContext.
+const file = await handle.recordVideo({
+  signal: abortController.signal,
+  onProgress: ({ status, tMs, durationMs, bytes }) => updateSaveUI({ status, tMs, durationMs, bytes }),
+});
+// A fresh press is required before opening a share sheet or download.
+```
+
+`canRecordVideo()` checks browser recording support and refuses unfinished
+stream mounts. For a completed stream, the host fetches its final document and
+mounts it as a complete story. `getVideoExportState()` returns `idle`, `preparing`,
+`recording`, `paused`, `finishing`, `ready`, `cancelled` or `failed`, plus real
+story time, duration and recorded bytes. `cancelVideo()` and the optional
+AbortSignal reject the take with `AbortError`, stop capture and release its audio
+graph. `pause()` / `play()` pause and explicitly resume recording. Hidden tabs
+and backgrounded views pause; returning to the foreground never resumes a take
+automatically, including its final narration tail.
+
+State notifications add `recording: true` during export. Hosts must exclude
+these events from watch-time reporting, completion rewards and after-story
+navigation. Hosts also enforce completed-story ownership; the player has no
+account or entitlement authority.
+
+For native storage, pass `onChunk: async (blob, index) => …`. The host writes
+chunks in order and acknowledges each; the promise resolves with
+`{name, type, size}` instead of allocating a full `File`. Pieces are at most
+512 KiB and queued data is capped at 8 MiB. Browser in-memory recordings are
+capped at 128 MiB. A slow writer or exceeded cap fails visibly. Native hosts must
+validate their own session/origin, delete partial files on failure/cancel and
+commit the temporary file only after successful completion.
+
+Files use `<story title>.mp4`. H.264/AAC is preferred; other MP4 combinations
+are used only when the browser reports support. Physical-device gallery codec
+compatibility is a release check. Browsers without MP4 recording have no save
+action. The optional mount-level `download(file)` still supports the original
+player-owned save flow; Android WebViews require host file storage.
 
 Seeking is a seek of the story, not of a video: the clock moves, the next frame
 is `stateAt` at the new instant, and the narration and music the instant lands

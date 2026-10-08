@@ -32,10 +32,10 @@ test('a story drawn on the canvas can be recorded, as the best mp4 the browser m
   assert.equal(open.mimeType, 'video/mp4;codecs=vp9,opus');
 });
 
-test('a story the recording cannot see, or a browser that cannot make an mp4, is refused by name', () => {
+test('incomplete stories and browsers that cannot make an mp4 are refused by name', () => {
   const performance = performanceFixture();
   const refused = (options) => recordingSupport({ story: performance, ...options }).reason;
-  assert.match(refused({ story: { storylang_version: 0 }, globalObject: platform() }), /background is a video/);
+  assert.equal(recordingSupport({ story: { storylang_version: 0 }, globalObject: platform() }).ok, true);
   assert.match(refused({ stream: { scenes: 3 }, globalObject: platform() }), /still being written/);
   assert.match(refused({ globalObject: platform({ recorder: false }) }), /cannot record video/);
   assert.match(refused({ globalObject: platform({ capture: false }) }), /cannot record its canvas/);
@@ -108,6 +108,8 @@ test('a take follows the story, hands over the whole recording, and fails once',
   assert.equal(blob.type, 'video/mp4');
   assert.equal(await blob.text(), 'one tail');
   assert.equal(stream.tracks.every((track) => track.stopped), true, 'the canvas and the graph are still being captured');
+  recorder.emit('error', { error: new Error('late old take') });
+  assert.deepEqual(failures, [], 'a completed take cannot fail a later one');
 
   const broken = createRecording(fakeStream(), {
     mimeType: 'video/mp4', onError: (error) => failures.push(error.message), globalObject: globalThis,
@@ -122,6 +124,19 @@ test('a take follows the story, hands over the whole recording, and fails once',
   await assert.rejects(empty.finish(), /came back empty/);
 });
 
+test('an encoder that cannot construct or start releases captured tracks', () => {
+  for (const stage of ['constructor', 'start']) {
+    const stream = fakeStream();
+    const MediaRecorder = class {
+      constructor() { if (stage === 'constructor') throw new Error('encoder unavailable'); }
+      addEventListener() {}
+      start() { throw new Error('encoder unavailable'); }
+    };
+    assert.throws(() => createRecording(stream, { mimeType: 'video/mp4', globalObject: { MediaRecorder } }), /encoder unavailable/);
+    assert.ok(stream.tracks.every(track => track.stopped));
+  }
+});
+
 test('a discarded take keeps nothing and stops capturing', () => {
   const recorders = fakeRecorders();
   const stream = fakeStream();
@@ -130,6 +145,54 @@ test('a discarded take keeps nothing and stops capturing', () => {
   assert.equal(recorders.made[0].state, 'inactive');
   assert.equal(stream.tracks.every((track) => track.stopped), true);
   recorders.restore();
+});
+
+test('streamed chunks stay ordered, bounded and acknowledged before completion', async (t) => {
+  const recorders = fakeRecorders(t);
+  const seen = [];
+  let release;
+  const blocked = new Promise((resolve) => { release = resolve; });
+  const recording = createRecording(fakeStream(), {
+    mimeType: 'video/mp4',
+    onChunk: async (blob, index) => {
+      if (index === 0) await blocked;
+      seen.push([index, await blob.text()]);
+    },
+  });
+  recorders.made[0].emit('dataavailable', { data: new Blob(['first']) });
+  const result = recording.finish();
+  let finished = false;
+  void result.then(() => { finished = true; });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(finished, false);
+  release();
+  assert.deepEqual(await result, { size: 9, type: 'video/mp4' });
+  assert.deepEqual(seen, [[0, 'first'], [1, 'tail']]);
+});
+
+test('slow native storage and oversized browser files fail without retaining a partial video', async (t) => {
+  const recorders = fakeRecorders(t);
+  for (const options of [{ memoryLimit: 3 }, { onChunk: async () => {}, queueLimit: 3 }]) {
+    const errors = [];
+    const recording = createRecording(fakeStream(), {
+      mimeType: 'video/mp4', ...options, onError: (error) => errors.push(error),
+    });
+    recorders.made.at(-1).emit('dataavailable', { data: new Blob(['too big']) });
+    await assert.rejects(recording.finish(), /memory limit|fast enough/);
+    assert.equal(errors.length, 1);
+  }
+});
+
+test('cancel discards queued chunks and ignores the recorder’s late tail', async (t) => {
+  const recorders = fakeRecorders(t);
+  const seen = [];
+  const recording = createRecording(fakeStream(), {
+    mimeType: 'video/mp4', onChunk: async (blob) => seen.push(await blob.text()),
+  });
+  recorders.made[0].emit('dataavailable', { data: new Blob(['queued']) });
+  recording.discard();
+  await assert.rejects(recording.finish(), { name: 'AbortError' });
+  assert.deepEqual(seen, []);
 });
 
 test('the file is named after the story, as a name any device will take', () => {

@@ -20,6 +20,7 @@ import { DPR_CAP, chunkAt } from '../assets/rendition-picker.mjs';
 import { CARD_BOARD, DEFAULT_STAGE_RESOLUTION, FLASH, HIGHLIGHT, SLATE } from '../../policy.mjs';
 import { buildDrawList } from './draw-list.mjs';
 import { choreographyCaption } from './lesson-guide-choreography.mjs';
+import { BRAND_WIDTH, BRAND_INSET, BRAND_OPACITY } from '../../../brand.mjs';
 
 // The ink of the shadow and of the placeholder, kept here rather than in the
 // pure list: a colour is a paint decision, and the list is meant to survive a
@@ -118,6 +119,8 @@ const MEMORY_SLUGS = 12;
  */
 export function createCanvasStage(elements, {
   onWarning = () => {}, dprCap = DPR_CAP, shadows = true, board = null, reducedMotion = false,
+  subtitles = () => true,
+  capturePlate = () => null,
   now = () => globalThis.performance?.now?.() ?? 0,
 } = {}) {
   const context = elements.canvas?.getContext?.('2d') ?? null;
@@ -164,7 +167,11 @@ export function createCanvasStage(elements, {
     observer.observe(elements.frame);
   }
 
-  return { fitScale, exportScale, setExportSize, draw, setTier, setFarmOverlay, destroy };
+  return { fitScale, exportScale, setExportSize, prepareExport, draw, setTier, setFarmOverlay, destroy };
+
+  async function prepareExport() {
+    await elements.brand?.decode?.();
+  }
 
   function setFarmOverlay(enabled) {
     if (destroyed) return;
@@ -209,6 +216,7 @@ export function createCanvasStage(elements, {
   function setExportSize(box) {
     if (destroyed) return;
     exportBox = box ? { width: box.width, height: box.height } : null;
+    elements.frame.classList.toggle('is-exporting', Boolean(box));
     if (!last) return;
     sizeStage(last.list.width, last.list.height);
     paint(last.list, last.lookup, last.counter);
@@ -246,7 +254,48 @@ export function createCanvasStage(elements, {
       shadows: shadowed,
       onPainted: remember,
       onMissing: standIn,
+      background: exportBox ? capturePlate() : null,
     });
+    if (exportBox) paintExportOverlay();
+  }
+
+  // Only the exported picture needs these pixels: ordinary playback keeps its
+  // accessible DOM subtitle and mark, and hides them while the canvas carries them.
+  function paintExportOverlay() {
+    const [width, height] = backing;
+    context.save();
+    context.setTransform(1, 0, 0, 1, 0, 0);
+    if (elements.brand?.naturalWidth > 0) {
+      const w = width * BRAND_WIDTH;
+      const h = w * elements.brand.naturalHeight / elements.brand.naturalWidth;
+      context.globalAlpha = BRAND_OPACITY;
+      context.drawImage(elements.brand, width * (1 - BRAND_INSET) - w, height * BRAND_INSET, w, h);
+      context.globalAlpha = 1;
+    }
+    const text = last?.state?.subtitle;
+    if (subtitles() && text) {
+      const font = Math.max(16, Math.round(height * 0.041));
+      context.font = `600 ${font}px system-ui, sans-serif`;
+      const maxWidth = width * 0.76;
+      const lines = captionLines(text, maxWidth, (line) => context.measureText(line).width);
+      const lineHeight = font * 1.35;
+      const padding = font * 0.6;
+      const boxWidth = Math.min(maxWidth, Math.max(...lines.map((line) => context.measureText(line).width))) + padding * 2;
+      const boxHeight = lineHeight * lines.length + padding * 2;
+      const x = (width - boxWidth) / 2;
+      const y = choreographyCaption(board, last.state) === 'top' ? height * 0.025 : height * 0.965 - boxHeight;
+      context.fillStyle = 'rgba(10, 20, 27, 0.78)';
+      context.beginPath();
+      roundedRect(context, x, y, boxWidth, boxHeight, font * 0.35);
+      context.fill();
+      context.fillStyle = '#ffffff';
+      context.textAlign = 'center';
+      context.textBaseline = 'middle';
+      for (let i = 0; i < lines.length; i += 1) {
+        context.fillText(lines[i], width / 2, y + padding + lineHeight * (i + 0.5), maxWidth);
+      }
+    }
+    context.restore();
   }
 
   /**
@@ -326,6 +375,7 @@ export function createCanvasStage(elements, {
     elements.frame.classList.remove('has-farm-overlay');
     elements.frame.classList.remove('has-lesson-guide');
     elements.frame.classList.remove('has-top-guide-caption');
+    elements.frame.classList.remove('is-exporting');
     elements.stage.style.top = '';
     destroyed = true;
     observer?.disconnect();
@@ -425,6 +475,25 @@ export function recordedScale(width, height, box) {
   return even / width;
 }
 
+/** Wrap a caption without clipping unspaced languages or long single words. */
+export function captionLines(text, width, measure) {
+  const words = String(text).trim().split(/\s+/u);
+  const lines = [];
+  let line = '';
+  for (const word of words) {
+    const next = line ? `${line} ${word}` : word;
+    if (measure(next) <= width) { line = next; continue; }
+    if (line) lines.push(line);
+    line = '';
+    for (const character of word) {
+      if (line && measure(line + character) > width) { lines.push(line); line = ''; }
+      line += character;
+    }
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+
 /**
  * Everything a scene draws from, as the draw list asks for it.
  *
@@ -474,6 +543,7 @@ export function paintDrawList(context, list, {
   // told about it. Defaulted away so the list still paints on its own — the
   // goldens and the draw-list tests execute it with nothing behind them.
   onMissing = () => false, onPainted = () => {},
+  background = null,
 } = {}) {
   const { camera } = list;
   context.setTransform(1, 0, 0, 1, 0, 0);
@@ -485,6 +555,20 @@ export function paintDrawList(context, list, {
   underCamera();
   context.imageSmoothingEnabled = true;
   context.imageSmoothingQuality = 'high';
+
+  if (background) {
+    context.save();
+    context.fillStyle = '#101720';
+    context.fillRect(0, 0, list.width, list.height);
+    if (background.source) {
+      const fit = (background.cover ? Math.max : Math.min)(list.width / background.width, list.height / background.height);
+      const w = background.width * fit;
+      const h = background.height * fit;
+      context.filter = background.filter || 'none';
+      context.drawImage(background.source, (list.width - w) / 2, (list.height - h) / 2, w, h);
+    }
+    context.restore();
+  }
 
   for (const command of list.commands) {
     // `hud` is the list's word for "the camera was left out of this one". The

@@ -143,14 +143,14 @@ test('a take the viewer stops hands over nothing and leaves the story where it w
   assert.equal(recorder.state, 'inactive');
   assert.equal(status.hidden, true);
   assert.equal(player.getState().playing, false, 'a stopped take went on playing');
-  assert.equal(player.getState().tMs, 1500);
+  assert.equal(player.getState().tMs, 0, 'saving changed the viewer’s playback position');
   // The player is the player again: seeking moves the story.
   player.seek(500);
   assert.equal(player.getState().tMs, 500);
   assert.deepEqual(browser.downloads, []);
 });
 
-test('a host that records keeps the file, and is told why a story cannot be recorded', async (t) => {
+test('a host keeps the finished file and legacy plate stories expose capture support', async (t) => {
   const take = await mount(t);
   const { player, frames, status } = take;
   const recording = player.recordVideo();
@@ -163,9 +163,8 @@ test('a host that records keeps the file, and is told why a story cannot be reco
   assert.equal(status.hidden, true, 'a file the host keeps was offered on the picture too');
 
   const plate = await mount(t, { story: plateStory() });
-  assert.equal(plate.player.canRecordVideo(), false);
-  assert.equal(plate.item.hidden, true);
-  await assert.rejects(plate.player.recordVideo(), /background is a video/);
+  assert.equal(plate.player.canRecordVideo(), true);
+  assert.equal(plate.item.hidden, false);
 });
 
 test('a host that keeps videos is handed the file on the save press, and a download that is not a function is refused', async (t) => {
@@ -187,6 +186,69 @@ test('a host that keeps videos is handed the file on the save press, and a downl
 
   const refused = await mount(t, { options: { download: 'yes' } });
   await assert.rejects(refused.player.ready, /download must be a function/);
+});
+
+test('host export exposes real progress and cancellation without a second save control', async (t) => {
+  const take = await mount(t, { options: { videoControls: 'host' } });
+  const progress = [];
+  const saving = take.player.recordVideo({ onProgress: (state) => progress.push(state) });
+  await settle();
+  assert.equal(take.item.hidden, true);
+  assert.equal(take.status.hidden, true);
+  assert.equal(take.player.getState().recording, true);
+  take.frames.advanceTo(1500);
+  assert.equal(take.player.getVideoExportState().tMs, 1500);
+  take.player.pause();
+  assert.equal(take.player.getVideoExportState().status, 'paused');
+  take.player.play();
+  assert.equal(take.player.getVideoExportState().status, 'recording');
+  take.player.cancelVideo();
+  await assert.rejects(saving, { name: 'AbortError' });
+  assert.equal(take.player.getState().recording, false);
+  assert.equal(progress.at(-1).status, 'cancelled');
+  assert.equal(take.browser.contexts[0].closed, 1);
+});
+
+test('an AbortSignal cancels preparation and already-aborted requests never allocate media', async (t) => {
+  const take = await mount(t);
+  const signal = new AbortController();
+  signal.abort();
+  await assert.rejects(take.player.recordVideo({ signal: signal.signal }), { name: 'AbortError' });
+  assert.equal(take.browser.contexts.length, 0);
+  const fresh = new AbortController();
+  const saving = take.player.recordVideo({ signal: fresh.signal });
+  fresh.abort();
+  await assert.rejects(saving, { name: 'AbortError' });
+  assert.equal(take.browser.recorders.length, 0);
+  assert.equal(take.browser.contexts[0].closed, 1);
+});
+
+test('backgrounding holds the take until an explicit resume, including its final audio tail', async (t) => {
+  const take = await mount(t);
+  const saving = take.player.recordVideo();
+  await settle();
+  take.frames.advanceTo(1000);
+  document.visibilityState = 'hidden';
+  document.dispatch('visibilitychange');
+  assert.equal(take.browser.recorders[0].state, 'paused');
+  document.visibilityState = 'visible';
+  document.dispatch('visibilitychange');
+  assert.equal(take.player.getState().playing, false);
+  assert.equal(take.player.getVideoExportState().status, 'paused');
+  take.player.play();
+  take.frames.advanceTo(6000);
+  assert.equal(take.player.getVideoExportState().status, 'finishing');
+  document.visibilityState = 'hidden';
+  document.dispatch('visibilitychange');
+  t.mock.timers.tick(2000);
+  await settle();
+  assert.equal(take.browser.recorders[0].state, 'paused');
+  document.visibilityState = 'visible';
+  document.dispatch('visibilitychange');
+  assert.equal(take.browser.recorders[0].state, 'paused');
+  take.player.play();
+  t.mock.timers.tick(1000);
+  assert.ok((await saving).size > 0);
 });
 
 /**

@@ -90,6 +90,8 @@ export function createTimelinePlayer({
   let frameIntervalMs = 1000 / tier.drawHz;
   const stage = createCanvasStage(elements.stage, {
     onWarning, dprCap: capability.dprCap, shadows: capability.shadows, board, reducedMotion: capability.reducedMotion === true,
+    subtitles: () => !elements.subtitleArea?.hidden,
+    capturePlate: () => !story.bundle?.performance && !board?.world ? plate.captureFrame() : null,
   });
   const plate = createVideoPlate(elements.stage, { onWarning });
   // A performance's narration, downloaded once and kept by the runtime rather
@@ -196,6 +198,8 @@ export function createTimelinePlayer({
     seekTo,
     beginExport,
     endExport,
+    pauseExport: () => { if (exporting) { pause(); media.pause(); } },
+    resumeExportTail: () => { if (exporting && ended) media.resume(); },
     appendScene,
     finishStory,
     isPlaying: () => clock.running,
@@ -458,10 +462,12 @@ export function createTimelinePlayer({
    * `endExport`. Resolves once the opening scene is decoded at the new size and
    * drawn; the caller starts its recorder and then plays.
    */
-  async function beginExport({ output, size }) {
+  async function beginExport({ output, size, onError = () => {} }) {
     if (destroyed || exporting) return;
+    const returnTo = clock.now();
     pause();
-    exporting = { size };
+    exporting = { size, onError, readyScene: null, sceneLoad: null, returnTo };
+    const mine = exporting;
     controls.lockSeeking(true);
     stage.setExportSize(size);
     frameIntervalMs = 1000 / DEFAULT_DRAW_HZ;
@@ -471,23 +477,27 @@ export function createTimelinePlayer({
     sceneView = null;
     land(0);
     const sound = within(media.prepare?.(), HOLD_TIMEOUT_MS);
-    await Promise.all([sound, loader.loadScene(0, viewport(), { keep: true })]);
-    if (destroyed || !exporting) return;
+    await Promise.all([
+      sound, stage.prepareExport(), loader.loadScene(0, viewport(), { keep: true }),
+      !story.bundle?.performance && !board?.world ? plate.prepareExport() : null,
+    ]);
+    if (destroyed || exporting !== mine) return;
     render(clock.now(), { force: true });
   }
 
   /** The recording is over, kept or not: the player is the player again. */
   function endExport() {
     if (destroyed || !exporting) return;
+    const { returnTo } = exporting;
+    pause();
     exporting = null;
     controls.lockSeeking(false);
     stage.setExportSize(null);
     frameIntervalMs = 1000 / tier.drawHz;
     swapMedia(null);
-    if (started) placeSound(clock.now());
     sceneIndex = null;
     sceneView = null;
-    render(clock.now(), { force: true });
+    land(returnTo);
   }
 
   /** The story's sound, from a fresh scheduler whose elements come from `output`. */
@@ -538,7 +548,7 @@ export function createTimelinePlayer({
   function hide() {
     if (destroyed || !clock.running) return;
     pause();
-    resumeWhenVisible = true;
+    resumeWhenVisible = !exporting;
   }
 
   function startLoop() {
@@ -596,6 +606,14 @@ export function createTimelinePlayer({
     }
     const state = cursor.at(t);
     const shown = openScene(state);
+    if (exporting && !story.bundle?.performance && (
+      exporting.readyScene !== sceneIndex || (!board?.world && !plate.captureReady())
+    )) {
+      if (clock.running && !waiting) holdFor({
+        atMs: t, until: () => Promise.all([exporting.sceneLoad, !board?.world ? plate.prepareExport() : null]),
+      });
+      return;
+    }
     // A performance keeps its scene whole from the moment it opens, so it has no
     // chunk window to hold — and holding one would take back the scene on screen
     // just as a cut hold had made room for the next, trading the two for ever.
@@ -774,7 +792,7 @@ export function createTimelinePlayer({
 
   function paint(state, force) {
     const next = signatureOf(state, board);
-    if (!force && next === signature) return;
+    if (!force && !exporting && next === signature) return;
     signature = next;
     stage.draw(state, sheets);
   }
@@ -798,6 +816,7 @@ export function createTimelinePlayer({
    * line that can be read, and the subtitle for it is already on screen.
    */
   function mediaWarned(detail) {
+    if (exporting) exporting.onError(new Error(detail.message || 'story audio could not be saved'));
     if (story.bundle?.performance) { pause(); showNote(detail.message); onWarning(detail); return; }
     if (detail?.asset === 'narration') showNote('narration unavailable · read along');
     onWarning(detail);
@@ -860,14 +879,18 @@ export function createTimelinePlayer({
     const opened = sceneIndex;
     sheets = sceneSheets(loader.plan(sceneIndex, view), cache, counter);
     plate.showScene(story.bundle?.scenes?.[sceneIndex]?.plate ?? null);
-    void loader.loadScene(sceneIndex, view, { keep: true, onRequiredImage: () => imageArrived(opened) })
+    const loading = loader.loadScene(sceneIndex, view, { keep: true, onRequiredImage: () => imageArrived(opened) })
       // A running story draws the sheets as they land, on its next frame. A
       // PAUSED one has no next frame: a scrub into a scene that is not decoded
       // yet painted placeholders and stopped, and they stayed on screen until
       // somebody pressed play. Only for the scene still on screen — a cut that
       // has already happened has its own paint coming.
-      .then(() => imageArrived(opened))
-      .catch(warmingFailed);
+      .then(() => {
+        if (exporting && opened === sceneIndex) exporting.readyScene = opened;
+        imageArrived(opened);
+      });
+    if (exporting) exporting.sceneLoad = loading;
+    void loading.catch(warmingFailed);
     // The next scene's sheets, decoded while this one plays, as far as the
     // budget allows: the cut to it is then only a hold for what did not fit.
     if (story.bundle?.performance) void loader.prepareScene(opened + 1, opened, view).catch(warmingFailed);
@@ -963,6 +986,7 @@ export function createTimelinePlayer({
       leaveWaiting(false);
       showNote('Story media could not be loaded. Press play to try again.');
       updateControls({ tMs: clock.now(), playing: false, ended: false });
+      exporting?.onError(new Error('story media could not be loaded for saving'));
     };
     const quiet = () => setTimeout(giveUp, HOLD_TIMEOUT_MS);
     holdTimers = [
@@ -976,7 +1000,7 @@ export function createTimelinePlayer({
     });
     void hold.until().then(
       () => { if (current()) leaveWaiting(true); },
-      (error) => { if (error?.retryable === false) giveUp(); },
+      (error) => { if (error?.retryable === false || exporting) giveUp(); },
     );
     updateControls({ tMs: clock.now(), playing: true, ended: false });
   }
@@ -1069,6 +1093,7 @@ export function createTimelinePlayer({
    */
   function warmingFailed(error) {
     if (destroyed || signal?.aborted || error?.name === 'AbortError') return;
+    if (exporting) exporting.onError(error);
     if (error?.code === 'BOARD_IMAGE_UNAVAILABLE') {
       boardFailure = `${error.message}. Reload the lesson to try again.`;
       resumeWhenVisible = false;

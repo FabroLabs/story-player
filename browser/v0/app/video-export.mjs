@@ -7,10 +7,8 @@
  * canvas is backed at `VIDEO_SIZE` and captured as it is drawn, every audio
  * element the story opens is routed through one Web Audio graph, and a
  * `MediaRecorder` writes the two together into an mp4. So it takes as long as
- * the story, and it can only see what is drawn on the canvas: a performance
- * (wht, grow, bedtime, a sung lesson) or a lesson whose illustrated world
- * covers the stage. A story whose background is the plate `<video>` would be
- * recorded as its cast over black, and is refused instead.
+ * the story. The export stage composites performance scenes, lesson boards or
+ * legacy video plates, with captions and the brand mark.
  */
 
 export const VIDEO_SIZE = Object.freeze({ width: 1280, height: 720 });
@@ -30,9 +28,12 @@ export const MP4_TYPES = Object.freeze([
 // to be kept on a phone.
 const VIDEO_BITS_PER_SECOND = 1_600_000;
 const AUDIO_BITS_PER_SECOND = 96_000;
-// The recorder hands over what it has every second, so a long story is never
-// one buffer held until the end.
+// The recorder emits once a second. Browser files remain in bounded memory;
+// native hosts acknowledge bounded chunks without retaining the whole story.
 const SLICE_MS = 1000;
+export const EXPORT_CHUNK_BYTES = 512 * 1024;
+export const EXPORT_QUEUE_BYTES = 8 * 1024 * 1024;
+export const EXPORT_MEMORY_BYTES = 128 * 1024 * 1024;
 // A link to a downloaded file is let go of once the download has surely begun.
 const REVOKE_AFTER_MS = 60_000;
 
@@ -44,9 +45,6 @@ const REVOKE_AFTER_MS = 60_000;
  */
 export function recordingSupport({ story, board = null, stream = null, globalObject = globalThis }) {
   if (stream) return refused('a story that is still being written cannot be saved as a video');
-  if (!story?.performance && !board?.world) {
-    return refused('this story’s background is a video the recording cannot draw');
-  }
   const Recorder = globalObject.MediaRecorder;
   if (typeof Recorder !== 'function' || typeof globalObject.MediaStream !== 'function') {
     return refused('this browser cannot record video');
@@ -132,26 +130,58 @@ export function createAudioTap(context) {
  * `finish` resolves with the whole recording; `discard` throws it away. A
  * recorder that fails mid-take says so through `onError`, once.
  */
-export function createRecording(stream, { mimeType, onError = () => {}, globalObject = globalThis }) {
-  const recorder = new globalObject.MediaRecorder(stream, {
-    mimeType,
-    videoBitsPerSecond: VIDEO_BITS_PER_SECOND,
-    audioBitsPerSecond: AUDIO_BITS_PER_SECOND,
-  });
+export function createRecording(stream, {
+  mimeType, onError = () => {}, onChunk = null, globalObject = globalThis,
+  memoryLimit = EXPORT_MEMORY_BYTES, queueLimit = EXPORT_QUEUE_BYTES,
+}) {
+  if (onChunk !== null && typeof onChunk !== 'function') throw new TypeError('onChunk must be a function');
+  let recorder;
+  try {
+    recorder = new globalObject.MediaRecorder(stream, {
+      mimeType,
+      videoBitsPerSecond: VIDEO_BITS_PER_SECOND,
+      audioBitsPerSecond: AUDIO_BITS_PER_SECOND,
+    });
+  } catch (error) {
+    endTracks();
+    throw error;
+  }
   const chunks = [];
   let failure = null;
+  let discarded = false;
+  let completed = false;
+  let bytes = 0;
+  let queued = 0;
+  let index = 0;
+  let writes = Promise.resolve();
   const stopped = new Promise((resolve) => {
     recorder.addEventListener('stop', resolve, { once: true });
   });
   recorder.addEventListener('dataavailable', (event) => {
-    if (event.data?.size > 0) chunks.push(event.data);
+    if (discarded || failure || completed || !(event.data?.size > 0)) return;
+    const data = event.data;
+    bytes += data.size;
+    if (!onChunk) {
+      if (bytes > memoryLimit) return fail(new Error('this video exceeds the browser’s memory limit'));
+      chunks.push(data);
+      return;
+    }
+    queued += data.size;
+    if (queued > queueLimit) return fail(new Error('the device could not save video data fast enough'));
+    // Serial, bounded pieces: native hosts acknowledge each write before the
+    // next. No base64 copy or full-story Blob is retained in the WebView.
+    writes = writes.then(async () => {
+      for (let offset = 0; offset < data.size; offset += EXPORT_CHUNK_BYTES) {
+        if (discarded || failure) return;
+        await onChunk(data.slice(offset, offset + EXPORT_CHUNK_BYTES), index++);
+      }
+    }).catch(fail).finally(() => { queued -= data.size; });
   });
   recorder.addEventListener('error', (event) => {
-    if (failure) return;
-    failure = event?.error ?? new Error('the recording failed');
-    onError(failure);
+    fail(event?.error ?? new Error('the recording failed'));
   });
-  recorder.start(SLICE_MS);
+  try { recorder.start(SLICE_MS); }
+  catch (error) { discarded = true; endTracks(); throw error; }
   return {
     pause() {
       if (recorder.state === 'recording') recorder.pause();
@@ -162,17 +192,32 @@ export function createRecording(stream, { mimeType, onError = () => {}, globalOb
     async finish() {
       if (recorder.state !== 'inactive') recorder.stop();
       await stopped;
+      await writes;
       endTracks();
       if (failure) throw failure;
-      if (chunks.length === 0) throw new Error('the recording came back empty');
+      if (discarded) throw new DOMException('the recording was stopped', 'AbortError');
+      if (bytes === 0) throw new Error('the recording came back empty');
+      completed = true;
+      if (onChunk) return { size: bytes, type: 'video/mp4' };
       return new Blob(chunks, { type: 'video/mp4' });
     },
     discard() {
+      discarded = true;
       chunks.length = 0;
       if (recorder.state !== 'inactive') recorder.stop();
       endTracks();
     },
+    bytes: () => bytes,
   };
+
+  function fail(error) {
+    if (failure || discarded || completed) return;
+    failure = error;
+    chunks.length = 0;
+    if (recorder.state !== 'inactive') recorder.stop();
+    endTracks();
+    onError(error);
+  }
 
   function endTracks() {
     for (const track of stream.getTracks()) track.stop();
