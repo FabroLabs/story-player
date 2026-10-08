@@ -69,9 +69,17 @@ its own music and a skip that is always there. Neither is in the compiled
 timeline — they are phases either side of it — so the clock, the scrub bar and
 every `t_ms` still cover the story alone.
 
+Stories can be saved as branded 720p MP4 files with narration and the selected
+captions. The exporter also composites legacy video backgrounds. Saving runs
+in the foreground, pauses when hidden, and resumes only after a press. It
+omits intro/end cards and the bedtime wind-down and restores the viewer's
+playback position afterward. Hosts put Save video beside their story actions
+with `videoControls: 'host'`; the additive export API provides progress,
+cancellation and bounded, acknowledged chunks for native file storage.
+
 See [Embedding and operations](docs/embedding.md) for the plain JavaScript and
 React APIs, how it plays, following a story still being written, the cards
-either side of it, controls, renditions and device tiers, stable versus
+either side of it, controls, saving a story as a video, renditions and device tiers, stable versus
 immutable URLs, storage/CORS configuration, publishing, rollback, and GitLab
 migration.
 

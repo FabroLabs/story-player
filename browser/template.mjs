@@ -1,3 +1,5 @@
+import { BRAND_MARK } from './brand.mjs';
+
 const STYLESHEET = new URL('./styles.css', import.meta.url).href;
 // The line over the story's name in the opening ceremony. A host that mounts
 // something other than a bedtime story — a counting lesson, say — says so with
@@ -9,12 +11,15 @@ export function createPlayerTemplate(root, { stylesheet = STYLESHEET, kicker, ch
   const document = root.ownerDocument ?? globalThis.document;
   const link = element(document, 'link', { rel: 'stylesheet', href: stylesheet });
   // No chrome of our own above the picture: what a site embeds is a rectangle
-  // of video. Subtitles and full screen sit together at the right of the
+  // of video. The ⋯ menu and full screen sit together at the right of the
   // control bar, where every video player keeps them; closing and casting
-  // belong to the page that mounted us.
+  // belong to the page that mounted us. Subtitles are a row of that menu.
   const subtitles = element(document, 'button', {
-    className: 'round-button cc-button', type: 'button', 'aria-label': 'hide subtitles', 'aria-pressed': 'true',
-  }, [element(document, 'span', { text: 'cc', 'aria-hidden': 'true' })]);
+    className: 'menu-item cc-button', type: 'button', 'aria-label': 'hide subtitles', 'aria-pressed': 'true',
+  }, [
+    element(document, 'span', { className: 'cc-mark', text: 'cc', 'aria-hidden': 'true' }),
+    element(document, 'span', { className: 'menu-label', text: 'subtitles' }),
+  ]);
   // Withdrawn until something can fill the screen: the host, or the browser.
   const fullscreen = element(document, 'button', {
     className: 'round-button fullscreen-button', type: 'button', 'aria-label': 'full screen', 'aria-pressed': 'false',
@@ -38,10 +43,12 @@ export function createPlayerTemplate(root, { stylesheet = STYLESHEET, kicker, ch
   // and what a screen reader needs from a story is the subtitle area below,
   // which is a live region.
   const canvas = element(document, 'canvas', { className: 'stage-canvas', 'aria-hidden': 'true' });
+  const brand = brandMark(document);
   const stage = element(document, 'div', { className: 'logical-stage' }, [
     plate,
     canvas,
     element(document, 'div', { className: 'stage-vignette', 'aria-hidden': 'true' }),
+    brand,
   ]);
   const title = element(document, 'h1', { text: 'preparing your story…' });
   const start = element(document, 'button', { className: 'start-button', type: 'button', disabled: '' }, [
@@ -75,6 +82,7 @@ export function createPlayerTemplate(root, { stylesheet = STYLESHEET, kicker, ch
     element(document, 'span', { className: 'waiting-spinner', 'aria-hidden': 'true' }),
   ]);
   hold.hidden = true;
+  const recording = createRecordingStatus(document);
   const end = element(document, 'div', { className: 'end-overlay', hidden: '' }, [
     element(document, 'span', { className: board?.layout === 'lesson-guide' ? 'end-star' : 'end-moon',
       text: board?.layout === 'lesson-guide' ? '✦' : '', 'aria-hidden': 'true' }),
@@ -83,6 +91,7 @@ export function createPlayerTemplate(root, { stylesheet = STYLESHEET, kicker, ch
   ]);
   end.hidden = true;
   const card = createCardLayer(document);
+  card.layer.append(brandMark(document));
   const badge = createBadge(document);
   const bedtime = createBedtimeLayers(document);
   const controls = createControlBar(document, { subtitles, fullscreen });
@@ -107,7 +116,7 @@ export function createPlayerTemplate(root, { stylesheet = STYLESHEET, kicker, ch
   }, [
     element(document, 'div', { className: 'stage-letterbox', 'aria-hidden': 'true' }),
     stage, bedtime.sky, bedtime.scrim, flash, badge.root, actions, ceremony, waiting, hold, subtitleArea, end,
-    controls.root, card.layer, card.title.layer,
+    recording.root, controls.root, card.layer, card.title.layer,
   ]);
   const shell = element(document, 'main', { className: 'player-shell' }, [frame]);
   const debugClose = element(document, 'button', { className: 'icon-button', type: 'button', 'aria-label': 'close event log', text: '×' });
@@ -135,7 +144,7 @@ export function createPlayerTemplate(root, { stylesheet = STYLESHEET, kicker, ch
   ]);
   debugPanel.setAttribute('inert', '');
   if (chrome === 'host') {
-    for (const node of [ceremony, controls.root, actions, badge.root, end]) node.style.display = 'none';
+    for (const node of [ceremony, controls.root, actions, badge.root, end, recording.root]) node.style.display = 'none';
   }
   root.replaceChildren(link, shell, debugPanel);
   return {
@@ -144,10 +153,11 @@ export function createPlayerTemplate(root, { stylesheet = STYLESHEET, kicker, ch
     // the picture is the play switch, the mark is what a click leaves on it,
     // and the actions row appears with the bar when the story begins.
     controls: { ...controls, frame, stage, actions, flash },
-    stage: { frame, stage, canvas, plate, poster, video, subtitle, mediaNote, waiting, hold, end },
+    stage: { frame, stage, canvas, plate, poster, video, brand, subtitle, mediaNote, waiting, hold, end },
+    recording,
     // A bedtime story's two extras, drawn by the player so every host gets the
     // same ones: the moon's dimming, and the moonlit wind-down after the story.
-    dimming: { frame, scrim: bedtime.scrim, buttons: [controls.dim, controls.dimLabel] },
+    dimming: { frame, scrim: bedtime.scrim, buttons: [controls.dim] },
     windDown: {
       frame, sky: bedtime.sky, layer: bedtime.layer, picture: bedtime.picture, shade: bedtime.shade,
       toggle: controls.toggle,
@@ -159,6 +169,12 @@ export function createPlayerTemplate(root, { stylesheet = STYLESHEET, kicker, ch
       download: debugDownload, list: debugList, status: debugStatus, perf: debugPerf,
     },
   };
+}
+
+function brandMark(document) {
+  return element(document, 'img', {
+    className: 'story-brand', src: BRAND_MARK, alt: '', 'aria-hidden': 'true', draggable: 'false',
+  });
 }
 
 /**
@@ -238,7 +254,27 @@ function createBedtimeLayers(document) {
 }
 
 /**
- * The control bar: position, transport, and the two toggles.
+ * The story being saved as a video, over the picture and out of the dock's way:
+ * how far the recording has got with a way to stop it, then the finished file
+ * with the tap that saves it. One element whose words change, so the corner a
+ * viewer is watching never moves.
+ */
+function createRecordingStatus(document) {
+  const label = element(document, 'span', { className: 'recording-label' });
+  const action = element(document, 'button', { className: 'recording-action', type: 'button', hidden: '' }, [
+    glyph(document), element(document, 'span', { text: 'save video' }),
+  ]);
+  action.hidden = true;
+  const dismiss = element(document, 'button', { className: 'recording-dismiss', type: 'button' });
+  const root = element(document, 'div', { className: 'recording-status', role: 'status', hidden: '' }, [
+    element(document, 'span', { className: 'recording-dot', 'aria-hidden': 'true' }), label, action, dismiss,
+  ]);
+  root.hidden = true;
+  return { root, label, action, dismiss };
+}
+
+/**
+ * The control bar: position, transport, the ⋯ menu and full screen.
  *
  * The scrub is a `div` with `role="slider"` rather than an `<input type=range>`
  * because the fill and the handle are drawn from one fraction the runtime
@@ -246,11 +282,11 @@ function createBedtimeLayers(document) {
  * same thing. Everything a pointer can do here, the keyboard can do too — the
  * handlers live in `v0/app/controls.mjs`.
  *
- * The web app's watch dock, element for element: play and the two skips, the
- * line with its times, then subtitles, the bedtime moon and full screen, and
- * under them the bedside row — the moon with its words, the wind-down's Stop,
- * and the word the quiet after it ends on. Where they stand — one row on a big
- * player, two on a phone — is the stylesheet's, read off the player's own size.
+ * The web app's watch dock: play and the two skips, the line with its times,
+ * then the ⋯ menu — subtitles, the bedtime moon, saving the story as a video —
+ * and full screen; under them the bedside row, the wind-down's Stop and the
+ * word the quiet after it ends on. Where they stand — one row on a big player,
+ * two on a phone — is the stylesheet's, read off the player's own size.
  */
 function createControlBar(document, { subtitles, fullscreen }) {
   const fill = element(document, 'div', { className: 'scrub-fill' });
@@ -277,13 +313,23 @@ function createControlBar(document, { subtitles, fullscreen }) {
     className: 'round-button skip-forward', type: 'button', 'aria-label': 'forward ten seconds',
   }, [glyph(document)]);
   const dim = element(document, 'button', {
-    className: 'round-button dim-button', type: 'button', 'aria-label': 'dim the screen for bedtime',
-    'aria-pressed': 'false', hidden: '',
-  }, [glyph(document)]);
+    className: 'menu-item dim-button', type: 'button', 'aria-pressed': 'false', hidden: '',
+  }, [glyph(document), element(document, 'span', { className: 'menu-label', text: 'dim screen' })]);
   dim.hidden = true;
-  const dimLabel = element(document, 'button', {
-    className: 'bedside-button dim-label', type: 'button', 'aria-pressed': 'false',
-  }, [glyph(document), element(document, 'span', { text: 'Dim screen for bedtime' })]);
+  // Withdrawn until the player knows this device can record the story and keep
+  // the file (`video-export.mjs`).
+  const save = element(document, 'button', {
+    className: 'menu-item save-button', type: 'button', hidden: '',
+  }, [glyph(document), element(document, 'span', { className: 'menu-label', text: 'save video' })]);
+  save.hidden = true;
+  const more = element(document, 'button', {
+    className: 'round-button more-button', type: 'button', 'aria-label': 'more options',
+    'aria-haspopup': 'true', 'aria-expanded': 'false',
+  }, [glyph(document)]);
+  const menu = element(document, 'div', {
+    className: 'more-menu', role: 'group', 'aria-label': 'more options', hidden: '',
+  }, [subtitles, dim, save]);
+  menu.hidden = true;
   // The wind-down's own line and readout: it counts down a sound, not the
   // story, so nothing on it can be dragged.
   const windFill = element(document, 'div', { className: 'wind-fill' });
@@ -307,14 +353,15 @@ function createControlBar(document, { subtitles, fullscreen }) {
         windLine,
         windTimes,
       ]),
-      element(document, 'div', { className: 'side-buttons' }, [subtitles, dim, fullscreen]),
+      element(document, 'div', { className: 'side-buttons' }, [more, fullscreen]),
     ]),
-    element(document, 'div', { className: 'bedside' }, [dimLabel, stop, chip]),
+    menu,
+    element(document, 'div', { className: 'bedside' }, [stop, chip]),
   ]);
   root.hidden = true;
   return {
     root, scrub, fill, handle, at, total, back, forward, toggle, fullscreen,
-    dim, dimLabel, windLine, windFill, windTimes, stop, chip,
+    more, menu, save, dim, windLine, windFill, windTimes, stop, chip,
   };
 }
 

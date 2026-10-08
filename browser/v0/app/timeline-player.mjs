@@ -24,6 +24,7 @@ import { journeyCamera } from '../core/farm-journey.mjs';
 import { FLASH, HIGHLIGHT } from '../policy.mjs';
 import { onAssetProgress } from './assets/asset-request.mjs';
 import { KEEP_CADENCE_MS } from './assets/scene-loader.mjs';
+import { createAudioStore } from './audio-store.mjs';
 import { DEFAULT_DRAW_HZ, tierSettings } from './capability.mjs';
 import { createControls } from './controls.mjs';
 import { createMediaScheduler } from './media-scheduler.mjs';
@@ -89,9 +90,17 @@ export function createTimelinePlayer({
   let frameIntervalMs = 1000 / tier.drawHz;
   const stage = createCanvasStage(elements.stage, {
     onWarning, dprCap: capability.dprCap, shadows: capability.shadows, board, reducedMotion: capability.reducedMotion === true,
+    subtitles: () => !elements.subtitleArea?.hidden,
+    capturePlate: () => !story.bundle?.performance && !board?.world ? plate.captureFrame() : null,
   });
   const plate = createVideoPlate(elements.stage, { onWarning });
-  const media = createMediaScheduler({ timeline, bundle, onWarning: mediaWarned });
+  // A performance's narration, downloaded once and kept by the runtime rather
+  // than by a scheduler: a recording swaps the scheduler for one whose sound it
+  // can hear, and the lines must not be fetched again for it.
+  const narration = bundle?.performance
+    ? createAudioStore(bundle.audio.filter((cue) => cue.kind === 'narration'))
+    : null;
+  let media = createMediaScheduler({ timeline, bundle, onWarning: mediaWarned, store: narration });
   const controls = createControls(elements.controls, {
     onToggle: toggle, onSeek: seekTo, onSkip: skip,
   });
@@ -149,6 +158,9 @@ export function createTimelinePlayer({
   // between reaching the end and showing it, and a viewer who scrubs back out
   // in the middle of one has left an end that must not arrive behind them.
   let endArrival = 0;
+  // The story is being recorded (`video-export.mjs`): `{ size }`, the frame the
+  // canvas is backed at for the length of the take.
+  let exporting = null;
 
   listen(document, 'visibilitychange', () => {
     if (document?.visibilityState === 'hidden') hide();
@@ -184,6 +196,10 @@ export function createTimelinePlayer({
     play,
     pause,
     seekTo,
+    beginExport,
+    endExport,
+    pauseExport: () => { if (exporting) { pause(); media.pause(); } },
+    resumeExportTail: () => { if (exporting && ended) media.resume(); },
     appendScene,
     finishStory,
     isPlaying: () => clock.running,
@@ -214,6 +230,11 @@ export function createTimelinePlayer({
    * drift from the one the picture is actually drawn at.
    */
   function viewport() {
+    // A recording is drawn at its own frame, not the screen's: its sheets are
+    // chosen for the pixels the file will have.
+    if (exporting) {
+      return { fitScale: stage.exportScale() ?? 1, dpr: 1, dprCap: 1, ...(board?.layout ? { board } : {}) };
+    }
     // The tier's own ceiling goes with it: a sheet chosen for 2x and drawn at
     // 1.5x is bytes a weak device downloaded and decoded for nothing, which is
     // the opposite of what demoting it was for.
@@ -279,6 +300,8 @@ export function createTimelinePlayer({
       updateControls({ tMs: clock.now(), playing: true, ended: false });
       return;
     }
+    // The end of a recording is the end of the take: the file is being written.
+    if (ended && exporting) return;
     // Pressing play on an ended story is a replay, and a replay is a seek: the
     // transport has one button and the runtime has one way back to the start.
     //
@@ -365,7 +388,14 @@ export function createTimelinePlayer({
    * SOUNDING there — and the two questions have different answers for every
    * sound effect the seek jumped over.
    */
-  function seekTo(milliseconds, { settled = true } = {}) {
+  function seekTo(milliseconds, options) {
+    // A recording is one unbroken run of the story: nothing moves it but the
+    // recording itself.
+    if (exporting) return;
+    land(milliseconds, options);
+  }
+
+  function land(milliseconds, { settled = true } = {}) {
     if (destroyed || boardFailure) return;
     const t = clamp(milliseconds);
     clock.seek(t);
@@ -422,6 +452,62 @@ export function createTimelinePlayer({
     seekTo(clock.now() + (Number.isFinite(deltaMs) ? deltaMs : SKIP_MS));
   }
 
+  /**
+   * Make ready to record the story from its start.
+   *
+   * The story is stopped and taken back to zero, the canvas is backed at the
+   * recording's frame, the loop draws at the full cadence whatever the device's
+   * tier, and the sound comes from a scheduler built on `output` — every
+   * element it opens is one the recording hears. Seeking is locked until
+   * `endExport`. Resolves once the opening scene is decoded at the new size and
+   * drawn; the caller starts its recorder and then plays.
+   */
+  async function beginExport({ output, size, onError = () => {} }) {
+    if (destroyed || exporting) return;
+    const returnTo = clock.now();
+    pause();
+    exporting = { size, onError, readyScene: null, sceneLoad: null, returnTo };
+    const mine = exporting;
+    controls.lockSeeking(true);
+    stage.setExportSize(size);
+    frameIntervalMs = 1000 / DEFAULT_DRAW_HZ;
+    swapMedia(output);
+    // Planned again at the recording's size, not at the size the screen had.
+    sceneIndex = null;
+    sceneView = null;
+    land(0);
+    const sound = within(media.prepare?.(), HOLD_TIMEOUT_MS);
+    await Promise.all([
+      sound, stage.prepareExport(), loader.loadScene(0, viewport(), { keep: true }),
+      !story.bundle?.performance && !board?.world ? plate.prepareExport() : null,
+    ]);
+    if (destroyed || exporting !== mine) return;
+    render(clock.now(), { force: true });
+  }
+
+  /** The recording is over, kept or not: the player is the player again. */
+  function endExport() {
+    if (destroyed || !exporting) return;
+    const { returnTo } = exporting;
+    pause();
+    exporting = null;
+    controls.lockSeeking(false);
+    stage.setExportSize(null);
+    frameIntervalMs = 1000 / tier.drawHz;
+    swapMedia(null);
+    sceneIndex = null;
+    sceneView = null;
+    land(returnTo);
+  }
+
+  /** The story's sound, from a fresh scheduler whose elements come from `output`. */
+  function swapMedia(output) {
+    media.destroy();
+    media = createMediaScheduler({
+      timeline: story.timeline, bundle: story.bundle, onWarning: mediaWarned, store: narration, output,
+    });
+  }
+
   function destroy() {
     if (destroyed) return;
     destroyed = true;
@@ -431,6 +517,7 @@ export function createTimelinePlayer({
     listeners.length = 0;
     controls.destroy();
     media.destroy();
+    narration?.destroy();
     plate.destroy();
     stage.destroy();
     recorder?.destroy();
@@ -449,7 +536,8 @@ export function createTimelinePlayer({
     if (destroyed) return;
     const next = tierSettings(name);
     tier = { dprCap: next.dprCap, drawHz: next.drawHz };
-    frameIntervalMs = 1000 / next.drawHz;
+    // A recording keeps the full cadence for the length of the take.
+    if (!exporting) frameIntervalMs = 1000 / next.drawHz;
     stage.setTier({ dprCap: next.dprCap, shadows: next.shadows });
     cache?.setBudget?.(next.bitmapBudget);
   }
@@ -460,7 +548,7 @@ export function createTimelinePlayer({
   function hide() {
     if (destroyed || !clock.running) return;
     pause();
-    resumeWhenVisible = true;
+    resumeWhenVisible = !exporting;
   }
 
   function startLoop() {
@@ -518,6 +606,14 @@ export function createTimelinePlayer({
     }
     const state = cursor.at(t);
     const shown = openScene(state);
+    if (exporting && !story.bundle?.performance && (
+      exporting.readyScene !== sceneIndex || (!board?.world && !plate.captureReady())
+    )) {
+      if (clock.running && !waiting) holdFor({
+        atMs: t, until: () => Promise.all([exporting.sceneLoad, !board?.world ? plate.prepareExport() : null]),
+      });
+      return;
+    }
     // A performance keeps its scene whole from the moment it opens, so it has no
     // chunk window to hold — and holding one would take back the scene on screen
     // just as a cut hold had made room for the next, trading the two for ever.
@@ -696,7 +792,7 @@ export function createTimelinePlayer({
 
   function paint(state, force) {
     const next = signatureOf(state, board);
-    if (!force && next === signature) return;
+    if (!force && !exporting && next === signature) return;
     signature = next;
     stage.draw(state, sheets);
   }
@@ -720,6 +816,7 @@ export function createTimelinePlayer({
    * line that can be read, and the subtitle for it is already on screen.
    */
   function mediaWarned(detail) {
+    if (exporting) exporting.onError(new Error(detail.message || 'story audio could not be saved'));
     if (story.bundle?.performance) { pause(); showNote(detail.message); onWarning(detail); return; }
     if (detail?.asset === 'narration') showNote('narration unavailable · read along');
     onWarning(detail);
@@ -782,14 +879,18 @@ export function createTimelinePlayer({
     const opened = sceneIndex;
     sheets = sceneSheets(loader.plan(sceneIndex, view), cache, counter);
     plate.showScene(story.bundle?.scenes?.[sceneIndex]?.plate ?? null);
-    void loader.loadScene(sceneIndex, view, { keep: true, onRequiredImage: () => imageArrived(opened) })
+    const loading = loader.loadScene(sceneIndex, view, { keep: true, onRequiredImage: () => imageArrived(opened) })
       // A running story draws the sheets as they land, on its next frame. A
       // PAUSED one has no next frame: a scrub into a scene that is not decoded
       // yet painted placeholders and stopped, and they stayed on screen until
       // somebody pressed play. Only for the scene still on screen — a cut that
       // has already happened has its own paint coming.
-      .then(() => imageArrived(opened))
-      .catch(warmingFailed);
+      .then(() => {
+        if (exporting && opened === sceneIndex) exporting.readyScene = opened;
+        imageArrived(opened);
+      });
+    if (exporting) exporting.sceneLoad = loading;
+    void loading.catch(warmingFailed);
     // The next scene's sheets, decoded while this one plays, as far as the
     // budget allows: the cut to it is then only a hold for what did not fit.
     if (story.bundle?.performance) void loader.prepareScene(opened + 1, opened, view).catch(warmingFailed);
@@ -885,6 +986,7 @@ export function createTimelinePlayer({
       leaveWaiting(false);
       showNote('Story media could not be loaded. Press play to try again.');
       updateControls({ tMs: clock.now(), playing: false, ended: false });
+      exporting?.onError(new Error('story media could not be loaded for saving'));
     };
     const quiet = () => setTimeout(giveUp, HOLD_TIMEOUT_MS);
     holdTimers = [
@@ -898,7 +1000,7 @@ export function createTimelinePlayer({
     });
     void hold.until().then(
       () => { if (current()) leaveWaiting(true); },
-      (error) => { if (error?.retryable === false) giveUp(); },
+      (error) => { if (error?.retryable === false || exporting) giveUp(); },
     );
     updateControls({ tMs: clock.now(), playing: true, ended: false });
   }
@@ -991,6 +1093,7 @@ export function createTimelinePlayer({
    */
   function warmingFailed(error) {
     if (destroyed || signal?.aborted || error?.name === 'AbortError') return;
+    if (exporting) exporting.onError(error);
     if (error?.code === 'BOARD_IMAGE_UNAVAILABLE') {
       boardFailure = `${error.message}. Reload the lesson to try again.`;
       resumeWhenVisible = false;

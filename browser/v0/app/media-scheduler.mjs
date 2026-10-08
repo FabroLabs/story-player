@@ -38,8 +38,14 @@ import { createPerformanceMediaScheduler } from './performance-media-scheduler.m
 // line out of sync with the picture for its whole length.
 const LATE_START_MS = 120;
 
-export function createMediaScheduler({ timeline, bundle, onWarning = () => {}, store = null }) {
-  if (bundle?.performance) return createPerformanceMediaScheduler({ bundle, onWarning, store });
+/**
+ * `output` is where every audio element comes from. The default is a plain
+ * `new Audio()`, heard on the device; a recording hands in its own
+ * (`video-export.mjs`), which routes each element through one audio graph so
+ * the file hears exactly what the story plays.
+ */
+export function createMediaScheduler({ timeline, bundle, onWarning = () => {}, store = null, output = null }) {
+  if (bundle?.performance) return createPerformanceMediaScheduler({ bundle, onWarning, store, output });
   const owned = new Map();
   const fades = new Map();
   const sounds = new Set();
@@ -536,7 +542,7 @@ export function createMediaScheduler({ timeline, bundle, onWarning = () => {}, s
   function open(cue, asset) {
     const url = cue.media;
     if (typeof url !== 'string' || !url) return null;
-    const media = new globalThis.Audio(url);
+    const media = output ? output.audio(url) : new globalThis.Audio(url);
     media.preload = 'auto';
     owned.set(media, { cue, asset });
     return media;
