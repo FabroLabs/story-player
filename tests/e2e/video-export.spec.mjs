@@ -6,7 +6,7 @@ import path from 'node:path';
 import { buildCdn } from '../../scripts/build-cdn.mjs';
 import { performanceFixture } from '../_performance.mjs';
 
-// A story saved as a video in a real browser: the ⋯ menu, a whole take of a
+// A story saved as a video in a real browser: the settings menu, a whole take of a
 // four-second performance, and the mp4 the save hands over. Recording runs in
 // real time, so the fixture is the shortest performance the suite has.
 
@@ -54,14 +54,18 @@ test.afterAll(async () => {
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
-test('the ⋯ menu records the whole story and saves it as an mp4 with picture and sound', async ({ page }, testInfo) => {
+test('the settings menu records the whole story and saves it as an mp4 with picture and sound', async ({ page }, testInfo) => {
   test.setTimeout(40_000);
   await page.goto(base);
   await page.evaluate(() => window.ready);
   expect(await page.evaluate(() => window.player.canRecordVideo())).toBe(true);
+  // A browser that cannot encode a story itself, so that the take is filmed
+  // and lasts as long as the story: long enough to look at while it runs. The
+  // stepped take has its own test below.
+  await page.evaluate(() => { window.VideoEncoder = undefined; });
   await page.getByRole('button', { name: 'begin story' }).click();
   await page.locator('#player').hover();
-  await page.getByRole('button', { name: 'more options' }).click();
+  await page.getByRole('button', { name: 'settings' }).click();
   await expect(page.getByRole('button', { name: 'show subtitles' })
     .or(page.getByRole('button', { name: 'hide subtitles' }))).toBeVisible();
   await page.getByRole('button', { name: 'save video' }).click();
@@ -118,7 +122,8 @@ test('a host keeps the file itself, and a cancelled take hands over nothing', as
     const button = document.createElement('button');
     button.textContent = 'record';
     button.onclick = () => {
-      window.take = window.player.recordVideo().then(
+      // Filmed, so that there is a take to stop: a stepped one is over in a moment.
+      window.take = window.player.recordVideo({ mode: 'filmed' }).then(
         (file) => ({ name: file.name, type: file.type, size: file.size }),
         (error) => ({ error: error.name }),
       );
@@ -141,6 +146,73 @@ test('a host keeps the file itself, and a cancelled take hands over nothing', as
   expect(kept.size).toBeGreaterThan(1000);
   // The host keeps it: nothing is offered on the picture.
   await expect(page.locator('#player .recording-status')).toBeHidden();
+});
+
+test('a performance is stepped rather than filmed where the browser can encode it, and either take is the same film', async ({ page }, testInfo) => {
+  test.setTimeout(60_000);
+  await page.goto(base);
+  await page.evaluate(() => window.ready);
+  // The host's own button: the press is what lets a filmed take's sound start.
+  await page.evaluate(() => {
+    const encode = async (file) => {
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      let text = '';
+      for (let at = 0; at < bytes.length; at += 0x8000) text += String.fromCharCode(...bytes.subarray(at, at + 0x8000));
+      return btoa(text);
+    };
+    // `streamed` is a host that keeps the file itself, a piece at a time.
+    for (const mode of ['auto', 'filmed', 'streamed']) {
+      const button = document.createElement('button');
+      button.textContent = `record ${mode}`;
+      button.onclick = () => {
+        const seen = [];
+        const pieces = [];
+        const started = performance.now();
+        const options = mode === 'streamed'
+          ? { onChunk: async (piece, index) => { pieces[index] = piece; await new Promise((resolve) => { setTimeout(resolve, 1); }); } }
+          : { mode };
+        window.take = window.player.recordVideo({ ...options, onProgress: (state) => seen.push(state) }).then(async (file) => ({
+          fast: seen.some((state) => state.fast === true), statuses: [...new Set(seen.map((state) => state.status))],
+          tookMs: performance.now() - started, size: file.size, pieces: pieces.length, largest: Math.max(0, ...pieces.map((piece) => piece.size)),
+          base64: await encode(mode === 'streamed' ? new Blob(pieces) : file),
+        }));
+      };
+      document.body.append(button);
+    }
+  });
+  const stepped = await page.evaluate(() => typeof globalThis.VideoEncoder === 'function' && typeof globalThis.AudioEncoder === 'function');
+  const takes = {};
+  for (const mode of ['auto', 'filmed', 'streamed']) {
+    await page.getByRole('button', { name: `record ${mode}` }).click();
+    const take = await page.evaluate(() => window.take);
+    const bytes = Buffer.from(take.base64, 'base64');
+    await testInfo.attach(`${mode}-take`, { body: bytes, contentType: 'video/mp4' });
+    expect(bytes.subarray(4, 8).toString('latin1')).toBe('ftyp');
+    const decoded = await inspectFile(page, bytes);
+    expect(decoded.width).toBe(1280);
+    expect(decoded.height).toBe(720);
+    // The story and the second its last word is given to finish.
+    expect(decoded.duration).toBeGreaterThan(3.8);
+    expect(decoded.duration).toBeLessThan(6);
+    expect(decoded.brandPixels).toBeGreaterThan(500);
+    expect(decoded.captionPixels).toBeGreaterThan(40);
+    expect(decoded.audioPeak).toBeGreaterThan(0.01);
+    expect(take.statuses).toContain('ready');
+    takes[mode] = take;
+    // The player is the player again between takes.
+    expect((await page.evaluate(() => window.player.getState())).playing).toBe(false);
+  }
+  // A host that keeps the file is handed all of it, in order, in bounded pieces.
+  expect(Buffer.from(takes.streamed.base64, 'base64').length).toBe(takes.streamed.size);
+  expect(takes.streamed.pieces).toBeGreaterThan(0);
+  expect(takes.streamed.largest).toBeLessThanOrEqual(512 * 1024);
+  expect(takes.streamed.fast).toBe(stepped);
+  expect(takes.filmed.fast).toBe(false);
+  expect(takes.filmed.tookMs).toBeGreaterThan(3800);
+  // Chromium can encode a story itself, so here the take is stepped — and a
+  // stepped take does not last as long as the story does.
+  expect(takes.auto.fast).toBe(stepped);
+  if (stepped) expect(takes.auto.tookMs).toBeLessThan(takes.filmed.tookMs);
 });
 
 test('a lesson in an illustrated world records its storybook narration, and plate capture is available', async ({ page }) => {

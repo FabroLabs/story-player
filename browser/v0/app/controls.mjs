@@ -44,7 +44,7 @@ export function createControls(elements, {
   // The bar was taken away for a performance that is not the story's, and is
   // owed back when that one is over.
   let concealed = false;
-  // The ⋯ menu is open, and whether the press on the picture under way was
+  // The settings menu is open, and whether the press on the picture under way was
   // spent closing it rather than on the story.
   let menuOpen = false;
   let dismissing = false;
@@ -60,8 +60,8 @@ export function createControls(elements, {
   // Subtitles, the bedtime moon and saving the story live behind one button, so
   // a phone's dock keeps five. Whatever is chosen in the menu closes it; the
   // rows' own listeners have already run by the time the click gets here.
-  if (elements.more && elements.menu) {
-    listen(elements.more, 'click', () => {
+  if (elements.settings && elements.menu) {
+    listen(elements.settings, 'click', () => {
       if (!live()) return;
       if (menuOpen) closeMenu({ focus: false });
       else openMenu();
@@ -195,7 +195,7 @@ export function createControls(elements, {
   function openMenu() {
     menuOpen = true;
     elements.menu.hidden = false;
-    elements.more.setAttribute('aria-expanded', 'true');
+    elements.settings.setAttribute('aria-expanded', 'true');
     // A keyboard that opened it is taken into it; a pointer can see where to go.
     if (steering === 'keyboard') [...elements.menu.children].find((item) => !item.hidden)?.focus?.();
     wake();
@@ -205,13 +205,13 @@ export function createControls(elements, {
     if (!menuOpen) return;
     menuOpen = false;
     elements.menu.hidden = true;
-    elements.more.setAttribute('aria-expanded', 'false');
-    if (focus) elements.more.focus?.();
+    elements.settings.setAttribute('aria-expanded', 'false');
+    if (focus) elements.settings.focus?.();
     wake();
   }
 
   function insideMenu(target) {
-    return Boolean(target) && (elements.menu.contains(target) || elements.more.contains(target));
+    return Boolean(target) && (elements.menu.contains(target) || elements.settings.contains(target));
   }
 
   /**

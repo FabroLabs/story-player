@@ -168,6 +168,8 @@ export function createV0Player({
     runtime: () => (armed ? runtime : null),
     begin: beginTake,
     title: () => runtimeStory?.title ?? story?.title,
+    story: () => runtimeStory,
+    onWarning: warn,
   });
   const subscribers = new Set();
   let armed = false;

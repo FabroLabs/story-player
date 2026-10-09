@@ -29,7 +29,7 @@
   --icon-collapse: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5'/%3E%3C/svg%3E");
   --icon-moon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20.5 13.8A8.6 8.6 0 1 1 10.2 3.5a6.8 6.8 0 0 0 10.3 10.3z'/%3E%3C/svg%3E");
   --icon-stop: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='5.5' y='5.5' width='13' height='13' rx='2.5'/%3E%3C/svg%3E");
-  --icon-more: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='5' cy='12' r='2'/%3E%3Ccircle cx='12' cy='12' r='2'/%3E%3Ccircle cx='19' cy='12' r='2'/%3E%3C/svg%3E");
+  --icon-settings: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-1 -1 26 26' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='3'/%3E%3Cpath d='M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z'/%3E%3C/svg%3E");
   --icon-save: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 4v11M7.5 10.5 12 15l4.5-4.5M5 19.5h14'/%3E%3C/svg%3E");
   --chip: rgba(255, 255, 255, 0.07);
   --text: #eaf3f0;
@@ -959,7 +959,7 @@ button:focus-visible {
    The web app's watch dock (frontend-app `WatchControls` and
    `watch.module.css`), drawn by the player so the app and every other host
    get the same one: play and the two skips, the line with its times, then
-   the ⋯ menu and full screen. Two arrangements, chosen by the width of the
+   the settings menu and full screen. Two arrangements, chosen by the width of the
    PLAYER as the web app chooses them: a phone's two rows — the line, then five
    buttons spread across it — and one row from 600 pixels up. Subtitles, the
    bedtime moon and saving the story are rows of the menu, so a phone's dock
@@ -1002,7 +1002,7 @@ button:focus-visible {
 .play-button { grid-column: 1; justify-self: start; }
 .skip-back { grid-column: 2; }
 .skip-forward { grid-column: 3; }
-.more-button { grid-column: 4; }
+.settings-button { grid-column: 4; }
 .fullscreen-button { grid-column: 5; justify-self: end; }
 
 /* The overlay withdraws from a story nobody is pointing at, and comes back the
@@ -1095,10 +1095,10 @@ button:focus-visible {
 .round-button:hover:not(:disabled) { background: rgb(146 227 196 / 0.12); }
 .round-button:disabled { opacity: 0.5; cursor: default; }
 
-/* The ⋯ menu: a short card at the dock's right end, one row per choice. A
+/* The settings menu: a short card at the dock's right end, one row per choice. A
    phone's picture is too short to hold it above a two-row dock, so there it
    lies over the dock — which it closes back onto — and never past the top. */
-.more-menu {
+.settings-menu {
   position: absolute;
   right: 8px;
   bottom: 8px;
@@ -1113,7 +1113,7 @@ button:focus-visible {
   box-shadow: 0 10px 28px rgb(0 0 0 / 0.38);
 }
 
-.more-menu[hidden] { display: none; }
+.settings-menu[hidden] { display: none; }
 
 .menu-item {
   display: flex;
@@ -1192,7 +1192,7 @@ button:focus-visible {
 .skip-forward { --glyph: var(--icon-forward); }
 .fullscreen-button { --glyph: var(--icon-expand); }
 .fullscreen-button[aria-pressed='true'] { --glyph: var(--icon-collapse); }
-.more-button { --glyph: var(--icon-more); }
+.settings-button { --glyph: var(--icon-settings); }
 .dim-button { --glyph: var(--icon-moon); }
 .save-button,
 .recording-action { --glyph: var(--icon-save); }
@@ -1309,7 +1309,7 @@ button:focus-visible {
 .stage-frame.is-wind-down.is-sounding .play-button { --glyph: var(--icon-pause); }
 
 /* From 600 pixels up, one row: play and the skips, the line with its times,
-   the ⋯ menu and full screen. */
+   the settings menu and full screen. */
 @container player (min-width: 600px) {
   .dock {
     grid-template-columns: auto minmax(0, 1fr) auto;
@@ -1330,7 +1330,7 @@ button:focus-visible {
   .side-buttons { grid-column: 3; grid-row: 1; width: 96px; justify-content: flex-end; }
   .round-button { padding: 4px; }
   .glyph { width: 30px; height: 30px; }
-  .more-menu { right: 16px; bottom: calc(100% - 16px); }
+  .settings-menu { right: 16px; bottom: calc(100% - 16px); }
 }
 
 /* Absolute, not fixed: a panel positioned against the viewport would climb out
