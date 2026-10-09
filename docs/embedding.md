@@ -841,12 +841,12 @@ render, and the newest one is the one called, without a remount.
 
 The player owns its transport, inside the Shadow DOM, drawn as the web app's
 watch dock (frontend-app `WatchControls`): play, back and forward ten seconds,
-the draggable line with `0:27 / 8:32`, then the ⋯ menu and full screen. The
+the draggable line with `0:27 / 8:32`, then the settings menu and full screen. The
 menu holds what is not playing the story: subtitles, the bedtime moon and
 saving the story as a video, each a row that closes the menu when chosen, so
 a phone's dock stays at five buttons whatever the story offers. A press
 anywhere else closes it — a press on the picture only closes it — Escape
-closes it and hands the keyboard back to ⋯, and an open menu keeps the
+closes it and hands the keyboard back to the gear, and an open menu keeps the
 overlay on screen. The transport appears when the story begins, not while the opening is still up, and it
 withdraws again for as long as a card is playing — each card has a skip of its
 own. The story's name sits over the picture at the top left. A host that draws
@@ -886,7 +886,7 @@ web app draws them — unless the host passes `chrome: 'host'`, in which case it
 draws its own:
 
 - The moon dims the picture, under the captions and the controls, so the words
-  keep their contrast. It is the "dim screen" row of the ⋯ menu. Pass
+  keep their contrast. It is the "dim screen" row of the settings menu. Pass
   `dim: true` to open the story dimmed (the family's "dim after bedtime", say);
   the moon's state is never written back.
 - The moonlit wind-down (`metadata.post_story`). When the narrative ends the
@@ -918,8 +918,24 @@ routes narration and music through one Web Audio graph and resolves with an
 MP4 `File`. Legacy plates are copied into the canvas only while exporting;
 an unavailable or origin-unclean background fails the take instead of producing
 a cast on black. Intro/end cards and the long bedtime wind-down are omitted.
-Saving takes approximately the story's duration. Seeking is locked during the
-take; the viewer's prior position is restored, paused, afterward.
+Seeking is locked during the take; the viewer's prior position is restored,
+paused, afterward.
+
+A take is **stepped** where it can be and **filmed** otherwise. A stepped take
+(`fast-export.mjs`) does not play the story in real time: it moves the story's
+clock by hand, reads each frame off the canvas into the browser's own encoder,
+mixes the sound from the story's schedule and writes the mp4 itself
+(`mp4-writer.mjs`). It takes as long as the device needs to draw and encode — a
+few times faster than the story on a laptop — and a slow device makes it slower,
+never choppy. It is used for a performance (`performance.kind`) in a browser with
+`VideoEncoder` and `AudioEncoder`, whose sound is short files plus AAC-in-mp4 for
+anything long (`m4a-reader.mjs` reads a long bed a second at a time). Anything
+else is filmed, which takes the story's duration; a stepped take that cannot
+start is abandoned for a filmed one before any of the file exists, with a
+warning in the log. `recordVideo({ mode: 'filmed' })` asks for the filmed take by
+name. Progress and `getVideoExportState()` carry `fast: true` for a stepped take,
+which neither pauses in a hidden tab nor needs the page in front: a host that
+pauses takes on `visibilitychange` may leave a stepped one running.
 
 Pass `videoControls: 'host'` at mount to place Save video beside the host's story
 actions. It removes the player's menu row and recording pill, while keeping
@@ -934,6 +950,11 @@ const file = await handle.recordVideo({
 });
 // A fresh press is required before opening a share sheet or download.
 ```
+
+A host that records one story after another passes `audioContext`: an
+`AudioContext` it created and resumed inside its own press. Each take routes its
+sound through it and leaves it open, so a take the host starts later, with no
+press, is not recorded silent. The host closes it when its last take is over.
 
 `canRecordVideo()` checks browser recording support and refuses unfinished
 stream mounts. For a completed stream, the host fetches its final document and
@@ -954,7 +975,11 @@ For native storage, pass `onChunk: async (blob, index) => …`. The host writes
 chunks in order and acknowledges each; the promise resolves with
 `{name, type, size}` instead of allocating a full `File`. Pieces are at most
 512 KiB and queued data is capped at 8 MiB. Browser in-memory recordings are
-capped at 128 MiB. A slow writer or exceeded cap fails visibly. Native hosts must
+capped at 128 MiB, and a story too long to fit at the full rate is given a
+lower picture bitrate rather than refused in its last minute; a host that
+streams the file has no cap and always gets the full rate, so a web host that
+wants long videos passes `onChunk` and writes to its own storage. A slow writer
+or exceeded cap fails visibly. Native hosts must
 validate their own session/origin, delete partial files on failure/cancel and
 commit the temporary file only after successful completion.
 

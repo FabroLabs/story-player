@@ -1,5 +1,5 @@
 /**
- * A take, through the whole player: the ⋯ menu's "save video", the story
+ * A take, through the whole player: the settings menu's "save video", the story
  * replayed from its start into a recorder, the pill that says how far it has
  * got, and the file at the end — with the browser's recorder, audio graph and
  * canvas capture replaced so the run is scripted rather than timed.
@@ -207,6 +207,20 @@ test('host export exposes real progress and cancellation without a second save c
   assert.equal(take.player.getState().recording, false);
   assert.equal(progress.at(-1).status, 'cancelled');
   assert.equal(take.browser.contexts[0].closed, 1);
+});
+
+test('a host may lend its own unlocked audio context, which the take uses and leaves open', async (t) => {
+  const take = await mount(t, { options: { videoControls: 'host' } });
+  const lent = new globalThis.AudioContext();
+  take.browser.contexts.length = 0;
+  const saving = take.player.recordVideo({ audioContext: lent });
+  await settle();
+  assert.equal(take.browser.contexts.length, 0);
+  assert.equal(lent.resumed, 1);
+  take.player.cancelVideo();
+  await assert.rejects(saving, { name: 'AbortError' });
+  assert.equal(lent.closed, 0);
+  await assert.rejects(take.player.recordVideo({ audioContext: {} }), /audioContext must be an AudioContext/);
 });
 
 test('an AbortSignal cancels preparation and already-aborted requests never allocate media', async (t) => {

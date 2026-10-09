@@ -107,7 +107,7 @@ for (const width of [390, 798]) {
       if (debug) await page.locator('#debug-probe .debug-panel [aria-label="close event log"]').click();
       await page.locator('#debug-probe .start-button').click();
       await page.evaluate(() => window.__debugProbe.pause());
-      await page.locator('#debug-probe .more-button').click();
+      await page.locator('#debug-probe .settings-button').click();
       await page.locator('#debug-probe .cc-button').click();
 
       const geometry = () => page.locator('#debug-probe').evaluate((host) => {

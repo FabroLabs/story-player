@@ -11,7 +11,7 @@ export function createPlayerTemplate(root, { stylesheet = STYLESHEET, kicker, ch
   const document = root.ownerDocument ?? globalThis.document;
   const link = element(document, 'link', { rel: 'stylesheet', href: stylesheet });
   // No chrome of our own above the picture: what a site embeds is a rectangle
-  // of video. The ⋯ menu and full screen sit together at the right of the
+  // of video. The settings menu and full screen sit together at the right of the
   // control bar, where every video player keeps them; closing and casting
   // belong to the page that mounted us. Subtitles are a row of that menu.
   const subtitles = element(document, 'button', {
@@ -274,7 +274,7 @@ function createRecordingStatus(document) {
 }
 
 /**
- * The control bar: position, transport, the ⋯ menu and full screen.
+ * The control bar: position, transport, the settings menu and full screen.
  *
  * The scrub is a `div` with `role="slider"` rather than an `<input type=range>`
  * because the fill and the handle are drawn from one fraction the runtime
@@ -283,7 +283,7 @@ function createRecordingStatus(document) {
  * handlers live in `v0/app/controls.mjs`.
  *
  * The web app's watch dock: play and the two skips, the line with its times,
- * then the ⋯ menu — subtitles, the bedtime moon, saving the story as a video —
+ * then the settings menu — subtitles, the bedtime moon, saving the story as a video —
  * and full screen; under them the bedside row, the wind-down's Stop and the
  * word the quiet after it ends on. Where they stand — one row on a big player,
  * two on a phone — is the stylesheet's, read off the player's own size.
@@ -322,12 +322,12 @@ function createControlBar(document, { subtitles, fullscreen }) {
     className: 'menu-item save-button', type: 'button', hidden: '',
   }, [glyph(document), element(document, 'span', { className: 'menu-label', text: 'save video' })]);
   save.hidden = true;
-  const more = element(document, 'button', {
-    className: 'round-button more-button', type: 'button', 'aria-label': 'more options',
+  const settings = element(document, 'button', {
+    className: 'round-button settings-button', type: 'button', 'aria-label': 'settings',
     'aria-haspopup': 'true', 'aria-expanded': 'false',
   }, [glyph(document)]);
   const menu = element(document, 'div', {
-    className: 'more-menu', role: 'group', 'aria-label': 'more options', hidden: '',
+    className: 'settings-menu', role: 'group', 'aria-label': 'settings', hidden: '',
   }, [subtitles, dim, save]);
   menu.hidden = true;
   // The wind-down's own line and readout: it counts down a sound, not the
@@ -353,7 +353,7 @@ function createControlBar(document, { subtitles, fullscreen }) {
         windLine,
         windTimes,
       ]),
-      element(document, 'div', { className: 'side-buttons' }, [more, fullscreen]),
+      element(document, 'div', { className: 'side-buttons' }, [settings, fullscreen]),
     ]),
     menu,
     element(document, 'div', { className: 'bedside' }, [stop, chip]),
@@ -361,7 +361,7 @@ function createControlBar(document, { subtitles, fullscreen }) {
   root.hidden = true;
   return {
     root, scrub, fill, handle, at, total, back, forward, toggle, fullscreen,
-    more, menu, save, dim, windLine, windFill, windTimes, stop, chip,
+    settings, menu, save, dim, windLine, windFill, windTimes, stop, chip,
   };
 }
 
