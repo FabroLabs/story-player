@@ -471,25 +471,25 @@ test('destroy leaves nothing listening', (t) => {
   assert.deepEqual(seen, { toggles: 0, seeks: [], skips: [] });
 });
 
-test('the ⋯ button opens a menu that any choice in it closes', (t) => {
+test('the settings button opens a menu that any choice in it closes', (t) => {
   const { bar, controls } = bench(t);
   controls.arm(STORY_MS);
   controls.show();
   assert.equal(bar.menu.hidden, true);
-  assert.equal(bar.more.getAttribute('aria-expanded'), 'false');
+  assert.equal(bar.settings.getAttribute('aria-expanded'), 'false');
 
-  bar.more.dispatch('click');
+  bar.settings.dispatch('click');
   assert.equal(bar.menu.hidden, false);
-  assert.equal(bar.more.getAttribute('aria-expanded'), 'true');
+  assert.equal(bar.settings.getAttribute('aria-expanded'), 'true');
   // A press inside the menu is not a press outside it.
   bar.frame.dispatch('pointerdown', { target: bar.menu.children[0] });
   assert.equal(bar.menu.hidden, false, 'reaching for a row closed the menu under the pointer');
   bar.menu.dispatch('click', { target: bar.menu.children[0] });
   assert.equal(bar.menu.hidden, true, 'a choice left the menu open');
-  assert.equal(bar.more.getAttribute('aria-expanded'), 'false');
+  assert.equal(bar.settings.getAttribute('aria-expanded'), 'false');
 
-  bar.more.dispatch('click');
-  bar.more.dispatch('click');
+  bar.settings.dispatch('click');
+  bar.settings.dispatch('click');
   assert.equal(bar.menu.hidden, true, 'the button did not close what it opened');
 });
 
@@ -498,7 +498,7 @@ test('a press on the picture while the menu is open only closes the menu', (t) =
   controls.arm(STORY_MS);
   controls.show();
   controls.update({ tMs: 0, playing: true });
-  bar.more.dispatch('click');
+  bar.settings.dispatch('click');
 
   const press = () => {
     bar.stage.dispatch('pointerdown');
@@ -518,14 +518,14 @@ test('a keyboard is taken into the menu and Escape gives it back to its button',
   controls.show();
   const focused = [];
   bar.menu.children[0].focus = () => focused.push('subtitles');
-  bar.more.focus = () => focused.push('more');
+  bar.settings.focus = () => focused.push('settings');
   bar.frame.dispatch('keydown', { key: 'Tab' });
 
-  bar.more.dispatch('click');
+  bar.settings.dispatch('click');
   assert.deepEqual(focused, ['subtitles'], 'the first row a keyboard can reach was not focused');
   bar.frame.dispatch('keydown', { key: 'Escape' });
   assert.equal(bar.menu.hidden, true);
-  assert.deepEqual(focused, ['subtitles', 'more']);
+  assert.deepEqual(focused, ['subtitles', 'settings']);
   assert.equal(seen.toggles, 0);
 });
 
@@ -534,7 +534,7 @@ test('an open menu keeps the overlay on screen', async (t) => {
   controls.arm(STORY_MS);
   controls.show();
   controls.update({ tMs: 0, playing: true });
-  bar.more.dispatch('click');
+  bar.settings.dispatch('click');
 
   await tick(40);
   bar.frame.dispatch('pointerleave');

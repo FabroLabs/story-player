@@ -43,6 +43,11 @@ const HOLD_SPINNER_MS = 300;
 const HOLD_TIMEOUT_MS = 20_000;
 const RETRY_MS = 1_000;
 
+// What a stepped take sounds: nothing. Its sound is mixed from the schedule.
+const SILENT = Object.freeze({
+  unlock: async () => {}, seek() {}, resume() {}, pause() {}, advance() {}, tick() {}, settle() {}, setStory() {}, destroy() {},
+});
+
 export function createTimelinePlayer({
   elements, bundle, timeline, clock, loader, cache, log = null,
   // The board's counter picture, when the host gave one (`counter-picture.mjs`).
@@ -161,6 +166,13 @@ export function createTimelinePlayer({
   // The story is being recorded (`video-export.mjs`): `{ size }`, the frame the
   // canvas is backed at for the length of the take.
   let exporting = null;
+  // Where frames come from: the display, or a fast take stepping the story by
+  // hand (`fast-export.mjs`). Asked of the globals each time, as before.
+  const display = {
+    request: (callback) => requestAnimationFrame(callback),
+    cancel: (handle) => cancelAnimationFrame(handle),
+  };
+  let frames = display;
 
   listen(document, 'visibilitychange', () => {
     if (document?.visibilityState === 'hidden') hide();
@@ -461,17 +473,30 @@ export function createTimelinePlayer({
    * element it opens is one the recording hears. Seeking is locked until
    * `endExport`. Resolves once the opening scene is decoded at the new size and
    * drawn; the caller starts its recorder and then plays.
+   *
+   * With a `timebase` the take is stepped rather than filmed: the story reads
+   * time and asks for frames from it instead of from the wall clock and the
+   * display, and it sounds nothing — its sound is mixed from the schedule.
    */
-  async function beginExport({ output, size, onError = () => {} }) {
+  async function beginExport({ output, size, onError = () => {}, timebase = null }) {
     if (destroyed || exporting) return;
     const returnTo = clock.now();
     pause();
-    exporting = { size, onError, readyScene: null, sceneLoad: null, returnTo };
+    if (timebase) {
+      if (clock.running) throw new Error('the story could not be stopped to be saved');
+      stopLoop();
+      clock.useNow(timebase.now);
+      frames = timebase;
+    }
+    exporting = { size, onError, readyScene: null, sceneLoad: null, returnTo, stepped: timebase !== null };
     const mine = exporting;
     controls.lockSeeking(true);
     stage.setExportSize(size);
     frameIntervalMs = 1000 / DEFAULT_DRAW_HZ;
-    swapMedia(output);
+    if (timebase) {
+      media.destroy();
+      media = SILENT;
+    } else swapMedia(output);
     // Planned again at the recording's size, not at the size the screen had.
     sceneIndex = null;
     sceneView = null;
@@ -488,8 +513,15 @@ export function createTimelinePlayer({
   /** The recording is over, kept or not: the player is the player again. */
   function endExport() {
     if (destroyed || !exporting) return;
-    const { returnTo } = exporting;
+    const { returnTo, stepped } = exporting;
     pause();
+    if (stepped) {
+      // A frame still asked of the take's own timebase would never be given.
+      stopLoop();
+      if (clock.running) clock.pause();
+      clock.useNow();
+      frames = display;
+    }
     exporting = null;
     controls.lockSeeking(false);
     stage.setExportSize(null);
@@ -546,7 +578,8 @@ export function createTimelinePlayer({
   // throttles `requestAnimationFrame` there to a crawl, so a story left running
   // would drift out of sync with its own audio instead of waiting.
   function hide() {
-    if (destroyed || !clock.running) return;
+    // A stepped take does not lean on the display, so a hidden tab only slows it.
+    if (destroyed || !clock.running || exporting?.stepped) return;
     pause();
     resumeWhenVisible = !exporting;
   }
@@ -554,12 +587,12 @@ export function createTimelinePlayer({
   function startLoop() {
     if (frame !== null || destroyed) return;
     lastFrameAt = -Infinity;
-    frame = requestAnimationFrame(tick);
+    frame = frames.request(tick);
   }
 
   function stopLoop() {
     if (frame === null) return;
-    cancelAnimationFrame(frame);
+    frames.cancel(frame);
     frame = null;
   }
 
@@ -574,7 +607,7 @@ export function createTimelinePlayer({
    */
   function tick(frameMs) {
     if (destroyed) return;
-    frame = requestAnimationFrame(tick);
+    frame = frames.request(tick);
     const now = Number.isFinite(frameMs) ? frameMs : lastFrameAt + frameIntervalMs;
     // Every animation frame, not every drawn one: what the recorder is asking
     // is whether the BROWSER is keeping up with its own display, and the draw

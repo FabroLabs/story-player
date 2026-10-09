@@ -26,8 +26,8 @@ export const MP4_TYPES = Object.freeze([
 ]);
 // About 13 MB a minute: a drawn picture compresses well, and the file is meant
 // to be kept on a phone.
-const VIDEO_BITS_PER_SECOND = 1_600_000;
-const AUDIO_BITS_PER_SECOND = 96_000;
+export const VIDEO_BITS_PER_SECOND = 1_600_000;
+export const AUDIO_BITS_PER_SECOND = 96_000;
 // The recorder emits once a second. Browser files remain in bounded memory;
 // native hosts acknowledge bounded chunks without retaining the whole story.
 const SLICE_MS = 1000;
@@ -36,6 +36,20 @@ export const EXPORT_QUEUE_BYTES = 8 * 1024 * 1024;
 export const EXPORT_MEMORY_BYTES = 128 * 1024 * 1024;
 // A link to a downloaded file is let go of once the download has surely begun.
 const REVOKE_AFTER_MS = 60_000;
+
+/**
+ * The picture's bitrate for a file that has to fit in `limit` bytes.
+ *
+ * A take kept in memory has a ceiling, and a long story at the full rate would
+ * reach it in its last minute, after all the waiting. So a long story is given
+ * a little less per second rather than refused at the end; a take streamed to a
+ * host (`limit` 0) has no ceiling and keeps the full rate.
+ */
+export function videoBitsFor(durationMs, limit) {
+  if (!(limit > 0) || !(durationMs > 0)) return VIDEO_BITS_PER_SECOND;
+  const fits = Math.floor(limit * 0.9 * 8 / (durationMs / 1000)) - AUDIO_BITS_PER_SECOND;
+  return Math.max(300_000, Math.min(VIDEO_BITS_PER_SECOND, fits));
+}
 
 /**
  * Whether this story can be recorded here, and as which mp4.
@@ -132,14 +146,14 @@ export function createAudioTap(context) {
  */
 export function createRecording(stream, {
   mimeType, onError = () => {}, onChunk = null, globalObject = globalThis,
-  memoryLimit = EXPORT_MEMORY_BYTES, queueLimit = EXPORT_QUEUE_BYTES,
+  memoryLimit = EXPORT_MEMORY_BYTES, queueLimit = EXPORT_QUEUE_BYTES, durationMs = 0,
 }) {
   if (onChunk !== null && typeof onChunk !== 'function') throw new TypeError('onChunk must be a function');
   let recorder;
   try {
     recorder = new globalObject.MediaRecorder(stream, {
       mimeType,
-      videoBitsPerSecond: VIDEO_BITS_PER_SECOND,
+      videoBitsPerSecond: videoBitsFor(durationMs, onChunk ? 0 : memoryLimit),
       audioBitsPerSecond: AUDIO_BITS_PER_SECOND,
     });
   } catch (error) {

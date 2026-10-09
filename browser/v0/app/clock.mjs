@@ -18,6 +18,17 @@ export class StoryClock {
     this.#now = now;
   }
 
+  /**
+   * Read time from somewhere else: a fast take steps it by hand.
+   *
+   * Only while the clock is standing. A running clock is measured from an
+   * origin on the old source, and would jump by the difference between the two.
+   */
+  useNow(now = defaultNow) {
+    if (this.#running) throw new Error('the clock must be paused to change what it reads');
+    this.#now = now;
+  }
+
   /** Run from wherever the clock is standing. Idempotent, like resume. */
   start() {
     if (this.#running) return;

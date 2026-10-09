@@ -1,7 +1,8 @@
 import { NARRATION_GRACE_MS } from '../policy.mjs';
 import { clockText } from './controls.mjs';
+import { createFastTake, planFastTake } from './fast-export.mjs';
 import {
-  VIDEO_FPS, VIDEO_SIZE, createAudioTap, createRecording, fileNameFor, saveVideoFile,
+  EXPORT_MEMORY_BYTES, VIDEO_FPS, VIDEO_SIZE, createAudioTap, createRecording, fileNameFor, saveVideoFile,
 } from './video-export.mjs';
 
 // The story stops on its last word, and the word is let finish rather than cut
@@ -20,12 +21,18 @@ const TAIL_MS = NARRATION_GRACE_MS;
  * viewer, a hold for a file, a hidden tab — the recording pauses with it, so the
  * file has no frozen stretch in it.
  *
- * From the ⋯ menu the finished file is offered — "video ready", and the tap
+ * Where the browser can encode a story itself the take is not filmed at all: it
+ * is stepped, as fast as the device draws (`fast-export.mjs`). That is tried
+ * first and abandoned for the filmed take if it cannot start, before anything
+ * of the file exists.
+ *
+ * From the settings menu the finished file is offered — "video ready", and the tap
  * that saves it. A host calling `recordVideo` is handed the file instead and
  * keeps it itself.
  */
 export function createVideoExport({
-  elements, support, saving, download = null, runtime, begin, title, hostControls = false, globalObject = globalThis,
+  elements, support, saving, download = null, runtime, begin, title, story = () => null, hostControls = false,
+  onWarning = () => {}, stepping = { plan: planFastTake, create: createFastTake }, globalObject = globalThis,
 }) {
   const { status, item, canvas } = elements;
   let take = null;
@@ -34,9 +41,11 @@ export function createVideoExport({
   let destroyed = false;
   let snapshot = Object.freeze({ status: 'idle', tMs: 0, durationMs: 0, bytes: 0 });
   const document = status.root.ownerDocument ?? globalObject.document;
-  const hidden = () => { if (document?.visibilityState === 'hidden') pause(); };
+  // A stepped take does not lean on the display: a hidden tab only slows it.
+  const hidden = () => { if (document?.visibilityState === 'hidden' && !take?.fast) pause(); };
+  const leaving = () => { if (!take?.fast) pause(); };
   document?.addEventListener?.('visibilitychange', hidden);
-  globalObject.window?.addEventListener?.('pagehide', pause);
+  globalObject.window?.addEventListener?.('pagehide', leaving);
   item.hidden = hostControls || !(support.ok && saving);
   const onItem = () => { void record({ offer: true }).catch(() => {}); };
   const onAction = () => { void saveOffered(); };
@@ -67,24 +76,32 @@ export function createVideoExport({
    * Called from a press: the audio graph the take is heard through may only
    * start inside one, so it is built before anything is awaited.
    */
-  async function record({ offer = false, onProgress = null, onChunk = null, signal = null } = {}) {
+  async function record({
+    offer = false, onProgress = null, onChunk = null, signal = null, audioContext = null, mode = 'auto',
+  } = {}) {
     if (destroyed) throw new Error('this player was destroyed');
     if (signal?.aborted) throw aborted();
     if (onProgress !== null && typeof onProgress !== 'function') throw new TypeError('onProgress must be a function');
     if (onChunk !== null && typeof onChunk !== 'function') throw new TypeError('onChunk must be a function');
     if (offer && onChunk) throw new TypeError('a streamed recording is kept by the host');
-    if (document?.visibilityState === 'hidden') throw new Error('keep the app open while saving');
+    if (audioContext !== null && typeof audioContext?.createMediaStreamDestination !== 'function') {
+      throw new TypeError('audioContext must be an AudioContext');
+    }
+    if (mode !== 'auto' && mode !== 'filmed') throw new TypeError('mode must be auto or filmed');
     if (!support.ok) throw new Error(support.reason);
     if (take) throw new Error('a video of this story is already being recorded');
     const player = runtime();
     if (!player) throw new Error('the story is not ready to be recorded yet');
+    // A host that records several stories unlocks one context on its own press
+    // and lends it to each take: a take begun later, with no press, would
+    // otherwise be heard as silence where sound needs one. It stays the host's.
     const Context = globalObject.AudioContext ?? globalObject.webkitAudioContext;
-    const context = new Context();
+    const context = audioContext ?? new Context();
     void Promise.resolve(context.resume?.()).catch(() => {});
     const tap = createAudioTap(context);
     tap.mute(true);
     const mine = {
-      tap, recording: null, ending: false, failed: null, settle: null, onProgress,
+      tap, recording: null, fast: null, ending: false, failed: null, settle: null, onProgress,
       paused: false, tail: null, tailRemaining: TAIL_MS, tailStarted: 0, tailDone: null,
     };
     const finished = new Promise((resolve, reject) => { mine.settle = { resolve, reject }; });
@@ -98,20 +115,8 @@ export function createVideoExport({
     emit(mine, 'preparing', { tMs: 0 });
     showStatus('recording', 'getting the story ready…');
     try {
-      await Promise.race([
-        player.beginExport({ output: tap, size: VIDEO_SIZE, onError: (error) => stop(mine, error) }),
-        finished,
-      ]);
-      if (mine.failed) throw mine.failed;
-      const video = canvas.captureStream(VIDEO_FPS).getVideoTracks();
-      const stream = new globalObject.MediaStream([...video, ...tap.stream.getAudioTracks()]);
-      mine.recording = createRecording(stream, {
-        mimeType: support.mimeType, globalObject, onChunk, onError: (error) => stop(mine, error),
-      });
-      begin();
-      if (mine.paused || document?.visibilityState === 'hidden') pause();
-      sync();
-      const blob = await finished;
+      const blob = (mode === 'auto' ? await stepped(mine, player, { onChunk, signal }) : null)
+        ?? await filmed(mine, player, { finished, onChunk });
       const file = onChunk
         ? { name: fileNameFor(title()), type: 'video/mp4', size: blob.size }
         : new globalObject.File([blob], fileNameFor(title()), { type: 'video/mp4' });
@@ -128,11 +133,79 @@ export function createVideoExport({
     } finally {
       signal?.removeEventListener?.('abort', cancel);
       clearTail(mine);
+      mine.fast?.close();
+      // A stepped take holds the story's end behind this until it is over.
+      mine.tailDone?.resolve();
       player.endExport();
       if (take === mine) take = null;
       tap.close();
-      void Promise.resolve(context.close?.()).catch(() => {});
+      if (!audioContext) void Promise.resolve(context.close?.()).catch(() => {});
       item.disabled = false;
+    }
+  }
+
+  /** The take as it always was: the story played from its start, and filmed. */
+  async function filmed(mine, player, { finished, onChunk }) {
+    // Filming needs the page in front: a hidden one draws no frames to film.
+    if (document?.visibilityState === 'hidden') throw new Error('keep the app open while saving');
+    await Promise.race([
+      player.beginExport({ output: mine.tap, size: VIDEO_SIZE, onError: (error) => stop(mine, error) }),
+      finished,
+    ]);
+    if (mine.failed) throw mine.failed;
+    const video = canvas.captureStream(VIDEO_FPS).getVideoTracks();
+    const stream = new globalObject.MediaStream([...video, ...mine.tap.stream.getAudioTracks()]);
+    mine.recording = createRecording(stream, {
+      mimeType: support.mimeType, globalObject, onChunk, onError: (error) => stop(mine, error),
+      durationMs: player.getState()?.durationMs ?? 0,
+    });
+    begin();
+    if (mine.paused || document?.visibilityState === 'hidden') pause();
+    sync();
+    return finished;
+  }
+
+  /**
+   * The take stepped instead of filmed, where this browser and this story allow
+   * it. Answers `null` when they do not, or when it could not start: nothing of
+   * the file exists yet, and the story is filmed instead. Once any of the file
+   * has left, a failure is the take's.
+   */
+  async function stepped(mine, player, { onChunk, signal }) {
+    const bundle = story();
+    const plan = await Promise.resolve(stepping.plan({ story: bundle, size: VIDEO_SIZE, globalObject })).catch(() => null);
+    if (!plan) return null;
+    if (mine.failed) throw mine.failed;
+    const fast = stepping.create(plan, {
+      story: bundle, canvas, durationMs: player.getState()?.durationMs ?? 0, tailMs: TAIL_MS,
+      onChunk, memoryLimit: EXPORT_MEMORY_BYTES, signal, globalObject,
+    });
+    mine.fast = fast;
+    try {
+      await player.beginExport({ output: null, size: VIDEO_SIZE, onError: (error) => stop(mine, error), timebase: fast.timebase });
+      if (mine.failed) throw mine.failed;
+      emit(mine, 'recording');
+      showStatus('recording', `saving video · ${clockText(0)} / ${clockText(player.getState()?.durationMs ?? 0)}`);
+      return await fast.run({
+        player, begin,
+        control: { failed: () => mine.failed, paused: () => mine.paused, ending: () => mine.ending },
+        onProgress: () => {
+          emit(mine, mine.paused ? 'paused' : mine.ending ? 'finishing' : 'recording');
+          const { tMs, durationMs } = player.getState();
+          showStatus('recording', `saving video · ${clockText(tMs)} / ${clockText(durationMs)}`);
+        },
+      });
+    } catch (error) {
+      fast.close();
+      if (mine.failed || fast.wrote()) throw mine.failed ?? error;
+      onWarning({ type: 'export', message: `the fast take could not start, so the story is filmed: ${error?.message ?? error}` });
+      player.endExport();
+      mine.fast = null;
+      mine.ending = false;
+      mine.tailDone?.resolve();
+      mine.tailDone = null;
+      emit(mine, 'preparing', { tMs: 0 });
+      return null;
     }
   }
 
@@ -158,13 +231,14 @@ export function createVideoExport({
    */
   function endOfStory() {
     const mine = take;
-    if (!mine?.recording || mine.failed) return null;
+    if (!mine || mine.failed || !(mine.recording || mine.fast)) return null;
     if (mine.ending) return mine.tailDone?.promise ?? null;
     mine.ending = true;
     showStatus('recording', 'finishing the video…');
     const promise = new Promise((resolve) => { mine.tailDone = { resolve }; });
     mine.tailDone.promise = promise;
-    runTail(mine);
+    // A stepped take writes its own tail, and lets the end go when it is over.
+    if (!mine.fast) runTail(mine);
     return promise;
   }
 
@@ -193,6 +267,7 @@ export function createVideoExport({
     const mine = take;
     if (!mine || mine.failed) return;
     mine.paused = true;
+    if (mine.fast) { emit(mine, 'paused'); return; }
     clearTail(mine);
     if (runtime()?.pauseExport) runtime().pauseExport();
     else runtime()?.pause();
@@ -202,6 +277,11 @@ export function createVideoExport({
 
   function resume() {
     const mine = take;
+    if (mine?.fast && !mine.failed) {
+      mine.paused = false;
+      emit(mine, mine.ending ? 'finishing' : 'recording');
+      return;
+    }
     if (!mine || mine.failed || document?.visibilityState === 'hidden') return;
     mine.paused = false;
     if (!mine.recording) return;
@@ -214,7 +294,9 @@ export function createVideoExport({
     const state = runtime()?.getState() ?? {};
     snapshot = Object.freeze({
       status, tMs: state.tMs ?? 0, durationMs: state.durationMs ?? 0,
-      bytes: mine.recording?.bytes() ?? 0, ...extra,
+      bytes: mine.recording?.bytes() ?? mine.fast?.bytes() ?? 0,
+      // Stepped, not filmed: it does not need the page in front to go on.
+      ...(mine.fast ? { fast: true } : {}), ...extra,
     });
     try { mine.onProgress?.(snapshot); } catch { /* host presentation cannot break the file */ }
   }
@@ -277,7 +359,7 @@ export function createVideoExport({
     if (destroyed) return;
     destroyed = true;
     document?.removeEventListener?.('visibilitychange', hidden);
-    globalObject.window?.removeEventListener?.('pagehide', pause);
+    globalObject.window?.removeEventListener?.('pagehide', leaving);
     if (take) stop(take, aborted());
     offered = null;
     item.removeEventListener('click', onItem);

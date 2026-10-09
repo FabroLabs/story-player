@@ -95,7 +95,7 @@ export function fakeElement(tag = 'div') {
     element.focused = true;
   };
   element.click = () => element.dispatch('click');
-  // The ⋯ menu asks whether a press landed inside it.
+  // The settings menu asks whether a press landed inside it.
   element.contains = (other) => {
     for (let node = other; node; node = node.parent) if (node === element) return true;
     return false;
