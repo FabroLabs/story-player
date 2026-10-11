@@ -27,6 +27,8 @@ import { KEEP_CADENCE_MS } from './assets/scene-loader.mjs';
 import { createAudioStore } from './audio-store.mjs';
 import { DEFAULT_DRAW_HZ, tierSettings } from './capability.mjs';
 import { createControls } from './controls.mjs';
+import { createEffectPlayer } from './effect-player.mjs';
+import { createEffectStore } from './effect-store.mjs';
 import { createMediaScheduler } from './media-scheduler.mjs';
 import { createPerfRecorder } from './perf.mjs';
 import { createCanvasStage, sceneSheets } from './stage/canvas-stage.mjs';
@@ -105,7 +107,10 @@ export function createTimelinePlayer({
   const narration = bundle?.performance
     ? createAudioStore(bundle.audio.filter((cue) => cue.kind === 'narration'))
     : null;
-  let media = createMediaScheduler({ timeline, bundle, onWarning: mediaWarned, store: narration });
+  // And its short sound effects, decoded ahead and played from memory: an element for each is
+  // more than a phone's browser can open at the rate a busy story asks for them.
+  const effects = bundle?.performance ? soundEffects(bundle, mediaWarned) : null;
+  let media = createMediaScheduler({ timeline, bundle, onWarning: mediaWarned, store: narration, effects });
   const controls = createControls(elements.controls, {
     onToggle: toggle, onSeek: seekTo, onSkip: skip,
   });
@@ -536,7 +541,7 @@ export function createTimelinePlayer({
   function swapMedia(output) {
     media.destroy();
     media = createMediaScheduler({
-      timeline: story.timeline, bundle: story.bundle, onWarning: mediaWarned, store: narration, output,
+      timeline: story.timeline, bundle: story.bundle, onWarning: mediaWarned, store: narration, output, effects,
     });
   }
 
@@ -550,6 +555,7 @@ export function createTimelinePlayer({
     controls.destroy();
     media.destroy();
     narration?.destroy();
+    effects?.destroy();
     plate.destroy();
     stage.destroy();
     recorder?.destroy();
@@ -850,7 +856,8 @@ export function createTimelinePlayer({
    */
   function mediaWarned(detail) {
     if (exporting) exporting.onError(new Error(detail.message || 'story audio could not be saved'));
-    if (story.bundle?.performance) { pause(); showNote(detail.message); onWarning(detail); return; }
+    // A sound effect is a moment: one that cannot be played is missed, and the story goes on.
+    if (story.bundle?.performance && detail?.asset !== 'sfx') { pause(); showNote(detail.message); onWarning(detail); return; }
     if (detail?.asset === 'narration') showNote('narration unavailable · read along');
     onWarning(detail);
   }
@@ -1232,6 +1239,17 @@ export function createTimelinePlayer({
     const t = Math.max(0, Math.round(milliseconds));
     return durationMs > 0 ? Math.min(durationMs, t) : t;
   }
+}
+
+/**
+ * A performance's effects in memory: the store that decodes them and the player that sounds them.
+ * `null` for a story with none — it makes no audio context it has no use for.
+ */
+function soundEffects(bundle, onWarning) {
+  const player = createEffectPlayer();
+  const store = createEffectStore(bundle.audio, { decode: player.decode, onWarning });
+  if (store.size === 0) return null;
+  return { player, store, destroy() { store.destroy(); player.destroy(); } };
 }
 
 /** `promise`, or nothing after `ms` — whichever comes first. */

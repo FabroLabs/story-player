@@ -15,6 +15,10 @@ import { createAudioStore } from './audio-store.mjs';
  *   lead-in is skipped; only a viewer's seek lands inside a line
  *   a started line may run past its window by `NARRATION_GRACE_MS`, then is let go; a seek or a
  *   teardown still cuts it at once
+ *
+ * A short sound effect is not an element at all where the runtime handed over `effects`: it is
+ * played from memory (`effect-store.mjs`, `effect-player.mjs`), or, when it has not been decoded
+ * by its cue, not played. The story never waits for an effect.
  */
 
 // `HTMLMediaElement.HAVE_FUTURE_DATA`: enough to start playing.
@@ -25,8 +29,10 @@ const TRACK_AHEAD_MS = 3000;
 // otherwise hold every story at every track. Past it, the track joins when it can.
 const TRACK_WAIT_MS = 1500;
 
-export function createPerformanceMediaScheduler({ bundle, onWarning, store = null, output = null }) {
+export function createPerformanceMediaScheduler({ bundle, onWarning, store = null, output = null, effects = null }) {
   let story = bundle;
+  // A recording keeps an element for every effect: its tap hears elements.
+  const memory = output ? null : effects;
   let playing = false;
   let destroyed = false;
   let now = 0;
@@ -64,6 +70,7 @@ export function createPerformanceMediaScheduler({ bundle, onWarning, store = nul
       for (const cue of performanceSoundsBetween(story, from, to)) {
         if (delivered.has(cue.id)) continue;
         delivered.add(cue.id);
+        if (playedFromMemory(cue)) continue;
         const media = open(cue);
         sounds.set(media, cue);
         media.addEventListener('ended', () => { sounds.delete(media); release(media); }, { once: true });
@@ -73,6 +80,7 @@ export function createPerformanceMediaScheduler({ bundle, onWarning, store = nul
     seek(t) {
       if (destroyed) return;
       clearSounds();
+      memory?.store.seek(t);
       delivered.clear();
       for (const item of finishing.values()) release(item.media);
       finishing.clear();
@@ -90,6 +98,7 @@ export function createPerformanceMediaScheduler({ bundle, onWarning, store = nul
     // A hold is a pause the story comes back from where it stood: one-shots wait with it.
     hold() {
       playing = false;
+      memory?.player.hold();
       for (const media of sounds.keys()) halt(media);
       for (const item of [...active.values(), ...finishing.values()]) halt(item.media);
     },
@@ -98,11 +107,13 @@ export function createPerformanceMediaScheduler({ bundle, onWarning, store = nul
     resume() {
       if (destroyed) return;
       if (prepared) lines.start(now);
+      memory?.player.resume();
+      startEffects(now);
       playing = true;
       for (const item of [...active.values(), ...finishing.values()]) if (!item.media.ended) start(item.media, item.cue);
       for (const [media, cue] of sounds) if (!media.ended) start(media, cue);
     },
-    unlock() { return Promise.resolve(); },
+    unlock() { memory?.player.unlock(); return Promise.resolve(); },
     setStory(next) { story = next.bundle; sync(now); },
     destroy() {
       if (destroyed) return;
@@ -125,6 +136,8 @@ export function createPerformanceMediaScheduler({ bundle, onWarning, store = nul
    */
   function prepare() {
     prepared = true;
+    // The opening's effects, on their way before the story begins. Not waited for: nothing is.
+    startEffects(0);
     const opening = narration().sort((a, b) => a.start_ms - b.start_ms).slice(0, 2);
     if (lines.prime) lines.prime(opening);
     else lines.start(0);
@@ -164,6 +177,7 @@ export function createPerformanceMediaScheduler({ bundle, onWarning, store = nul
     if (tMs !== landedAt) landedAt = null;
     now = tMs;
     lines.advance?.(tMs);
+    memory?.store.advance(tMs);
     const wanted = performanceAudioAt(story, tMs);
     const ids = new Set(wanted.map(c => c.id));
     for (const [id, item] of active) {
@@ -270,7 +284,28 @@ export function createPerformanceMediaScheduler({ bundle, onWarning, store = nul
     return media;
   }
 
-  function clearSounds() { for (const media of sounds.keys()) release(media); sounds.clear(); }
+  function clearSounds() {
+    for (const media of sounds.keys()) release(media);
+    sounds.clear();
+    memory?.player.stopAll();
+  }
+
+  /** Only where effects can be decoded: without web audio every one of them is an element. */
+  function startEffects(fromMs) {
+    if (memory?.player.canDecode()) memory.store.start(fromMs);
+  }
+
+  /**
+   * An effect the store keeps is played from memory or not at all. One that has not been decoded
+   * by its cue is missed rather than opened as an element: elements opened at the rate a busy
+   * story asks for effects are what took the narration's players from it.
+   */
+  function playedFromMemory(cue) {
+    if (!memory?.player.usable() || !memory.store.covers(cue)) return false;
+    const buffer = memory.store.buffer(cue);
+    if (buffer && playing) memory.player.play(buffer, cue.volume ?? 1);
+    return true;
+  }
 }
 
 function continuous(cue) {

@@ -42,10 +42,13 @@ const LATE_START_MS = 120;
  * `output` is where every audio element comes from. The default is a plain
  * `new Audio()`, heard on the device; a recording hands in its own
  * (`video-export.mjs`), which routes each element through one audio graph so
- * the file hears exactly what the story plays.
+ * the file hears exactly what the story plays. `effects` is a performance's
+ * sound effects in memory, the runtime's to make and to destroy.
  */
-export function createMediaScheduler({ timeline, bundle, onWarning = () => {}, store = null, output = null }) {
-  if (bundle?.performance) return createPerformanceMediaScheduler({ bundle, onWarning, store, output });
+export function createMediaScheduler({
+  timeline, bundle, onWarning = () => {}, store = null, output = null, effects = null,
+}) {
+  if (bundle?.performance) return createPerformanceMediaScheduler({ bundle, onWarning, store, output, effects });
   const owned = new Map();
   const fades = new Map();
   const sounds = new Set();
