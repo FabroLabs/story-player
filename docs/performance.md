@@ -116,6 +116,19 @@ metadata is data. A cue ending where the next begins hands over in the same
 frame without a pause. A play() request the player itself interrupted (pause,
 seek, release) is not a media failure and never pauses the story.
 
+A sound effect of five seconds or less is not an audio element. Its file is
+fetched and decoded once, from the gate on, in playing order, two files at a
+time, up to 30 s ahead of the playhead and within 8 MB of decoded sound (one
+number for every device); what has played and is not needed again in that reach
+makes room for what is coming. At its cue it is played from memory through one
+`AudioContext`, at the cue's volume. One that has not been decoded by its cue is
+not played, and one whose file cannot be loaded is named once in the log: the
+story never waits for an effect and never stops for one. A hold suspends the
+context and the effects go on with the story; pause, seek and destroy stop them.
+Where there is no Web Audio, where its context will not run, for a longer
+effect, and for the whole of a recording, an effect is an element as before. A
+story with no short effects makes no context.
+
 Narration is downloaded whole, in playing order from the playhead and at most
 60 s ahead of it, and each line plays from memory. A line starts no
 later than its first word: noticed late, it skips at most its silent
