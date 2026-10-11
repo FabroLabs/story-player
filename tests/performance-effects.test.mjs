@@ -494,7 +494,7 @@ function byClass(node, name) {
   return null;
 }
 
-async function mount(t, { sounds, missing = [], failing = [] }) {
+async function mount(t, { sounds, missing = [], failing = [], refusing = [] }) {
   const dom = installDom(); t.after(dom.restore);
   // A performance paints through `transform`, which the fake canvas does not have.
   const make = document.createElement.bind(document);
@@ -521,12 +521,21 @@ async function mount(t, { sounds, missing = [], failing = [] }) {
     set src(value) {
       this.address = value;
       if (failing.some((name) => String(value).endsWith(name))) {
-        this.error = { code: 4, message: '' };
-        queueMicrotask(() => { for (const fn of this.listeners.error ?? []) fn(); });
+        queueMicrotask(() => {
+          this.error = { code: 4, message: '' };
+          for (const fn of this.listeners.error ?? []) fn();
+        });
       }
     }
     get src() { return this.address; }
-    play() { this.paused = false; return Promise.resolve(); }
+    play() {
+      this.paused = false;
+      // A device that will not start sound without a gesture says so by rejecting `play()`.
+      if (refusing.some((name) => String(this.address).endsWith(name))) {
+        return Promise.reject(Object.assign(new Error('play() failed: the user did not interact with the document first'), { name: 'NotAllowedError' }));
+      }
+      return Promise.resolve();
+    }
     pause() { this.paused = true; }
     addEventListener(type, fn) { (this.listeners[type] ??= []).push(fn); }
     load() {}
@@ -556,15 +565,33 @@ test('an effect whose element fails does not stop the story', async (t) => {
   assert.equal(note.textContent ?? '', '');
 });
 
-test('a background track whose element fails still stops the story, as before', async (t) => {
+test('a background track whose element fails is silence, and the story goes on', async (t) => {
   const prior = globalThis.AudioContext;
   delete globalThis.AudioContext;
   t.after(() => { if (prior) globalThis.AudioContext = prior; });
   const late = { id: 'late', kind: 'ambience', media: 'pack/bed.wav', start_ms: 1000, end_ms: 5000, duration_ms: 4000, volume: 1 };
-  const { player, frames, note } = await mount(t, { sounds: [late], failing: ['pack/bed.wav'] });
-  frames.advanceTo(1200);
-  await settle(); await settle();
-  assert.equal(player.getState().playing, false);
+  const { player, frames, made, note } = await mount(t, { sounds: [late], failing: ['pack/bed.wav'] });
+  for (let wall = 300; wall <= 2400; wall += 300) {
+    frames.advanceTo(wall);
+    await settle();
+  }
+  assert.equal(player.getState().playing, true, 'a track that could not be played stopped the story');
+  assert.equal(player.getState().tMs, 2400);
+  assert.doesNotMatch(note.textContent ?? '', /Required story audio failed/);
+  assert.equal(made.filter((media) => String(media.src ?? '').endsWith('pack/bed.wav')).length, 1, 'the broken track was opened again and again');
+});
+
+test('a device that refuses to play still stops the story under its note: a press on play can answer it', async (t) => {
+  const prior = globalThis.AudioContext;
+  delete globalThis.AudioContext;
+  t.after(() => { if (prior) globalThis.AudioContext = prior; });
+  const late = { id: 'late', kind: 'ambience', media: 'pack/bed.wav', start_ms: 1000, end_ms: 5000, duration_ms: 4000, volume: 1 };
+  const { player, frames, note } = await mount(t, { sounds: [late], refusing: ['pack/bed.wav'] });
+  for (let wall = 300; wall <= 1500; wall += 300) {
+    frames.advanceTo(wall);
+    await settle();
+  }
+  assert.equal(player.getState().playing, false, 'a refused sound did not stop the story');
   assert.match(note.textContent, /Required story audio failed/);
 });
 

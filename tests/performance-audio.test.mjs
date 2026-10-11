@@ -210,6 +210,7 @@ test('a play the scheduler interrupts itself is not a media failure; a refusal s
     assert.equal(warnings.length, 1);
     assert.equal(warnings[0].cue, 'two');
     assert.match(warnings[0].message, /Required story audio failed/);
+    assert.equal(warnings[0].refused, true, 'a device refusing to play was not told apart from a missing file');
     scheduler.destroy();
     await settle();
     assert.equal(warnings.length, 1, 'teardown was reported as a failure');
@@ -438,18 +439,28 @@ test('a bed that starts mid-story is opened ahead, and waited for at most a mome
   }
 });
 
-test('a track whose file failed is opened afresh when the story asks for it again', () => {
+test('a track whose file failed is gone on without, named once, and asked for afresh after a seek', () => {
   const audio = installListeningAudio();
   globalThis.Audio.prototype.readyState = 0;
   try {
-    const scheduler = createMediaScheduler({ bundle: later, timeline: {}, store: manualStore() });
+    const warnings = [];
+    const scheduler = createMediaScheduler({
+      bundle: later, timeline: {}, store: manualStore(), onWarning: (detail) => warnings.push(detail),
+    });
     scheduler.resume();
     scheduler.tick(2500);
     const failed = audio.made[0];
     failed.error = { code: 4 };
-    assert.ok(scheduler.blocker(4900, 5001));
-    assert.equal(audio.made.length, 2, 'the failed element was waited on again');
+    failed.fire('error');
     assert.equal(failed.paused, true);
+    assert.equal(scheduler.blocker(4900, 5001), null, 'the story was held for a track that will not play');
+    scheduler.tick(5100);
+    scheduler.tick(5200);
+    assert.equal(audio.made.length, 1, 'the failed track was opened again in the same pass');
+    assert.equal(warnings.length, 1, 'one broken track was named more than once');
+    assert.equal(warnings[0].refused, undefined, 'a missing track was told as a device refusing to play');
+    scheduler.seek(2500);
+    assert.equal(audio.made.length, 2, 'a seek did not ask for the track again');
     scheduler.destroy();
   } finally {
     audio.restore();

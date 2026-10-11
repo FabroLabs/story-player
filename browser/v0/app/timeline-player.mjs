@@ -38,8 +38,8 @@ import { createVideoPlate } from './stage/video-plate.mjs';
 const SKIP_MS = 10_000;
 // A performance that reaches sound or pictures that have not landed holds on
 // its last frame until they do. The spinner shows only once a hold outlasts a
-// blink; a hold during which nothing arrives for HOLD_TIMEOUT_MS stops the
-// story with a note, and play asks again — a slow link still delivering is
+// blink; a hold during which nothing arrives for HOLD_TIMEOUT_MS ends, and the
+// story goes on without what did not come — a slow link still delivering is
 // waited for. A scene whose sheets would not load is asked for again this often.
 const HOLD_SPINNER_MS = 300;
 const HOLD_TIMEOUT_MS = 20_000;
@@ -135,6 +135,11 @@ export function createTimelinePlayer({
   let signature = null;
   let subtitle = null;
   let note = '';
+  // A note the scheduler raises while a frame is crossing time is about the line that frame
+  // REACHES, whose subtitle the same frame is about to put up — and `say` clears the note of the
+  // line before. So it is kept for that one `say`, and dropped with the frame.
+  let reaching = false;
+  let noteForLine = null;
   let boardFailure = null;
   // The first instant the scheduler has not been told about yet. Cues are
   // half-open — `[from, to)` — so a story whose first line starts at t=0 needs
@@ -665,11 +670,13 @@ export function createTimelinePlayer({
     // picture. A story being dragged is running but hushed: its sound is placed
     // once, where the pointer lands, not started at every instant it passes.
     if (started && clock.running && !scrubbing && !hold) {
+      reaching = true;
       if (t >= mediaNextMs) {
         media.advance(mediaNextMs, t + 1);
         mediaNextMs = t + 1;
       }
       media.tick(t);
+      reaching = false;
     }
     plate.aim(journeyCamera(state));
     // The other half of "behind the board". Everything else the board changes
@@ -684,6 +691,7 @@ export function createTimelinePlayer({
       paint(state, force);
       say(state.subtitle);
     }
+    noteForLine = null;
     if (hold) {
       holdFor(hold);
       return;
@@ -842,8 +850,8 @@ export function createTimelinePlayer({
     subtitle = next;
     elements.stage.subtitle.textContent = next;
     // The note belongs to the line it was raised for. A new line — or the
-    // silence between two — is the end of it.
-    showNote('');
+    // silence between two — is the end of it, unless it was raised for this one.
+    showNote(noteForLine ?? '');
   }
 
   /**
@@ -856,9 +864,20 @@ export function createTimelinePlayer({
    */
   function mediaWarned(detail) {
     if (exporting) exporting.onError(new Error(detail.message || 'story audio could not be saved'));
-    // A sound effect is a moment: one that cannot be played is missed, and the story goes on.
-    if (story.bundle?.performance && detail?.asset !== 'sfx') { pause(); showNote(detail.message); onWarning(detail); return; }
-    if (detail?.asset === 'narration') showNote('narration unavailable · read along');
+    // Nothing missing stops a performance: a line, a track or an effect that cannot be played is
+    // gone on without. A device that REFUSES to play is the one stop — a press on play can
+    // answer that, and a story left running would be silent to its end.
+    if (story.bundle?.performance && detail?.refused && detail.asset !== 'sfx') {
+      pause();
+      showNote(detail.message);
+      onWarning(detail);
+      return;
+    }
+    if (detail?.asset === 'narration') {
+      const words = 'narration unavailable · read along';
+      if (reaching) noteForLine = words;
+      showNote(words);
+    }
     onWarning(detail);
   }
 
@@ -980,7 +999,11 @@ export function createTimelinePlayer({
       const reached = scene.start_ms >= fromMs && scene.start_ms <= tMs;
       const standing = scene.start_ms <= tMs && tMs < scene.end_ms;
       if ((!reached && !standing) || cutReady(index)) continue;
-      return { atMs: Math.max(scene.start_ms, fromMs), until: () => sceneLanded(index) };
+      return {
+        atMs: Math.max(scene.start_ms, fromMs),
+        until: () => sceneLanded(index),
+        giveUp: () => loader.goOnWithout(index, sceneView ?? viewport()),
+      };
     }
     return null;
   }
@@ -994,6 +1017,12 @@ export function createTimelinePlayer({
       } catch (error) {
         // A file the store does not have does not arrive by waiting: the hold says so at once.
         if (signal?.aborted || error?.retryable === false) throw error;
+        // Nothing of it arrived for as long as a download is given, whatever else the link was
+        // busy with: the scene has had its wait, and is shown without what did not come.
+        if (error?.name === 'TimeoutError') {
+          loader.goOnWithout(index, sceneView ?? viewport());
+          return;
+        }
         await new Promise((resolve) => { setTimeout(resolve, RETRY_MS); });
       }
     }
@@ -1004,8 +1033,10 @@ export function createTimelinePlayer({
    *
    * Picture, voice and music stop together, exactly as a pause stops them, and
    * the transport keeps reading "playing". The spinner comes only if the wait
-   * outlasts a blink; a wait that does not end at all stops the story with a
-   * note, and play asks again.
+   * outlasts a blink. A wait in which nothing arrives for `HOLD_TIMEOUT_MS`
+   * ends, and the story goes on without what did not come: a line is its words
+   * on screen, a scene is drawn without the sheet. Only a recording stops there
+   * with a note — a film must not be saved with parts missing.
    */
   function holdFor(hold) {
     waiting = 'media';
@@ -1023,6 +1054,11 @@ export function createTimelinePlayer({
     const current = () => mine === holds && waiting === 'media';
     const giveUp = () => {
       if (!current()) return;
+      if (hold.giveUp && !exporting) {
+        hold.giveUp();
+        leaveWaiting(true);
+        return;
+      }
       leaveWaiting(false);
       showNote('Story media could not be loaded. Press play to try again.');
       updateControls({ tMs: clock.now(), playing: false, ended: false });
@@ -1152,10 +1188,6 @@ export function createTimelinePlayer({
       elements.stage.end.hidden = false;
       showNote(boardFailure);
       return;
-    }
-    if (story.bundle?.performance) {
-      pause();
-      showNote('Story media could not be loaded. Reopen to retry.');
     }
     onWarning({
       type: 'media',

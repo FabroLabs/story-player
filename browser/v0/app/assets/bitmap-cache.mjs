@@ -275,9 +275,12 @@ function decodeViaImage(blob, signal, refusal = null) {
 }
 
 function decodeError(refusal) {
-  return refusal
+  const error = refusal
     ? new Error(`image decode failed after createImageBitmap refused it: ${refusal.message}`)
     : new Error('image decode failed');
+  // The bytes arrived and would not decode: asked for again, the same bytes come back.
+  error.retryable = false;
+  return error;
 }
 
 function throwIfAborted(signal) {
