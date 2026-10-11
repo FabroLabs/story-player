@@ -105,6 +105,47 @@ test('a failed line is asked for again later, and waiting on it resolves when it
   store.destroy();
 });
 
+test('a line the store does not have is missing: not asked for again, and nobody is left waiting on it', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+  const network = manualFetch();
+  const store = createAudioStore(cues.slice(0, 2), network);
+  store.start(0);
+  let waited = false;
+  void store.whenReady(cues[0]).then(() => { waited = true; });
+  assert.equal(store.missing(cues[0]), false);
+  const at = network.pending.findIndex((p) => p.source === 'a.m4a');
+  network.pending.splice(at, 1)[0].reject(Object.assign(new Error('asset answered 404'), { retryable: false }));
+  await settle();
+  assert.equal(store.missing(cues[0]), true);
+  assert.equal(store.ready(cues[0]), false, 'a line that is not here was called ready');
+  assert.equal(waited, true, 'a hold was left waiting on a line that will never come');
+  t.mock.timers.tick(60_000);
+  assert.equal(network.pending.some((p) => p.source === 'a.m4a'), false, 'a file the store does not have was asked for again');
+  assert.equal(store.missing(cues[1]), false);
+  store.destroy();
+});
+
+test('a line whose own download went silent is stalled: nobody waits on it, and it is still asked for again', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+  const network = manualFetch();
+  const store = createAudioStore(cues.slice(0, 1), network);
+  store.start(0);
+  let waited = false;
+  void store.whenReady(cues[0]).then(() => { waited = true; });
+  network.pending.splice(0, 1)[0].reject(new DOMException('Story assets stopped downloading.', 'TimeoutError'));
+  await settle();
+  assert.equal(store.stalled(cues[0]), true);
+  assert.equal(store.missing(cues[0]), false, 'a line that may still come was written off for good');
+  assert.equal(waited, true, 'a hold was left waiting on a download that had gone silent');
+  t.mock.timers.tick(1000);
+  assert.deepEqual(network.pending.map((p) => p.source), ['a.m4a'], 'a stalled line was not asked for again');
+  network.answer('a.m4a');
+  await settle();
+  assert.equal(store.stalled(cues[0]), false);
+  assert.equal(store.ready(cues[0]), true);
+  store.destroy();
+});
+
 test('every line here or tried once is enough for the pictures to start downloading', async (t) => {
   t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
   const network = manualFetch();

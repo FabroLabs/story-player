@@ -158,12 +158,29 @@ segment swaps included, are not all decoded, the whole story holds at that
 instant (picture, voice and music, sound effects paused rather than ended) and
 goes on the moment they land. A bed or song is opened 3 s before its start, for
 its metadata only (`preload="metadata"`) so a long track is not downloaded ahead
-of the pictures, and waited for at most 1.5 s; past that it joins when it can. A cut is all or
-nothing, and the transport reads playing throughout; pause ends a hold, and a
+of the pictures, and waited for at most 1.5 s; past that it joins when it can.
+The transport reads playing throughout; pause ends a hold, and a
 drag out of one stays silent until the pointer lands. A spinner shows once a
-hold passes 300 ms. A hold during which nothing has arrived for 20 s—a link gone
-quiet—stops the story with a note, and play asks again; a file the store answers
-as missing (4xx) stops it at once. A slow link still delivering is waited for.
+hold passes 300 ms. A slow link still delivering is waited for.
+
+Nothing that is missing stops a performance. What is late is waited for, as
+above; what is still missing is gone on without:
+
+- a file the store answers as missing (4xx), or one that will not decode, is not
+  waited for at all;
+- a hold during which nothing has arrived for 20 s—a link gone quiet—ends, and
+  the story goes on without what it was waiting for;
+- a line or a sheet whose own download was given up (15 s of silence, twice) is
+  not held for either, however busy the rest of the link is;
+- a line or track whose audio element fails is let go.
+
+A missing line is its subtitle, with "narration unavailable · read along" under
+it for that line. A missing bed or song is silence. A scene is drawn without a
+missing sheet, and draws it if it lands later. Each is named once in the log;
+a seek or a replay asks for it again. Two things still stop a story: a device
+that refuses to play (`NotAllowedError`), which pauses under a note because a
+press on play can answer it, and a lesson's required board or world image. A
+recording is not made with parts missing: its take stops and says so.
 
 While a scene plays, the sheets the next scene adds are decoded as far as the
 bitmap budget allows (asset `width × height × 4` bytes each); the rest are
