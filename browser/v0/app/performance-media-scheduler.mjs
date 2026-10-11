@@ -16,6 +16,11 @@ import { createAudioStore } from './audio-store.mjs';
  *   a started line may run past its window by `NARRATION_GRACE_MS`, then is let go; a seek or a
  *   teardown still cuts it at once
  *
+ * Nothing that is missing stops the story. A line the store does not have, one the story waited
+ * for as long as it waits, and a line or track whose element will not load are gone on without
+ * (`skipped`) and named once; a seek tries them again. Only a device that REFUSES to play is told
+ * to the runtime as `refused` — a press on play can answer that, and nothing else here can.
+ *
  * A short sound effect is not an element at all where the runtime handed over `effects`: it is
  * played from memory (`effect-store.mjs`, `effect-player.mjs`), or, when it has not been decoded
  * by its cue, not played. The story never waits for an effect.
@@ -50,8 +55,12 @@ export function createPerformanceMediaScheduler({ bundle, onWarning, store = nul
   // One-shots sounding now, with their cues: a hold pauses them and a resume goes on with them.
   const sounds = new Map();
   const delivered = new Set();
-  const report = (cue, error) => onWarning({ type: 'media', asset: cue.kind,
-    message: 'Required story audio failed: ' + (error?.message ?? error), cue: cue.id });
+  // Lines and tracks the story goes on without, by cue, until a seek asks for them again; and the
+  // ones already named, so a missing line is one sentence in the log however long its window.
+  const skipped = new Set();
+  const named = new Set();
+  const report = (cue, error, extra = {}) => onWarning({ type: 'media', asset: cue.kind,
+    message: 'Required story audio failed: ' + (error?.message ?? error), cue: cue.id, ...extra });
   // Media this scheduler paused or released since it last asked them to play. A pending play()
   // that the browser then rejects with AbortError was interrupted by us, not refused by the
   // device, and is not a story media failure.
@@ -82,6 +91,7 @@ export function createPerformanceMediaScheduler({ bundle, onWarning, store = nul
       clearSounds();
       memory?.store.seek(t);
       delivered.clear();
+      skipped.clear();
       for (const item of finishing.values()) release(item.media);
       finishing.clear();
       releaseAhead();
@@ -162,8 +172,15 @@ export function createPerformanceMediaScheduler({ bundle, onWarning, store = nul
       .map(c => c.start_ms)].sort((a, b) => a - b);
     for (const atMs of instants) {
       for (const cue of performanceAudioAt(story, atMs)) {
-        if (active.has(cue.id)) continue;
-        if (cue.kind === 'narration' && !lines.ready(cue)) return { atMs, until: () => lines.whenReady(cue) };
+        if (active.has(cue.id) || absent(cue)) continue;
+        if (cue.kind === 'narration' && !lines.ready(cue)) {
+          // Its own download went silent for as long as one is given: it has had its wait already.
+          if (lines.stalled?.(cue)) {
+            goOnWithout(cue, new Error('the line did not arrive'));
+            continue;
+          }
+          return { atMs, until: () => lines.whenReady(cue), giveUp: () => goOnWithout(cue, new Error('the line did not arrive')) };
+        }
         if (continuous(cue) && cue.start_ms === atMs) {
           const item = preopen(cue);
           if (!isPlayable(item.media) && !item.waited) return { atMs, until: () => waitFor(item) };
@@ -183,7 +200,10 @@ export function createPerformanceMediaScheduler({ bundle, onWarning, store = nul
     for (const [id, item] of active) {
       if (ids.has(id)) continue;
       active.delete(id);
-      if (mayFinish(item, tMs)) finishing.set(id, item);
+      // Only time passing lets a line finish. A seek is a cut: landing before a line's own end
+      // would otherwise pass for a line still owed its last words, and it would read on over
+      // whatever the story landed in.
+      if (!seeking && mayFinish(item, tMs)) finishing.set(id, item);
       else release(item.media);
     }
     for (const [id, item] of finishing) {
@@ -193,11 +213,15 @@ export function createPerformanceMediaScheduler({ bundle, onWarning, store = nul
       if (windowEnd(item.cue) <= tMs) { release(item.media); ahead.delete(id); }
     }
     for (const cue of story.audio) {
-      if (continuous(cue) && cue.start_ms > tMs && cue.start_ms <= tMs + TRACK_AHEAD_MS) preopen(cue);
+      if (continuous(cue) && !absent(cue) && cue.start_ms > tMs && cue.start_ms <= tMs + TRACK_AHEAD_MS) preopen(cue);
     }
     for (const cue of wanted) {
       let item = active.get(cue.id);
       if (!item) {
+        if (absent(cue)) {
+          if (!skipped.has(cue.id)) name(cue, new Error('the store does not have this line'));
+          continue;
+        }
         // Not here yet: the runtime holds the story on it (`blocker`) rather than play a gap.
         if (cue.kind === 'narration' && !lines.ready(cue)) continue;
         item = enter(cue, tMs === landedAt);
@@ -239,12 +263,6 @@ export function createPerformanceMediaScheduler({ bundle, onWarning, store = nul
   /** A bed's or song's element, opened paused at its start so the gate or a hold can wait on it. */
   function preopen(cue) {
     let item = ahead.get(cue.id);
-    // An element that failed has nothing more to say: a retry opens the file afresh.
-    if (item?.media.error) {
-      release(item.media);
-      ahead.delete(cue.id);
-      item = null;
-    }
     if (!item) {
       item = { media: open(cue), cue };
       ahead.set(cue.id, item);
@@ -262,8 +280,45 @@ export function createPerformanceMediaScheduler({ bundle, onWarning, store = nul
     interrupted.delete(media);
     Promise.resolve(media.play()).catch((error) => {
       if (error?.name === 'AbortError' && (destroyed || interrupted.has(media))) return;
-      report(cue, error);
+      // The device will not start sound here. Not something missing: a press on play may answer it.
+      if (error?.name === 'NotAllowedError') report(cue, error, { refused: true });
+      else lost(cue, media, error);
     });
+  }
+
+  /** Whether the story goes on without this cue: given up on, or a line the store does not have. */
+  function absent(cue) {
+    return skipped.has(cue.id) || (cue.kind === 'narration' && lines.missing?.(cue) === true);
+  }
+
+  function goOnWithout(cue, error) {
+    skipped.add(cue.id);
+    name(cue, error);
+  }
+
+  function name(cue, error) {
+    if (destroyed || named.has(cue.id)) return;
+    named.add(cue.id);
+    report(cue, error);
+  }
+
+  /**
+   * A medium whose element will not load or play: let go of, and gone on without. An effect is
+   * only let go — it is a moment, and there is nothing after it to skip.
+   */
+  function lost(cue, media, error) {
+    if (destroyed) return;
+    if (cue.kind === 'sfx') {
+      if (!sounds.delete(media)) return;
+      report(cue, error);
+      release(media);
+      return;
+    }
+    const held = [active, finishing, ahead].filter((map) => map.get(cue.id)?.media === media);
+    if (held.length === 0) return;
+    for (const map of held) map.delete(cue.id);
+    goOnWithout(cue, error);
+    release(media);
   }
 
   function open(cue) {
@@ -277,7 +332,7 @@ export function createPerformanceMediaScheduler({ bundle, onWarning, store = nul
     media.addEventListener('error', () => {
       if (destroyed) return;
       const detail = media.error;
-      report(cue, new Error(detail
+      lost(cue, media, new Error(detail
         ? `media unavailable (code ${detail.code}: ${detail.message || 'no decoder detail'})`
         : 'media unavailable'));
     });

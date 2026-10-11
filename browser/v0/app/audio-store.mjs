@@ -13,7 +13,8 @@
  * scheduler nobody prepared streams exactly as it did before this existed.
  *
  * A failed fetch is tried again, a second later and then less often, for as long as the story is
- * open. What gives up is the hold waiting on it, and it says so.
+ * open; the hold waiting on it is what gives up, and the story goes on without the line. A file
+ * the store does not have is not asked for again: the line is `missing`, and nobody waits on it.
  */
 
 import { fetchAssetBlob } from './assets/asset-request.mjs';
@@ -30,7 +31,7 @@ export function createAudioStore(cues, { fetchFile = fetchWhole } = {}) {
     const source = cue.url ?? cue.media;
     if (typeof source !== 'string' || !source || entries.has(source)) continue;
     entries.set(source, { source, startMs: cue.start_ms, endMs: cue.end_ms ?? cue.start_ms + cue.duration_ms,
-      url: null, loading: false, retryAt: 0, failures: 0, waiters: [] });
+      url: null, loading: false, retryAt: 0, failures: 0, gone: false, stalled: false, waiters: [] });
   }
   const timers = new Set();
   // Waiting for every line to have landed or failed once — what the pictures' download waits on.
@@ -42,7 +43,7 @@ export function createAudioStore(cues, { fetchFile = fetchWhole } = {}) {
   let priming = null;
   const controller = new AbortController();
 
-  return { prime, start, seek, advance, ready, url, whenReady, whenAll, destroy };
+  return { prime, start, seek, advance, ready, missing, stalled, url, whenReady, whenAll, destroy };
 
   /** Download only the opening's required lines until a viewer begins. */
   function prime(opening) {
@@ -78,6 +79,19 @@ export function createAudioStore(cues, { fetchFile = fetchWhole } = {}) {
     return !started || !entry || entry.url !== null;
   }
 
+  /** The store does not have this line's file: it will not land, and the story goes on without it. */
+  function missing(cue) {
+    return entries.get(cue.url ?? cue.media)?.gone === true;
+  }
+
+  /**
+   * This line's own download went silent for as long as a request is given. It is still asked for
+   * again, but the story has waited its wait: nobody holds on it until it lands.
+   */
+  function stalled(cue) {
+    return entries.get(cue.url ?? cue.media)?.stalled === true;
+  }
+
   /** What to play: the bytes in memory once they have landed, the file's own URL until then. */
   function url(cue) {
     const source = cue.url ?? cue.media;
@@ -85,7 +99,7 @@ export function createAudioStore(cues, { fetchFile = fetchWhole } = {}) {
   }
 
   function whenReady(cue) {
-    if (ready(cue)) return Promise.resolve();
+    if (ready(cue) || missing(cue) || stalled(cue)) return Promise.resolve();
     const entry = entries.get(cue.url ?? cue.media);
     return new Promise((resolve) => { entry.waiters.push(resolve); });
   }
@@ -131,7 +145,7 @@ export function createAudioStore(cues, { fetchFile = fetchWhole } = {}) {
     for (const entry of entries.values()) {
       if (priming && !priming.has(entry.source)) continue;
       if (later(entry)) continue;
-      if (entry.url !== null || entry.loading || entry.retryAt > now) continue;
+      if (entry.url !== null || entry.loading || entry.gone || entry.retryAt > now) continue;
       if (entry.endMs > playheadMs) { if (!ahead || entry.startMs < ahead.startMs) ahead = entry; }
       else if (!behind || entry.startMs < behind.startMs) behind = entry;
     }
@@ -152,12 +166,20 @@ export function createAudioStore(cues, { fetchFile = fetchWhole } = {}) {
         return;
       }
       entry.url = landed;
+      entry.stalled = false;
       for (const resolve of entry.waiters) resolve();
       entry.waiters = [];
-    } catch {
+    } catch (error) {
       if (destroyed) return;
       const wait = RETRY_MS[Math.min(entry.failures, RETRY_MS.length - 1)];
       entry.failures += 1;
+      entry.gone = error?.retryable === false;
+      entry.stalled = error?.name === 'TimeoutError';
+      if (entry.gone || entry.stalled) {
+        for (const resolve of entry.waiters) resolve();
+        entry.waiters = [];
+      }
+      if (entry.gone) return;
       entry.retryAt = Date.now() + wait;
       const timer = setTimeout(() => { timers.delete(timer); pump(); }, wait);
       timers.add(timer);

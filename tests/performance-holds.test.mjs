@@ -33,13 +33,15 @@ function twoScenes(side = 100, sounds = []) {
 }
 
 /** Every request answers at once, except the files a test holds back until it lets them go, or never has. */
-function heldFetch(side = 100, missing = []) {
+function heldFetch(side = 100, missing = [], stalling = []) {
   const blocked = new Set();
   const waiting = [];
   const requested = [];
   globalThis.fetch = async (url) => {
     const href = String(url);
     requested.push(href);
+    // A request nothing arrives on is given up by its own deadline, as `asset-request.mjs` does.
+    if (stalling.some((name) => href.endsWith(name))) throw new DOMException('Story assets stopped downloading.', 'TimeoutError');
     if ([...blocked].some((name) => href.endsWith(name))) await new Promise((resolve) => { waiting.push({ href, resolve }); });
     if (missing.some((name) => href.endsWith(name))) return { ok: false, status: 404 };
     return { ok: true, status: 200, blob: async () => ({ pixels: { width: side, height: side } }), arrayBuffer: async () => new ArrayBuffer(8) };
@@ -76,7 +78,7 @@ function byClass(node, name) {
   return null;
 }
 
-async function mount(t, block = [], { side = 100, sounds = [], chrome = 'host', missing = [] } = {}) {
+async function mount(t, block = [], { side = 100, sounds = [], chrome = 'host', missing = [], stalling = [] } = {}) {
   const dom = installDom(); t.after(dom.restore);
   const make = document.createElement.bind(document);
   const contexts = [];
@@ -94,7 +96,7 @@ async function mount(t, block = [], { side = 100, sounds = [], chrome = 'host', 
     const from = calls.findLastIndex(([name]) => name === 'clearRect');
     return calls.slice(from + 1).filter(([name]) => name === 'drawImage').length;
   };
-  const network = heldFetch(side, missing);
+  const network = heldFetch(side, missing, stalling);
   for (const name of block) network.block(name);
   const audio = installAudio(); t.after(audio.restore);
   const frames = virtualFrames(); t.after(frames.restore);
@@ -147,24 +149,26 @@ test('a line that has not landed holds the story at its cue, and starts from its
   assert.equal(audio.made.at(-1).paused, false);
 });
 
-test('a hold that never ends stops the story with a note, and play asks again', async (t) => {
-  const { player, network, frames, note } = await mount(t, ['pack/two.png']);
+test('a cut that has waited out the link opens without what did not come, and draws it when it lands', async (t) => {
+  const { player, network, frames, note, drawnImages } = await mount(t, ['pack/two.png']);
   t.mock.timers.enable({ apis: ['setTimeout'] });
   frames.advanceTo(2300);
   assert.equal(player.getState().tMs, 2000);
   t.mock.timers.tick(20_000);
-  assert.equal(player.getState().playing, false, 'a hold that cannot end kept the transport on playing');
-  assert.match(note.textContent, /could not be loaded/);
+  await settle();
+  frames.advanceTo(2500);
+  assert.equal(player.getState().playing, true, 'a picture that did not come stopped the story');
+  assert.equal(player.getState().sceneIndex, 1, 'the cut did not open without its picture');
+  assert.equal(player.getState().tMs, 2200, 'the story did not go on from where it held');
+  assert.doesNotMatch(note.textContent ?? '', /could not be loaded/);
+  player.pause();
+  assert.equal(drawnImages(), 0, 'something was drawn for a picture that is not here');
   network.release('pack/two.png');
-  await settle(); await settle();
-  await player.play();
-  await settle(); await settle();
-  frames.advanceTo(2400);
-  assert.equal(player.getState().sceneIndex, 1);
-  assert.equal(player.getState().playing, true);
+  for (let turn = 0; turn < 4; turn += 1) await settle();
+  assert.ok(drawnImages() > 0, 'the picture that landed late was not drawn');
 });
 
-test('a hold keeps waiting while bytes are still arriving, and gives up only once the link goes quiet', async (t) => {
+test('a hold keeps waiting while bytes are still arriving, and goes on only once the link goes quiet', async (t) => {
   const { player, frames, note } = await mount(t, ['pack/two.png']);
   t.mock.timers.enable({ apis: ['setTimeout'] });
   frames.advanceTo(2300);
@@ -174,20 +178,77 @@ test('a hold keeps waiting while bytes are still arriving, and gives up only onc
     t.mock.timers.tick(15_000);
     await fetchAssetBlob('https://storage.example/pack/elsewhere.png');
   }
-  assert.equal(player.getState().playing, true, 'a slow link still delivering was given up on');
-  assert.doesNotMatch(note.textContent ?? '', /could not be loaded/);
+  assert.equal(player.getState().sceneIndex, 0, 'a slow link still delivering was given up on');
+  assert.equal(player.getState().tMs, 2000);
   t.mock.timers.tick(20_000);
-  assert.equal(player.getState().playing, false, 'a link gone quiet held the story for ever');
-  assert.match(note.textContent, /could not be loaded/);
+  await settle();
+  frames.advanceTo(2400);
+  assert.equal(player.getState().playing, true, 'a link gone quiet stopped the story');
+  assert.equal(player.getState().sceneIndex, 1, 'a link gone quiet held the story for ever');
+  assert.doesNotMatch(note.textContent ?? '', /could not be loaded/);
 });
 
-test('a file the store does not have ends the hold at once instead of waiting out the link', async (t) => {
+test('a picture the store does not have does not hold its cut: the scene opens without it', async (t) => {
   const { player, frames, note } = await mount(t, [], { missing: ['pack/two.png'] });
-  frames.advanceTo(2300);
-  await settle(); await settle(); await settle();
-  assert.equal(player.getState().tMs, 2000);
-  assert.equal(player.getState().playing, false, 'a missing file kept the story holding');
-  assert.match(note.textContent, /could not be loaded/);
+  for (let wall = 400; wall <= 2600; wall += 200) {
+    frames.advanceTo(wall);
+    await settle();
+  }
+  assert.equal(player.getState().sceneIndex, 1, 'a missing picture kept its scene from opening');
+  assert.equal(player.getState().playing, true, 'a missing picture stopped the story');
+  assert.equal(player.getState().tMs, 2600, 'the story held for a picture that will never come');
+  assert.doesNotMatch(note.textContent ?? '', /could not be loaded/);
+});
+
+test('a line the store does not have is not waited for: the story goes on and says the words are on screen', async (t) => {
+  const { player, audio, frames, note } = await mount(t, [], { missing: ['pack/third.m4a'] });
+  for (let wall = 400; wall <= 3200; wall += 200) {
+    frames.advanceTo(wall);
+    await settle();
+  }
+  assert.equal(player.getState().tMs, 3200, 'the story held for a line that will never come');
+  assert.equal(player.getState().playing, true, 'a missing line stopped the story');
+  assert.equal(audio.made.some((media) => String(media.src).endsWith('third.m4a')), false, 'an element was opened for a line that is not there');
+  assert.match(note.textContent, /narration unavailable/);
+});
+
+test('a line that has not come when the link goes quiet is gone on without, and is not started late', async (t) => {
+  const { player, network, audio, frames } = await mount(t, ['pack/third.m4a']);
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  frames.advanceTo(3300);
+  assert.equal(player.getState().tMs, 3000);
+  const opened = audio.made.length;
+  t.mock.timers.tick(20_000);
+  await settle();
+  frames.advanceTo(3400);
+  assert.equal(player.getState().playing, true, 'a line that did not come stopped the story');
+  assert.equal(player.getState().tMs, 3100, 'the story did not go on from where it held');
+  network.release('pack/third.m4a');
+  await settle(); await settle();
+  frames.advanceTo(3450);
+  assert.equal(audio.made.length, opened, 'a line the story went on without was started in the middle of its window');
+});
+
+test('a picture whose own download went silent is gone on without, however busy the rest of the link', async (t) => {
+  const { player, frames, note } = await mount(t, [], { stalling: ['pack/two.png'] });
+  for (let wall = 400; wall <= 2800; wall += 200) {
+    frames.advanceTo(wall);
+    await settle(); await settle();
+  }
+  assert.equal(player.getState().sceneIndex, 1, 'a download gone silent held its scene for ever');
+  assert.equal(player.getState().playing, true);
+  assert.ok(player.getState().tMs > 2400, `the story is still waiting at the cut (${player.getState().tMs})`);
+  assert.doesNotMatch(note.textContent ?? '', /could not be loaded/);
+});
+
+test('a line whose own download went silent is not held for', async (t) => {
+  const { player, audio, frames } = await mount(t, [], { stalling: ['pack/third.m4a'] });
+  for (let wall = 400; wall <= 3200; wall += 200) {
+    frames.advanceTo(wall);
+    await settle();
+  }
+  assert.equal(player.getState().tMs, 3200, 'the story held for a line whose download had gone silent');
+  assert.equal(audio.made.some((media) => String(media.src).endsWith('third.m4a')), false);
 });
 
 test('pausing during a hold stays paused when what it waited for lands', async (t) => {

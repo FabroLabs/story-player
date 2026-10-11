@@ -409,12 +409,27 @@ export function createSceneLoader({
   let warming = null;
   // Which call to `prepareScene` is the current one: a scene opened since stops the one before.
   let preparing = 0;
+  // A performance's sheets the story goes on without: the store does not have them, they will
+  // not decode, or the story waited for them as long as it waits. One that lands leaves the set.
+  const absent = new Set();
 
-  return { plan, loadScene, holdScene, queueRemainingScenes, sceneCount, setStory, sceneReady, prepareScene };
+  return {
+    plan, loadScene, holdScene, queueRemainingScenes, sceneCount, setStory, sceneReady, prepareScene, goOnWithout,
+  };
 
-  /** Whether everything scene `sceneIndex` draws is decoded — its cut may be shown. */
+  /**
+   * Whether scene `sceneIndex` may be shown: everything it draws is decoded, or known not to be
+   * coming. A scene is never held for a sheet that is not coming — it is drawn without it.
+   */
   function sceneReady(sceneIndex, viewport = {}) {
-    return planAssets(plan(sceneIndex, viewport)).every(({ url }) => cache.has(url));
+    return planAssets(plan(sceneIndex, viewport)).every(({ url }) => cache.has(url) || absent.has(url));
+  }
+
+  /** The story waited for this scene as long as it waits: what has not come is gone on without. */
+  function goOnWithout(sceneIndex, viewport = {}) {
+    for (const { url } of planAssets(plan(sceneIndex, viewport))) {
+      if (!cache.has(url)) absent.add(url);
+    }
   }
 
   /**
@@ -450,6 +465,7 @@ export function createSceneLoader({
         await cache.load(url, { signal });
       } catch (error) {
         if (signal?.aborted) throw error;
+        if (error?.retryable === false) absent.add(url);
       }
     }
   }
@@ -666,6 +682,7 @@ export function createSceneLoader({
   async function attempt(url, what, loadSignal = signal) {
     try {
       await cache.load(url, { signal: loadSignal });
+      absent.delete(url);
       return true;
     } catch (error) {
       if (loadSignal?.aborted || error?.name === 'TimeoutError') throw error;
@@ -682,7 +699,12 @@ export function createSceneLoader({
         refusal.slug = what.slug;
         throw refusal;
       }
-      if (story.bundle?.performance) throw error;
+      if (story.bundle?.performance) {
+        // A file the store does not have, or one that will not decode, does not come by asking
+        // again: its scene is shown without it. Any other failure may heal, and the hold asks again.
+        if (error?.retryable !== false) throw error;
+        absent.add(url);
+      }
       return false;
     }
   }

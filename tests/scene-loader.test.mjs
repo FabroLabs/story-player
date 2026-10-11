@@ -962,6 +962,49 @@ test('a performance scene is ready only once every sheet it draws is decoded, se
   assert.equal(loader.sceneReady(1), true);
 });
 
+test('a performance scene is ready without a sheet the store does not have, and the load does not throw for it', async () => {
+  const gone = (url) => Object.assign(new Error(`asset ${url} answered 404`), { retryable: false });
+  const cache = fakeCache();
+  const load = cache.load.bind(cache);
+  cache.load = async (url) => { if (url.endsWith('wave.png')) { await Promise.resolve(); throw gone(url); } return load(url); };
+  const warnings = [];
+  const loader = createSceneLoader({ timeline: null, bundle: performanceScenes(), cache, onWarning: (detail) => warnings.push(detail) });
+  const result = await loader.loadScene(1, {}, { keep: true });
+  assert.equal(result.failed, 1);
+  assert.equal(loader.sceneReady(1), true, 'a sheet that will never come still held its scene back');
+  assert.equal(warnings.length, 1, 'the missing sheet was not named once');
+  assert.equal(loader.sceneReady(2), false);
+});
+
+test('a failure that may heal still rejects the load, so the hold asks again', async () => {
+  const cache = fakeCache();
+  const load = cache.load.bind(cache);
+  cache.load = async (url) => { if (url.endsWith('wave.png')) { await Promise.resolve(); throw new TypeError('network'); } return load(url); };
+  const loader = createSceneLoader({ timeline: null, bundle: performanceScenes(), cache });
+  await assert.rejects(loader.loadScene(1, {}, { keep: true }), TypeError);
+  assert.equal(loader.sceneReady(1), false);
+});
+
+test('going on without a scene counts what has not come as absent, until it lands', async () => {
+  const cache = fakeCache();
+  const loader = createSceneLoader({ timeline: null, bundle: performanceScenes(), cache });
+  await cache.load('https://storage.example/room.png');
+  assert.equal(loader.sceneReady(1), false);
+  loader.goOnWithout(1);
+  assert.equal(loader.sceneReady(1), true, 'the story was not let on without the sheets it gave up on');
+  assert.equal(loader.sceneReady(2), false, 'giving up on one scene let another through');
+});
+
+test('a sheet the store does not have, found while preparing ahead, does not hold the cut', async () => {
+  const cache = { ...fakeCache(), budget: 1e12 };
+  cache.keepNext = () => {};
+  const load = cache.load.bind(cache);
+  cache.load = async (url) => { if (url.endsWith('far.png')) throw Object.assign(new Error('404'), { retryable: false }); return load(url); };
+  const loader = createSceneLoader({ timeline: null, bundle: performanceScenes(), cache });
+  await loader.prepareScene(2, 1);
+  assert.equal(loader.sceneReady(2), true);
+});
+
 test('the next scene is decoded ahead only as far as the budget allows, and spared eviction', async () => {
   const cache = { ...fakeCache(), budget: 40_000 * 2, next: [] };
   cache.keepNext = (urls) => { cache.next = urls; };
