@@ -376,6 +376,27 @@ test('a line finishing past its window is cut at once by a seek', () => {
   }
 });
 
+test('a seek backwards cuts the line it leaves: nothing finishes its sentence over the landing', () => {
+  const audio = installListeningAudio();
+  try {
+    const scheduler = createMediaScheduler({ bundle: voiced, timeline: {} });
+    scheduler.resume();
+    scheduler.tick(7500);
+    const left = audio.made.at(-1);
+    assert.equal(left.src, 'pack/bare.m4a');
+    assert.equal(left.paused, false);
+    // Back to the first line. The story is now before the left line's own end, which is what let
+    // it pass for a line still owed its last words.
+    scheduler.seek(1500);
+    assert.equal(left.paused, true, 'the line the seek left went on reading over the landing');
+    const reading = audio.made.filter((media) => !media.paused && media.src !== 'pack/bed.m4a');
+    assert.deepEqual(reading.map((media) => media.src), ['pack/line.m4a'], 'two lines are being read at once');
+    scheduler.destroy();
+  } finally {
+    audio.restore();
+  }
+});
+
 const later = {
   performance: { kind: 'wht' },
   audio: [

@@ -183,7 +183,10 @@ export function createPerformanceMediaScheduler({ bundle, onWarning, store = nul
     for (const [id, item] of active) {
       if (ids.has(id)) continue;
       active.delete(id);
-      if (mayFinish(item, tMs)) finishing.set(id, item);
+      // Only time passing lets a line finish. A seek is a cut: landing before a line's own end
+      // would otherwise pass for a line still owed its last words, and it would read on over
+      // whatever the story landed in.
+      if (!seeking && mayFinish(item, tMs)) finishing.set(id, item);
       else release(item.media);
     }
     for (const [id, item] of finishing) {
