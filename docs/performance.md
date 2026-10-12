@@ -159,6 +159,10 @@ instant (picture, voice and music, sound effects paused rather than ended) and
 goes on the moment they land. A bed or song is opened 3 s before its start, for
 its metadata only (`preload="metadata"`) so a long track is not downloaded ahead
 of the pictures, and waited for at most 1.5 s; past that it joins when it can.
+A device that buffers none of a track before `play()` — a phone, a tablet — is
+not waited on at all: a track open for a second of the story with nothing but
+its metadata is started without a hold, because there the wait ran out every
+time and the track began afterwards exactly as it does without it.
 The transport reads playing throughout; pause ends a hold, and a
 drag out of one stays silent until the pointer lands. A spinner shows once a
 hold passes 300 ms. A slow link still delivering is waited for.

@@ -406,11 +406,11 @@ const later = {
 };
 const flush = () => new Promise((resolve) => { setImmediate(resolve); });
 
-test('a bed that starts mid-story is opened ahead, and waited for at most a moment', async (t) => {
+test('a bed that starts mid-story is opened ahead; one still buffering at its start is waited for at most a moment', async (t) => {
   t.mock.timers.enable({ apis: ['setTimeout'] });
   const audio = installListeningAudio();
-  // an element that buffers nothing until it is played, as a phone's does
-  globalThis.Audio.prototype.readyState = 0;
+  // an element that has some of the track, and not yet enough to play on
+  globalThis.Audio.prototype.readyState = 2;
   try {
     const scheduler = createMediaScheduler({ bundle: later, timeline: {}, store: manualStore() });
     scheduler.resume();
@@ -433,6 +433,41 @@ test('a bed that starts mid-story is opened ahead, and waited for at most a mome
     scheduler.tick(5000);
     assert.equal(audio.made.length, 1, 'the track opened ahead was not the one played');
     assert.equal(audio.made[0].paused, false);
+    scheduler.destroy();
+  } finally {
+    audio.restore();
+  }
+});
+
+test('a track that has buffered nothing since it was opened ahead is not held for: waiting would not bring it', () => {
+  const audio = installListeningAudio();
+  // an element that buffers nothing until it is played, as a phone's does
+  globalThis.Audio.prototype.readyState = 0;
+  try {
+    const scheduler = createMediaScheduler({ bundle: later, timeline: {}, store: manualStore() });
+    scheduler.resume();
+    scheduler.tick(2500);
+    assert.equal(audio.made.length, 1);
+    assert.equal(scheduler.blocker(4900, 5001), null, 'the story stood still a second and a half for a track that only plays once asked to');
+    scheduler.tick(5000);
+    assert.equal(audio.made.length, 1, 'the track opened ahead was not the one played');
+    assert.equal(audio.made[0].paused, false, 'the track did not join at its start');
+    scheduler.destroy();
+  } finally {
+    audio.restore();
+  }
+});
+
+test('a track opened only a moment before its start is still given its moment, whatever it has buffered', () => {
+  const audio = installListeningAudio();
+  globalThis.Audio.prototype.readyState = 0;
+  try {
+    const scheduler = createMediaScheduler({ bundle: later, timeline: {}, store: manualStore() });
+    scheduler.resume();
+    // A seek lands half a second before the track: nothing has had time to arrive on any device.
+    scheduler.seek(4500);
+    assert.equal(audio.made.length, 1);
+    assert.equal(scheduler.blocker(4900, 5001)?.atMs, 5000);
     scheduler.destroy();
   } finally {
     audio.restore();
