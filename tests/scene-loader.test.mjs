@@ -17,7 +17,7 @@ import {
   sceneAssetPlan,
   sceneKeepUrls,
 } from '../browser/v0/app/assets/scene-loader.mjs';
-import { SMALL_DEVICE_BUDGET_BYTES, createBitmapCache } from '../browser/v0/app/assets/bitmap-cache.mjs';
+import { DEFAULT_BUDGET_BYTES, SMALL_DEVICE_BUDGET_BYTES, createBitmapCache } from '../browser/v0/app/assets/bitmap-cache.mjs';
 import { sceneSheets } from '../browser/v0/app/stage/canvas-stage.mjs';
 import { buildDrawList } from '../browser/v0/app/stage/draw-list.mjs';
 import { PAN_SCALE_FLOOR, PUSH_SCALE } from '../browser/v0/policy.mjs';
@@ -1005,13 +1005,63 @@ test('a sheet the store does not have, found while preparing ahead, does not hol
   assert.equal(loader.sceneReady(2), true);
 });
 
-test('the next scene is decoded ahead only as far as the budget allows, and spared eviction', async () => {
-  const cache = { ...fakeCache(), budget: 40_000 * 2, next: [] };
+/** Performance scenes named by the sheets they draw, every sheet `side` × `side`. */
+function sheetScenes(scenes, side = 100) {
+  const sheet = (name) => ({ type: 'image', media: `https://storage.example/${name}.png`, width: side, height: side });
+  return {
+    performance: { kind: 'wht' },
+    assets: Object.fromEntries([...new Set(scenes.flat())].map((name) => [name, sheet(name)])),
+    scenes: scenes.map((drawn, index) => ({
+      start_ms: index * 1000, end_ms: (index + 1) * 1000, nodes: drawn.map((asset) => ({ id: asset, asset })),
+    })),
+    audio: [],
+  };
+}
+
+/** A cache that says what was asked of it, in order: the sheets it loaded and when it trimmed. */
+function aheadCache(budget) {
+  const cache = { ...fakeCache(), budget, next: [], asked: [] };
+  const load = cache.load;
+  cache.load = (url) => { cache.asked.push(name(url)); return load(url); };
   cache.keepNext = (urls) => { cache.next = urls; };
-  const loader = createSceneLoader({ timeline: null, bundle: performanceScenes(), cache });
+  cache.trim = () => { cache.asked.push('trim'); };
+  return cache;
+}
+
+test('a scene heavier than the budget still has the next one decoded ahead, within the story\'s heaviest scene', async () => {
+  // One sheet is the whole budget; the heaviest scene draws three. Until this, a scene already
+  // over the budget meant nothing was decoded ahead, and every cut decoded under a hold.
+  const sheet = 100 * 100 * 4;
+  const cache = aheadCache(sheet);
+  const loader = createSceneLoader({ timeline: null, bundle: sheetScenes([['a'], ['a', 'b', 'c'], ['c', 'd']]), cache });
   await loader.prepareScene(1, 0);
-  assert.deepEqual(cache.loaded.map(name), ['hero.png'], 'decoded past the budget, or what the scene on screen already holds');
-  assert.deepEqual(cache.next.map(name), ['hero.png']);
+  assert.deepEqual(cache.asked, ['trim', 'b.png', 'c.png'], 'not decoded ahead in drawing order, or not trimmed first');
+  assert.deepEqual(cache.next.map(name), ['b.png', 'c.png'], 'what was decoded ahead is not spared eviction');
+  // The scene on screen is the heaviest already: a fourth sheet would be more than the story ever needs.
+  cache.asked.length = 0;
+  await loader.prepareScene(2, 1);
+  assert.deepEqual(cache.asked, ['trim'], 'decoded ahead past the heaviest scene on a device given the small budget');
+  assert.deepEqual(cache.next, []);
+});
+
+test('a device given the full budget may hold a third more than the heaviest scene while it decodes ahead', async () => {
+  // 3000² is 36 MB decoded: four sheets are 144 MB, and a third more is room for one sheet, not two.
+  const bundle = sheetScenes([['a', 'b', 'c', 'd'], ['c', 'd', 'e', 'f']], 3000);
+  const roomy = aheadCache(DEFAULT_BUDGET_BYTES);
+  await createSceneLoader({ timeline: null, bundle, cache: roomy }).prepareScene(1, 0);
+  assert.deepEqual(roomy.next.map(name), ['e.png']);
+  const small = aheadCache(SMALL_DEVICE_BUDGET_BYTES);
+  await createSceneLoader({ timeline: null, bundle, cache: small }).prepareScene(1, 0);
+  assert.deepEqual(small.next, [], 'a small device was asked for more than the story\'s heaviest scene');
+});
+
+test('a story whose scenes fit the budget is decoded ahead exactly as far as the budget, as before', async () => {
+  const sheet = 100 * 100 * 4;
+  const bundle = sheetScenes([['a'], ['b', 'c'], ['d']]);
+  const cache = aheadCache(sheet * 2);
+  const loader = createSceneLoader({ timeline: null, bundle, cache });
+  await loader.prepareScene(1, 0);
+  assert.deepEqual(cache.next.map(name), ['b.png'], 'the budget no longer bounds a story that fits it');
 });
 
 test('a performance\'s later scenes are downloaded during playback, not decoded', async () => {

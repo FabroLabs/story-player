@@ -78,7 +78,7 @@ function byClass(node, name) {
   return null;
 }
 
-async function mount(t, block = [], { side = 100, sounds = [], chrome = 'host', missing = [], stalling = [] } = {}) {
+async function mount(t, block = [], { side = 100, sounds = [], chrome = 'host', missing = [], stalling = [], story = twoScenes(side, sounds) } = {}) {
   const dom = installDom(); t.after(dom.restore);
   const make = document.createElement.bind(document);
   const contexts = [];
@@ -101,7 +101,7 @@ async function mount(t, block = [], { side = 100, sounds = [], chrome = 'host', 
   const audio = installAudio(); t.after(audio.restore);
   const frames = virtualFrames(); t.after(frames.restore);
   const host = document.createElement('div');
-  const player = createStoryPlayer(host, { story: twoScenes(side, sounds), assetBase: 'https://storage.example/', chrome });
+  const player = createStoryPlayer(host, { story, assetBase: 'https://storage.example/', chrome });
   t.after(() => player.destroy());
   await player.ready;
   await player.play();
@@ -275,6 +275,24 @@ test('a cut whose two scenes do not fit the budget together still lands, instead
   }
   assert.equal(player.getState().sceneIndex, 1, 'the cut kept holding: the old scene took its sheet back');
   assert.ok(player.getState().tMs > 2000, 'the story did not move on past the cut');
+});
+
+test('a cut whose scene was decoded ahead does not hold, though the scene on screen is over the budget by itself', async (t) => {
+  // 4000² decodes to 64 MB. Four of them on screen are 256 MB against a 96 MB budget, and the
+  // sheet the next scene adds is decoded while they play: the story's heaviest scene is the measure.
+  const story = twoScenes(4000);
+  for (const name of ['three', 'four', 'five']) {
+    story.assets[name] = { type: 'image', media: `pack/${name}.png`, width: 4000, height: 4000 };
+    story.scenes[0].nodes.push({ id: name, asset: name, x: 100, y: 100, width: 100 });
+  }
+  const { player, network, frames } = await mount(t, [], { side: 4000, story });
+  frames.advanceTo(1000);
+  await settle(); await settle();
+  assert.ok(network.requested.some((href) => href.endsWith('pack/two.png')), 'the next scene was not asked for ahead of its cut');
+  // Not a moment given to anything still on its way: the cut has nothing left to wait for.
+  frames.advanceTo(2100);
+  assert.equal(player.getState().sceneIndex, 1, 'the cut held for a sheet that could have been ready');
+  assert.equal(player.getState().tMs, 2100, 'the story stood at a cut whose scene was decoded');
 });
 
 test('a paused seek into an unready scene and back keeps the scene on screen whole', async (t) => {

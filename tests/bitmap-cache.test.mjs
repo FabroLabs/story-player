@@ -337,6 +337,32 @@ test('the next scene\'s sheets, decoded ahead, are not evicted to make room for 
   assert.equal(cache.has('next.webp'), true, 'a sheet decoded for the next scene was evicted');
 });
 
+test('trim closes at once what neither the scene on screen nor the next one needs', async () => {
+  const { decode } = countingDecoder({ 'old.webp': 100, 'now.webp': 100, 'next.webp': 100 });
+  const cache = createBitmapCache({ decode, budgetBytes: 100 * 100 * 4 });
+  cache.keep(['old.webp', 'now.webp', 'next.webp']);
+  const old = await cache.load('old.webp');
+  const now = await cache.load('now.webp');
+  const next = await cache.load('next.webp');
+  cache.keep(['now.webp']);
+  cache.keepNext(['next.webp']);
+  assert.equal(old.closed, false, 'changing what is kept closed a sheet by itself');
+  cache.trim();
+  assert.equal(old.closed, true, 'a sheet nobody needs was held until the next decode landed');
+  assert.equal(now.closed || next.closed, false, 'trim took a sheet the scene on screen or the next one draws');
+  assert.equal(cache.bytes, 2 * 100 * 100 * 4);
+});
+
+test('trim under the budget closes nothing', async () => {
+  const { decode } = countingDecoder({ 'old.webp': 100, 'now.webp': 100 });
+  const cache = createBitmapCache({ decode, budgetBytes: 100 * 100 * 4 * 2 });
+  const old = await cache.load('old.webp');
+  await cache.load('now.webp');
+  cache.keep(['now.webp']);
+  cache.trim();
+  assert.equal(old.closed, false, 'a sheet that fits the budget was thrown away');
+});
+
 test('a prefetch downloads into the HTTP cache and decodes nothing', async (t) => {
   const prior = globalThis.fetch;
   const asked = [];
