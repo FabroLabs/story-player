@@ -30,9 +30,15 @@ import { createAudioStore } from './audio-store.mjs';
 const PLAYABLE = 3;
 // A bed or song is opened this far ahead of its start, so the story rarely has to wait for it.
 const TRACK_AHEAD_MS = 3000;
-// And never waited for longer than this: a phone that buffers nothing before `play()` would
-// otherwise hold every story at every track. Past it, the track joins when it can.
+// And never waited for longer than this. Past it, the track joins when it can.
 const TRACK_WAIT_MS = 1500;
+// `HTMLMediaElement.HAVE_METADATA`: its length is known and none of its sound has arrived.
+const METADATA = 1;
+// A track open this long with none of its sound is on a device that buffers nothing before
+// `play()` — a phone, a tablet. Waiting brings nothing there: the wait ran out every time, the
+// story stood still a second and a half at every bed and song, and the track joined afterwards
+// exactly as it does without the wait.
+const TRACK_SETTLE_MS = 1000;
 
 export function createPerformanceMediaScheduler({ bundle, onWarning, store = null, output = null, effects = null }) {
   let story = bundle;
@@ -183,7 +189,12 @@ export function createPerformanceMediaScheduler({ bundle, onWarning, store = nul
         }
         if (continuous(cue) && cue.start_ms === atMs) {
           const item = preopen(cue);
-          if (!isPlayable(item.media) && !item.waited) return { atMs, until: () => waitFor(item) };
+          if (isPlayable(item.media) || item.waited) continue;
+          if (willNotBuffer(item, atMs)) {
+            item.waited = true;
+            continue;
+          }
+          return { atMs, until: () => waitFor(item) };
         }
       }
     }
@@ -264,10 +275,15 @@ export function createPerformanceMediaScheduler({ bundle, onWarning, store = nul
   function preopen(cue) {
     let item = ahead.get(cue.id);
     if (!item) {
-      item = { media: open(cue), cue };
+      item = { media: open(cue), cue, openedAt: now };
       ahead.set(cue.id, item);
     }
     return item;
+  }
+
+  /** Open for a while, and still without any of its sound: this device plays before it buffers. */
+  function willNotBuffer(item, atMs) {
+    return atMs - item.openedAt >= TRACK_SETTLE_MS && !(item.media.readyState > METADATA);
   }
 
   function releaseAhead() {

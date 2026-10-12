@@ -123,6 +123,17 @@ export function createBitmapCache({
     },
 
     /**
+     * Let go now of whatever nothing keeps, down to the budget.
+     *
+     * Eviction otherwise waits for the next decode to land, which is one sheet too late for a
+     * caller about to decode ahead: the scene that has just left would still be held under the
+     * two that are wanted, and the three together are what a phone does not have.
+     */
+    trim() {
+      evict(null, { quiet: true });
+    },
+
+    /**
      * Download without decoding, into the browser's HTTP cache.
      *
      * A later scene's sheets are fetched here during playback, one at a time, and decoded only
@@ -171,7 +182,7 @@ export function createBitmapCache({
     },
   };
 
-  function evict(justLoaded = null) {
+  function evict(justLoaded = null, { quiet = false } = {}) {
     for (const [url, entry] of entries) {
       if (heldBytes <= budgetBytes) return;
       if (kept.has(url) || soon.has(url) || url === justLoaded) continue;
@@ -182,7 +193,7 @@ export function createBitmapCache({
     // Nothing left that may go. Said out loud rather than tolerated, because a
     // budget that quietly does not hold is worse than no budget: the log reads
     // "the opening loaded fine" right up to the moment the tab is reloaded.
-    if (heldBytes > budgetBytes) onOverBudget({ heldBytes, budgetBytes, kept: kept.size });
+    if (heldBytes > budgetBytes && !quiet) onOverBudget({ heldBytes, budgetBytes, kept: kept.size });
   }
 }
 
