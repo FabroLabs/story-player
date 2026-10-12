@@ -1,4 +1,4 @@
-import { BRAND_MARK } from './brand.mjs';
+import { BRAND_MARK, BRAND_WORD } from './brand.mjs';
 
 const STYLESHEET = new URL('./styles.css', import.meta.url).href;
 // The line over the story's name in the opening ceremony. A host that mounts
@@ -48,7 +48,7 @@ export function createPlayerTemplate(root, { stylesheet = STYLESHEET, kicker, ch
     plate,
     canvas,
     element(document, 'div', { className: 'stage-vignette', 'aria-hidden': 'true' }),
-    brand,
+    brand.root,
   ]);
   const title = element(document, 'h1', { text: 'preparing your story…' });
   const start = element(document, 'button', { className: 'start-button', type: 'button', disabled: '' }, [
@@ -91,7 +91,7 @@ export function createPlayerTemplate(root, { stylesheet = STYLESHEET, kicker, ch
   ]);
   end.hidden = true;
   const card = createCardLayer(document);
-  card.layer.append(brandMark(document));
+  card.layer.append(brandMark(document).root);
   const badge = createBadge(document);
   const bedtime = createBedtimeLayers(document);
   const controls = createControlBar(document, { subtitles, fullscreen });
@@ -153,7 +153,7 @@ export function createPlayerTemplate(root, { stylesheet = STYLESHEET, kicker, ch
     // the picture is the play switch, the mark is what a click leaves on it,
     // and the actions row appears with the bar when the story begins.
     controls: { ...controls, frame, stage, actions, flash },
-    stage: { frame, stage, canvas, plate, poster, video, brand, subtitle, mediaNote, waiting, hold, end },
+    stage: { frame, stage, canvas, plate, poster, video, brand: brand.pictures, subtitle, mediaNote, waiting, hold, end },
     recording,
     // A bedtime story's two extras, drawn by the player so every host gets the
     // same ones: the moon's dimming, and the moonlit wind-down after the story.
@@ -171,10 +171,11 @@ export function createPlayerTemplate(root, { stylesheet = STYLESHEET, kicker, ch
   };
 }
 
+/** The mark and, under it, the name: two pictures of one width, in the order they stack. */
 function brandMark(document) {
-  return element(document, 'img', {
-    className: 'story-brand', src: BRAND_MARK, alt: '', 'aria-hidden': 'true', draggable: 'false',
-  });
+  const picture = (src, className = '') => element(document, 'img', { className, src, alt: '', draggable: 'false' });
+  const pictures = [picture(BRAND_MARK), picture(BRAND_WORD, 'brand-word')];
+  return { root: element(document, 'div', { className: 'story-brand', 'aria-hidden': 'true' }, pictures), pictures };
 }
 
 /**

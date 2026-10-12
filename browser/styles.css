@@ -187,17 +187,31 @@ button:focus-visible {
   height: 100%;
 }
 
-/* Anchored to the picture, outside its camera transform and subtitle band. */
+/* Anchored to the picture, outside its camera transform and subtitle band: the
+   mark and, under it, the name. */
 .story-brand {
   position: absolute;
   top: 2%;
   right: 2%;
   width: 7%;
-  height: auto;
   opacity: 0.7;
   z-index: 4;
   pointer-events: none;
   user-select: none;
+}
+.story-brand img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+/* The name is as wide as the mark, and on a phone's upright stage the mark is
+   25 pixels across: letters five pixels tall, a smudge. It is shown where it
+   can be read — a stage 600 wide, which is a frame that wide and 16:9's 338
+   tall. A browser without container queries is a phone, and keeps the mark
+   alone. */
+.story-brand .brand-word { display: none; }
+@container player (min-width: 600px) and (min-height: 338px) {
+  .story-brand .brand-word { display: block; }
 }
 .stage-frame.is-exporting .logical-stage > .story-brand,
 .stage-frame.is-exporting .subtitle-wrap { visibility: hidden; }
