@@ -170,7 +170,7 @@ export function createCanvasStage(elements, {
   return { fitScale, exportScale, setExportSize, prepareExport, draw, setTier, setFarmOverlay, destroy };
 
   async function prepareExport() {
-    await elements.brand?.decode?.();
+    await Promise.all((elements.brand ?? []).map((picture) => picture.decode?.()));
   }
 
   function setFarmOverlay(enabled) {
@@ -265,13 +265,17 @@ export function createCanvasStage(elements, {
     const [width, height] = backing;
     context.save();
     context.setTransform(1, 0, 0, 1, 0, 0);
-    if (elements.brand?.naturalWidth > 0) {
-      const w = width * BRAND_WIDTH;
-      const h = w * elements.brand.naturalHeight / elements.brand.naturalWidth;
-      context.globalAlpha = BRAND_OPACITY;
-      context.drawImage(elements.brand, width * (1 - BRAND_INSET) - w, height * BRAND_INSET, w, h);
-      context.globalAlpha = 1;
+    // The mark, and the name under it: stacked at one width, each at its own shape.
+    const w = width * BRAND_WIDTH;
+    let y = height * BRAND_INSET;
+    context.globalAlpha = BRAND_OPACITY;
+    for (const picture of elements.brand ?? []) {
+      if (!(picture.naturalWidth > 0)) break;
+      const h = w * picture.naturalHeight / picture.naturalWidth;
+      context.drawImage(picture, width * (1 - BRAND_INSET) - w, y, w, h);
+      y += h;
     }
+    context.globalAlpha = 1;
     const text = last?.state?.subtitle;
     if (subtitles() && text) {
       const font = Math.max(16, Math.round(height * 0.041));

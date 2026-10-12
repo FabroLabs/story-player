@@ -910,8 +910,13 @@ toggle stay reachable.
 The player owns the Moonykids kid-reaching-star mark. Its original transparent
 asset is embedded in the IIFE: no story JSON changes or external brand request.
 The mark sits outside the camera at 7% of picture width, 2% inset and 70%
-opacity. The exported canvas includes that same mark and the current subtitle
-preference. Ordinary playback retains accessible DOM captions.
+opacity. Under it, as wide as the mark, is the name: the brand's wordmark as a
+second embedded picture, white with a soft shadow of its own. A name as wide as
+a mark is too small to read on a small player, so it is shown only where the
+frame is at least 600 pixels wide and 338 tall, and the mark stands alone below
+that. The exported canvas includes that same mark, always with its name, and
+the current subtitle preference. Ordinary playback retains accessible DOM
+captions.
 
 `recordVideo()` performs a complete story again at up to 1280×720 / 24 fps,
 routes narration and music through one Web Audio graph and resolves with an
