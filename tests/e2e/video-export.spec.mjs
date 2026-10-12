@@ -331,6 +331,27 @@ test('a legacy video plate, narration, captions and branding survive a streamed 
 });
 
 
+test('the name sits under the mark on a player wide enough to read it, and the mark stands alone on a small one', async ({ page }) => {
+  await page.goto(base);
+  await page.evaluate(() => window.ready);
+  const brand = () => page.evaluate(() => {
+    const root = document.querySelector('#player').shadowRoot;
+    const [mark, word] = [...root.querySelectorAll('.logical-stage .story-brand img')].map((picture) => picture.getBoundingClientRect());
+    return { mark: { left: mark.left, bottom: mark.bottom, width: mark.width }, word: { left: word.left, top: word.top, width: word.width, height: word.height } };
+  });
+  // The page's player is 640 wide: past the 600 from which a name as wide as its mark can be read.
+  const wide = await brand();
+  expect(wide.mark.width).toBeCloseTo(640 * 0.07, 0);
+  expect(wide.word.height).toBeGreaterThan(wide.mark.width / 6);
+  expect(wide.word.left).toBeCloseTo(wide.mark.left, 1);
+  expect(wide.word.top).toBeCloseTo(wide.mark.bottom, 1);
+  expect(wide.word.width).toBeCloseTo(wide.mark.width, 1);
+  // A phone's upright stage. The stage is fitted again a frame after its frame changes size.
+  await page.evaluate(() => { document.querySelector('#player').style.width = '358px'; });
+  await expect.poll(async () => (await brand()).mark.width).toBeCloseTo(358 * 0.07, 0);
+  expect((await brand()).word.height).toBe(0);
+});
+
 async function inspectFile(page, bytes) {
   return page.evaluate(async (encoded) => {
     const data = Uint8Array.from(atob(encoded), (c) => c.charCodeAt(0));

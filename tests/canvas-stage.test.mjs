@@ -33,15 +33,28 @@ const bitmap = (width, height) => ({ width, height });
 
 test('saved frames carry the brand outside the camera and burn the current caption into the picture', (t) => {
   const { stage, elements, context } = mounted(t);
-  elements.brand = { naturalWidth: 646, naturalHeight: 646 };
+  // The mark and the name under it: two pictures, each of its own size and shape.
+  elements.brand = [{ naturalWidth: 650, naturalHeight: 650 }, { naturalWidth: 325, naturalHeight: 84 }];
   const state = { ...stageState({ camera: { scale: 2, x: -40, y: -20 } }), subtitle: 'The wheel broke.' };
   stage.draw(state, book());
   stage.setExportSize({ width: 1280, height: 720 });
-  const mark = context.of('drawImage').find((call) => call[0] === elements.brand);
+  const [mark, word] = elements.brand.map((picture) => context.of('drawImage').find((call) => call[0] === picture));
   assert.ok(mark, 'the file has no mark');
-  assert.deepEqual(mark.at(-1).transform, [1, 1, 0, 0]);
-  assert.equal(mark.at(-1).alpha, 0.7);
-  assert.ok(Math.abs(mark[3] - 89.6) < 0.01);
+  assert.ok(word, 'the file has no name under its mark');
+  for (const drawn of [mark, word]) {
+    assert.deepEqual(drawn.at(-1).transform, [1, 1, 0, 0]);
+    assert.equal(drawn.at(-1).alpha, 0.7);
+  }
+  // 7% of the picture's width, 2% in from its top and right; the name right under the mark, as wide.
+  const near = (actual, expected) => assert.ok(Math.abs(actual - expected) < 0.01, `${actual} is not ${expected}`);
+  near(mark[1], 1280 * 0.98 - 89.6);
+  near(mark[2], 14.4);
+  near(mark[3], 89.6);
+  near(mark[4], 89.6);
+  near(word[1], mark[1]);
+  near(word[2], 14.4 + 89.6);
+  near(word[3], 89.6);
+  near(word[4], 89.6 * 84 / 325);
   const caption = context.of('fillText').find((call) => call[0] === 'The wheel broke.');
   assert.ok(caption, 'the exported picture lost the caption');
   assert.deepEqual(caption.at(-1).transform, [1, 1, 0, 0]);

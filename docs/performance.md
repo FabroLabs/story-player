@@ -159,6 +159,10 @@ instant (picture, voice and music, sound effects paused rather than ended) and
 goes on the moment they land. A bed or song is opened 3 s before its start, for
 its metadata only (`preload="metadata"`) so a long track is not downloaded ahead
 of the pictures, and waited for at most 1.5 s; past that it joins when it can.
+A device that buffers none of a track before `play()` — a phone, a tablet — is
+not waited on at all: a track open for a second of the story with nothing but
+its metadata is started without a hold, because there the wait ran out every
+time and the track began afterwards exactly as it does without it.
 The transport reads playing throughout; pause ends a hold, and a
 drag out of one stays silent until the pointer lands. A spinner shows once a
 hold passes 300 ms. A slow link still delivering is waited for.
@@ -182,9 +186,17 @@ that refuses to play (`NotAllowedError`), which pauses under a note because a
 press on play can answer it, and a lesson's required board or world image. A
 recording is not made with parts missing: its take stops and says so.
 
-While a scene plays, the sheets the next scene adds are decoded as far as the
-bitmap budget allows (asset `width × height × 4` bytes each); the rest are
-decoded at the cut, under a hold. Later scenes are downloaded during playback,
+While a scene plays, the sheets the next scene adds are decoded one at a time,
+in drawing order, up to a ceiling (asset `width × height × 4` bytes each): the
+bitmap budget, or the story's own heaviest scene where that is more. A scene is
+held whole and a kept sheet is never evicted, so the heaviest scene is held at
+some point whatever is decoded ahead, and a budget smaller than one scene would
+otherwise leave every cut to decode under a hold. A device given the full budget
+may go 30% above its heaviest scene for the seconds before a cut
+(`AHEAD_HEADROOM`); one given the small budget may not. What does not fit is
+decoded at the cut, under a hold. Sheets neither scene needs are let go before
+the first decode ahead and before a cut decodes its remainder, not as decodes
+land: the two scenes wanted are the most that is held. Later scenes are downloaded during playback,
 after every narration line within the look-ahead has landed or failed once, into the browser's HTTP
 cache, and decoded only when their scene is next. A scene whose sheets were
 pushed out while another scene loaded (a seek away and back) is decoded again

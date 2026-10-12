@@ -49,6 +49,7 @@ import { worldObjectSlugs } from '../stage/lesson-world.mjs';
 import { DEFAULT_STAGE_RESOLUTION } from '../../policy.mjs';
 import { KEEP_WINDOW, chunkWindow, sheetFor, wantedCellPx } from './rendition-picker.mjs';
 import { onAssetProgress, withAssetDeadline } from './asset-request.mjs';
+import { DEFAULT_BUDGET_BYTES } from './bitmap-cache.mjs';
 
 /**
  * How often the runtime re-asks which chunks are under the playhead.
@@ -64,6 +65,20 @@ import { onAssetProgress, withAssetDeadline } from './asset-request.mjs';
  * module's window, not a number the story language or the stage knows about.
  */
 export const KEEP_CADENCE_MS = 80;
+
+/**
+ * How far above a performance's heaviest scene the next scene may be decoded ahead.
+ *
+ * A performance's scene is held whole, and its sheets are big: a 3584² clip is 49 MB decoded, a
+ * scene of them several hundred. The byte budget cannot bound that — a kept sheet is never evicted
+ * — so it bounded the only thing it could, decoding AHEAD: with the scene on screen already over
+ * the budget, nothing of the next was decoded until the cut, and every cut held the story while
+ * it was. The ceiling for decoding ahead is therefore the story's own heaviest scene, which the
+ * device has to hold at some point whatever is done here. A device given the full budget may go
+ * a third above it for the seconds before a cut, which is what makes nearly every cut of a busy
+ * story ready; one given the small budget never holds more than that heaviest scene.
+ */
+export const AHEAD_HEADROOM = 1.3;
 
 /**
  * Everything scene `sceneIndex` draws, at the tier this viewport needs.
@@ -433,13 +448,13 @@ export function createSceneLoader({
   }
 
   /**
-   * Decode the next scene ahead, as far as the memory budget allows.
+   * Decode the next scene ahead, as far as the ceiling allows.
    *
    * What bedtime's invisible preroll nodes do by hand, for every story: while scene `sceneIndex -
    * 1` plays, the sheets scene `sceneIndex` adds are decoded one at a time, in drawing order, for
-   * as long as the scene on screen and those already decoded still fit the budget. What does not
-   * fit is decoded at the cut while the story holds. A failure is not named here: the cut tries
-   * again, and says so if it has to.
+   * as long as the scene on screen and those already decoded stay under `aheadCeiling`. What
+   * does not fit is decoded at the cut while the story holds. A failure is not named here: the
+   * cut tries again, and says so if it has to.
    */
   async function prepareScene(sceneIndex, onScreen, viewport = {}) {
     const mine = ++preparing;
@@ -449,15 +464,18 @@ export function createSceneLoader({
     }
     const showing = plan(onScreen, viewport).props;
     const current = new Set(showing.map(({ url }) => url));
-    let bytes = showing.reduce((sum, prop) => sum + prop.bytes, 0);
+    let bytes = sceneBytes(showing);
+    const ceiling = aheadCeiling(viewport);
     const next = [];
     for (const prop of plan(sceneIndex, viewport).props) {
       if (current.has(prop.url)) continue;
-      if (bytes + prop.bytes > cache.budget) break;
+      if (bytes + prop.bytes > ceiling) break;
       bytes += prop.bytes;
       next.push(prop.url);
     }
     cache.keepNext(next);
+    // The scene that has just left goes first: the two wanted are the most that is ever held.
+    cache.trim?.();
     for (const url of next) {
       if (mine !== preparing) return;
       throwIfAborted(signal);
@@ -468,6 +486,19 @@ export function createSceneLoader({
         if (error?.retryable === false) absent.add(url);
       }
     }
+  }
+
+  /**
+   * The most that may be held while the next scene is decoded ahead: the budget, or the story's
+   * heaviest scene with the headroom this device was given, whichever is more.
+   */
+  function aheadCeiling(viewport) {
+    let heaviest = 0;
+    for (let index = 0; index < sceneCount(); index += 1) {
+      heaviest = Math.max(heaviest, sceneBytes(plan(index, viewport).props));
+    }
+    const headroom = cache.budget >= DEFAULT_BUDGET_BYTES ? AHEAD_HEADROOM : 1;
+    return Math.max(cache.budget, heaviest * headroom);
   }
 
   /** The host published another scene: everything below plans from it now. */
@@ -525,6 +556,9 @@ export function createSceneLoader({
     if (keep) {
       cache.keep(sceneKeepUrls(scenePlan));
       refused = new Set();
+      // A performance's cut that still has sheets to decode lets go of the scene it leaves
+      // before it decodes them, not as they land: the two scenes whole are several hundred MB.
+      if (story.bundle?.performance) cache.trim?.();
     }
 
     throwIfAborted(signal);
@@ -745,6 +779,10 @@ export function createSceneLoader({
     warned.add(key);
     onWarning(detail);
   }
+}
+
+function sceneBytes(props) {
+  return props.reduce((sum, prop) => sum + prop.bytes, 0);
 }
 
 function throwIfAborted(signal) {
