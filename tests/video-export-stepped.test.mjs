@@ -53,7 +53,7 @@ function world({ plan = {}, run = null, wrote = false } = {}) {
     },
     MediaStream: class { constructor(tracks) { this.tracks = tracks; } getTracks() { return []; } },
     MediaRecorder: class {
-      constructor() { calls.recorders += 1; this.state = 'inactive'; this.handlers = {}; }
+      constructor(stream, options) { calls.recorders += 1; calls.recorderOptions = options; this.state = 'inactive'; this.handlers = {}; }
       addEventListener(type, handler) { (this.handlers[type] ??= []).push(handler); }
       start() { this.state = 'recording'; } pause() {} resume() {}
       stop() {
@@ -159,6 +159,22 @@ test('once any of the file has left, a stepped take’s failure is the take’s'
   assert.equal(w.calls.begin.length, 1, 'half a file is never followed by a second one');
   assert.equal(w.calls.recorders, 0);
   assert.equal(w.exporter.state().status, 'failed');
+});
+
+test('Full HD keeps its frame and bitrate when a stepped take falls back to filming', async () => {
+  const w = world({ run: async () => { throw new Error('encoder unavailable'); } });
+  const saving = w.record({ resolution: 1080 });
+  await settle();
+  assert.equal(w.created[0].options.bitrate, 3_600_000);
+  assert.deepEqual(w.calls.begin.map(({ size }) => size), [
+    { width: 1920, height: 1080 }, { width: 1920, height: 1080 },
+  ]);
+  assert.equal(w.calls.recorderOptions.videoBitsPerSecond, 3_600_000);
+  void w.exporter.endOfStory();
+  await saving;
+  for (const resolution of [0, 480, 2160, '1080', null]) {
+    await assert.rejects(w.record({ resolution }), /resolution must be 720 or 1080/);
+  }
 });
 
 test('stopping a stepped take stops it, and a story that cannot be stepped is filmed without a word', async () => {

@@ -918,7 +918,14 @@ that. The exported canvas includes that same mark, always with its name, and
 the current subtitle preference. Ordinary playback retains accessible DOM
 captions.
 
-`recordVideo()` performs a complete story again at up to 1280×720 / 24 fps,
+`recordVideo()` performs a complete story again at 1280×720 / 24 fps by default;
+`recordVideo({ resolution: 1080 })` draws and encodes at 1920×1080 / 24 fps.
+Only `720` and `1080` are accepted. Full HD raises the picture bitrate from
+1.6 to 3.6 Mbps, including when a stepped take falls back to filming. It renders
+the larger frame directly; it does not enlarge a finished 720p video. Existing
+hosts keep their default. The backend preview worker explicitly requests Full HD
+and verifies the resulting dimensions, because old builds ignore unknown options.
+The take
 routes narration and music through one Web Audio graph and resolves with an
 MP4 `File`. Legacy plates are copied into the canvas only while exporting;
 an unavailable or origin-unclean background fails the take instead of producing

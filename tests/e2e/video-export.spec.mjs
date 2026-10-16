@@ -148,7 +148,7 @@ test('a host keeps the file itself, and a cancelled take hands over nothing', as
   await expect(page.locator('#player .recording-status')).toBeHidden();
 });
 
-test('a performance is stepped rather than filmed where the browser can encode it, and either take is the same film', async ({ page }, testInfo) => {
+test('Full HD is rendered at 1920×1080 for stepped, filmed and streamed takes', async ({ page }, testInfo) => {
   test.setTimeout(60_000);
   await page.goto(base);
   await page.evaluate(() => window.ready);
@@ -171,7 +171,7 @@ test('a performance is stepped rather than filmed where the browser can encode i
         const options = mode === 'streamed'
           ? { onChunk: async (piece, index) => { pieces[index] = piece; await new Promise((resolve) => { setTimeout(resolve, 1); }); } }
           : { mode };
-        window.take = window.player.recordVideo({ ...options, onProgress: (state) => seen.push(state) }).then(async (file) => ({
+        window.take = window.player.recordVideo({ ...options, resolution: 1080, onProgress: (state) => seen.push(state) }).then(async (file) => ({
           fast: seen.some((state) => state.fast === true), statuses: [...new Set(seen.map((state) => state.status))],
           tookMs: performance.now() - started, size: file.size, pieces: pieces.length, largest: Math.max(0, ...pieces.map((piece) => piece.size)),
           base64: await encode(mode === 'streamed' ? new Blob(pieces) : file),
@@ -189,8 +189,8 @@ test('a performance is stepped rather than filmed where the browser can encode i
     await testInfo.attach(`${mode}-take`, { body: bytes, contentType: 'video/mp4' });
     expect(bytes.subarray(4, 8).toString('latin1')).toBe('ftyp');
     const decoded = await inspectFile(page, bytes);
-    expect(decoded.width).toBe(1280);
-    expect(decoded.height).toBe(720);
+    expect(decoded.width).toBe(1920);
+    expect(decoded.height).toBe(1080);
     // The story and the second its last word is given to finish.
     expect(decoded.duration).toBeGreaterThan(3.8);
     expect(decoded.duration).toBeLessThan(6);

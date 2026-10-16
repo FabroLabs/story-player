@@ -47,7 +47,7 @@ const AUDIO_CODECS = [
  *
  * `null` when it cannot; the answer is asked of the browser, so it is a promise.
  */
-export async function planFastTake({ story, size, globalObject = globalThis }) {
+export async function planFastTake({ story, size, bitrate = VIDEO_BITS_PER_SECOND, globalObject = globalThis }) {
   const g = globalObject;
   if (!story?.performance || !Array.isArray(story.audio)) return null;
   if (story.audio.some((cue) => cue.loop)) return null;
@@ -61,7 +61,7 @@ export async function planFastTake({ story, size, globalObject = globalThis }) {
   };
   let video = null;
   for (const option of VIDEO_CODECS) {
-    const config = { ...option.config, width: size.width, height: size.height, bitrate: VIDEO_BITS_PER_SECOND, framerate: VIDEO_FPS };
+    const config = { ...option.config, width: size.width, height: size.height, bitrate, framerate: VIDEO_FPS };
     if (await supported(g.VideoEncoder, config)) { video = option; break; }
   }
   let audio = null;
@@ -78,6 +78,7 @@ export async function planFastTake({ story, size, globalObject = globalThis }) {
  */
 export function createFastTake(plan, {
   story, canvas, durationMs, tailMs, onChunk = null, memoryLimit, signal = null, globalObject = globalThis,
+  bitrate = VIDEO_BITS_PER_SECOND,
 }) {
   const g = globalObject;
   const clock = createTimebase(g);
@@ -156,7 +157,7 @@ export function createFastTake(plan, {
     });
     videoEncoder.configure({
       ...plan.video.config, width: sheet.width, height: sheet.height, framerate: VIDEO_FPS,
-      bitrate: videoBitsFor(endMs, onChunk ? 0 : memoryLimit), latencyMode: 'quality',
+      bitrate: videoBitsFor(endMs, onChunk ? 0 : memoryLimit, bitrate), latencyMode: 'quality',
     });
     audioEncoder = new g.AudioEncoder({
       output(chunk, metadata) {
