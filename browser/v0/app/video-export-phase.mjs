@@ -2,7 +2,7 @@ import { NARRATION_GRACE_MS } from '../policy.mjs';
 import { clockText } from './controls.mjs';
 import { createFastTake, planFastTake } from './fast-export.mjs';
 import {
-  EXPORT_MEMORY_BYTES, VIDEO_FPS, VIDEO_SIZE, createAudioTap, createRecording, fileNameFor, saveVideoFile,
+  EXPORT_MEMORY_BYTES, VIDEO_BITS_PER_SECOND, VIDEO_FPS, VIDEO_SIZE, createAudioTap, createRecording, fileNameFor, saveVideoFile,
 } from './video-export.mjs';
 
 // The story stops on its last word, and the word is let finish rather than cut
@@ -78,6 +78,7 @@ export function createVideoExport({
    */
   async function record({
     offer = false, onProgress = null, onChunk = null, signal = null, audioContext = null, mode = 'auto',
+    resolution = 720,
   } = {}) {
     if (destroyed) throw new Error('this player was destroyed');
     if (signal?.aborted) throw aborted();
@@ -88,6 +89,7 @@ export function createVideoExport({
       throw new TypeError('audioContext must be an AudioContext');
     }
     if (mode !== 'auto' && mode !== 'filmed') throw new TypeError('mode must be auto or filmed');
+    if (resolution !== 720 && resolution !== 1080) throw new TypeError('resolution must be 720 or 1080');
     if (!support.ok) throw new Error(support.reason);
     if (take) throw new Error('a video of this story is already being recorded');
     const player = runtime();
@@ -103,6 +105,8 @@ export function createVideoExport({
     const mine = {
       tap, recording: null, fast: null, ending: false, failed: null, settle: null, onProgress,
       paused: false, tail: null, tailRemaining: TAIL_MS, tailStarted: 0, tailDone: null,
+      size: resolution === 1080 ? { width: 1920, height: 1080 } : VIDEO_SIZE,
+      bitrate: resolution === 1080 ? 3_600_000 : VIDEO_BITS_PER_SECOND,
     };
     const finished = new Promise((resolve, reject) => { mine.settle = { resolve, reject }; });
     // Settled before anybody awaits it when the take is stopped while the story
@@ -149,14 +153,16 @@ export function createVideoExport({
     // Filming needs the page in front: a hidden one draws no frames to film.
     if (document?.visibilityState === 'hidden') throw new Error('keep the app open while saving');
     await Promise.race([
-      player.beginExport({ output: mine.tap, size: VIDEO_SIZE, onError: (error) => stop(mine, error) }),
+      player.beginExport({ output: mine.tap, size: mine.size, onError: (error) => stop(mine, error) }),
       finished,
     ]);
     if (mine.failed) throw mine.failed;
     const video = canvas.captureStream(VIDEO_FPS).getVideoTracks();
     const stream = new globalObject.MediaStream([...video, ...mine.tap.stream.getAudioTracks()]);
     mine.recording = createRecording(stream, {
-      mimeType: support.mimeType, globalObject, onChunk, onError: (error) => stop(mine, error),
+      // Let the encoder choose a level that supports the larger frame.
+      mimeType: mine.size.height === 1080 ? support.mimeType.replace('avc1.42E01F', 'avc1') : support.mimeType,
+      bitrate: mine.bitrate, globalObject, onChunk, onError: (error) => stop(mine, error),
       durationMs: player.getState()?.durationMs ?? 0,
     });
     begin();
@@ -173,16 +179,16 @@ export function createVideoExport({
    */
   async function stepped(mine, player, { onChunk, signal }) {
     const bundle = story();
-    const plan = await Promise.resolve(stepping.plan({ story: bundle, size: VIDEO_SIZE, globalObject })).catch(() => null);
+    const plan = await Promise.resolve(stepping.plan({ story: bundle, size: mine.size, bitrate: mine.bitrate, globalObject })).catch(() => null);
     if (!plan) return null;
     if (mine.failed) throw mine.failed;
     const fast = stepping.create(plan, {
       story: bundle, canvas, durationMs: player.getState()?.durationMs ?? 0, tailMs: TAIL_MS,
-      onChunk, memoryLimit: EXPORT_MEMORY_BYTES, signal, globalObject,
+      onChunk, memoryLimit: EXPORT_MEMORY_BYTES, bitrate: mine.bitrate, signal, globalObject,
     });
     mine.fast = fast;
     try {
-      await player.beginExport({ output: null, size: VIDEO_SIZE, onError: (error) => stop(mine, error), timebase: fast.timebase });
+      await player.beginExport({ output: null, size: mine.size, onError: (error) => stop(mine, error), timebase: fast.timebase });
       if (mine.failed) throw mine.failed;
       emit(mine, 'recording');
       showStatus('recording', `saving video · ${clockText(0)} / ${clockText(player.getState()?.durationMs ?? 0)}`);
