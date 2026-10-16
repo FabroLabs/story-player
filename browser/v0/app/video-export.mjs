@@ -45,10 +45,10 @@ const REVOKE_AFTER_MS = 60_000;
  * a little less per second rather than refused at the end; a take streamed to a
  * host (`limit` 0) has no ceiling and keeps the full rate.
  */
-export function videoBitsFor(durationMs, limit) {
-  if (!(limit > 0) || !(durationMs > 0)) return VIDEO_BITS_PER_SECOND;
+export function videoBitsFor(durationMs, limit, bitrate = VIDEO_BITS_PER_SECOND) {
+  if (!(limit > 0) || !(durationMs > 0)) return bitrate;
   const fits = Math.floor(limit * 0.9 * 8 / (durationMs / 1000)) - AUDIO_BITS_PER_SECOND;
-  return Math.max(300_000, Math.min(VIDEO_BITS_PER_SECOND, fits));
+  return Math.max(300_000, Math.min(bitrate, fits));
 }
 
 /**
@@ -147,13 +147,14 @@ export function createAudioTap(context) {
 export function createRecording(stream, {
   mimeType, onError = () => {}, onChunk = null, globalObject = globalThis,
   memoryLimit = EXPORT_MEMORY_BYTES, queueLimit = EXPORT_QUEUE_BYTES, durationMs = 0,
+  bitrate = VIDEO_BITS_PER_SECOND,
 }) {
   if (onChunk !== null && typeof onChunk !== 'function') throw new TypeError('onChunk must be a function');
   let recorder;
   try {
     recorder = new globalObject.MediaRecorder(stream, {
       mimeType,
-      videoBitsPerSecond: videoBitsFor(durationMs, onChunk ? 0 : memoryLimit),
+      videoBitsPerSecond: videoBitsFor(durationMs, onChunk ? 0 : memoryLimit, bitrate),
       audioBitsPerSecond: AUDIO_BITS_PER_SECOND,
     });
   } catch (error) {
