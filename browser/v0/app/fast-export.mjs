@@ -1,4 +1,4 @@
-import { NARRATION_GRACE_MS } from '../policy.mjs';
+import { mixCue, soundCuesFor, updateMusicRamps, windowEnd } from './export-audio.mjs';
 import { looksLikeMp4, readM4a } from './m4a-reader.mjs';
 import { createMp4Writer, videoTicks } from './mp4-writer.mjs';
 import {
@@ -16,8 +16,8 @@ import {
  * encode, not how long the story is; a device that falls behind is slower, and
  * the file is never choppy for it.
  *
- * It is offered only where every part of it is known to work: a performance
- * (whose sound is one schedule of files), a browser that can encode picture and
+ * It is offered only where every part of it is known to work: a performance or canvas lesson
+ * (whose sound can be mixed from its schedule), a browser that can encode picture and
  * sound itself, and sound this file can read. Anything else answers `null` or
  * throws before a byte is written, and the take is filmed as it always was.
  */
@@ -32,10 +32,11 @@ const FETCHES = 6;
 // The story stands still this long with nothing arriving before the take gives up.
 const STALL_MS = 30_000;
 
+// Level 4.2 AVC and level 4.1 VP9 accommodate native 1080p at 60 fps.
 const VIDEO_CODECS = [
-  { codec: 'avc', config: { codec: 'avc1.640028', avc: { format: 'avc' } } },
-  { codec: 'avc', config: { codec: 'avc1.42E01F', avc: { format: 'avc' } } },
-  { codec: 'vp9', config: { codec: 'vp09.00.31.08' } },
+  { codec: 'avc', config: { codec: 'avc1.64002A', avc: { format: 'avc' } } },
+  { codec: 'avc', config: { codec: 'avc1.42E02A', avc: { format: 'avc' } } },
+  { codec: 'vp9', config: { codec: 'vp09.00.41.08' } },
 ];
 const AUDIO_CODECS = [
   { codec: 'aac', config: { codec: 'mp4a.40.2' } },
@@ -47,10 +48,10 @@ const AUDIO_CODECS = [
  *
  * `null` when it cannot; the answer is asked of the browser, so it is a promise.
  */
-export async function planFastTake({ story, size, bitrate = VIDEO_BITS_PER_SECOND, globalObject = globalThis }) {
+export async function planFastTake({ story, size, bitrate = VIDEO_BITS_PER_SECOND, globalObject = globalThis, timeline = null, board = null }) {
   const g = globalObject;
-  if (!story?.performance || !Array.isArray(story.audio)) return null;
-  if (story.audio.some((cue) => cue.loop)) return null;
+  const cues = soundCuesFor({ story, timeline, board });
+  if (!cues || (story?.performance && cues.some((cue) => cue.loop))) return null;
   for (const name of ['VideoEncoder', 'VideoFrame', 'AudioEncoder', 'AudioData', 'MessageChannel']) {
     if (typeof g[name] !== 'function') return null;
   }
@@ -69,7 +70,7 @@ export async function planFastTake({ story, size, bitrate = VIDEO_BITS_PER_SECON
     const config = { ...option.config, sampleRate: 48000, numberOfChannels: 2, bitrate: AUDIO_BITS_PER_SECOND };
     if (await supported(g.AudioEncoder, config)) { audio = option; break; }
   }
-  return video && audio ? { video, audio } : null;
+  return video && audio ? { video, audio, cues } : null;
 }
 
 /**
@@ -86,6 +87,7 @@ export function createFastTake(plan, {
   const endMs = durationMs + tailMs;
   let videoEncoder = null;
   let audioEncoder = null;
+  let sound = null;
   let closed = false;
 
   return {
@@ -104,7 +106,7 @@ export function createFastTake(plan, {
    */
   async function run({ player, begin, control, onProgress = () => {} }) {
     const sheet = createSheet(canvas, g);
-    const sound = await openSound({ story, endMs, plan, signal, globalObject: g });
+    sound = await openSound({ cues: plan.cues, endMs, plan, signal, globalObject: g });
     let failure = null;
     const fail = (error) => { failure ??= error instanceof Error ? error : new Error(String(error)); };
     const check = () => {
@@ -205,6 +207,8 @@ export function createFastTake(plan, {
     };
 
     begin();
+    await player.awaitExportFrame?.(control.stopped);
+    check();
     // Starting the story draws its first instant; time has not moved yet.
     encodeFrame(0);
     let last = 0;
@@ -213,6 +217,8 @@ export function createFastTake(plan, {
       check();
       if (control.paused()) { await wait(g, 100); continue; }
       clock.step(FRAME_MS);
+      await player.awaitExportFrame?.(control.stopped);
+      check();
       const state = player.getState();
       const tMs = Math.min(state?.tMs ?? 0, durationMs);
       const ended = control.ending() || state?.ended === true;
@@ -250,6 +256,7 @@ export function createFastTake(plan, {
     writer.finish();
     await sink.drain(true);
     sound.close();
+    sound = null;
     return sink.result();
   }
 
@@ -259,6 +266,8 @@ export function createFastTake(plan, {
     for (const encoder of [videoEncoder, audioEncoder]) {
       try { if (encoder && encoder.state !== 'closed') encoder.close(); } catch { /* already gone */ }
     }
+    sound?.close();
+    sound = null;
     sink.discard();
   }
 }
@@ -377,9 +386,9 @@ function createSink({ onChunk, memoryLimit, globalObject: g }) {
  * reaches them and let go once it has passed. A long one is read through its
  * own table of contents, a second at a time.
  */
-async function openSound({ story, endMs, plan, signal, globalObject: g }) {
+async function openSound({ cues: schedule, endMs, plan, signal, globalObject: g }) {
   // A resolved story names each file by `url`; `media` is its place in the store.
-  const cues = story.audio
+  const cues = schedule
     .map((cue) => ({ ...cue, media: cue.url ?? cue.media }))
     .filter((cue) => typeof cue.media === 'string' && cue.start_ms < endMs && audible(cue, endMs));
   const files = new Map();
@@ -453,28 +462,18 @@ async function openSound({ story, endMs, plan, signal, globalObject: g }) {
       const left = new Float32Array(count);
       const right = new Float32Array(count);
       const to = from + count;
+      const active = [];
       for (const cue of cues) {
         const start = frameOf(cue.start_ms);
         const end = frameOf(windowEnd(cue));
         if (start >= to) continue;
         if (end <= from) { release(cue, from); continue; }
         const source = await sourceOf(cue);
-        const a = Math.max(from, start);
-        const b = Math.min(to, start + source.length, end);
-        if (b <= a) continue;
-        const pcm = await source.read(a - start, b - a);
-        const second = pcm[1] ?? pcm[0];
-        // The volume steps at its keys: each stretch between two is one gain.
-        const steps = [a, ...(cue.gain_keys ?? []).map(([ms]) => frameOf(ms)).filter((frame) => frame > a && frame < b), b];
-        for (let i = 0; i + 1 < steps.length; i += 1) {
-          const gain = volumeAt(cue, steps[i] * 1000 / rate);
-          if (gain === 0) continue;
-          for (let frame = steps[i]; frame < steps[i + 1]; frame += 1) {
-            left[frame - from] += pcm[0][frame - a] * gain;
-            right[frame - from] += second[frame - a] * gain;
-          }
-        }
+        if (!cue.loop) cue.source_end_ms = cue.start_ms + source.length * 1000 / rate;
+        active.push({ cue, source });
       }
+      updateMusicRamps(cues);
+      for (const { cue, source } of active) await mixCue(cue, source, from, left, right, rate);
       return [left, right];
     },
     close() {
@@ -485,25 +484,9 @@ async function openSound({ story, endMs, plan, signal, globalObject: g }) {
   };
 }
 
-/** When a cue stops sounding: a line of narration may finish its last word. */
-function windowEnd(cue) {
-  const end = cue.end_ms ?? cue.start_ms + cue.duration_ms;
-  return cue.kind === 'narration' ? end + NARRATION_GRACE_MS : end;
-}
-
-/** A cue's volume at an instant: its own, or the last key at or before it. */
-function volumeAt(cue, tMs) {
-  let volume = cue.volume ?? 1;
-  for (const [at, value] of cue.gain_keys ?? []) {
-    // Half a frame of leeway: a step found by its frame is a hair before its key.
-    if (at > tMs + 0.5) break;
-    volume = value;
-  }
-  return Math.max(0, Math.min(1, volume));
-}
-
 /** Whether a cue is ever heard before `endMs`: a bed that is silent throughout is not fetched. */
 function audible(cue, endMs) {
+  if (cue.gain_ramps?.length) return cue.gain_ramps.some(ramp => ramp.start_ms < endMs && (ramp.from > 0 || ramp.to > 0));
   if (!cue.gain_keys?.length) return (cue.volume ?? 1) > 0;
   const before = cue.gain_keys.filter(([at]) => at < endMs);
   const startsHeard = (cue.gain_keys[0][0] > cue.start_ms ? (cue.volume ?? 1) : 0) > 0;

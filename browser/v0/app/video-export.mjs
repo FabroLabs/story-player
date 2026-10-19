@@ -12,21 +12,21 @@
  */
 
 export const VIDEO_SIZE = Object.freeze({ width: 1280, height: 720 });
-export const VIDEO_FPS = 24;
+export const VIDEO_FPS = 60;
 // H.264 with AAC first: the pair every phone's gallery plays. Then any mp4 the
 // browser can make — a Chromium built without the licensed codecs makes VP9
 // with Opus. A browser that can only make webm gets no button: the file is
 // promised as an mp4.
 export const MP4_TYPES = Object.freeze([
-  'video/mp4;codecs=avc1.42E01F,mp4a.40.2',
+  'video/mp4;codecs=avc1.64002A,mp4a.40.2',
   'video/mp4;codecs=avc1,mp4a.40.2',
   'video/mp4;codecs=avc1,opus',
   'video/mp4;codecs=vp9,opus',
   'video/mp4',
 ]);
-// About 13 MB a minute: a drawn picture compresses well, and the file is meant
-// to be kept on a phone.
-export const VIDEO_BITS_PER_SECOND = 1_600_000;
+// Preserve fine artwork and 60 fps motion at 720p; Full HD uses twice this rate.
+// Memory-backed takes still respect their byte budget through videoBitsFor.
+export const VIDEO_BITS_PER_SECOND = 8_000_000;
 export const AUDIO_BITS_PER_SECOND = 96_000;
 // The recorder emits once a second. Browser files remain in bounded memory;
 // native hosts acknowledge bounded chunks without retaining the whole story.

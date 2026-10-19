@@ -9,7 +9,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { afterStep } from '../browser/v0/app/fast-export.mjs';
+import { afterStep, planFastTake } from '../browser/v0/app/fast-export.mjs';
 import { createVideoExport } from '../browser/v0/app/video-export-phase.mjs';
 import { fakeElement } from './_dom.mjs';
 
@@ -161,15 +161,15 @@ test('once any of the file has left, a stepped take’s failure is the take’s'
   assert.equal(w.exporter.state().status, 'failed');
 });
 
-test('Full HD keeps its frame and bitrate when a stepped take falls back to filming', async () => {
+test('default Full HD keeps its frame and bitrate when a stepped take falls back to filming', async () => {
   const w = world({ run: async () => { throw new Error('encoder unavailable'); } });
-  const saving = w.record({ resolution: 1080 });
+  const saving = w.record();
   await settle();
-  assert.equal(w.created[0].options.bitrate, 3_600_000);
+  assert.equal(w.created[0].options.bitrate, 16_000_000);
   assert.deepEqual(w.calls.begin.map(({ size }) => size), [
     { width: 1920, height: 1080 }, { width: 1920, height: 1080 },
   ]);
-  assert.equal(w.calls.recorderOptions.videoBitsPerSecond, 3_600_000);
+  assert.equal(w.calls.recorderOptions.videoBitsPerSecond, 16_000_000);
   void w.exporter.endOfStory();
   await saving;
   for (const resolution of [0, 480, 2160, '1080', null]) {
@@ -211,15 +211,51 @@ test('a host may ask for the filmed take by name, and any other name is refused'
 
 test('a step of the clock is a frame, the end, or a wait — and a story standing on a sliver is always a wait', () => {
   const step = (tMs, last, ended = false) => afterStep({ tMs, last, durationMs: 4000, ended });
-  assert.equal(step(42, 0), 'frame', 'time moved a frame on');
+  assert.equal(step(17, 0), 'frame', 'time moved a frame on');
   assert.equal(step(1000, 1000), 'wait', 'the story is holding for a picture');
   // Back from a hold a hair past the last frame: the loop must yield here, or
   // a story that holds again on that hair is stepped for ever.
   assert.equal(step(1002, 1000), 'wait');
-  assert.equal(step(1020, 1000), 'wait');
-  assert.equal(step(1021, 1000), 'frame');
+  assert.equal(step(1008, 1000), 'wait');
+  assert.equal(step(1009, 1000), 'frame');
   assert.equal(step(4000, 3990), 'frame', 'the story’s last instant is written however close it falls');
   assert.equal(step(4000, 4000, true), 'end');
   assert.equal(step(1000, 1000, true), 'end', 'a take told the story ended stops waiting');
   assert.equal(step(4000, 4000), 'wait', 'and one not yet told so does not guess');
+});
+
+
+test('a streamed ten-minute preview budgets picture and sound inside its host limit', async () => {
+  const w = world();
+  w.state.durationMs = 640_000;
+  const limit = 512 * 1024 * 1024;
+  const saving = w.record({ onChunk: async () => {}, maxBytes: limit });
+  await settle();
+  const bitrate = w.created[0].options.bitrate;
+  assert.ok((bitrate + 96_000) * 641 / 8 <= limit * 0.9, 'the requested encode exceeds the host byte budget');
+  assert.ok(bitrate > 5_000_000, 'a long preview was reduced more than its budget requires');
+  w.pending.resolve({ size: 7 });
+  await saving;
+  for (const maxBytes of [0, -1, Infinity, 1.5, '512']) {
+    await assert.rejects(w.record({ maxBytes }), /maxBytes/);
+  }
+});
+
+
+test('Full HD plans use 60 fps and codec levels that can carry it', async () => {
+  const asked = [];
+  const supported = class {
+    static async isConfigSupported(config) { asked.push(config); return { supported: true }; }
+  };
+  const available = class {};
+  const plan = await planFastTake({
+    story: { performance: {}, audio: [] }, size: { width: 1920, height: 1080 },
+    globalObject: {
+      VideoEncoder: supported, AudioEncoder: supported,
+      VideoFrame: available, AudioData: available, MessageChannel: available,
+      OfflineAudioContext: available, OffscreenCanvas: available,
+    },
+  });
+  assert.equal(plan.video.config.codec, 'avc1.64002A');
+  assert.equal(asked[0].framerate, 60);
 });

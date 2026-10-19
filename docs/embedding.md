@@ -918,15 +918,32 @@ that. The exported canvas includes that same mark, always with its name, and
 the current subtitle preference. Ordinary playback retains accessible DOM
 captions.
 
-`recordVideo()` performs a complete story again at 1280×720 / 24 fps by default;
-`recordVideo({ resolution: 1080 })` draws and encodes at 1920×1080 / 24 fps.
-Only `720` and `1080` are accepted. Full HD raises the picture bitrate from
-1.6 to 3.6 Mbps, including when a stepped take falls back to filming. It renders
-the larger frame directly; it does not enlarge a finished 720p video. Existing
-hosts keep their default. The backend preview worker explicitly requests Full HD
-and verifies the resulting dimensions, because old builds ignore unknown options.
-The take
-routes narration and music through one Web Audio graph and resolves with an
+`recordVideo()` performs a complete story again at 1920×1080 / 60 fps by default;
+`recordVideo({ resolution: 720 })` explicitly selects 1280×720 / 60 fps.
+Only `720` and `1080` are accepted. The picture bitrate is 16 Mbps at Full HD and
+8 Mbps at 720p, including when a stepped take falls back to filming. The stage
+renders at the requested size directly. Files can be larger; in-memory exports
+still reduce their bitrate when needed to fit the existing 128 MiB budget, while
+hosts streaming chunks retain the full target bitrate unless they supply
+`maxBytes`. That optional positive integer budgets picture plus sound over the
+story and its final-word tail, reserves 10% for encoder variation and the
+container, and rejects a chunk before it would cross the limit. An in-memory
+save also honors `maxBytes`, up to its existing 128 MiB ceiling. The backend preview
+worker explicitly requests Full HD and verifies the resulting dimensions,
+because old builds ignore unknown options.
+
+Export timing is independent of playback throttling: each stepped frame is
+drawn before encoding, and filmed exports carry fractional frame intervals
+across display ticks. Canvas capture follows each paint without a second timer.
+Stepped exports render 60 frames per story second even when encoding takes
+longer. Filmed fallback targets 60 fps but depends on the display refresh and
+device keeping up; it cannot promise that rate on slower hardware. Existing
+sprite artwork and video plates keep their authored frame cadence within the
+60 fps output. Normal playback keeps its existing adaptive cadence.
+Hosts must load the new immutable player build to receive these corrections;
+previously downloaded MP4s must be exported again.
+A filmed take routes narration and music through one Web Audio graph; a
+stepped take mixes them from their schedule. Both resolve with an
 MP4 `File`. Legacy plates are copied into the canvas only while exporting;
 an unavailable or origin-unclean background fails the take instead of producing
 a cast on black. Intro/end cards and the long bedtime wind-down are omitted.
@@ -939,9 +956,14 @@ clock by hand, reads each frame off the canvas into the browser's own encoder,
 mixes the sound from the story's schedule and writes the mp4 itself
 (`mp4-writer.mjs`). It takes as long as the device needs to draw and encode — a
 few times faster than the story on a laptop — and a slow device makes it slower,
-never choppy. It is used for a performance (`performance.kind`) in a browser with
+never choppy. It is used for a performance (`performance.kind`) or a canvas
+lesson (`board.world`) in a browser with
 `VideoEncoder` and `AudioEncoder`, whose sound is short files plus AAC-in-mp4 for
-anything long (`m4a-reader.mjs` reads a long bed a second at a time). Anything
+anything long (`m4a-reader.mjs` reads a long bed a second at a time). Canvas
+lessons mix narration, one-shot effects and looping music with fades and
+narration ducking. Each frame waits for required scene and sprite images before
+encoding, so loading does not insert an old picture. Actual video plates remain
+filmed because their playback follows wall time. Anything
 else is filmed, which takes the story's duration; a stepped take that cannot
 start is abandoned for a filmed one before any of the file exists, with a
 warning in the log. `recordVideo({ mode: 'filmed' })` asks for the filmed take by
