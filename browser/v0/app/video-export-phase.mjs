@@ -2,7 +2,7 @@ import { NARRATION_GRACE_MS } from '../policy.mjs';
 import { clockText } from './controls.mjs';
 import { createFastTake, planFastTake } from './fast-export.mjs';
 import {
-  EXPORT_MEMORY_BYTES, VIDEO_BITS_PER_SECOND, VIDEO_FPS, VIDEO_SIZE, createAudioTap, createRecording, fileNameFor, saveVideoFile,
+  EXPORT_MEMORY_BYTES, VIDEO_BITS_PER_SECOND, VIDEO_SIZE, createAudioTap, createRecording, fileNameFor, saveVideoFile, videoBitsFor,
 } from './video-export.mjs';
 
 // The story stops on its last word, and the word is let finish rather than cut
@@ -31,7 +31,7 @@ const TAIL_MS = NARRATION_GRACE_MS;
  * keeps it itself.
  */
 export function createVideoExport({
-  elements, support, saving, download = null, runtime, begin, title, story = () => null, hostControls = false,
+  elements, support, saving, download = null, runtime, begin, title, story = () => null, timeline = () => null, board = null, hostControls = false,
   onWarning = () => {}, stepping = { plan: planFastTake, create: createFastTake }, globalObject = globalThis,
 }) {
   const { status, item, canvas } = elements;
@@ -78,7 +78,7 @@ export function createVideoExport({
    */
   async function record({
     offer = false, onProgress = null, onChunk = null, signal = null, audioContext = null, mode = 'auto',
-    resolution = 720,
+    resolution = 1080, maxBytes = null,
   } = {}) {
     if (destroyed) throw new Error('this player was destroyed');
     if (signal?.aborted) throw aborted();
@@ -90,6 +90,7 @@ export function createVideoExport({
     }
     if (mode !== 'auto' && mode !== 'filmed') throw new TypeError('mode must be auto or filmed');
     if (resolution !== 720 && resolution !== 1080) throw new TypeError('resolution must be 720 or 1080');
+    if (maxBytes !== null && (!Number.isSafeInteger(maxBytes) || maxBytes <= 0)) throw new TypeError('maxBytes must be a positive safe integer');
     if (!support.ok) throw new Error(support.reason);
     if (take) throw new Error('a video of this story is already being recorded');
     const player = runtime();
@@ -102,11 +103,21 @@ export function createVideoExport({
     void Promise.resolve(context.resume?.()).catch(() => {});
     const tap = createAudioTap(context);
     tap.mute(true);
+    const memoryLimit = Math.min(EXPORT_MEMORY_BYTES, maxBytes ?? EXPORT_MEMORY_BYTES);
+    const byteBudget = onChunk ? (maxBytes ?? 0) : memoryLimit;
+    let written = 0;
+    const write = onChunk && byteBudget > 0 ? async (piece, index) => {
+      if (written + piece.size > byteBudget) throw new Error('this video exceeds the recording size limit');
+      written += piece.size;
+      await onChunk(piece, index);
+    } : onChunk;
     const mine = {
+      memoryLimit,
       tap, recording: null, fast: null, ending: false, failed: null, settle: null, onProgress,
       paused: false, tail: null, tailRemaining: TAIL_MS, tailStarted: 0, tailDone: null,
       size: resolution === 1080 ? { width: 1920, height: 1080 } : VIDEO_SIZE,
-      bitrate: resolution === 1080 ? 3_600_000 : VIDEO_BITS_PER_SECOND,
+      bitrate: videoBitsFor((player.getState()?.durationMs ?? 0) + TAIL_MS, byteBudget,
+        resolution === 1080 ? VIDEO_BITS_PER_SECOND * 2 : VIDEO_BITS_PER_SECOND),
     };
     const finished = new Promise((resolve, reject) => { mine.settle = { resolve, reject }; });
     // Settled before anybody awaits it when the take is stopped while the story
@@ -119,8 +130,8 @@ export function createVideoExport({
     emit(mine, 'preparing', { tMs: 0 });
     showStatus('recording', 'getting the story ready…');
     try {
-      const blob = (mode === 'auto' ? await stepped(mine, player, { onChunk, signal }) : null)
-        ?? await filmed(mine, player, { finished, onChunk });
+      const blob = (mode === 'auto' ? await stepped(mine, player, { onChunk: write, signal, finished }) : null)
+        ?? await filmed(mine, player, { finished, onChunk: write });
       const file = onChunk
         ? { name: fileNameFor(title()), type: 'video/mp4', size: blob.size }
         : new globalObject.File([blob], fileNameFor(title()), { type: 'video/mp4' });
@@ -157,12 +168,14 @@ export function createVideoExport({
       finished,
     ]);
     if (mine.failed) throw mine.failed;
-    const video = canvas.captureStream(VIDEO_FPS).getVideoTracks();
+    // The runtime already draws at the export cadence. A second capture timer
+    // can miss the shorter intervals between frames on a 60 Hz display.
+    const video = canvas.captureStream().getVideoTracks();
     const stream = new globalObject.MediaStream([...video, ...mine.tap.stream.getAudioTracks()]);
     mine.recording = createRecording(stream, {
       // Let the encoder choose a level that supports the larger frame.
       mimeType: mine.size.height === 1080 ? support.mimeType.replace('avc1.42E01F', 'avc1') : support.mimeType,
-      bitrate: mine.bitrate, globalObject, onChunk, onError: (error) => stop(mine, error),
+      memoryLimit: mine.memoryLimit, bitrate: mine.bitrate, globalObject, onChunk, onError: (error) => stop(mine, error),
       durationMs: player.getState()?.durationMs ?? 0,
     });
     begin();
@@ -177,14 +190,14 @@ export function createVideoExport({
    * the file exists yet, and the story is filmed instead. Once any of the file
    * has left, a failure is the take's.
    */
-  async function stepped(mine, player, { onChunk, signal }) {
+  async function stepped(mine, player, { onChunk, signal, finished }) {
     const bundle = story();
-    const plan = await Promise.resolve(stepping.plan({ story: bundle, size: mine.size, bitrate: mine.bitrate, globalObject })).catch(() => null);
+    const plan = await Promise.resolve(stepping.plan({ story: bundle, timeline: timeline(), board, size: mine.size, bitrate: mine.bitrate, globalObject })).catch(() => null);
     if (!plan) return null;
     if (mine.failed) throw mine.failed;
     const fast = stepping.create(plan, {
       story: bundle, canvas, durationMs: player.getState()?.durationMs ?? 0, tailMs: TAIL_MS,
-      onChunk, memoryLimit: EXPORT_MEMORY_BYTES, bitrate: mine.bitrate, signal, globalObject,
+      onChunk, memoryLimit: mine.memoryLimit, bitrate: mine.bitrate, signal, globalObject,
     });
     mine.fast = fast;
     try {
@@ -194,7 +207,7 @@ export function createVideoExport({
       showStatus('recording', `saving video · ${clockText(0)} / ${clockText(player.getState()?.durationMs ?? 0)}`);
       return await fast.run({
         player, begin,
-        control: { failed: () => mine.failed, paused: () => mine.paused, ending: () => mine.ending },
+        control: { stopped: finished, failed: () => mine.failed, paused: () => mine.paused, ending: () => mine.ending },
         onProgress: () => {
           emit(mine, mine.paused ? 'paused' : mine.ending ? 'finishing' : 'recording');
           const { tMs, durationMs } = player.getState();

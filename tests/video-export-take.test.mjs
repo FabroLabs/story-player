@@ -85,10 +85,10 @@ test('the menu records the story from its start, muted, and offers the finished 
   await settle();
   const [recorder] = browser.recorders;
   assert.ok(recorder, 'no recorder was started');
-  assert.deepEqual(recorder.stream.tracks, ['video-track@24', 'audio-track'], 'the take is not the canvas and the graph');
-  assert.equal(recorder.options.mimeType, 'video/mp4;codecs=avc1.42E01F,mp4a.40.2');
+  assert.deepEqual(recorder.stream.tracks, ['video-track@undefined', 'audio-track'], 'the take is not the canvas and the graph');
+  assert.equal(recorder.options.mimeType, 'video/mp4;codecs=avc1.64002A,mp4a.40.2');
   assert.equal(browser.contexts[0].speakers.gain.value, 0, 'the room hears the take');
-  assert.deepEqual([canvas.width, canvas.height], [1280, 720], 'the take is not drawn at its own frame');
+  assert.deepEqual([canvas.width, canvas.height], [1920, 1080], 'the take is not drawn at its own frame');
   assert.equal(player.getState().tMs, 0, 'the take did not start from the beginning');
   assert.equal(player.getState().playing, true);
   assert.equal(status.hidden, false);
@@ -363,3 +363,25 @@ function installRecordingBrowser(t) {
   });
   return browser;
 }
+
+
+test('filmed exports draw 60 motion frames on a 60 Hz display', async (t) => {
+  const story = fourSeconds();
+  story.scenes[0].nodes[0].path = {
+    start_ms: 0, end_ms: 4000, from: [100, 100], to: [800, 100], easing: 'linear',
+  };
+  const { player, frames, canvas } = await mount(t, { story });
+  const recording = player.recordVideo({ mode: 'filmed' });
+  const stopped = assert.rejects(recording, { name: 'AbortError' });
+  await settle();
+  let painted = 0;
+  for (let i = 1; i <= 60; i++) {
+    const before = canvas.context.calls.length;
+    frames.advanceTo(i * 1000 / 60);
+    if (canvas.context.calls.slice(before).some(([name]) => name === 'clearRect')) painted++;
+  }
+  player.cancelVideo();
+  await stopped;
+  assert.ok(painted >= 60, `only ${painted} motion frames were drawn in a second`);
+  assert.ok(painted <= 60, `the export ignored its output cadence (${painted} frames)`);
+});
