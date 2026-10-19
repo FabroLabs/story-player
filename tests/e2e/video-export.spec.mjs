@@ -92,8 +92,8 @@ test('the settings menu records the whole story and saves it as an mp4 with pict
   expect(bytes.includes(Buffer.from('soun'))).toBe(true);
   await testInfo.attach('saved-story', { path: file, contentType: 'video/mp4' });
   const decoded = await inspectFile(page, bytes);
-  expect(decoded.width).toBe(1280);
-  expect(decoded.height).toBe(720);
+  expect(decoded.width).toBe(1920);
+  expect(decoded.height).toBe(1080);
   expect(decoded.duration).toBeGreaterThan(3.8);
   expect(decoded.duration).toBeLessThan(6);
   expect(decoded.brandPixels).toBeGreaterThan(500);
@@ -215,6 +215,73 @@ test('Full HD is rendered at 1920×1080 for stepped, filmed and streamed takes',
   if (stepped) expect(takes.auto.tookMs).toBeLessThan(takes.filmed.tookMs);
 });
 
+test('a stepped export submits 60 distinct motion frames per second without cadence gaps', async ({ page }, testInfo) => {
+  test.setTimeout(40_000);
+  await page.goto(base);
+  await page.evaluate(() => window.ready);
+  const result = await page.evaluate(async () => {
+    // Observe the real encoder without replacing its work. A skipped render
+    // used to submit the previous picture with a fresh output timestamp.
+    const story = await (await fetch('/story.json')).json();
+    story.assets.hero = { type: 'image', media: 'fairytale-assets/hero.webp', width: 200, height: 100 };
+    story.scenes[0].nodes = [{ id: 'hero', asset: 'hero', x: 100, y: 250, height: 100,
+      path: { start_ms: 0, end_ms: 4000, from: [100, 250], to: [800, 250], easing: 'linear' } }];
+    player.destroy();
+    window.player = FabroStoryPlayer.createStoryPlayer(document.querySelector('#player'), { story, assetBase: location.origin });
+    await player.ready;
+    const submitted = [];
+    const positions = [];
+    const sample = new OffscreenCanvas(960, 540).getContext('2d', { willReadFrequently: true });
+    const encode = VideoEncoder.prototype.encode;
+    VideoEncoder.prototype.encode = function (frame, options) {
+      submitted.push(frame.timestamp);
+      sample.drawImage(frame, 0, 0, 960, 540);
+      const pixels = sample.getImageData(0, 120, 960, 150).data;
+      let sum = 0, count = 0;
+      for (let i = 0; i < pixels.length; i += 4) {
+        if (pixels[i + 1] > pixels[i] * 1.3 && pixels[i + 1] > pixels[i + 2] * 1.3) {
+          sum += (i / 4) % 960; count++;
+        }
+      }
+      positions.push(count ? sum / count : null);
+      return encode.call(this, frame, options);
+    };
+    const states = [];
+    try {
+      const file = await player.recordVideo({ resolution: 1080, onProgress: state => states.push(state) });
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      let data = '';
+      for (let at = 0; at < bytes.length; at += 8192) data += String.fromCharCode(...bytes.subarray(at, at + 8192));
+      return { submitted, positions, fast: states.some(state => state.fast), data: btoa(data) };
+    } finally { VideoEncoder.prototype.encode = encode; }
+  });
+  await testInfo.attach('cadence-take', { body: Buffer.from(result.data, 'base64'), contentType: 'video/mp4' });
+  expect(result.fast).toBe(true);
+  const storyFrames = result.submitted.filter(t => t < 4_000_000);
+  expect(storyFrames.length).toBeGreaterThanOrEqual(240);
+  await testInfo.attach('frame-positions', { body: JSON.stringify({ times: result.submitted, positions: result.positions }), contentType: 'application/json' });
+  for (let i = 1; i < storyFrames.length; i++) {
+    expect(storyFrames[i] - storyFrames[i - 1], `gap before frame ${i}`).toBeLessThanOrEqual(17_000);
+    expect(result.positions[i], `moving subject missing at frame ${i}`).not.toBeNull();
+    expect(result.positions[i] - result.positions[i - 1], `stale picture at frame ${i}`).toBeGreaterThan(0.25);
+  }
+});
+
+test('a streamed export never delivers bytes beyond the host budget', async ({ page }) => {
+  await page.goto(base);
+  await page.evaluate(() => window.ready);
+  const result = await page.evaluate(async () => {
+    let bytes = 0;
+    try {
+      await player.recordVideo({ maxBytes: 64, onChunk: async piece => { bytes += piece.size; } });
+      return { bytes, error: null };
+    } catch (error) { return { bytes, error: error.message }; }
+  });
+  expect(result.bytes).toBeLessThanOrEqual(64);
+  expect(result.error).toContain('size limit');
+  expect((await page.evaluate(() => player.getState())).playing).toBe(false);
+});
+
 test('a lesson in an illustrated world records its storybook narration, and plate capture is available', async ({ page }) => {
   test.setTimeout(40_000);
   await page.goto(base);
@@ -240,12 +307,13 @@ test('a lesson in an illustrated world records its storybook narration, and plat
     const button = document.createElement('button');
     button.textContent = 'record';
     button.onclick = () => {
-      window.take = window.player.recordVideo().then(async (file) => {
+      const states = [];
+      window.take = window.player.recordVideo({ onProgress: state => states.push(state) }).then(async (file) => {
         // The file's own sound, decoded: a take that recorded silence fails here.
         const samples = (await new AudioContext().decodeAudioData(await file.arrayBuffer())).getChannelData(0);
         let peak = 0;
         for (const sample of samples) peak = Math.max(peak, Math.abs(sample));
-        return { name: file.name, peak };
+        return { name: file.name, peak, fast: states.some(state => state.fast) };
       }, (error) => ({ error: error.message }));
     };
     document.body.append(button);
@@ -273,6 +341,7 @@ test('a lesson in an illustrated world records its storybook narration, and plat
   await page.getByRole('button', { name: 'record' }).click();
   const kept = await page.evaluate(() => window.take);
   expect(kept.name).toBe('A garden lesson.mp4');
+  expect(kept.fast).toBe(true);
   // The narration fixture peaks near 0.03 of full scale.
   expect(kept.peak).toBeGreaterThan(0.01);
 });
@@ -387,3 +456,64 @@ async function inspectFile(page, bytes) {
     return { ...metadata, brandPixels, captionPixels, colorPixels, audioPeak, frame: canvas.toDataURL().split(',')[1] };
   }, bytes.toString('base64'));
 }
+
+
+for (const cancelDuringLoad of [false, true]) test(cancelDuringLoad
+  ? 'cancelling a stepped lesson interrupts pending frame images'
+  : 'canvas lessons paint every 60 fps frame across scene cuts', async ({ page }) => {
+  if (cancelDuringLoad) await page.route('**/pack/slow.svg', () => {});
+  await page.goto(base);
+  await page.evaluate(() => window.ready);
+  const result = await page.evaluate(async (cancelDuringLoad) => {
+    player.destroy();
+    const svg = 'pack/scene.svg';
+    const story = {
+      storylang_version: 0, title: 'Two scenes',
+      cast: { helper: { height_cm: 30, capability: { idle: { camera: 'idle' } },
+        clips: { idle: { spritesheet: svg, frames: 1, fps: 1, grid: [1, 1] } } } },
+      objects: { garden: { svg, height_cm: 30 } }, audio: { sfx: {}, bgm: {} },
+      scenes: [0, 1].map(i => ({ place: 'garden', plate: { poster: svg, video: 'pack/plate.webm' },
+        steps: [{ kind: 'cmd', cmd: 'put', subjects: [cancelDuringLoad && i ? 'helper2' : 'helper'] },
+          { kind: 'chunk', line: i + 1, text: `Scene ${i}`, duration_s: 2, audio: 'pack/line.wav' }] })),
+    };
+    if (cancelDuringLoad) story.cast.helper2 = { ...story.cast.helper, clips: { idle: { ...story.cast.helper.clips.idle, spritesheet: 'pack/slow.svg' } } };
+    const board = { layout: 'lesson-guide', guide: 'helper', world: {
+      background: 'garden', board: { style: 'garden', panel: [.1, .4, .8, .44] },
+      actor_box: [.82, .94, .4], phases: [{ id: 'world', start_ms: 0, end_ms: 4000, mode: 'world', props: [] }],
+    } };
+    window.player = FabroStoryPlayer.createStoryPlayer(document.querySelector('#player'), { story, board, assetBase: location.origin });
+    await player.ready;
+    const canvas = document.querySelector('#player').shadowRoot.querySelector('canvas');
+    const ctx = canvas.getContext('2d');
+    const clear = ctx.clearRect.bind(ctx);
+    let paints = 0;
+    ctx.clearRect = (...args) => { paints++; return clear(...args); };
+    const encode = VideoEncoder.prototype.encode;
+    const frames = [];
+    VideoEncoder.prototype.encode = function(frame, options) {
+      frames.push({ t: frame.timestamp, paints, scene: player.getState().sceneIndex });
+      return encode.call(this, frame, options);
+    };
+    try {
+      if (cancelDuringLoad) {
+        const saving = player.recordVideo().then(() => 'success', error => error.name);
+        await new Promise(resolve => {
+          const timer = setInterval(() => { if (player.getState().sceneIndex === 1) { clearInterval(timer); resolve(); } }, 5);
+        });
+        player.cancelVideo();
+        return { cancelled: await Promise.race([saving, new Promise(resolve => setTimeout(() => resolve('pending'), 500))]) };
+      }
+      await player.recordVideo();
+      return { frames };
+    }
+    finally { VideoEncoder.prototype.encode = encode; player.destroy(); }
+  }, cancelDuringLoad);
+  if (cancelDuringLoad) { expect(result.cancelled).toBe('AbortError'); return; }
+  const moving = result.frames.filter(frame => frame.t < 4_000_000);
+  expect(moving.length).toBeGreaterThanOrEqual(240);
+  expect(moving.find(frame => frame.t === 2_000_000).scene).toBe(1);
+  for (let i = 1; i < moving.length; i++) {
+    expect(moving[i].paints, `stale frame at ${moving[i].t}`).toBeGreaterThan(moving[i - 1].paints);
+    expect(moving[i].t - moving[i - 1].t).toBeLessThanOrEqual(17_000);
+  }
+});

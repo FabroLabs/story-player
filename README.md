@@ -70,9 +70,10 @@ timeline — they are phases either side of it — so the clock, the scrub bar a
 every `t_ms` still cover the story alone.
 
 Stories can be saved as branded MP4 files with narration and the selected
-captions: 720p by default, or Full HD with `recordVideo({ resolution: 1080 })`.
-The exporter also composites legacy video backgrounds. Saving runs
-in the foreground, pauses when hidden, and resumes only after a press. It
+captions: native Full HD by default, or 720p with `recordVideo({ resolution: 720 })`.
+The exporter also composites legacy video backgrounds. Stepped exports draw every
+60 fps output frame independently of display timing; filmed exports keep that
+target on a display and device that sustain 60 Hz, pause when hidden, and resume only after a press. It
 omits intro/end cards and the bedtime wind-down and restores the viewer's
 playback position afterward. Hosts put Save video beside their story actions
 with `videoControls: 'host'`; the additive export API provides progress,

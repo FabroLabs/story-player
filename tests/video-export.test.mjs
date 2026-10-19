@@ -23,7 +23,7 @@ const IPHONE = 'Mozilla/5.0 (iPhone; CPU iPhone OS 26_0 like Mac OS X) AppleWebK
 test('a story drawn on the canvas can be recorded, as the best mp4 the browser makes', () => {
   const performance = performanceFixture();
   assert.deepEqual(recordingSupport({ story: performance, globalObject: platform() }), {
-    ok: true, mimeType: 'video/mp4;codecs=avc1.42E01F,mp4a.40.2', reason: null,
+    ok: true, mimeType: 'video/mp4;codecs=avc1.64002A,mp4a.40.2', reason: null,
   });
   // A lesson whose illustrated world covers the stage is canvas too.
   assert.equal(recordingSupport({ story: { storylang_version: 0 }, board: WORLD, globalObject: platform() }).ok, true);
@@ -94,7 +94,7 @@ test('a take follows the story, hands over the whole recording, and fails once',
   });
   const [recorder] = recorders.made;
   assert.equal(recorder.stream, stream);
-  assert.deepEqual(recorder.options, { mimeType: 'video/mp4', videoBitsPerSecond: 1_600_000, audioBitsPerSecond: 96_000 });
+  assert.deepEqual(recorder.options, { mimeType: 'video/mp4', videoBitsPerSecond: 8_000_000, audioBitsPerSecond: 96_000 });
   assert.equal(recorder.slice, 1000, 'the recording is held as one buffer until the end');
 
   recording.resume();

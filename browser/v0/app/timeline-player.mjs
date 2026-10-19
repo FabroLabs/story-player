@@ -10,8 +10,8 @@
  * reports it. That is the whole reason pause, seek and idle are three lines each
  * instead of a rewrite: they are all just t.
  *
- * The loop draws at most twenty-four times a second, and only when the picture
- * really changed. A paused, hidden, ended or destroyed player runs no loop at
+ * Normal playback draws at most twenty-four times a second, and only when the
+ * picture really changed. Exports draw at their own 60 fps cadence. A paused, hidden, ended or destroyed player runs no loop at
  * all — `requestAnimationFrame` is not scheduled, so a story left open in a
  * background tab costs nothing.
  */
@@ -34,6 +34,7 @@ import { createPerfRecorder } from './perf.mjs';
 import { createCanvasStage, sceneSheets } from './stage/canvas-stage.mjs';
 import { choreographyPhase } from './stage/lesson-guide-choreography.mjs';
 import { createVideoPlate } from './stage/video-plate.mjs';
+import { VIDEO_FPS } from './video-export.mjs';
 
 const SKIP_MS = 10_000;
 // A performance that reaches sound or pictures that have not landed holds on
@@ -219,6 +220,7 @@ export function createTimelinePlayer({
     pause,
     seekTo,
     beginExport,
+    awaitExportFrame,
     endExport,
     pauseExport: () => { if (exporting) { pause(); media.pause(); } },
     resumeExportTail: () => { if (exporting && ended) media.resume(); },
@@ -498,11 +500,11 @@ export function createTimelinePlayer({
       clock.useNow(timebase.now);
       frames = timebase;
     }
-    exporting = { size, onError, readyScene: null, sceneLoad: null, returnTo, stepped: timebase !== null };
+    exporting = { size, onError, readyScene: null, sceneLoad: null, returnTo, stepped: timebase !== null, frameLoads: new Set(), frameNeedsPaint: false, frameError: null };
     const mine = exporting;
     controls.lockSeeking(true);
     stage.setExportSize(size);
-    frameIntervalMs = 1000 / DEFAULT_DRAW_HZ;
+    frameIntervalMs = 1000 / VIDEO_FPS;
     if (timebase) {
       media.destroy();
       media = SILENT;
@@ -518,6 +520,38 @@ export function createTimelinePlayer({
     ]);
     if (destroyed || exporting !== mine) return;
     render(clock.now(), { force: true });
+  }
+
+  // Loading may stop the story clock at a cut while its canvas still shows
+  // the previous scene. The encoder waits here without advancing that clock.
+  async function awaitExportFrame(stopped = null) {
+    const mine = exporting;
+    if (!mine?.stepped) return;
+    while (!destroyed && exporting === mine) {
+      if (mine.frameError) throw mine.frameError;
+      if (!mine.frameLoads.size && !mine.frameNeedsPaint) return;
+      let timer;
+      try {
+        await Promise.race([
+          Promise.all([...mine.frameLoads]),
+          ...(stopped ? [stopped] : []),
+          new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('the export frame did not finish loading')), HOLD_TIMEOUT_MS); }),
+        ]);
+      } finally { clearTimeout(timer); }
+      if (destroyed || exporting !== mine) return;
+      render(clock.now());
+    }
+  }
+
+  function trackExportFrame(landing) {
+    const mine = exporting;
+    if (!mine?.stepped || !landing) return;
+    mine.frameNeedsPaint = true;
+    mine.frameLoads.add(landing);
+    void landing.then(
+      () => mine.frameLoads.delete(landing),
+      error => { mine.frameLoads.delete(landing); mine.frameError ??= error; },
+    );
   }
 
   /** The recording is over, kept or not: the player is the player again. */
@@ -624,8 +658,15 @@ export function createTimelinePlayer({
     // is whether the BROWSER is keeping up with its own display, and the draw
     // cadence is deliberately slower than that.
     recorder?.frame(now);
-    if (now - lastFrameAt < frameIntervalMs) return;
-    lastFrameAt = now;
+    // A stepped export already schedules each output frame. Throttling it
+    // again repeats old pixels when fractional frame intervals round down.
+    const elapsed = now - lastFrameAt;
+    if (!exporting?.stepped && elapsed < frameIntervalMs - (exporting ? 0.001 : 0)) return;
+    // A filmed take may run on a 60 Hz display. Carry its fractional interval
+    // forward so fractional output intervals never lose a display tick.
+    lastFrameAt = exporting && !exporting.stepped && Number.isFinite(lastFrameAt)
+      ? lastFrameAt + Math.floor((elapsed + 0.001) / frameIntervalMs) * frameIntervalMs
+      : now;
     render(clock.now());
   }
 
@@ -842,6 +883,7 @@ export function createTimelinePlayer({
     if (!force && !exporting && next === signature) return;
     signature = next;
     stage.draw(state, sheets);
+    if (exporting?.stepped && !exporting.frameLoads.size) exporting.frameNeedsPaint = false;
   }
 
   function say(text) {
@@ -949,6 +991,7 @@ export function createTimelinePlayer({
         imageArrived(opened);
       });
     if (exporting) exporting.sceneLoad = loading;
+    trackExportFrame(loading);
     void loading.catch(warmingFailed);
     // The next scene's sheets, decoded while this one plays, as far as the
     // budget allows: the cut to it is then only a hold for what did not fit.
@@ -1074,7 +1117,9 @@ export function createTimelinePlayer({
       clearTimeout(holdTimers[1]);
       holdTimers[1] = quiet();
     });
-    void hold.until().then(
+    const landing = hold.until();
+    trackExportFrame(landing);
+    void landing.then(
       () => { if (current()) leaveWaiting(true); },
       (error) => { if (error?.retryable === false || exporting) giveUp(); },
     );
@@ -1135,6 +1180,7 @@ export function createTimelinePlayer({
     // still on screen, and only when the hold really asked for something, so
     // the repaint cannot hold from itself for ever.
     if (!landing) return;
+    trackExportFrame(landing);
     void landing.then(() => imageArrived(opened)).catch(warmingFailed);
   }
 

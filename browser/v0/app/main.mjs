@@ -169,6 +169,7 @@ export function createV0Player({
     begin: beginTake,
     title: () => runtimeStory?.title ?? story?.title,
     story: () => runtimeStory,
+    timeline: () => timeline, board: boardBlock,
     onWarning: warn,
   });
   const subscribers = new Set();
