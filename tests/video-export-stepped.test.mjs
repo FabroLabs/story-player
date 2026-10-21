@@ -259,3 +259,20 @@ test('Full HD plans use 60 fps and codec levels that can carry it', async () => 
   assert.equal(plan.video.config.codec, 'avc1.64002A');
   assert.equal(asked[0].framerate, 60);
 });
+
+
+for (const kind of ['music', 'ambience']) test(`performance ${kind} loops use stepped export when codecs are supported`, async () => {
+  const supported = class { static async isConfigSupported() { return { supported: true }; } };
+  const available = class {};
+  const cue = { kind, media: 'bed.m4a', start_ms: 250, end_ms: 3500, duration_ms: 500, loop: true, volume: 0.5 };
+  const plan = await planFastTake({
+    story: { performance: {}, audio: [cue] }, size: { width: 1920, height: 1080 },
+    globalObject: {
+      VideoEncoder: supported, AudioEncoder: supported,
+      VideoFrame: available, AudioData: available, MessageChannel: available,
+      OfflineAudioContext: available, OffscreenCanvas: available,
+    },
+  });
+  assert.ok(plan, 'looping performance audio must not force a realtime recording');
+  assert.deepEqual(plan.cues, [cue], 'keep the authored schedule, loop length and volume');
+});

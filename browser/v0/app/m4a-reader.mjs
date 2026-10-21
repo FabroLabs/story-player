@@ -12,11 +12,12 @@
  */
 
 /**
- * `{ codec, sampleRate, channels, description, skip, samples }`.
+ * `{ codec, sampleRate, channels, description, skip, length, samples }`.
  *
  * `samples` is every packet as `{ offset, size }` into the same bytes, each
  * `frames` sound samples long. `skip` is how many samples the file's own edit
  * list drops from the start: an AAC encoder's lead-in, which is not the sound.
+ * `length` is the playable sample count; the last packet can contain padding.
  */
 export function readM4a(input) {
   const bytes = input instanceof Uint8Array ? input : new Uint8Array(input);
@@ -47,14 +48,16 @@ export function readM4a(input) {
     const esds = need(children(entry.body + 28 + (version === 1 ? 16 : 0), entry.end), 'esds');
     const description = specific(esds);
     const config = audioConfig(description);
-    const frames = packetFrames(need(tables, 'stts'), timescale, config.sampleRate);
+    const timing = packetTiming(need(tables, 'stts'), timescale, config.sampleRate);
+    const skip = leadIn(trak, timescale, config.sampleRate);
     return {
       codec: `mp4a.40.${config.objectType}`,
       sampleRate: config.sampleRate,
       channels: config.channels || view.getUint16(entry.body + 16),
       description,
-      frames,
-      skip: leadIn(trak, timescale, config.sampleRate),
+      frames: timing.frames,
+      skip,
+      length: Math.max(0, timing.length - skip),
       samples: packets(tables),
     };
   }
@@ -115,10 +118,18 @@ export function readM4a(input) {
     return samples;
   }
 
-  /** How long a packet is, which for AAC is one number for the whole file. */
-  function packetFrames(stts, timescale, sampleRate) {
-    if (view.getUint32(stts.body + 4) < 1) throw new Error('the sound has no timing');
-    return Math.round(view.getUint32(stts.body + 12) * sampleRate / timescale);
+  /** AAC packets decode to equal sizes, but the last may end with padding. */
+  function packetTiming(stts, timescale, sampleRate) {
+    const runs = view.getUint32(stts.body + 4);
+    if (runs < 1) throw new Error('the sound has no timing');
+    let ticks = 0;
+    for (let i = 0; i < runs; i++) {
+      ticks += view.getUint32(stts.body + 8 + i * 8) * view.getUint32(stts.body + 12 + i * 8);
+    }
+    return {
+      frames: Math.round(view.getUint32(stts.body + 12) * sampleRate / timescale),
+      length: Math.round(ticks * sampleRate / timescale),
+    };
   }
 
   /** What the edit list drops from the front: the encoder's lead-in. */

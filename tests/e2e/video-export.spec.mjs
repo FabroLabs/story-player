@@ -17,6 +17,18 @@ const NARRATION = Buffer.from(
   fs.readFileSync(new URL('./fixtures/media/narration.wav.b64', import.meta.url), 'utf8'),
   'base64',
 );
+// A 500 ms stereo AAC tone: left 720 Hz at 0.3, right 1280 Hz at 0.2.
+// Generated with FFmpeg aevalsrc, 48 kHz AAC-LC at 192 kbit/s.
+const LOOP_TONE = Buffer.from(fs.readFileSync(new URL('./fixtures/media/loop-tone.m4a.b64', import.meta.url), 'utf8'), 'base64');
+// A distinct 1 kHz narration tone lasts three seconds, overlapping six loops.
+const LONG_NARRATION = Buffer.alloc(44 + 48000 * 3 * 2);
+LONG_NARRATION.write('RIFF', 0); LONG_NARRATION.writeUInt32LE(LONG_NARRATION.length - 8, 4);
+LONG_NARRATION.write('WAVEfmt ', 8); LONG_NARRATION.writeUInt32LE(16, 16);
+LONG_NARRATION.writeUInt16LE(1, 20); LONG_NARRATION.writeUInt16LE(1, 22);
+LONG_NARRATION.writeUInt32LE(48000, 24); LONG_NARRATION.writeUInt32LE(96000, 28);
+LONG_NARRATION.writeUInt16LE(2, 32); LONG_NARRATION.writeUInt16LE(16, 34);
+LONG_NARRATION.write('data', 36); LONG_NARRATION.writeUInt32LE(LONG_NARRATION.length - 44, 40);
+for (let n = 0; n < 48000 * 3; n++) LONG_NARRATION.writeInt16LE(Math.round(0.08 * 32767 * Math.sin(2 * Math.PI * 1000 * n / 48000)), 44 + n * 2);
 const SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100"><rect width="100" height="100" fill="#62a555"/><rect x="100" width="100" height="100" fill="#3d74bb"/></svg>';
 
 test.beforeAll(async () => {
@@ -31,6 +43,16 @@ test.beforeAll(async () => {
     } else if (req.url === '/story.json') {
       res.setHeader('Content-Type', 'application/json');
       res.end(JSON.stringify(story));
+    } else if (req.url === '/fairytale-assets/loop-tone.m4a' || req.url === '/fairytale-assets/streamed-loop-tone.m4a') {
+      res.setHeader('Content-Type', 'audio/mp4');
+      // An inert trailing box selects the bounded AAC reader without needing a
+      // multi-minute fixture. Existing sample offsets and audio stay identical.
+      const padding = Buffer.alloc(req.url.includes('/streamed-') ? 2 * 1024 * 1024 + 8 : 8);
+      padding.writeUInt32BE(padding.length, 0); padding.write('free', 4);
+      res.end(Buffer.concat([LOOP_TONE, padding]));
+    } else if (req.url === '/fairytale-assets/long-narration.wav') {
+      res.setHeader('Content-Type', 'audio/wav');
+      res.end(LONG_NARRATION);
     } else if (req.url.endsWith('.m4a') || req.url.endsWith('.wav')) {
       res.setHeader('Content-Type', 'audio/wav');
       res.end(NARRATION);
@@ -213,6 +235,83 @@ test('Full HD is rendered at 1920×1080 for stepped, filmed and streamed takes',
   // stepped take does not last as long as the story does.
   expect(takes.auto.fast).toBe(stepped);
   if (stepped) expect(takes.auto.tookMs).toBeLessThan(takes.filmed.tookMs);
+});
+
+for (const streamed of [false, true]) test(`performance loops keep picture and sound in a 60 fps export (${streamed ? 'streamed' : 'decoded'} AAC)`, async ({ page }, testInfo) => {
+  test.setTimeout(45_000);
+  await page.goto(base);
+  await page.evaluate(() => window.ready);
+  await page.evaluate(async (streamed) => {
+    const story = await (await fetch('/story.json')).json();
+    story.audio[0].media = 'fairytale-assets/long-narration.wav';
+    story.audio.push({ id: 'music', kind: 'music', media: streamed ? 'fairytale-assets/streamed-loop-tone.m4a' : 'fairytale-assets/loop-tone.m4a',
+      start_ms: 250, end_ms: 3500, duration_ms: 500, loop: true, volume: 0.5, gain_keys: [[1500, 0.25]] });
+    window.player.destroy();
+    window.player = FabroStoryPlayer.createStoryPlayer(document.querySelector('#player'), { story, assetBase: location.origin });
+    await window.player.ready;
+    const button = document.createElement('button');
+    button.textContent = 'record loop';
+    button.onclick = () => {
+      const progress = [];
+      window.take = window.player.recordVideo({ resolution: 1080, onProgress: state => progress.push(state) }).then(async file => {
+        const bytes = new Uint8Array(await file.arrayBuffer());
+        let text = '';
+        for (let i = 0; i < bytes.length; i += 8192) text += String.fromCharCode(...bytes.subarray(i, i + 8192));
+        const context = new AudioContext();
+        const audio = await context.decodeAudioData(bytes.buffer.slice(0));
+        const amplitude = (channel, frequency, seconds) => {
+          const pcm = audio.getChannelData(channel), rate = audio.sampleRate;
+          const from = Math.round(seconds * rate), count = Math.round(0.08 * rate);
+          let real = 0, imaginary = 0;
+          for (let n = 0; n < count; n++) {
+            const phase = 2 * Math.PI * frequency * n / rate;
+            real += pcm[from + n] * Math.cos(phase); imaginary += pcm[from + n] * Math.sin(phase);
+          }
+          return 2 * Math.hypot(real, imaginary) / count;
+        };
+        const levels = [0.8, 1.3, 1.8, 2.3, 2.8, 3.3, 3.7].map(t => [amplitude(0, 720, t), amplitude(1, 1280, t)]);
+        // These 80 ms windows straddle each 500 ms loop boundary.
+        const joins = [0.73, 1.23, 1.73, 2.23, 2.73, 3.23].map(t => [amplitude(0, 720, t), amplitude(1, 1280, t)]);
+        const narration = [0.8, 1.3, 1.8, 2.3, 2.8].map(t => amplitude(0, 1000, t));
+        await context.close();
+        return { base64: btoa(text), fast: progress.some(state => state.fast), levels, joins, narration };
+      });
+    };
+    document.body.append(button);
+  }, streamed);
+  await page.getByRole('button', { name: 'record loop', exact: true }).click();
+  const take = await page.evaluate(() => window.take);
+  await testInfo.attach('loop-levels', { body: JSON.stringify({ levels: take.levels, joins: take.joins, narration: take.narration }), contentType: 'application/json' });
+  expect(take.fast, 'looping music must not force realtime capture').toBe(true);
+  const bytes = Buffer.from(take.base64, 'base64');
+  const saved = testInfo.outputPath('looping-performance.mp4');
+  fs.writeFileSync(saved, bytes);
+  await testInfo.attach('looping-performance', { path: saved, contentType: 'video/mp4' });
+  const decoded = await inspectFile(page, bytes);
+  expect([decoded.width, decoded.height]).toEqual([1920, 1080]);
+  expect(decoded.captionPixels).toBeGreaterThan(40);
+  expect(decoded.colorPixels).toBeGreaterThan(1000);
+  for (const level of take.narration) {
+    expect(level).toBeGreaterThan(0.06);
+    expect(level).toBeLessThan(0.10);
+  }
+  for (const [i, [left, right]] of take.joins.entries()) {
+    const scale = i < 2 ? 0.5 : 0.25;
+    expect(left).toBeGreaterThan(0.3 * scale * 0.75);
+    expect(left).toBeLessThan(0.3 * scale * 1.25);
+    expect(right).toBeGreaterThan(0.2 * scale * 0.75);
+    expect(right).toBeLessThan(0.2 * scale * 1.25);
+  }
+  for (const [i, [left, right]] of take.levels.entries()) {
+    const scale = i < 2 ? 0.5 : i < 6 ? 0.25 : 0;
+    for (const [actual, expected] of [[left, 0.3 * scale], [right, 0.2 * scale]]) {
+      if (scale === 0) expect(actual).toBeLessThan(0.005);
+      else {
+        expect(actual).toBeGreaterThan(expected * 0.75);
+        expect(actual).toBeLessThan(expected * 1.25);
+      }
+    }
+  }
 });
 
 test('a stepped export submits 60 distinct motion frames per second without cadence gaps', async ({ page }, testInfo) => {
