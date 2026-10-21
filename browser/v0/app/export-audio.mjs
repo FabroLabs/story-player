@@ -121,3 +121,57 @@ export async function mixCue(cue, source, from, left, right, rate) {
     at = until;
   }
 }
+
+/** Read a long sound at the mix rate without decoding or retaining the whole track.
+ * Absolute sample positions preserve phase across read windows and loop restarts.
+ * A windowed sinc filter also removes frequencies that would alias when reducing rate.
+ */
+export function resampleSource(source, inputRate, outputRate) {
+  if (inputRate === outputRate || source.length === 0) return source;
+  const cutoff = Math.min(1, outputRate / inputRate) * 0.94;
+  const radius = Math.ceil(16 / cutoff);
+  const kernels = new Map();
+  function kernel(phase) {
+    if (kernels.has(phase)) return kernels.get(phase);
+    const fraction = phase / outputRate;
+    const weights = new Float64Array(radius * 2 + 1);
+    let sum = 0;
+    for (let offset = -radius; offset <= radius; offset++) {
+      const distance = offset - fraction;
+      if (Math.abs(distance) >= radius) continue;
+      const x = Math.PI * cutoff * distance;
+      const weight = cutoff * (Math.abs(x) < 1e-12 ? 1 : Math.sin(x) / x)
+        * (0.5 + 0.5 * Math.cos(Math.PI * distance / radius));
+      weights[offset + radius] = weight;
+      sum += weight;
+    }
+    for (let i = 0; i < weights.length; i++) weights[i] /= sum;
+    // Standard 44.1 -> 48 kHz needs 160 phases; unusual rates stay bounded too.
+    if (kernels.size < 256) kernels.set(phase, weights);
+    return weights;
+  }
+  return {
+    length: Math.round(source.length * outputRate / inputRate),
+    async read(from, count) {
+      if (count === 0) return source.read(0, 0);
+      const first = Math.max(0, Math.floor(from * inputRate / outputRate) - radius);
+      const until = Math.min(source.length, Math.floor((from + count - 1) * inputRate / outputRate) + radius + 1);
+      const input = await source.read(first, until - first);
+      const output = input.map(() => new Float32Array(count));
+      for (let frame = 0; frame < count; frame++) {
+        const position = (from + frame) * inputRate;
+        const center = Math.floor(position / outputRate);
+        const weights = kernel(position % outputRate);
+        for (let channel = 0; channel < input.length; channel++) {
+          let value = 0;
+          for (let tap = 0; tap < weights.length; tap++) {
+            const at = Math.max(0, Math.min(source.length - 1, center + tap - radius));
+            value += input[channel][at - first] * weights[tap];
+          }
+          output[channel][frame] = value;
+        }
+      }
+      return output;
+    },
+  };
+}
