@@ -84,3 +84,18 @@ test('music stays ducked through decoded narration tails and rises after short f
   updateMusicRamps(cues);
   assert.equal(volumeAt(garden, 2300), MUSIC_VOLUME, 'a short narration should release the duck');
 });
+
+
+test('stereo performance loops keep phase and stepped gains across mix windows', async () => {
+  const channels = [Float32Array.of(1, 0.5, -1), Float32Array.of(-0.5, 1, 0.5)];
+  const source = { length: 3, read: async (from, count) => channels.map(data => data.subarray(from, from + count)) };
+  const cue = { start_ms: 1000, end_ms: 9000, loop: true, volume: 0.5, gain_keys: [[5000, 1]] };
+  const left = [], right = [];
+  for (const [from, count] of [[0, 4], [4, 3], [7, 3]]) {
+    const l = new Float32Array(count), r = new Float32Array(count);
+    await mixCue(cue, source, from, l, r, 1);
+    left.push(...l); right.push(...r);
+  }
+  assert.deepEqual(left, [0, 0.5, 0.25, -0.5, 0.5, 0.5, -1, 1, 0.5, 0]);
+  assert.deepEqual(right, [0, -0.25, 0.5, 0.25, -0.25, 1, 0.5, -0.5, 1, 0]);
+});

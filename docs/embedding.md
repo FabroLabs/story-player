@@ -961,7 +961,8 @@ lesson (`board.world`) in a browser with
 `VideoEncoder` and `AudioEncoder`, whose sound is short files plus AAC-in-mp4 for
 anything long (`m4a-reader.mjs` reads a long bed a second at a time). Canvas
 lessons mix narration, one-shot effects and looping music with fades and
-narration ducking. Each frame waits for required scene and sprite images before
+narration ducking. Performances also mix looping music and ambience with their
+authored volume changes; AAC encoder padding is excluded from each loop. Each frame waits for required scene and sprite images before
 encoding, so loading does not insert an old picture. Actual video plates remain
 filmed because their playback follows wall time. Anything
 else is filmed, which takes the story's duration; a stepped take that cannot
