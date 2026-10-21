@@ -14,7 +14,7 @@ are recorded in [WHT_IMPLEMENTATION_STATUS.md](../WHT_IMPLEMENTATION_STATUS.md).
 Today) or `bedtime`. Both use exactly this field contract, compiler, evaluator and
 adapters. The kind is carried into the compiled instructions, the audit and the
 state evaluator: instructions or a timeline compiled for one kind never play a
-document of the other. Only `wht` is limited to five minutes (300000 ms); a
+document of the other. Only `wht` is limited to ten minutes (600000 ms); a
 bedtime story may run longer. Any other kind is refused before playback.
 
 ## Envelope example
