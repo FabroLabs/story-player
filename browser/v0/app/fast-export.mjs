@@ -1,4 +1,4 @@
-import { mixCue, soundCuesFor, updateMusicRamps, windowEnd } from './export-audio.mjs';
+import { mixCue, resampleSource, soundCuesFor, updateMusicRamps, windowEnd } from './export-audio.mjs';
 import { looksLikeMp4, readM4a } from './m4a-reader.mjs';
 import { createMp4Writer, videoTicks } from './mp4-writer.mjs';
 import {
@@ -403,18 +403,16 @@ async function openSound({ cues: schedule, endMs, plan, signal, globalObject: g 
     }
   }));
 
-  // A long file sets the rate everything is mixed at, so it is never resampled
-  // a window at a time; opus is 48 kHz and nothing else.
+  // Both encoders are planned at 48 kHz. Long tracks retain bounded readers,
+  // with rate conversion when the authored soundtrack uses another rate.
   const long = new Map();
   for (const [url, bytes] of files) {
     if (bytes.byteLength <= LONG_SOUND_BYTES) continue;
     if (!looksLikeMp4(bytes) || typeof g.AudioDecoder !== 'function') throw new Error('a long story sound cannot be read a piece at a time here');
     long.set(url, readM4a(bytes));
   }
-  const first = long.values().next().value;
-  const rate = plan.audio.codec === 'aac' && (first?.sampleRate === 44100 || first?.sampleRate === 48000) ? first.sampleRate : 48000;
+  const rate = 48000;
   for (const info of long.values()) {
-    if (info.sampleRate !== rate) throw new Error('the story’s long sounds are at different rates');
     const supported = await g.AudioDecoder.isConfigSupported({ codec: info.codec, sampleRate: info.sampleRate, numberOfChannels: info.channels, description: info.description })
       .then((answer) => answer.supported === true, () => false);
     if (!supported) throw new Error('a long story sound cannot be decoded here');
@@ -443,7 +441,7 @@ async function openSound({ cues: schedule, endMs, plan, signal, globalObject: g 
   const streamed = (info, bytes) => {
     const reader = createPacketReader(info, bytes, g);
     readers.set(info, reader);
-    return { length: info.length, read: reader.read };
+    return resampleSource({ length: info.length, read: reader.read }, info.sampleRate, rate);
   };
 
   /** A short file every one of whose cues has passed is let go, decoded and undecoded. */

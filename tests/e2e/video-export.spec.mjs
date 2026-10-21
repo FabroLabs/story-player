@@ -20,6 +20,7 @@ const NARRATION = Buffer.from(
 // A 500 ms stereo AAC tone: left 720 Hz at 0.3, right 1280 Hz at 0.2.
 // Generated with FFmpeg aevalsrc, 48 kHz AAC-LC at 192 kbit/s.
 const LOOP_TONE = Buffer.from(fs.readFileSync(new URL('./fixtures/media/loop-tone.m4a.b64', import.meta.url), 'utf8'), 'base64');
+const LOOP_TONE_44100 = Buffer.from(fs.readFileSync(new URL('./fixtures/media/loop-tone-44100.m4a.b64', import.meta.url), 'utf8'), 'base64');
 // A distinct 1 kHz narration tone lasts three seconds, overlapping six loops.
 const LONG_NARRATION = Buffer.alloc(44 + 48000 * 3 * 2);
 LONG_NARRATION.write('RIFF', 0); LONG_NARRATION.writeUInt32LE(LONG_NARRATION.length - 8, 4);
@@ -43,13 +44,13 @@ test.beforeAll(async () => {
     } else if (req.url === '/story.json') {
       res.setHeader('Content-Type', 'application/json');
       res.end(JSON.stringify(story));
-    } else if (req.url === '/fairytale-assets/loop-tone.m4a' || req.url === '/fairytale-assets/streamed-loop-tone.m4a') {
+    } else if (req.url === '/fairytale-assets/loop-tone.m4a' || req.url === '/fairytale-assets/streamed-loop-tone.m4a' || req.url === '/fairytale-assets/streamed-loop-tone-44100.m4a') {
       res.setHeader('Content-Type', 'audio/mp4');
       // An inert trailing box selects the bounded AAC reader without needing a
       // multi-minute fixture. Existing sample offsets and audio stay identical.
       const padding = Buffer.alloc(req.url.includes('/streamed-') ? 2 * 1024 * 1024 + 8 : 8);
       padding.writeUInt32BE(padding.length, 0); padding.write('free', 4);
-      res.end(Buffer.concat([LOOP_TONE, padding]));
+      res.end(Buffer.concat([req.url.includes('44100') ? LOOP_TONE_44100 : LOOP_TONE, padding]));
     } else if (req.url === '/fairytale-assets/long-narration.wav') {
       res.setHeader('Content-Type', 'audio/wav');
       res.end(LONG_NARRATION);
@@ -237,15 +238,26 @@ test('Full HD is rendered at 1920×1080 for stepped, filmed and streamed takes',
   if (stepped) expect(takes.auto.tookMs).toBeLessThan(takes.filmed.tookMs);
 });
 
-for (const streamed of [false, true]) test(`performance loops keep picture and sound in a 60 fps export (${streamed ? 'streamed' : 'decoded'} AAC)`, async ({ page }, testInfo) => {
+for (const {name, streamed, mixed = false, opusOnly = false} of [
+  {name: 'decoded AAC', streamed: false}, {name: 'streamed AAC', streamed: true},
+  {name: 'mixed audio rates', streamed: true, mixed: true},
+  {name: 'mixed audio rates with Opus', streamed: true, mixed: true, opusOnly: true},
+]) test(`performance loops keep picture and sound in a 60 fps export (${name})`, async ({ page }, testInfo) => {
   test.setTimeout(45_000);
   await page.goto(base);
   await page.evaluate(() => window.ready);
-  await page.evaluate(async (streamed) => {
+  await page.evaluate(async ({streamed, mixed, opusOnly}) => {
+    if (opusOnly) {
+      const supported = AudioEncoder.isConfigSupported.bind(AudioEncoder);
+      AudioEncoder.isConfigSupported = config => config.codec === 'mp4a.40.2'
+        ? Promise.resolve({supported: false, config}) : supported(config);
+    }
     const story = await (await fetch('/story.json')).json();
     story.audio[0].media = 'fairytale-assets/long-narration.wav';
-    story.audio.push({ id: 'music', kind: 'music', media: streamed ? 'fairytale-assets/streamed-loop-tone.m4a' : 'fairytale-assets/loop-tone.m4a',
+    story.audio.push({ id: 'music', kind: 'music', media: mixed ? 'fairytale-assets/streamed-loop-tone-44100.m4a' : streamed ? 'fairytale-assets/streamed-loop-tone.m4a' : 'fairytale-assets/loop-tone.m4a',
       start_ms: 250, end_ms: 3500, duration_ms: 500, loop: true, volume: 0.5, gain_keys: [[1500, 0.25]] });
+    if (mixed) story.audio.push({id: 'ambience', kind: 'ambience', media: 'fairytale-assets/streamed-loop-tone.m4a',
+      start_ms: 250, end_ms: 3500, duration_ms: 500, loop: true, volume: 0.25, gain_keys: [[1500, 0.125]]});
     window.player.destroy();
     window.player = FabroStoryPlayer.createStoryPlayer(document.querySelector('#player'), { story, assetBase: location.origin });
     await window.player.ready;
@@ -274,11 +286,11 @@ for (const streamed of [false, true]) test(`performance loops keep picture and s
         const joins = [0.73, 1.23, 1.73, 2.23, 2.73, 3.23].map(t => [amplitude(0, 720, t), amplitude(1, 1280, t)]);
         const narration = [0.8, 1.3, 1.8, 2.3, 2.8].map(t => amplitude(0, 1000, t));
         await context.close();
-        return { base64: btoa(text), fast: progress.some(state => state.fast), levels, joins, narration };
+        return { base64: btoa(text), fast: progress.findLast(state => state.status === 'ready')?.fast === true, levels, joins, narration };
       });
     };
     document.body.append(button);
-  }, streamed);
+  }, {streamed, mixed, opusOnly});
   await page.getByRole('button', { name: 'record loop', exact: true }).click();
   const take = await page.evaluate(() => window.take);
   await testInfo.attach('loop-levels', { body: JSON.stringify({ levels: take.levels, joins: take.joins, narration: take.narration }), contentType: 'application/json' });
@@ -296,14 +308,14 @@ for (const streamed of [false, true]) test(`performance loops keep picture and s
     expect(level).toBeLessThan(0.10);
   }
   for (const [i, [left, right]] of take.joins.entries()) {
-    const scale = i < 2 ? 0.5 : 0.25;
+    const scale = (i < 2 ? 0.5 : 0.25) * (mixed ? 1.5 : 1);
     expect(left).toBeGreaterThan(0.3 * scale * 0.75);
     expect(left).toBeLessThan(0.3 * scale * 1.25);
     expect(right).toBeGreaterThan(0.2 * scale * 0.75);
     expect(right).toBeLessThan(0.2 * scale * 1.25);
   }
   for (const [i, [left, right]] of take.levels.entries()) {
-    const scale = i < 2 ? 0.5 : i < 6 ? 0.25 : 0;
+    const scale = (i < 2 ? 0.5 : i < 6 ? 0.25 : 0) * (mixed ? 1.5 : 1);
     for (const [actual, expected] of [[left, 0.3 * scale], [right, 0.2 * scale]]) {
       if (scale === 0) expect(actual).toBeLessThan(0.005);
       else {
