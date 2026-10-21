@@ -51,7 +51,7 @@ const AUDIO_CODECS = [
 export async function planFastTake({ story, size, bitrate = VIDEO_BITS_PER_SECOND, globalObject = globalThis, timeline = null, board = null }) {
   const g = globalObject;
   const cues = soundCuesFor({ story, timeline, board });
-  if (!cues || (story?.performance && cues.some((cue) => cue.loop))) return null;
+  if (!cues) return null;
   for (const name of ['VideoEncoder', 'VideoFrame', 'AudioEncoder', 'AudioData', 'MessageChannel']) {
     if (typeof g[name] !== 'function') return null;
   }
@@ -443,7 +443,7 @@ async function openSound({ cues: schedule, endMs, plan, signal, globalObject: g 
   const streamed = (info, bytes) => {
     const reader = createPacketReader(info, bytes, g);
     readers.set(info, reader);
-    return { length: info.samples.length * info.frames - info.skip, read: reader.read };
+    return { length: info.length, read: reader.read };
   };
 
   /** A short file every one of whose cues has passed is let go, decoded and undecoded. */

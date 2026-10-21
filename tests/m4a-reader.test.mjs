@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import fs from 'node:fs';
 
 import { looksLikeMp4, readM4a } from '../browser/v0/app/m4a-reader.mjs';
 
@@ -66,4 +67,13 @@ test('anything that is not plain AAC in an ordinary mp4 is refused, so the take 
   assert.throws(() => readM4a(cut.subarray(0, cut.length - 4)), /outside the file/);
   assert.equal(looksLikeMp4(m4a()), true);
   assert.equal(looksLikeMp4(Uint8Array.from(ascii('RIFF....WAVEfmt '))), false);
+});
+
+
+test('AAC loop length excludes encoder padding in the final packet', () => {
+  // Exactly half a second at 48 kHz, encoded by FFmpeg. The final AAC packet
+  // contains only 448 playable frames, followed by 576 padding frames.
+  const bytes = Buffer.from(fs.readFileSync(new URL('./e2e/fixtures/media/loop-tone.m4a.b64', import.meta.url), 'utf8'), 'base64');
+  const sound = readM4a(bytes);
+  assert.equal(sound.length, 24000, 'loop at the end of the sound, not at the padded AAC packet boundary');
 });

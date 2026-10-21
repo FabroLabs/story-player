@@ -72,7 +72,8 @@ every `t_ms` still cover the story alone.
 Stories can be saved as branded MP4 files with narration and the selected
 captions: native Full HD by default, or 720p with `recordVideo({ resolution: 720 })`.
 The exporter also composites legacy video backgrounds. Stepped exports draw every
-60 fps output frame independently of display timing; filmed exports keep that
+60 fps output frame independently of display timing, including performance music
+and ambience loops mixed from their authored schedule; filmed exports keep that
 target on a display and device that sustain 60 Hz, pause when hidden, and resume only after a press. It
 omits intro/end cards and the bedtime wind-down and restores the viewer's
 playback position afterward. Hosts put Save video beside their story actions
