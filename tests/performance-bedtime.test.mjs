@@ -34,12 +34,14 @@ test('bedtime is its own performance kind, played by the shared performer', () =
   assert.equal(stateAt(timeline, story, 500).subtitle, 'Hi Sam');
 });
 
-test('only WHT keeps the five-minute limit', () => {
-  // The first Bedtime story narrates for 617.36 s.
+test('only WHT keeps the ten-minute limit', () => {
+  // The first Bedtime story narrates for 617.36 s, past the WHT limit.
   assert.equal(compileTimeline(bedtime(617360)).duration_ms, 617360);
   const wht = performanceFixture();
-  wht.scenes.at(-1).end_ms = 300001;
-  assert.throws(() => compileTimeline(wht), /five minutes/);
+  wht.scenes.at(-1).end_ms = 600000;
+  assert.equal(compileTimeline(wht).duration_ms, 600000, 'ten minutes exactly is accepted');
+  wht.scenes.at(-1).end_ms = 600001;
+  assert.throws(() => compileTimeline(wht), /ten minutes/);
 });
 
 test('an unknown kind is refused before playback', () => {

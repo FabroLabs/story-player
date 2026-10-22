@@ -585,7 +585,7 @@ export function validatePerformance(story) {
       color(scene.transition.color, scene.id);
     }
   }
-  if (story.performance.kind === "wht" && end > 300000) fail("duration", "WHT exceeds five minutes");
+  if (story.performance.kind === "wht" && end > 600000) fail("duration", "WHT exceeds ten minutes");
   if (own(story, "captions")) {
     if (!story.performance.required_capabilities.includes("captions"))
       fail("captions", "requires captions capability");
