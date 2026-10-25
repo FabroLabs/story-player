@@ -207,6 +207,7 @@ export function fakeContext() {
     font: null,
     textAlign: null,
     textBaseline: null,
+    direction: 'ltr',
     clearRect: record('clearRect'),
     beginPath: record('beginPath'),
     rect: record('rect'),
@@ -247,7 +248,9 @@ export function fakeContext() {
     // right if it landed where the transform in force would have put it, and
     // the slate's whole point is that that transform is NOT the camera's.
     fillText: (...args) => calls.push([
-      'fillText', ...args, { alpha: context.globalAlpha, transform: [...transform], ink: context.fillStyle },
+      'fillText', ...args, {
+        alpha: context.globalAlpha, transform: [...transform], ink: context.fillStyle, direction: context.direction,
+      },
     ]),
     setTransform(a, b, c, d, e, f) {
       calls.push(['setTransform', a, b, c, d, e, f]);
@@ -265,13 +268,15 @@ export function fakeContext() {
     },
     save() {
       calls.push(['save']);
-      stack.push([[...transform], context.globalAlpha, context.fillStyle, context.strokeStyle, context.lineWidth]);
+      stack.push([
+        [...transform], context.globalAlpha, context.fillStyle, context.strokeStyle, context.lineWidth, context.direction,
+      ]);
     },
     restore() {
       calls.push(['restore']);
       const held = stack.pop();
       if (!held) throw new Error('restore with nothing saved');
-      [, context.globalAlpha, context.fillStyle, context.strokeStyle, context.lineWidth] = held;
+      [, context.globalAlpha, context.fillStyle, context.strokeStyle, context.lineWidth, context.direction] = held;
       [transform] = held;
     },
     drawImage: (...args) => calls.push([
