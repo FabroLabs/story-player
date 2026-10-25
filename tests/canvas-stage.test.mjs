@@ -1148,3 +1148,38 @@ test('a node keeps its last frame only within its scene: the next scene’s node
   stage.draw(frame(1, 'missing.png'), sheets);
   assert.equal(images(), 0, 'the next scene drew the last scene’s node in its place');
 });
+
+test('a saved Arabic caption is burned in right to left, an English one exactly as before', (t) => {
+  const { stage, context } = mounted(t);
+  const question = 'دورُكِ يا ليلى! متى نأكل الفطور؟';
+  stage.draw({ ...stageState(), subtitle: question }, book());
+  stage.setExportSize({ width: 1280, height: 720 });
+  const arabic = context.of('fillText').filter((call) => question.includes(call[0]));
+  assert.ok(arabic.length > 0, 'the exported picture lost the Arabic caption');
+  for (const line of arabic) assert.equal(line.at(-1).direction, 'rtl');
+  assert.equal(context.direction, 'ltr', 'the caption left its direction on the context');
+  stage.setExportSize(null);
+
+  context.calls.length = 0;
+  const english = 'Your turn, Laila! When do we eat breakfast?';
+  stage.draw({ ...stageState(), subtitle: english }, book());
+  stage.setExportSize({ width: 1280, height: 720 });
+  const lines = context.of('fillText').filter((call) => english.includes(call[0]));
+  assert.ok(lines.length > 0, 'the exported picture lost the English caption');
+  for (const line of lines) assert.equal(line.at(-1).direction, 'ltr');
+  stage.setExportSize(null);
+});
+
+test('a board label in Arabic is drawn right to left and the context is handed back as it was', () => {
+  const context = fakeContext();
+  const label = (text) => ({ op: 'farm-label', hud: true, text, opacity: 1, x: 10, y: 10, w: 300, h: 60 });
+  paintDrawList(context, {
+    width: 1920, height: 1080, camera: { scale: 1, x: 0, y: 0 },
+    commands: [label('كم تفاحة؟'), label('How many apples?')],
+  });
+  assert.deepEqual(context.of('fillText').map((call) => [call[0], call.at(-1).direction]), [
+    ['كم تفاحة؟', 'rtl'],
+    ['How many apples?', 'ltr'],
+  ]);
+  assert.equal(context.direction, 'ltr');
+});

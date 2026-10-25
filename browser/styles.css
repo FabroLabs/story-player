@@ -598,6 +598,10 @@ button:focus-visible {
   text-align: left;
 }
 
+/* The box stays left of the guide; a wrapped line inside it starts where its
+   own language starts — at the right for Arabic. */
+.stage-frame.has-lesson-guide .subtitle { text-align: start; }
+
 /* A comic action can cross the lower lane while its short line stays above it. */
 .stage-frame.has-lesson-guide.has-top-guide-caption .subtitle-wrap {
   top: 12px;
