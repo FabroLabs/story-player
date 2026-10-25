@@ -20,6 +20,7 @@ import { DPR_CAP, chunkAt } from '../assets/rendition-picker.mjs';
 import { CARD_BOARD, DEFAULT_STAGE_RESOLUTION, FLASH, HIGHLIGHT, SLATE } from '../../policy.mjs';
 import { buildDrawList } from './draw-list.mjs';
 import { choreographyCaption } from './lesson-guide-choreography.mjs';
+import { textDirection } from './text-direction.mjs';
 import { BRAND_WIDTH, BRAND_INSET, BRAND_OPACITY } from '../../../brand.mjs';
 
 // The ink of the shadow and of the placeholder, kept here rather than in the
@@ -295,6 +296,8 @@ export function createCanvasStage(elements, {
       context.fillStyle = '#ffffff';
       context.textAlign = 'center';
       context.textBaseline = 'middle';
+      // The whole caption decides, so a wrapped line that opens on a Latin name stays in order.
+      if (textDirection(text) === 'rtl') context.direction = 'rtl';
       for (let i = 0; i < lines.length; i += 1) {
         context.fillText(lines[i], width / 2, y + padding + lineHeight * (i + 0.5), maxWidth);
       }
@@ -593,7 +596,7 @@ export function paintDrawList(context, list, {
       context.fillStyle = '#234b35';
       context.font = `800 ${command.h*.58}px system-ui, sans-serif`;
       context.textAlign = 'center'; context.textBaseline = 'middle';
-      context.fillText(command.text,command.x+command.w/2,command.y+command.h*.52,command.w*.88);
+      fillDirectedText(context,command.text,command.x+command.w/2,command.y+command.h*.52,command.w*.88);
       context.restore();
       underCamera();
       continue;
@@ -963,6 +966,21 @@ function paintTransitionBoard(context, { transition, ...base }, lookup, width, h
   }
 }
 
+/**
+ * `fillText`, right to left when the text is. A left-to-right line is drawn
+ * exactly as before: the context's direction is not touched at all.
+ */
+function fillDirectedText(context, text, x, y, maxWidth) {
+  if (textDirection(text) !== 'rtl') {
+    context.fillText(text, x, y, maxWidth);
+    return;
+  }
+  const was = context.direction;
+  context.direction = 'rtl';
+  context.fillText(text, x, y, maxWidth);
+  context.direction = was;
+}
+
 function paintCardPrompt(context, prompt) {
   if (prompt.text) {
     context.font = numeralFont(prompt.size);
@@ -971,7 +989,7 @@ function paintCardPrompt(context, prompt) {
     context.textAlign = 'center';
     context.textBaseline = 'middle';
     context.fillStyle = 'rgb(51, 67, 83)';
-    context.fillText(prompt.text, prompt.cx, prompt.cy, prompt.maxWidth);
+    fillDirectedText(context, prompt.text, prompt.cx, prompt.cy, prompt.maxWidth);
   }
 }
 

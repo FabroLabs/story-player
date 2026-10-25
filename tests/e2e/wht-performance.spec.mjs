@@ -258,3 +258,84 @@ for (const format of ['performance narration', 'native ABC']) {
     expect(subtitle.y + subtitle.height).toBeLessThan(scrub.y);
   });
 }
+
+// Arabic Grow plays performance_v0 `captions`, Arabic Learn plays storylang
+// lines beside the lesson guide; both reach the one subtitle element. A line
+// must lay out right to left — the ؟ or the full stop at its LEFT end — and an
+// English line must sit exactly where it sat before the subtitle had `dir`.
+const QUESTION = 'دورُكِ يا ليلى! متى نأكل الفطور؟';
+const ENGLISH = 'Your turn, Laila! When do we eat breakfast?';
+const captionCases = [
+  { name: 'Grow performance caption in Arabic', kind: 'performance', text: QUESTION, dir: 'rtl' },
+  { name: 'Learn lesson line in Arabic', kind: 'lesson', text: QUESTION, dir: 'rtl' },
+  { name: 'Learn lesson answer in Arabic', kind: 'lesson', text: 'أربعة.', dir: 'rtl' },
+  { name: 'Learn lesson line in Arabic with a Latin name', kind: 'lesson', text: 'دورُكِ يا Laila! متى نأكل الفطور؟', dir: 'rtl' },
+  { name: 'Grow performance caption in English', kind: 'performance', text: ENGLISH, dir: 'ltr' },
+  { name: 'Learn lesson line in English', kind: 'lesson', text: ENGLISH, dir: 'ltr' },
+];
+for (const { name, kind, text, dir } of captionCases) {
+  test(`${name} lays out ${dir}`, async ({ page }) => {
+    await page.setViewportSize({ width: 900, height: 700 });
+    const errors = [];
+    page.on('pageerror', error => errors.push(error.message));
+    await page.goto(base);
+    await page.evaluate(async ({ kind, text }) => {
+      await window.ready;
+      window.player.destroy();
+      let story, board;
+      if (kind === 'performance') {
+        story = structuredClone(window.story);
+        delete story.instructions;
+        story.performance.required_capabilities.push('captions');
+        story.captions = [{ start_ms: 0, end_ms: 4000, text }];
+      } else {
+        board = { layout: 'lesson-guide', guide: 'helper' };
+        story = {
+          storylang_version: 0, title: 'lesson', cast: {},
+          objects: { apple: { svg: 'fairytale-assets/apple.png', height_cm: 30 } },
+          audio: { sfx: {}, bgm: {} },
+          scenes: [{ place: 'forest', plate: {
+            poster: 'fairytale-assets/forest.png', video: 'fairytale-assets/plate.webm',
+          }, steps: [{ kind: 'chunk', line: 1, text, duration_s: 4, audio: 'songs/abc-song.wav' }] }],
+        };
+      }
+      window.player = FabroStoryPlayer.createStoryPlayer(document.querySelector('#player'), {
+        story, assetBase: location.origin, ...(board ? { board } : {}),
+      });
+      await window.player.ready;
+    }, { kind, text });
+    await page.locator('.start-button').click();
+    await expect.poll(() => page.evaluate(() => window.player.getState().playing)).toBe(true);
+    await page.evaluate(() => { window.player.pause(); window.player.seek(250); });
+    await expect(page.locator('.subtitle')).toHaveText(text);
+    const layout = await page.evaluate(() => {
+      const subtitle = document.querySelector('#player').shadowRoot.querySelector('.subtitle');
+      const glyph = (at) => {
+        const range = document.createRange();
+        range.setStart(subtitle.firstChild, at);
+        range.setEnd(subtitle.firstChild, at + 1);
+        return range.getBoundingClientRect();
+      };
+      const box = () => { const { x, y, width, height } = subtitle.getBoundingClientRect(); return { x, y, width, height }; };
+      const length = subtitle.textContent.length;
+      const result = {
+        rtl: subtitle.matches(':dir(rtl)'), direction: getComputedStyle(subtitle).direction,
+        firstLeft: glyph(0).left, lastLeft: glyph(length - 1).left, box: box(),
+      };
+      // The same line with no `dir` at all: what an English line looked like before.
+      subtitle.removeAttribute('dir');
+      result.boxWithoutDir = box();
+      subtitle.setAttribute('dir', 'auto');
+      return result;
+    });
+    expect(layout.direction).toBe(dir);
+    expect(layout.rtl).toBe(dir === 'rtl');
+    if (dir === 'rtl') {
+      expect(layout.lastLeft).toBeLessThan(layout.firstLeft);
+    } else {
+      expect(layout.lastLeft).toBeGreaterThan(layout.firstLeft);
+      expect(layout.box).toEqual(layout.boxWithoutDir);
+    }
+    expect(errors).toEqual([]);
+  });
+}

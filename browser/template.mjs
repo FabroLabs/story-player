@@ -50,7 +50,7 @@ export function createPlayerTemplate(root, { stylesheet = STYLESHEET, kicker, ch
     element(document, 'div', { className: 'stage-vignette', 'aria-hidden': 'true' }),
     brand.root,
   ]);
-  const title = element(document, 'h1', { text: 'preparing your story…' });
+  const title = element(document, 'h1', { dir: 'auto', text: 'preparing your story…' });
   const start = element(document, 'button', { className: 'start-button', type: 'button', disabled: '' }, [
     glyph(document),
     // Read out, not shown: the round button is the web app's opening, and a
@@ -61,9 +61,11 @@ export function createPlayerTemplate(root, { stylesheet = STYLESHEET, kicker, ch
   const status = element(document, 'p', { className: 'load-status', role: 'status', text: 'loading the story bundle' });
   const ceremony = element(document, 'div', { className: 'start-ceremony' }, [
     element(document, 'div', { className: 'ceremony-glow', 'aria-hidden': 'true' }),
-    element(document, 'p', { className: 'eyebrow', text: eyebrowText(kicker) }), title, start, status,
+    element(document, 'p', { className: 'eyebrow', dir: 'auto', text: eyebrowText(kicker) }), title, start, status,
   ]);
-  const subtitle = element(document, 'p', { className: 'subtitle' });
+  // `dir="auto"` on every line that carries the story's own language: an Arabic
+  // line ending in ؟ or . must read right to left, an English one stays as it is.
+  const subtitle = element(document, 'p', { className: 'subtitle', dir: 'auto' });
   const mediaNote = element(document, 'p', { className: 'media-note' });
   const subtitleArea = element(document, 'div', {
     className: 'subtitle-wrap', 'aria-live': 'polite', 'aria-atomic': 'true',
@@ -196,7 +198,7 @@ function createCardLayer(document) {
     className: 'card-video', muted: '', playsinline: '', preload: 'auto',
   });
   video.muted = true;
-  const line = element(document, 'p', { className: 'card-line' });
+  const line = element(document, 'p', { className: 'card-line', dir: 'auto' });
   const skip = element(document, 'button', {
     className: 'card-skip', type: 'button', 'aria-label': 'skip the opening',
   }, [element(document, 'span', { text: 'skip' })]);
@@ -220,7 +222,7 @@ function createCardLayer(document) {
  */
 function createTitleLayer(document) {
   const canvas = element(document, 'canvas', { className: 'card-title-sprite', 'aria-hidden': 'true' });
-  const name = element(document, 'p', { className: 'card-title-name' });
+  const name = element(document, 'p', { className: 'card-title-name', dir: 'auto' });
   const layer = element(document, 'div', { className: 'card-title', hidden: '' }, [canvas, name]);
   layer.hidden = true;
   return { layer, canvas, name };
@@ -232,7 +234,7 @@ function createTitleLayer(document) {
  * should read while the story plays is drawn on the stage or nowhere.
  */
 function createBadge(document) {
-  const name = element(document, 'p', { className: 'story-name' });
+  const name = element(document, 'p', { className: 'story-name', dir: 'auto' });
   const root = element(document, 'div', { className: 'story-badge' }, [name]);
   return { root, name };
 }
