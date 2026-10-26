@@ -70,7 +70,11 @@ timeline — they are phases either side of it — so the clock, the scrub bar a
 every `t_ms` still cover the story alone.
 
 Stories can be saved as branded MP4 files with narration and the selected
-captions: native Full HD by default, or 720p with `recordVideo({ resolution: 720 })`.
+captions: native Full HD by default, or HD with `recordVideo({ resolution: 720 })`
+and SD with `recordVideo({ resolution: 480 })`. All three target 60 fps: 1920×1080
+at 16 Mbps, 1280×720 at 8 Mbps, and 854×480 at 3 Mbps. Hosts feature-detect
+`videoResolutions()` for this build's supported sizes, a fresh `[480, 720, 1080]`
+on every call, and still check `canRecordVideo()` before offering a download.
 The exporter also composites legacy video backgrounds. Stepped exports draw every
 60 fps output frame independently of display timing, including performance music
 and ambience loops mixed from their authored schedule; filmed exports keep that

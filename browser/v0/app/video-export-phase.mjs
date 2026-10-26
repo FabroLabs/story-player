@@ -2,7 +2,7 @@ import { NARRATION_GRACE_MS } from '../policy.mjs';
 import { clockText } from './controls.mjs';
 import { createFastTake, planFastTake } from './fast-export.mjs';
 import {
-  EXPORT_MEMORY_BYTES, VIDEO_BITS_PER_SECOND, VIDEO_SIZE, createAudioTap, createRecording, fileNameFor, saveVideoFile, videoBitsFor,
+  EXPORT_MEMORY_BYTES, VIDEO_BITRATES, VIDEO_RESOLUTIONS, VIDEO_SIZES, createAudioTap, createRecording, fileNameFor, saveVideoFile, videoBitsFor,
 } from './video-export.mjs';
 
 // The story stops on its last word, and the word is let finish rather than cut
@@ -89,7 +89,7 @@ export function createVideoExport({
       throw new TypeError('audioContext must be an AudioContext');
     }
     if (mode !== 'auto' && mode !== 'filmed') throw new TypeError('mode must be auto or filmed');
-    if (resolution !== 720 && resolution !== 1080) throw new TypeError('resolution must be 720 or 1080');
+    if (!VIDEO_RESOLUTIONS.includes(resolution)) throw new TypeError('resolution must be 480, 720 or 1080');
     if (maxBytes !== null && (!Number.isSafeInteger(maxBytes) || maxBytes <= 0)) throw new TypeError('maxBytes must be a positive safe integer');
     if (!support.ok) throw new Error(support.reason);
     if (take) throw new Error('a video of this story is already being recorded');
@@ -115,9 +115,9 @@ export function createVideoExport({
       memoryLimit,
       tap, recording: null, fast: null, ending: false, failed: null, settle: null, onProgress,
       paused: false, tail: null, tailRemaining: TAIL_MS, tailStarted: 0, tailDone: null,
-      size: resolution === 1080 ? { width: 1920, height: 1080 } : VIDEO_SIZE,
+      size: VIDEO_SIZES[resolution],
       bitrate: videoBitsFor((player.getState()?.durationMs ?? 0) + TAIL_MS, byteBudget,
-        resolution === 1080 ? VIDEO_BITS_PER_SECOND * 2 : VIDEO_BITS_PER_SECOND),
+        VIDEO_BITRATES[resolution]),
     };
     const finished = new Promise((resolve, reject) => { mine.settle = { resolve, reject }; });
     // Settled before anybody awaits it when the take is stopped while the story

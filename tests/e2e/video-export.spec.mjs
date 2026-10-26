@@ -171,12 +171,15 @@ test('a host keeps the file itself, and a cancelled take hands over nothing', as
   await expect(page.locator('#player .recording-status')).toBeHidden();
 });
 
-test('Full HD is rendered at 1920×1080 for stepped, filmed and streamed takes', async ({ page }, testInfo) => {
+for (const {name, resolution, width, height} of [
+  {name: 'Full HD', resolution: 1080, width: 1920, height: 1080},
+  {name: 'SD', resolution: 480, width: 854, height: 480},
+]) test(`${name} is rendered at ${width}×${height} for stepped, filmed and streamed takes`, async ({ page }, testInfo) => {
   test.setTimeout(60_000);
   await page.goto(base);
   await page.evaluate(() => window.ready);
   // The host's own button: the press is what lets a filmed take's sound start.
-  await page.evaluate(() => {
+  await page.evaluate((resolution) => {
     const encode = async (file) => {
       const bytes = new Uint8Array(await file.arrayBuffer());
       let text = '';
@@ -194,7 +197,7 @@ test('Full HD is rendered at 1920×1080 for stepped, filmed and streamed takes',
         const options = mode === 'streamed'
           ? { onChunk: async (piece, index) => { pieces[index] = piece; await new Promise((resolve) => { setTimeout(resolve, 1); }); } }
           : { mode };
-        window.take = window.player.recordVideo({ ...options, resolution: 1080, onProgress: (state) => seen.push(state) }).then(async (file) => ({
+        window.take = window.player.recordVideo({ ...options, resolution, onProgress: (state) => seen.push(state) }).then(async (file) => ({
           fast: seen.some((state) => state.fast === true), statuses: [...new Set(seen.map((state) => state.status))],
           tookMs: performance.now() - started, size: file.size, pieces: pieces.length, largest: Math.max(0, ...pieces.map((piece) => piece.size)),
           base64: await encode(mode === 'streamed' ? new Blob(pieces) : file),
@@ -202,8 +205,11 @@ test('Full HD is rendered at 1920×1080 for stepped, filmed and streamed takes',
       };
       document.body.append(button);
     }
-  });
+  }, resolution);
   const stepped = await page.evaluate(() => typeof globalThis.VideoEncoder === 'function' && typeof globalThis.AudioEncoder === 'function');
+  // Full HD keeps its pixel minima. SD has about 19.8% as many pixels
+  // (854 * 480 / (1920 * 1080)), so 500 and 40 become about 99 and 8.
+  const areaRatio = width * height / (1920 * 1080);
   const takes = {};
   for (const mode of ['auto', 'filmed', 'streamed']) {
     await page.getByRole('button', { name: `record ${mode}` }).click();
@@ -212,13 +218,13 @@ test('Full HD is rendered at 1920×1080 for stepped, filmed and streamed takes',
     await testInfo.attach(`${mode}-take`, { body: bytes, contentType: 'video/mp4' });
     expect(bytes.subarray(4, 8).toString('latin1')).toBe('ftyp');
     const decoded = await inspectFile(page, bytes);
-    expect(decoded.width).toBe(1920);
-    expect(decoded.height).toBe(1080);
+    expect(decoded.width).toBe(width);
+    expect(decoded.height).toBe(height);
     // The story and the second its last word is given to finish.
     expect(decoded.duration).toBeGreaterThan(3.8);
     expect(decoded.duration).toBeLessThan(6);
-    expect(decoded.brandPixels).toBeGreaterThan(500);
-    expect(decoded.captionPixels).toBeGreaterThan(40);
+    expect(decoded.brandPixels).toBeGreaterThan(500 * areaRatio);
+    expect(decoded.captionPixels).toBeGreaterThan(40 * areaRatio);
     expect(decoded.audioPeak).toBeGreaterThan(0.01);
     expect(take.statuses).toContain('ready');
     takes[mode] = take;

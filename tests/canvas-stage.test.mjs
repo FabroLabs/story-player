@@ -13,7 +13,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
 
-import { createCanvasStage, paintDrawList, sceneSheets } from '../browser/v0/app/stage/canvas-stage.mjs';
+import { createCanvasStage, paintDrawList, recordedScale, sceneSheets } from '../browser/v0/app/stage/canvas-stage.mjs';
 import { buildDrawList } from '../browser/v0/app/stage/draw-list.mjs';
 import { FLASH, SLATE } from '../browser/v0/policy.mjs';
 import { fakeContext, fakeElement, fakeStageElements, installDom, textCalls } from './_dom.mjs';
@@ -61,6 +61,50 @@ test('saved frames carry the brand outside the camera and burn the current capti
   assert.equal(elements.frame.classList.contains('is-exporting'), true);
   stage.setExportSize(null);
   assert.equal(elements.frame.classList.contains('is-exporting'), false);
+});
+
+test('export frames keep their exact dimensions, clear every pixel and restore the screen size', (t) => {
+  const { stage, elements, context } = mounted(t, { frame: [960, 540], dpr: 2 });
+  for (const { resolution, scales } of [
+    { resolution: [1920, 1080], scales: [854 / 1920, 2 / 3, 1] },
+    { resolution: [1000, 562.5], scales: [854 / 1000, 1280 / 1000, 1920 / 1000] },
+    { resolution: [1024, 768], scales: [480 / 768, 720 / 768, 1080 / 768] },
+  ]) {
+    const state = { ...stageState(), plate: { resolution } };
+    stage.draw(state, book());
+    const screen = [elements.canvas.width, elements.canvas.height];
+    for (const [index, [width, height]] of [[854, 480], [1280, 720], [1920, 1080]].entries()) {
+      stage.setExportSize({ width, height });
+      assert.deepEqual([elements.canvas.width, elements.canvas.height], [width, height]);
+      assert.equal(stage.exportScale(), scales[index]);
+      stage.draw(state, book());
+      // The fitted artwork can be narrower; no old caption or mark may remain
+      // in the rest of the frame when the next frame is painted.
+      assert.deepEqual(context.of('clearRect').at(-1), [0, 0, width, height]);
+      stage.setExportSize(null);
+      assert.deepEqual([elements.canvas.width, elements.canvas.height], screen);
+      assert.equal(stage.exportScale(), null);
+    }
+  }
+});
+
+test('SD paints the full frame without an uncovered column at the right edge', (t) => {
+  const { stage, context } = mounted(t);
+  stage.draw(stageState(), book());
+  context.calls.length = 0;
+  stage.setExportSize({ width: 854, height: 480 });
+  const [, painted] = context.of('setTransform');
+  assert.deepEqual(painted, [854 / 1920, 0, 0, 854 / 1920, 0, 0]);
+  assert.equal(1920 * painted[0], 854, 'the rightmost pixel column is not fully painted');
+  assert.ok(1080 * painted[3] >= 480 && 1080 * painted[3] < 481, 'only a fraction of a pixel may be cropped');
+});
+
+test('export rounding may crop less than one pixel on either axis, but never a whole pixel', () => {
+  assert.equal(recordedScale(128, 128, { width: 128.5, height: 128 }), 128.5 / 128);
+  assert.equal(recordedScale(128, 128, { width: 128, height: 128.5 }), 128.5 / 128);
+  assert.equal(recordedScale(128, 128, { width: 129, height: 128 }), 1);
+  assert.equal(recordedScale(128, 128, { width: 128, height: 129 }), 1);
+  assert.equal(recordedScale(1024, 768, { width: 854, height: 480 }), 480 / 768, 'a 4:3 stage must stay letterboxed');
 });
 
 function book({ url = 'ruby.webp', grid = [1, 1], drawables = {} } = {}) {
