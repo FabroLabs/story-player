@@ -9,7 +9,7 @@ import { buildDrawList } from '../browser/v0/app/stage/draw-list.mjs';
 import { createCanvasStage, paintDrawList } from '../browser/v0/app/stage/canvas-stage.mjs';
 import { sceneAssetPlan, planAssets } from '../browser/v0/app/assets/scene-loader.mjs';
 import { signatureOf } from '../browser/v0/app/timeline-player.mjs';
-import { fakeContext, fakeStageElements } from './_dom.mjs';
+import { fakeContext, fakeStageElements, imageCalls, textCalls } from './_dom.mjs';
 const oceanAsset = (slug) => new URL(`./fixtures/ocean/${slug}.svg`, import.meta.url);
 
 const plate = { resolution: [1920, 1080], poster: 'assets/reef.svg', video: 'assets/reef.mp4', zones: [] };
@@ -137,7 +137,7 @@ test('small quizzes enlarge fish and place every ring on the actual SVG artwork 
         const context = fakeContext();
         const artwork = { width: 788, height: 272 };
         paintDrawList(context, list, { lookup: () => artwork });
-        const [, dx, dy, dw, dh] = context.of('drawImage')[focus - 1];
+        const [, dx, dy, dw, dh] = imageCalls(context)[focus - 1];
         const svg = fs.readFileSync(oceanAsset(groups[focus - 1]), 'utf8');
         assert.match(svg, /viewBox="0 0 788 272"/);
         const use = [...svg.matchAll(/<use\b[^>]+>/g)][index - 1]?.[0];
@@ -150,7 +150,7 @@ test('small quizzes enlarge fish and place every ring on the actual SVG artwork 
         assert.ok(Math.abs(board.quizHighlight.cy - (dy + (y + h / 2) * dh / 272)) < 0.001);
         const oldContext = fakeContext();
         paintDrawList(oldContext, frame(oldGroups, focus), { lookup: () => ({ width: 1304, height: 530 }) });
-        const oldWidth = oldContext.of('drawImage')[focus - 1][3];
+        const oldWidth = imageCalls(oldContext)[focus - 1][3];
         assert.ok((dw * w / 788) / (oldWidth * w / 1304) >= 1.6, 'small quiz fish must be at least 60% larger');
       }
     }
@@ -185,8 +185,8 @@ test('required fish and numeral artwork is preloaded; hidden numerals are not pa
     const list = buildDrawList(stateAt(timeline, bundle, instant), sheets);
     const context = fakeContext();
     paintDrawList(context, list, { lookup: (url) => url.endsWith('ocean_fish.svg') ? fish : numeral });
-    assert.equal(context.of('drawImage').filter(([image]) => image === fish).length, 3);
-    assert.equal(context.of('drawImage').filter(([image]) => image === numeral).length, numeralCount);
+    assert.equal(imageCalls(context).filter(([image]) => image === fish).length, 3);
+    assert.equal(imageCalls(context).filter(([image]) => image === numeral).length, numeralCount);
   }
 });
 
@@ -237,8 +237,9 @@ test('a paused canvas immediately rebuilds teaching layout on phone to desktop a
       const expected = size.height > 260 ? buildDrawList(state, decoded) : phone;
       const context = fakeContext();
       paintDrawList(context, expected, { lookup, scale: Math.min(size.width / 1920, size.height / 1080) });
-      assert.deepEqual(elements.canvas.context.of('drawImage'), context.of('drawImage'), 'resize must paint the new layout immediately at unchanged story time');
-      assert.equal(elements.canvas.context.of('drawImage').at(-1).at(-1).alpha, 0.5, 'resize must retain reveal progress');
+      assert.deepEqual(imageCalls(elements.canvas.context), imageCalls(context), 'resize must paint the new layout immediately at unchanged story time');
+      assert.deepEqual(textCalls(elements.canvas.context), textCalls(context));
+      assert.equal(imageCalls(elements.canvas.context).at(-1).at(-1).alpha, 0.5, 'resize must retain reveal progress');
     }
   } finally {
     stage.destroy();

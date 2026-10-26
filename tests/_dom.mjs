@@ -149,11 +149,13 @@ export function fakeElement(tag = 'div') {
     element.getVideoPlaybackQuality = () => element.quality;
   }
   if (tag === 'canvas') {
+    element.ownerDocument = { createElement: fakeElement };
     // One context per element, as a real canvas hands out: asking twice must
     // not silently hand back a second, empty recorder.
     element.getContext = (kind) => {
       if (kind !== '2d') return null;
       element.context = element.context ?? fakeContext();
+      element.context.canvas = element;
       return element.context;
     };
     // Every write to `width`/`height` is kept, not just the last value: a real
@@ -198,15 +200,16 @@ export function fakeContext() {
   const record = (name) => (...args) => calls.push([name, ...args]);
   const context = {
     calls,
+    canvas: { ownerDocument: { createElement: fakeElement } },
     globalAlpha: 1,
     fillStyle: null,
     imageSmoothingEnabled: false,
     imageSmoothingQuality: null,
     strokeStyle: null,
     lineWidth: 1,
-    font: null,
-    textAlign: null,
-    textBaseline: null,
+    font: '10px sans-serif',
+    textAlign: 'start',
+    textBaseline: 'alphabetic',
     direction: 'ltr',
     clearRect: record('clearRect'),
     beginPath: record('beginPath'),
@@ -242,7 +245,16 @@ export function fakeContext() {
     measureText: (text) => {
       const size = Number.parseInt(/(\d+)px/.exec(context.font ?? '')?.[1] ?? '', 10);
       calls.push(['measureText', text]);
-      return { width: String(text).length * (Number.isFinite(size) ? size : 10) * 0.6 };
+      const fontSize = Number.isFinite(size) ? size : 10;
+      const width = String(text).length * fontSize * 0.6;
+      const align = context.textAlign;
+      const right = align === 'right' || (align === 'start' && context.direction === 'rtl')
+        || (align === 'end' && context.direction !== 'rtl');
+      const left = right ? width : align === 'center' ? width / 2 : 0;
+      const ascent = ({ top: 0, hanging: fontSize * .2, middle: fontSize * .4,
+        alphabetic: fontSize * .8, ideographic: fontSize, bottom: fontSize })[context.textBaseline] ?? fontSize * .8;
+      return { width, actualBoundingBoxLeft: left + 2, actualBoundingBoxRight: width - left + 3,
+        actualBoundingBoxAscent: ascent, actualBoundingBoxDescent: fontSize - ascent };
     },
     // Recorded like `drawImage` and for the same reason: a numeral is only
     // right if it landed where the transform in force would have put it, and
@@ -250,8 +262,12 @@ export function fakeContext() {
     fillText: (...args) => calls.push([
       'fillText', ...args, {
         alpha: context.globalAlpha, transform: [...transform], ink: context.fillStyle, direction: context.direction,
+        font: context.font, align: context.textAlign, baseline: context.textBaseline,
       },
     ]),
+    getTransform() {
+      return { a: transform[0], b: 0, c: 0, d: transform[1], e: transform[2], f: transform[3] };
+    },
     setTransform(a, b, c, d, e, f) {
       calls.push(['setTransform', a, b, c, d, e, f]);
       transform = [a, d, e, f];
@@ -270,13 +286,15 @@ export function fakeContext() {
       calls.push(['save']);
       stack.push([
         [...transform], context.globalAlpha, context.fillStyle, context.strokeStyle, context.lineWidth, context.direction,
+        context.font, context.textAlign, context.textBaseline,
       ]);
     },
     restore() {
       calls.push(['restore']);
       const held = stack.pop();
       if (!held) throw new Error('restore with nothing saved');
-      [, context.globalAlpha, context.fillStyle, context.strokeStyle, context.lineWidth, context.direction] = held;
+      [, context.globalAlpha, context.fillStyle, context.strokeStyle, context.lineWidth, context.direction,
+        context.font, context.textAlign, context.textBaseline] = held;
       [transform] = held;
     },
     drawImage: (...args) => calls.push([
@@ -560,4 +578,26 @@ export function findByText(root, text) {
     if (found) return found;
   }
   return null;
+}
+
+/** Text as placed on the destination, whether rasterized there or in a cache. */
+export function textCalls(context) {
+  return context.calls.flatMap(([name, ...args]) => {
+    if (name === 'fillText') return [args];
+    if (name !== 'drawImage' || !args[0]?.context) return [];
+    const [bitmap, x, y, width, height] = args;
+    return bitmap.context.of('fillText').map(([text, gx, gy, ...rest]) => {
+      const ink = rest.pop();
+      const [sx, sy, tx, ty] = ink.transform;
+      return [text, x + (gx * sx + tx) * width / bitmap.width,
+        y + (gy * sy + ty) * height / bitmap.height, ...rest,
+        { ...ink, ...args.at(-1), ink: ink.ink, direction: ink.direction }];
+    });
+  });
+}
+
+/** Asset/thumbnail blits, excluding the separately asserted text surfaces. */
+export function imageCalls(context) {
+  return context.calls.filter(([name, source]) => name === 'drawImage'
+    && !source?.context?.of('fillText').length).map(([, ...args]) => args);
 }

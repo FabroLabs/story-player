@@ -3,7 +3,7 @@ import test from 'node:test';
 import { requireBoardBlock } from '../browser/v0/app/urls.mjs';
 import { buildDrawList } from '../browser/v0/app/stage/draw-list.mjs';
 import { paintDrawList } from '../browser/v0/app/stage/canvas-stage.mjs';
-import { fakeContext } from './_dom.mjs';
+import { fakeContext, textCalls } from './_dom.mjs';
 import { read } from './_parity.mjs';
 import { compileTimeline } from '../browser/v0/core/timeline/compile.mjs';
 import { createSceneLoader } from '../browser/v0/app/assets/scene-loader.mjs';
@@ -179,7 +179,7 @@ test('canvas hides only the target image, preserves target shell paint, and dock
   const targetPaint = context => context.of('drawImage').filter(call => call[0] === images['assets/target.svg']);
   assert.equal(targetPaint(during).length, 1, 'one overlay must replace the hidden target image');
   assert.deepEqual(targetPaint(during), targetPaint(before), 'the docked overlay and canonical card use the same SVG fitting');
-  assert.ok(!during.of('fillText').some(call => call[0] === 'image unavailable'));
+  assert.ok(!textCalls(during).some(call => call[0] === 'image unavailable'));
 });
 
 test('actor mirroring and mask are isolated from prop, HUD camera and fallback paint', () => {

@@ -8,7 +8,7 @@ import { buildDrawList } from '../browser/v0/app/stage/draw-list.mjs';
 import { sceneSheets, paintDrawList } from '../browser/v0/app/stage/canvas-stage.mjs';
 import { createSceneLoader, sceneAssetPlan, planAssets, sceneKeepUrls } from '../browser/v0/app/assets/scene-loader.mjs';
 import { createBitmapCache } from '../browser/v0/app/assets/bitmap-cache.mjs';
-import { fakeContext } from './_dom.mjs';
+import { fakeContext, textCalls, imageCalls } from './_dom.mjs';
 
 const plate = { resolution: [1920, 1080], poster: 'assets/poster.svg', video: 'assets/plate.mp4', zones: [] };
 const card = (cards = ['a', 'apple'], focus = null, prompt = '') => ({ kind: 'cmd', cmd: 'board', subjects: [], cards, focus, prompt, line: 2 });
@@ -112,8 +112,8 @@ test('native draw list carries the board images, focused slot and readable promp
   }
   const context = fakeContext();
   paintDrawList(context, list, { lookup: () => drawable });
-  assert.equal(context.of('drawImage').length, 2);
-  assert.ok(context.of('fillText').some((row) => row[0] === 'apple'));
+  assert.equal(imageCalls(context).length, 2);
+  assert.ok(textCalls(context).some((row) => row[0] === 'apple'));
 });
 
 test('a required card decode failure rejects the scene gate and names the missing card', async (t) => {
