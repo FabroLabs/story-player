@@ -956,16 +956,20 @@ clock by hand, reads each frame off the canvas into the browser's own encoder,
 mixes the sound from the story's schedule and writes the mp4 itself
 (`mp4-writer.mjs`). It takes as long as the device needs to draw and encode — a
 few times faster than the story on a laptop — and a slow device makes it slower,
-never choppy. It is used for a performance (`performance.kind`) or a canvas
-lesson (`board.world`) in a browser with
+never choppy. It is used for a performance (`performance.kind`), a canvas
+lesson (`board.world`), or a farm journey (`farm_view_*` boards) in a browser with
 `VideoEncoder` and `AudioEncoder`, whose sound is short files plus AAC-in-mp4 for
 anything long (`m4a-reader.mjs` reads a long bed a second at a time). Canvas
 lessons mix narration, one-shot effects and looping music with fades and
 narration ducking. Performances also mix looping music and ambience with their
 authored volume changes; AAC encoder padding is excluded from each loop. Each frame waits for required scene and sprite images before
-encoding, so loading does not insert an old picture. Actual video plates remain
-filmed because their playback follows wall time. Anything
-else is filmed, which takes the story's duration; a stepped take that cannot
+encoding, so loading does not insert an old picture. Farm journey video plates
+stay paused during export and seek to the scene-local story time, looping at
+the video duration; each frame waits up to 1.5 seconds for the seek and repaints
+through the same camera before encoding. A clamped or stalled seek uses the last
+decoded plate frame and continues; media readiness cannot stall the take. Output timestamps use the frame index at
+60 fps rather than wall time or rounded story milliseconds. Other legacy plates
+remain filmed. Anything else is filmed, which takes the story's duration; a stepped take that cannot
 start is abandoned for a filmed one before any of the file exists, with a
 warning in the log. `recordVideo({ mode: 'filmed' })` asks for the filmed take by
 name. Progress and `getVideoExportState()` carry `fast: true` for a stepped take,

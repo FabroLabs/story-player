@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { buildCdn } from '../../scripts/build-cdn.mjs';
 import { performanceFixture } from '../_performance.mjs';
+import { mediaResponse } from '../_media-response.mjs';
 
 // A story saved as a video in a real browser: the settings menu, a whole take of a
 // four-second performance, and the mp4 the save hands over. Recording runs in
@@ -61,8 +62,7 @@ test.beforeAll(async () => {
       res.setHeader('Content-Type', 'image/svg+xml');
       res.end(SVG);
     } else if (req.url.endsWith('.webm')) {
-      res.setHeader('Content-Type', 'video/mp4');
-      res.end(fs.readFileSync(new URL('./fixtures/media/plate-export.mp4', import.meta.url)));
+      mediaResponse(req, res, fs.readFileSync(new URL('./fixtures/media/plate-export.mp4', import.meta.url)), 'video/mp4');
     } else {
       res.setHeader('Content-Type', 'text/html');
       res.end('<!doctype html><meta charset="utf-8"><div id="player" style="width:640px"></div><script src="/player.js"></script><script>window.ready=fetch("/story.json").then(r=>r.json()).then(story=>{window.player=FabroStoryPlayer.createStoryPlayer(document.querySelector("#player"),{story,assetBase:location.origin});return player.ready;});</script>');
@@ -626,5 +626,66 @@ for (const cancelDuringLoad of [false, true]) test(cancelDuringLoad
   for (let i = 1; i < moving.length; i++) {
     expect(moving[i].paints, `stale frame at ${moving[i].t}`).toBeGreaterThan(moving[i - 1].paints);
     expect(moving[i].t - moving[i - 1].t).toBeLessThanOrEqual(17_000);
+  }
+});
+
+
+for (const arabic of [false, true]) test(`farm journeys step live plates on a 60 fps grid (${arabic ? 'Arabic' : 'English'})`, async ({ page }, testInfo) => {
+  test.setTimeout(90_000);
+  await page.goto(base);
+  await page.evaluate(() => window.ready);
+  const result = await page.evaluate(async (arabic) => {
+    player.destroy();
+    const story = {
+      storylang_version: 0, title: 'Farm journey', cast: {}, audio: { sfx: {}, bgm: {} },
+      objects: Object.fromEntries(['animal_cow', 'farm_view_wide_cow'].map(slug => [slug, { svg: 'pack/cow.svg', height_cm: 35 }])),
+      scenes: [0, 1].map(i => ({ place: 'farm', plate: { resolution: [1920, 1080], poster: 'pack/poster.svg', video: 'pack/plate.webm' }, steps: [
+        { kind: 'cmd', cmd: 'put', subjects: ['animal_cow'], objects: ['animal_cow'], position: 'center' },
+        { kind: 'cmd', cmd: 'board', cards: ['animal_cow', 'farm_view_wide_cow'], prompt: arabic ? 'بقرة' : 'Cow' },
+        { kind: 'chunk', line: i + 1, text: arabic ? 'بقرة' : 'Cow', duration_s: 2, audio: 'pack/line.wav' },
+      ] })),
+    };
+    window.player = FabroStoryPlayer.createStoryPlayer(document.querySelector('#player'), { story, assetBase: location.origin, videoControls: 'host' });
+    await player.ready;
+    player.setSubtitles(false);
+    const video = document.querySelector('#player').shadowRoot.querySelector('.plate-video');
+    const ctx = document.querySelector('#player').shadowRoot.querySelector('canvas').getContext('2d');
+    const draw = ctx.drawImage.bind(ctx);
+    let paintedAt = null;
+    ctx.drawImage = (source, ...args) => {
+      if (source === video) paintedAt = source.currentTime;
+      return draw(source, ...args);
+    };
+    const encode = VideoEncoder.prototype.encode;
+    const frames = [], chunks = [], states = [];
+    VideoEncoder.prototype.encode = function(frame, options) {
+      const state = player.getState();
+      frames.push({ t: frame.timestamp, scene: state.sceneIndex, storyMs: state.tMs,
+        plate: video.currentTime, paintedAt, duration: video.duration, paused: video.paused, seeking: video.seeking });
+      return encode.call(this, frame, options);
+    };
+    try {
+      const info = await player.recordVideo({ resolution: 1080, maxBytes: 32 * 1024 * 1024,
+        onChunk: async chunk => chunks.push(chunk), onProgress: state => states.push(state) });
+      const bytes = new Uint8Array(await new Blob(chunks).arrayBuffer());
+      let binary = '';
+      for (let i = 0; i < bytes.length; i += 8192) binary += String.fromCharCode(...bytes.subarray(i, i + 8192));
+      return { frames, data: btoa(binary), size: info.size, fast: states.some(state => state.fast) };
+    } finally { VideoEncoder.prototype.encode = encode; }
+  }, arabic);
+  expect(result.fast).toBe(true);
+  const bytes = Buffer.from(result.data, 'base64');
+  expect(bytes.length).toBe(result.size);
+  await testInfo.attach('farm-journey', { body: bytes, contentType: 'video/mp4' });
+  const storyFrames = result.frames.filter(frame => frame.t < 4_000_000);
+  expect(storyFrames).toHaveLength(240);
+  expect(storyFrames.find(frame => frame.t === 2_000_000).scene).toBe(1);
+  for (const [i, frame] of result.frames.entries()) expect(Math.abs(frame.t - i * 1_000_000 / 60)).toBeLessThanOrEqual(0.5);
+  for (const frame of storyFrames) {
+    expect(frame.paused).toBe(true);
+    expect(frame.seeking).toBe(false);
+    expect(frame.paintedAt).toBeCloseTo(frame.plate, 6);
+    const localSeconds = (frame.storyMs - frame.scene * 2000) / 1000;
+    expect(frame.plate).toBeCloseTo(localSeconds % frame.duration, 4);
   }
 });

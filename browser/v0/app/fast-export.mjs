@@ -178,9 +178,12 @@ export function createFastTake(plan, {
 
     let frames = 0;
     let soundAt = 0;
-    const encodeFrame = (tMs) => {
+    // StoryClock rounds visual time to milliseconds. The output clock is
+    // instead an integer frame index: 90 kHz MP4 samples stay exactly 1500
+    // ticks apart, including slow plate seeks and the held tail.
+    const encodeFrame = () => {
       sheet.draw();
-      const frame = new g.VideoFrame(sheet.canvas, { timestamp: Math.round(tMs * 1000), duration: Math.round(FRAME_MS * 1000) });
+      const frame = new g.VideoFrame(sheet.canvas, { timestamp: Math.round(frames * 1e6 / VIDEO_FPS), duration: Math.round(1e6 / VIDEO_FPS) });
       videoEncoder.encode(frame, { keyFrame: frames % KEY_EVERY === 0 });
       frame.close();
       frames += 1;
@@ -210,7 +213,7 @@ export function createFastTake(plan, {
     await player.awaitExportFrame?.(control.stopped);
     check();
     // Starting the story draws its first instant; time has not moved yet.
-    encodeFrame(0);
+    encodeFrame();
     let last = 0;
     let stalledSince = null;
     while (true) {
@@ -227,7 +230,7 @@ export function createFastTake(plan, {
       if (next === 'frame') {
         last = tMs;
         stalledSince = null;
-        encodeFrame(tMs);
+        encodeFrame();
         if (frames % KEY_EVERY === 0) await catchUp(tMs);
         while (videoEncoder.encodeQueueSize > 4) { await turn(g); check(); }
         // Downloads and decodes that landed are noticed between frames.
@@ -242,9 +245,9 @@ export function createFastTake(plan, {
       await idle(g, clock.wall, 4);
     }
     // The last picture, held while the last word finishes.
-    for (let tMs = last + FRAME_MS; tMs < endMs; tMs += FRAME_MS) {
+    while (frames * FRAME_MS < endMs) {
       check();
-      encodeFrame(tMs);
+      encodeFrame();
       while (videoEncoder.encodeQueueSize > 4) await turn(g);
     }
     await catchUp(endMs);
