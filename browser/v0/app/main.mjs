@@ -112,8 +112,14 @@ export function createV0Player({
       onChange: () => publish(runtime?.getState() ?? null),
     })
     : null;
+  const subtitleSubscribers = new Set();
   const cleanups = [
-    wireSubtitleToggle(elements), wireDimming(elements.dimming, { enabled: bedtime, on: dim === true }),
+    wireSubtitleToggle(elements, (on) => {
+      for (const listener of subtitleSubscribers) {
+        try { listener(on); }
+        catch (error) { warn({ type: 'host', message: `host subtitle listener failed: ${error?.message ?? error}` }); }
+      }
+    }), wireDimming(elements.dimming, { enabled: bedtime, on: dim === true }),
     screenFill.destroy, () => windDown?.destroy(),
   ];
   const warn = (detail) => routeWarning(detail, null, log);
@@ -172,6 +178,8 @@ export function createV0Player({
     timeline: () => timeline, board: boardBlock,
     onWarning: warn,
   });
+  // Keep the existing Save opt-out; an empty settings menu has no button.
+  elements.controls.settings.hidden = elements.controls.save.hidden;
   const subscribers = new Set();
   let armed = false;
   let beginRequested = false;
@@ -225,7 +233,6 @@ export function createV0Player({
       if (typeof on !== 'boolean') throw new TypeError('subtitle preference must be boolean');
       elements.subtitleArea.hidden = !on;
       elements.subtitles.setAttribute('aria-pressed', String(on));
-      elements.subtitles.setAttribute('aria-label', on ? 'hide subtitles' : 'show subtitles');
       writePreference(SUBTITLES_KEY, on ? 'on' : 'off');
     },
     setFullscreen: (on) => {
@@ -240,6 +247,11 @@ export function createV0Player({
       if (runtime) listener(withAfterStory(runtime.getState()));
       return () => subscribers.delete(listener);
     },
+    subscribeSubtitles(listener) {
+      if (typeof listener !== 'function') throw new TypeError('subtitle subscriber must be a function');
+      subtitleSubscribers.add(listener);
+      return () => subtitleSubscribers.delete(listener);
+    },
     appendScene,
     finishStory,
     recordVideo: (options) => exporter.record(options),
@@ -250,6 +262,7 @@ export function createV0Player({
       if (destroyed) return;
       destroyed = true;
       subscribers.clear();
+      subtitleSubscribers.clear();
       if (startHandler) elements.start.removeEventListener('click', startHandler);
       for (const cleanup of cleanups) cleanup();
       card?.destroy();
@@ -332,6 +345,7 @@ export function createV0Player({
     // append, whole rather than patched — that is what keeps a growing
     // timeline the finished one's own opening.
     timeline = compile(runtimeStory);
+    updateSubtitleAvailability();
     panel.attachTimeline(timeline);
     logCompileRefusals(timeline);
     // Only when somebody asked to measure: a log that carries a perf section
@@ -393,6 +407,18 @@ export function createV0Player({
       },
     });
     if (perf) panel.beforeSerialize(() => runtime.flushPerf('download'));
+  }
+
+  // Timed lyrics replace narration captions, including an explicitly empty list.
+  // Legacy captions come from compiled ops, so nested steps need no second parser.
+  function updateSubtitleAvailability() {
+    const text = (value) => typeof value === 'string' && value.trim().length > 0;
+    const available = runtimeStory?.performance
+      ? (Object.hasOwn(runtimeStory, 'captions')
+        ? runtimeStory.captions.some((caption) => text(caption.text))
+        : runtimeStory.audio.some((cue) => cue.kind === 'narration' && text(cue.text)))
+      : timeline.events.some((event) => event.op === 'subtitle' && text(event.text));
+    elements.subtitles.hidden = !available;
   }
 
   async function armStart() {
@@ -469,6 +495,7 @@ export function createV0Player({
     }
     runtimeStory = grown;
     timeline = compiled;
+    updateSubtitleAvailability();
     panel.attachTimeline(timeline);
     logCompileRefusals(timeline);
     await runtime.appendScene({ bundle: runtimeStory, timeline });
@@ -710,13 +737,14 @@ function requireStream(stream) {
   return { scenes };
 }
 
-function wireSubtitleToggle(elements) {
+function wireSubtitleToggle(elements, onChange) {
   const { subtitles: button, subtitleArea: area } = elements;
   apply(readPreference(SUBTITLES_KEY) !== 'off');
   const onClick = () => {
     const next = button.getAttribute('aria-pressed') !== 'true';
     apply(next);
     writePreference(SUBTITLES_KEY, next ? 'on' : 'off');
+    onChange(next);
   };
   button.addEventListener('click', onClick);
   return () => button.removeEventListener('click', onClick);
@@ -724,7 +752,6 @@ function wireSubtitleToggle(elements) {
   function apply(on) {
     area.hidden = !on;
     button.setAttribute('aria-pressed', String(on));
-    button.setAttribute('aria-label', on ? 'hide subtitles' : 'show subtitles');
   }
 }
 

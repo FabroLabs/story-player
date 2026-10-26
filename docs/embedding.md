@@ -306,7 +306,7 @@ booleans, both off by default:
 
 The plain `createStoryPlayer` handle exposes `play()`, `pause()`, `toggle()`,
 `seek(milliseconds)`, `setSubtitles(boolean)`, `setFullscreen(boolean)`,
-`getState()`, `getTimeline()` and `subscribe(listener)` alongside `ready`,
+`getState()`, `getTimeline()`, `subscribe(listener)` and `subscribeSubtitles(listener)` alongside `ready`,
 streaming methods, `recordVideo()`, `canRecordVideo()`, `cancelVideo()` and
 `getVideoExportState()` (see [saving a story
 as a video](#saving-a-story-as-a-video)) and `destroy()`.
@@ -837,17 +837,45 @@ at the end of the prefix. A React host following a writer calls
 `download` is read through a ref: an inline arrow is a new function on every
 render, and the newest one is the one called, without a remount.
 
+### Remembering viewer subtitle choices
+
+Feature-detect the additive handle method; host and player builds need not update together:
+
+```js
+const stopRemembering = typeof handle.subscribeSubtitles === 'function'
+  ? handle.subscribeSubtitles((on) => rememberCaptionsOnThisDevice(on))
+  : () => {};
+// At mount, apply the host's current preference as before:
+handle.setSubtitles?.(captionsOnThisDevice);
+// At teardown:
+stopRemembering();
+```
+
+`subscribeSubtitles(listener: (on: boolean) => void): () => void` reports viewer
+CC clicks/keyboard activation only. It does not emit an initial value or echo
+`setSubtitles` calls. Listeners belong to one instance, are removed by destroy,
+and cannot break the toggle if they throw. The existing local subtitle
+preference storage and `setSubtitles(boolean)` behavior stay in place.
+
 ## Controls
 
 The player owns its transport, inside the Shadow DOM, drawn as the web app's
 watch dock (frontend-app `WatchControls`): play, back and forward ten seconds,
-the draggable line with `0:27 / 8:32`, then the settings menu and full screen. The
-menu holds what is not playing the story: subtitles, the bedtime moon and
-saving the story as a video, each a row that closes the menu when chosen, so
-a phone's dock stays at five buttons whatever the story offers. A press
-anywhere else closes it — a press on the picture only closes it — Escape
-closes it and hands the keyboard back to the gear, and an open menu keeps the
-overlay on screen. The transport appears when the story begins, not while the opening is still up, and it
+the draggable line with `0:27 / 8:32`, then a visible **Subtitles** (boxed CC)
+button and full screen. CC exposes `aria-pressed`, a mint background and a 3px
+progress-colour bar when on, and is hidden when the story has no caption text.
+A bedtime story adds its own moon beside CC. Streaming scenes can reveal CC
+as their first caption arrives. The dock inherits the host's direction, so
+`dir="rtl"` mirrors its button order; the timeline and numeric times remain LTR.
+
+The gear contains only Save video, and appears only when that row is available.
+The existing `videoControls: 'player'` default preserves saving for hosts without
+their own Download action. Both web and mobile hosts that supply their own
+Download UI use `videoControls: 'host'`, which removes the gear and recording
+pill. Save settings still dismiss on a choice, an outside press or Escape;
+an open menu keeps the overlay on screen.
+
+The transport appears when the story begins, not while the opening is still up, and it
 withdraws again for as long as a card is playing — each card has a skip of its
 own. The story's name sits over the picture at the top left. A host that draws
 its own chrome up there — close, cast, parental, overflow — owns that corner;
@@ -855,8 +883,8 @@ the player never adds to it.
 
 Everything over the picture is sized to the player's own box, never the window,
 so one build serves a laptop card, a tablet, full screen and a phone webview:
-under 600 pixels wide the dock is two rows (the line, then the five buttons
-spread across it), from 600 up it is one row; the caption is 15px under 520,
+under 600 pixels wide the dock is two rows (the line, then play, −10, +10,
+CC and fullscreen, with a sixth moon for bedtime; optional Save adds a gear), from 600 up it is one row; the caption is 15px under 520,
 17px under 600 and 20px from there, and sits just above the dock, dropping to
 the foot of the picture when the dock withdraws.
 
@@ -956,16 +984,20 @@ clock by hand, reads each frame off the canvas into the browser's own encoder,
 mixes the sound from the story's schedule and writes the mp4 itself
 (`mp4-writer.mjs`). It takes as long as the device needs to draw and encode — a
 few times faster than the story on a laptop — and a slow device makes it slower,
-never choppy. It is used for a performance (`performance.kind`) or a canvas
-lesson (`board.world`) in a browser with
+never choppy. It is used for a performance (`performance.kind`), a canvas
+lesson (`board.world`), or a farm journey (`farm_view_*` boards) in a browser with
 `VideoEncoder` and `AudioEncoder`, whose sound is short files plus AAC-in-mp4 for
 anything long (`m4a-reader.mjs` reads a long bed a second at a time). Canvas
 lessons mix narration, one-shot effects and looping music with fades and
 narration ducking. Performances also mix looping music and ambience with their
 authored volume changes; AAC encoder padding is excluded from each loop. Each frame waits for required scene and sprite images before
-encoding, so loading does not insert an old picture. Actual video plates remain
-filmed because their playback follows wall time. Anything
-else is filmed, which takes the story's duration; a stepped take that cannot
+encoding, so loading does not insert an old picture. Farm journey video plates
+stay paused during export and seek to the scene-local story time, looping at
+the video duration; each frame waits up to 1.5 seconds for the seek and repaints
+through the same camera before encoding. A clamped or stalled seek uses the last
+decoded plate frame and continues; media readiness cannot stall the take. Output timestamps use the frame index at
+60 fps rather than wall time or rounded story milliseconds. Other legacy plates
+remain filmed. Anything else is filmed, which takes the story's duration; a stepped take that cannot
 start is abandoned for a filmed one before any of the file exists, with a
 warning in the log. `recordVideo({ mode: 'filmed' })` asks for the filmed take by
 name. Progress and `getVideoExportState()` carry `fast: true` for a stepped take,
@@ -973,7 +1005,7 @@ which neither pauses in a hidden tab nor needs the page in front: a host that
 pauses takes on `visibilitychange` may leave a stepped one running.
 
 Pass `videoControls: 'host'` at mount to place Save video beside the host's story
-actions. It removes the player's menu row and recording pill, while keeping
+actions. It removes the player's Save menu, gear and recording pill, while keeping
 ordinary player controls. `chrome: 'host'` also implies host export controls.
 Older builds lack these methods; feature-detect before offering the action:
 
@@ -985,6 +1017,23 @@ const file = await handle.recordVideo({
 });
 // A fresh press is required before opening a share sheet or download.
 ```
+
+Watching and saving can run concurrently in **separate mounted players of the
+same build**. Mount a recorder in its own connected container, then call that
+handle's `recordVideo`; recording on the watched handle intentionally rewinds
+and pauses that handle for the take. Each mount owns its clock, media elements,
+audio graph, controls and subscriptions. A take's speaker gain is zero while
+its capture stream retains the audio. Starting, pausing, finishing, cancelling
+or destroying the recorder must leave the watched handle alone. Hosts should
+not pause their recorder just because another player is playing.
+
+Visibility applies to the whole document: ordinary watched playback pauses
+when hidden and resumes when visible if it had been running. A **filmed** take
+pauses on visibility loss/pagehide, including its final tail, and needs an
+explicit recorder `play()` after returning; it cannot start while hidden.
+A **stepped** take (`fast: true`) keeps working while hidden, subject to browser
+background throttling or suspension. None promises continued work after the
+page is discarded or closed.
 
 A host that records one story after another passes `audioContext`: an
 `AudioContext` it created and resumed inside its own press. Each take routes its

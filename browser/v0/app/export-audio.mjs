@@ -1,11 +1,15 @@
+import { readFarmJourney } from '../core/farm-journey.mjs';
 import { cuesBetween } from '../core/state/cues.mjs';
 import { DUCKED_MUSIC_VOLUME, DUCK_FADE_MS, MUSIC_FADE_MS, MUSIC_VOLUME, NARRATION_GRACE_MS } from '../policy.mjs';
 
 /** The export's sound schedule. The visual runtime keeps its original bundle. */
 export function soundCuesFor({ story, timeline = null, board = null }) {
   if (story?.performance) return Array.isArray(story.audio) ? story.audio : null;
-  // A video plate follows wall time and cannot be stepped with the canvas.
-  if (!board?.world || !timeline) return null;
+  // Canvas worlds and farm journeys have scheduled sound. Farm plates are
+  // paused and sought to each output instant by the export runtime. Other
+  // legacy stories keep their existing filmed fallback.
+  if (!timeline || (!board?.world && !timeline.events?.some(event =>
+    event.source === 'stage' && event.op === 'slate' && readFarmJourney(event)?.kind === 'journey'))) return null;
   const events = cuesBetween(timeline, story, 0, Infinity);
   if (events.some(cue => cue.missing)) return null;
   const endMs = timeline.duration_ms;

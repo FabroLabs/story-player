@@ -65,6 +65,7 @@ function harness(t, { play, watchProperties } = {}) {
   });
 
   const elements = fakeStageElements();
+  elements.video.seekable = { length: 1, start: () => 0, end: () => elements.video.duration ?? 0 };
   if (watchProperties) {
     const bag = elements.plate.style;
     const original = bag.setProperty.bind(bag);
@@ -342,4 +343,91 @@ test('destroy pauses, detaches the source and leaves no listeners behind', (t) =
   assert.equal(elements.video.listenerCount('error'), 0);
   // and it is idempotent, the way every other destroy in this player is
   plate.destroy();
+});
+
+
+test('stepped plates stay paused and await each scene-local looped frame before capture', async (t) => {
+  const { plate, elements, plays } = harness(t);
+  plate.setStepped(true);
+  plate.play();
+  plate.showScene(SCENE);
+  elements.video.readyState = 2;
+  elements.video.duration = 2;
+  assert.equal(plays.length, 0, 'a stepped plate must never run on wall time');
+  let ready = false;
+  const frame = plate.seekExport(2250).then(() => { ready = true; });
+  await Promise.resolve();
+  assert.equal(elements.video.currentTime, 0.25, 'plate loops at scene-local time');
+  assert.equal(ready, false, 'setting currentTime does not mean its pixels are decoded');
+  elements.video.dispatch('seeked');
+  await frame;
+  assert.equal(elements.video.paused, true);
+  assert.equal(plate.captureFrame().source, elements.video);
+  assert.equal(elements.video.listenerCount('seeked'), 0);
+  plate.setStepped(false);
+  plate.play();
+  assert.equal(plays.length, 1, 'ordinary playback is restored');
+});
+
+test('leaving a stepped take or changing its scene cancels a pending plate seek', async (t) => {
+  const { plate, elements } = harness(t);
+  for (const leave of [() => plate.setStepped(false), () => plate.showScene(SCENE)]) {
+    plate.setStepped(true);
+    plate.showScene(SCENE);
+    elements.video.readyState = 2;
+    elements.video.duration = 2;
+    elements.video.currentTime = 0;
+    const pending = plate.seekExport(500);
+    await Promise.resolve();
+    leave();
+    await assert.rejects(pending, { name: 'AbortError' });
+    assert.equal(elements.video.listenerCount('seeked'), 0);
+  }
+});
+
+test('a clamped seek completes without waiting for seekable ranges', async (t) => {
+  const { plate, elements } = harness(t);
+  plate.setStepped(true);
+  plate.showScene(SCENE);
+  const video = elements.video;
+  Object.assign(video, { readyState: 2, duration: 2, seekable: { length: 0 } });
+  let requested = null;
+  Object.defineProperty(video, 'currentTime', { get: () => 0, set: value => { requested = value; } });
+  const frame = plate.seekExport(17);
+  await Promise.resolve();
+  assert.equal(requested, 0.017, 'attempt the scene-local time even without seekable ranges');
+  video.dispatch('seeked');
+  await frame;
+  assert.equal(plate.captureReady(), true);
+  assert.equal(plate.captureFrame().source, video);
+});
+
+test('a seek that never completes releases a drawable frame within 1500 ms', async (t) => {
+  const { plate, elements, timers, fire } = harness(t);
+  const saved = globalThis.VideoFrame;
+  const snapshots = [];
+  globalThis.VideoFrame = class {
+    constructor(source) { this.source = source; this.displayWidth = 1920; this.displayHeight = 1080; snapshots.push(this); }
+    close() { this.closed = true; }
+  };
+  t.after(() => { globalThis.VideoFrame = saved; });
+  plate.setStepped(true);
+  plate.showScene(SCENE);
+  const video = elements.video;
+  Object.assign(video, { readyState: 2, duration: 2 });
+  Object.defineProperty(video, 'currentTime', { get: () => 0, set() { video.seeking = true; video.readyState = 1; } });
+  const frame = plate.seekExport(17);
+  await Promise.resolve();
+  assert.deepEqual([...timers.values()].map(timer => timer.milliseconds), [1500]);
+  fire();
+  await frame;
+  assert.equal(plate.captureReady(), true, 'the runtime must not enter another readiness hold');
+  assert.equal(plate.captureFrame().source, snapshots[0], 'retain the last decoded plate while the decoder is stuck');
+  assert.equal(plate.captureFrame().width, 1920);
+  // A later frame is also bounded, even while the old seek remains pending.
+  const next = plate.seekExport(33);
+  await Promise.resolve(); fire(); await next;
+  plate.setStepped(false);
+  assert.equal(snapshots[0].closed, true);
+  assert.equal(video.listenerCount('seeked'), 0);
 });

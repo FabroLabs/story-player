@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { buildCdn } from '../../scripts/build-cdn.mjs';
 import { performanceFixture } from '../_performance.mjs';
+import { mediaResponse } from '../_media-response.mjs';
 
 // A story saved as a video in a real browser: the settings menu, a whole take of a
 // four-second performance, and the mp4 the save hands over. Recording runs in
@@ -61,8 +62,7 @@ test.beforeAll(async () => {
       res.setHeader('Content-Type', 'image/svg+xml');
       res.end(SVG);
     } else if (req.url.endsWith('.webm')) {
-      res.setHeader('Content-Type', 'video/mp4');
-      res.end(fs.readFileSync(new URL('./fixtures/media/plate-export.mp4', import.meta.url)));
+      mediaResponse(req, res, fs.readFileSync(new URL('./fixtures/media/plate-export.mp4', import.meta.url)), 'video/mp4');
     } else {
       res.setHeader('Content-Type', 'text/html');
       res.end('<!doctype html><meta charset="utf-8"><div id="player" style="width:640px"></div><script src="/player.js"></script><script>window.ready=fetch("/story.json").then(r=>r.json()).then(story=>{window.player=FabroStoryPlayer.createStoryPlayer(document.querySelector("#player"),{story,assetBase:location.origin});return player.ready;});</script>');
@@ -89,8 +89,7 @@ test('the settings menu records the whole story and saves it as an mp4 with pict
   await page.getByRole('button', { name: 'begin story' }).click();
   await page.locator('#player').hover();
   await page.getByRole('button', { name: 'settings' }).click();
-  await expect(page.getByRole('button', { name: 'show subtitles' })
-    .or(page.getByRole('button', { name: 'hide subtitles' }))).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Subtitles', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'save video' }).click();
 
   const status = page.locator('#player .recording-status');
@@ -626,5 +625,248 @@ for (const cancelDuringLoad of [false, true]) test(cancelDuringLoad
   for (let i = 1; i < moving.length; i++) {
     expect(moving[i].paints, `stale frame at ${moving[i].t}`).toBeGreaterThan(moving[i - 1].paints);
     expect(moving[i].t - moving[i - 1].t).toBeLessThanOrEqual(17_000);
+  }
+});
+
+
+for (const arabic of [false, true]) test(`farm journeys step live plates on a 60 fps grid (${arabic ? 'Arabic' : 'English'})`, async ({ page }, testInfo) => {
+  test.setTimeout(90_000);
+  await page.goto(base);
+  await page.evaluate(() => window.ready);
+  const result = await page.evaluate(async (arabic) => {
+    player.destroy();
+    const story = {
+      storylang_version: 0, title: 'Farm journey', cast: {}, audio: { sfx: {}, bgm: {} },
+      objects: Object.fromEntries(['animal_cow', 'farm_view_wide_cow'].map(slug => [slug, { svg: 'pack/cow.svg', height_cm: 35 }])),
+      scenes: [0, 1].map(i => ({ place: 'farm', plate: { resolution: [1920, 1080], poster: 'pack/poster.svg', video: 'pack/plate.webm' }, steps: [
+        { kind: 'cmd', cmd: 'put', subjects: ['animal_cow'], objects: ['animal_cow'], position: 'center' },
+        { kind: 'cmd', cmd: 'board', cards: ['animal_cow', 'farm_view_wide_cow'], prompt: arabic ? 'بقرة' : 'Cow' },
+        { kind: 'chunk', line: i + 1, text: arabic ? 'بقرة' : 'Cow', duration_s: 2, audio: 'pack/line.wav' },
+      ] })),
+    };
+    window.player = FabroStoryPlayer.createStoryPlayer(document.querySelector('#player'), { story, assetBase: location.origin, videoControls: 'host' });
+    await player.ready;
+    player.setSubtitles(false);
+    const video = document.querySelector('#player').shadowRoot.querySelector('.plate-video');
+    const ctx = document.querySelector('#player').shadowRoot.querySelector('canvas').getContext('2d');
+    const draw = ctx.drawImage.bind(ctx);
+    let paintedAt = null;
+    ctx.drawImage = (source, ...args) => {
+      if (source === video) paintedAt = source.currentTime;
+      return draw(source, ...args);
+    };
+    const encode = VideoEncoder.prototype.encode;
+    const frames = [], chunks = [], states = [];
+    VideoEncoder.prototype.encode = function(frame, options) {
+      const state = player.getState();
+      frames.push({ t: frame.timestamp, scene: state.sceneIndex, storyMs: state.tMs,
+        plate: video.currentTime, paintedAt, duration: video.duration, paused: video.paused, seeking: video.seeking });
+      return encode.call(this, frame, options);
+    };
+    try {
+      const info = await player.recordVideo({ resolution: 1080, maxBytes: 32 * 1024 * 1024,
+        onChunk: async chunk => chunks.push(chunk), onProgress: state => states.push(state) });
+      const bytes = new Uint8Array(await new Blob(chunks).arrayBuffer());
+      let binary = '';
+      for (let i = 0; i < bytes.length; i += 8192) binary += String.fromCharCode(...bytes.subarray(i, i + 8192));
+      return { frames, data: btoa(binary), size: info.size, fast: states.some(state => state.fast) };
+    } finally { VideoEncoder.prototype.encode = encode; }
+  }, arabic);
+  expect(result.fast).toBe(true);
+  const bytes = Buffer.from(result.data, 'base64');
+  expect(bytes.length).toBe(result.size);
+  await testInfo.attach('farm-journey', { body: bytes, contentType: 'video/mp4' });
+  const storyFrames = result.frames.filter(frame => frame.t < 4_000_000);
+  expect(storyFrames).toHaveLength(240);
+  expect(storyFrames.find(frame => frame.t === 2_000_000).scene).toBe(1);
+  for (const [i, frame] of result.frames.entries()) expect(Math.abs(frame.t - i * 1_000_000 / 60)).toBeLessThanOrEqual(0.5);
+  for (const frame of storyFrames) {
+    expect(frame.paused).toBe(true);
+    expect(frame.seeking).toBe(false);
+    expect(frame.paintedAt).toBeCloseTo(frame.plate, 6);
+    const localSeconds = (frame.storyMs - frame.scene * 2000) / 1000;
+    expect(frame.plate).toBeCloseTo(localSeconds % frame.duration, 4);
+  }
+});
+
+for (const mode of ['filmed', 'auto']) test(`two instances of one build keep watching and ${mode} recording independent`, async ({ page }) => {
+  test.setTimeout(45_000);
+  await page.goto(base);
+  await page.evaluate(() => window.ready);
+  await page.evaluate(async () => {
+    player.destroy();
+    const api = FabroStoryPlayers['ffffffffffffffffffffffffffffffffffffffff'];
+    const story = await (await fetch('/story.json')).json();
+    const watching = structuredClone(story);
+    watching.scenes[0].end_ms = 15_000;
+    watching.audio.push({ id: 'watch-music', kind: 'music', media: 'fairytale-assets/loop-tone.m4a',
+      start_ms: 0, end_ms: 15_000, duration_ms: 500, loop: true, volume: 0.5 });
+    // Observe the real media, including the watcher's looping audible track.
+    window.openedAudio = [];
+    window.Audio = new Proxy(window.Audio, { construct(Audio, args) {
+      const media = Reflect.construct(Audio, args); openedAudio.push(media); return media;
+    } });
+    window.player = api.createStoryPlayer(document.querySelector('#player'), {
+      story: watching, assetBase: location.origin, videoControls: 'host',
+    });
+    const tray = document.createElement('div');
+    tray.id = 'tray';
+    tray.style.cssText = 'position:fixed;width:2px;height:2px;overflow:hidden;pointer-events:none;bottom:0;right:0';
+    document.body.append(tray);
+    window.recorder = api.createStoryPlayer(tray, { story, assetBase: location.origin, videoControls: 'host' });
+    await Promise.all([player.ready, recorder.ready]);
+    window.watchStates = [];
+    player.subscribe(state => watchStates.push(state));
+    const button = document.createElement('button');
+    button.textContent = 'Record second player';
+    button.onclick = () => {
+      window.borrowed = new AudioContext();
+      const gains = [];
+      const createGain = borrowed.createGain.bind(borrowed);
+      borrowed.createGain = () => { const gain = createGain(); gains.push(gain); return gain; };
+      window.exportStates = [];
+      window.take = recorder.recordVideo({ mode: window.takeMode, resolution: 720, audioContext: borrowed,
+        onProgress: state => exportStates.push(state),
+      }).then(async file => {
+        const samples = (await borrowed.decodeAudioData(await file.arrayBuffer())).getChannelData(0);
+        let peak = 0;
+        for (const value of samples) peak = Math.max(peak, Math.abs(value));
+        return { peak, mutedSpeakers: gains[0].gain.value === 0, context: borrowed.state,
+          fast: exportStates.some(state => state.fast) };
+      });
+    };
+    document.body.append(button);
+  });
+  await page.getByRole('button', { name: 'begin story', exact: true }).first().click();
+  await expect.poll(() => page.evaluate(() => player.getState().tMs)).toBeGreaterThan(150);
+  await page.evaluate(mode => { window.takeMode = mode; watchStates.length = 0; }, mode);
+  await page.getByRole('button', { name: 'Record second player' }).click();
+  if (mode === 'filmed') {
+    await expect.poll(() => page.evaluate(() => recorder.getVideoExportState().status)).toBe('recording');
+    const before = await page.evaluate(() => ({ a: player.getState().tMs, b: recorder.getState().tMs }));
+    await expect.poll(() => page.evaluate(() => recorder.getState().tMs)).toBeGreaterThan(before.b + 300);
+    expect(await page.evaluate(() => player.getState().tMs)).toBeGreaterThan(before.a + 150);
+    // Pausing the watched story must not pause its neighbour's take.
+    const held = await page.evaluate(() => { player.pause(); return recorder.getState().tMs; });
+    await expect.poll(() => page.evaluate(() => recorder.getState().tMs)).toBeGreaterThan(held + 250);
+    await page.evaluate(() => { player.seek(6000); player.play(); watchStates.length = 0; recorder.pause(); });
+    const recorderAt = await page.evaluate(() => recorder.getState().tMs);
+    const watchAt = await page.evaluate(() => player.getState().tMs);
+    await expect.poll(() => page.evaluate(() => player.getState().tMs)).toBeGreaterThan(watchAt + 250);
+    expect(await page.evaluate(() => recorder.getState().tMs)).toBe(recorderAt);
+    await page.evaluate(() => recorder.play());
+  }
+  const result = await page.evaluate(() => window.take);
+  expect(result.peak).toBeGreaterThan(0.01);
+  expect(result.mutedSpeakers).toBe(true);
+  expect(result.context).toBe('running');
+  expect(result.fast).toBe(mode === 'auto');
+  const watching = await page.evaluate(() => ({ state: player.getState(),
+    interrupted: watchStates.some(state => !state.playing),
+    sounding: openedAudio.some(media => media.loop && !media.paused && !media.muted && media.volume > 0 && media.readyState >= 3),
+  }));
+  expect(watching.state.playing).toBe(true);
+  expect(watching.interrupted).toBe(false);
+  expect(watching.sounding).toBe(true);
+  // Cancellation/teardown of the recorder cannot close the watched player.
+  await page.evaluate(() => recorder.destroy());
+  const at = await page.evaluate(() => player.getState().tMs);
+  await expect.poll(() => page.evaluate(() => player.getState().tMs)).toBeGreaterThan(at + 150);
+  await page.evaluate(() => { player.destroy(); borrowed.close(); });
+});
+
+test('CC and the bedtime moon fit the responsive dock, mirrored in RTL with captions clear', async ({ page }, testInfo) => {
+  await page.goto(base);
+  await page.evaluate(() => window.ready);
+  for (const bedtime of [false, true]) {
+    await page.evaluate(async bedtime => {
+      player.destroy();
+      const story = await (await fetch('/story.json')).json();
+      if (bedtime) story.performance.kind = 'bedtime';
+      window.player = FabroStoryPlayer.createStoryPlayer(document.querySelector('#player'), {
+        story, assetBase: location.origin, videoControls: 'host', fullscreen: () => {},
+      });
+      await player.ready;
+      window.ccChanges = [];
+      player.subscribeSubtitles(on => ccChanges.push(on));
+      player.setSubtitles(true);
+      await player.play(); player.pause(); player.seek(500);
+    }, bedtime);
+    await expect(page.getByRole('button', { name: 'Subtitles', exact: true })).toBeVisible();
+    await expect(page.locator('#player .settings-button')).toBeHidden();
+    for (const width of [358, 599, 600, 960]) for (const dir of ['ltr', 'rtl']) {
+      await page.evaluate(({ width, dir }) => {
+        const host = document.querySelector('#player'); host.style.width = `${width}px`; host.dir = dir;
+      }, { width, dir });
+      const geometry = await page.evaluate(() => {
+        const root = document.querySelector('#player').shadowRoot;
+        const rect = node => { const r = node.getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height, bottom: r.bottom }; };
+        const buttons = [...root.querySelectorAll('.dock .round-button')].filter(node => !node.hidden).map(rect);
+        const cc = root.querySelector('.cc-button');
+        const bar = getComputedStyle(cc, '::after');
+        return { buttons, timeline: rect(root.querySelector('.timeline')), caption: rect(root.querySelector('.subtitle')),
+          track: rect(root.querySelector('.scrub')), background: getComputedStyle(cc).backgroundColor, bar: { height: bar.height, background: bar.backgroundColor } };
+      });
+      expect(geometry.buttons).toHaveLength(bedtime ? 6 : 5);
+      for (const button of geometry.buttons) {
+        expect(button.width).toBe(44); expect(button.height).toBe(44);
+        expect(button.y).toBeCloseTo(geometry.buttons[0].y, 1);
+      }
+      for (let i = 1; i < geometry.buttons.length; i++) {
+        if (dir === 'ltr') expect(geometry.buttons[i].x).toBeGreaterThanOrEqual(geometry.buttons[i - 1].x + 44);
+        else expect(geometry.buttons[i].x + 44).toBeLessThanOrEqual(geometry.buttons[i - 1].x);
+      }
+      if (width < 600) expect(geometry.timeline.bottom).toBeLessThanOrEqual(geometry.buttons[0].y);
+      else expect(geometry.timeline.y).toBeGreaterThanOrEqual(geometry.buttons[0].y);
+      expect(geometry.track.width).toBeGreaterThan(0);
+      expect(geometry.caption.bottom).toBeLessThan(geometry.timeline.y);
+      expect(geometry.background).toBe('rgba(146, 227, 196, 0.16)');
+      expect(geometry.bar).toEqual({ height: '3px', background: 'rgb(19, 233, 176)' });
+    }
+    await page.evaluate(() => { document.querySelector('#player').style.width = '358px'; });
+    await testInfo.attach(bedtime ? 'bedtime-phone-dock' : 'phone-dock', { body: await page.locator('#player').screenshot(), contentType: 'image/png' });
+    const cc = page.getByRole('button', { name: 'Subtitles', exact: true });
+    await cc.focus();
+    await cc.press('Space');
+    await expect(cc).toHaveAttribute('aria-pressed', 'false');
+    await expect(page.locator('#player .subtitle-wrap')).toBeHidden();
+    await cc.press('Enter');
+    await expect(cc).toHaveAttribute('aria-pressed', 'true');
+    expect(await page.evaluate(() => ccChanges)).toEqual([false, true]);
+  }
+});
+
+
+test('the legacy Save gear and bedtime moon keep seven phone targets above the caption lane', async ({ page }) => {
+  await page.goto(base);
+  await page.evaluate(() => window.ready);
+  await page.evaluate(async () => {
+    player.destroy();
+    const story = await (await fetch('/story.json')).json();
+    story.performance.kind = 'bedtime';
+    window.player = FabroStoryPlayer.createStoryPlayer(document.querySelector('#player'), {
+      story, assetBase: location.origin, fullscreen: () => {},
+    });
+    await player.ready;
+    player.setSubtitles(true);
+    await player.play(); player.pause(); player.seek(500);
+  });
+  for (const width of [320, 358]) {
+    await page.evaluate(width => { document.querySelector('#player').style.width = `${width}px`; }, width);
+    const boxes = await page.evaluate(() => {
+      const root = document.querySelector('#player').shadowRoot;
+      const rect = node => { const r = node.getBoundingClientRect(); return { x: r.x, y: r.y, right: r.right, bottom: r.bottom, width: r.width }; };
+      return { buttons: [...root.querySelectorAll('.dock .round-button')].filter(node => !node.hidden).map(rect),
+        frame: rect(root.querySelector('.stage-frame')), timeline: rect(root.querySelector('.timeline')),
+        caption: rect(root.querySelector('.subtitle')) };
+    });
+    expect(boxes.buttons).toHaveLength(7);
+    for (const button of boxes.buttons) {
+      expect(button.width).toBe(44);
+      expect(button.y).toBeCloseTo(boxes.buttons[0].y, 1);
+      expect(button.x).toBeGreaterThanOrEqual(boxes.frame.x);
+      expect(button.right).toBeLessThanOrEqual(boxes.frame.right);
+    }
+    expect(boxes.caption.bottom).toBeLessThan(boxes.timeline.y);
   }
 });
