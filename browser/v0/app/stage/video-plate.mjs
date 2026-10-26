@@ -25,6 +25,7 @@ import { DEFAULT_STAGE_RESOLUTION, SLATE } from '../../policy.mjs';
 // viewer is told something rather than watching a still poster forever. The
 // story does not wait on it: the picture plays over the poster either way.
 export const PLATE_READY_TIMEOUT_MS = 6_000;
+const PLATE_SEEK_TIMEOUT_MS = 1500;
 const CAMERA_ORIGIN = '0 0';
 
 export function createVideoPlate(elements, { onWarning = () => {}, gestureTarget = elements.frame } = {}) {
@@ -41,6 +42,9 @@ export function createVideoPlate(elements, { onWarning = () => {}, gestureTarget
   let frosted = null;
   let capture = null;
   let capturePoster = null;
+  let stepped = false;
+  let captureSettled = false;
+  let captureFallback = null;
 
   plate.style.transformOrigin = CAMERA_ORIGIN;
   // The stylesheet owns WHEN the blur eases; how long it takes is a published
@@ -48,20 +52,78 @@ export function createVideoPlate(elements, { onWarning = () => {}, gestureTarget
   // a second time in CSS where nothing would ever notice the two disagreeing.
   plate.style.setProperty('--frost-ms', `${SLATE.frost.ms}ms`);
 
-  return { showScene, aim, frost, play, pause, quality, destroy, prepareExport, captureReady, captureFrame };
+  return { showScene, aim, frost, play, pause, quality, destroy, prepareExport, captureReady, captureFrame, setStepped, seekExport };
+
+  // Export owns media time; play/pause still remember the viewer's intent but
+  // must never let a slow seek advance the background on the wall clock.
+  function setStepped(on) {
+    stepped = on;
+    capture?.cancel();
+    clearCaptureFallback();
+    if (on) {
+      clearDeadline();
+      disarmRetry();
+      video.pause();
+    }
+  }
+
+  async function seekExport(tMs) {
+    const owner = scene;
+    await prepareExport();
+    if (destroyed || !stepped || scene !== owner) throw new DOMException('take ended', 'AbortError');
+    if (!owner?.video) return;
+    const duration = video.duration;
+    if (!(Number.isFinite(duration) && duration > 0)) throw new Error('the story background has no finite duration for saving');
+    const seconds = Math.max(0, tMs) / 1000 % duration;
+    if (!video.seeking && Math.abs(video.currentTime - seconds) < 1e-7) return;
+    // Retain one decoded frame before seeking. A timed-out seek may leave
+    // HAVE_METADATA only, when drawImage(video) cannot read its old pixels.
+    if (video.readyState >= 2 && typeof globalThis.VideoFrame === 'function') {
+      try {
+        const snapshot = new globalThis.VideoFrame(video);
+        captureFallback?.close();
+        captureFallback = snapshot;
+      } catch { /* keep the last decoded frame if this one cannot be retained */ }
+    }
+    captureSettled = false;
+    const promise = new Promise((resolve, reject) => {
+      let settled = false;
+      const finish = (error) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        video.removeEventListener('seeked', ready);
+        video.removeEventListener('error', ready);
+        capture = null;
+        captureSettled = !error;
+        if (error) reject(error);
+        else resolve();
+      };
+      // A seeked event can be clamped by a non-seekable server. Accept what
+      // decoded; the next output frame still attempts its own absolute time.
+      const ready = () => finish();
+      const timer = setTimeout(ready, PLATE_SEEK_TIMEOUT_MS);
+      capture = { cancel: () => finish(new DOMException('take or scene changed', 'AbortError')) };
+      video.addEventListener('seeked', ready);
+      video.addEventListener('error', ready);
+      try { video.currentTime = seconds; } catch { finish(); }
+    });
+    if (capture) capture.promise = promise;
+    return promise;
+  }
 
   function captureReady() {
     if (!scene) return true;
-    return scene.video ? video.readyState >= 2 && !video.seeking : !scene.poster || capturePoster !== null;
+    return scene.video ? captureSettled || (video.readyState >= 2 && !video.seeking) : !scene.poster || capturePoster !== null;
   }
 
   function captureFrame() {
     if (!captureReady()) return null;
-    const source = scene?.video ? video : capturePoster;
+    const source = scene?.video ? (video.readyState >= 2 ? video : captureFallback) : capturePoster;
     return {
       source, filter: frosted, cover: !scene?.video,
-      width: source?.videoWidth || source?.naturalWidth || 1,
-      height: source?.videoHeight || source?.naturalHeight || 1,
+      width: source?.videoWidth || source?.displayWidth || source?.naturalWidth || 1,
+      height: source?.videoHeight || source?.displayHeight || source?.naturalHeight || 1,
     };
   }
 
@@ -280,7 +342,7 @@ export function createVideoPlate(elements, { onWarning = () => {}, gestureTarget
     // Asked to play before there is a scene to play: a real `<video>` with an
     // empty source rejects with a media error, which would be reported as a
     // blocked autoplay and arm a retry for something that was never refused.
-    if (!scene?.video) return;
+    if (!scene?.video || stepped) return;
     armDeadline();
     const attempt = video.play?.();
     if (!attempt?.catch) return;
@@ -336,8 +398,15 @@ export function createVideoPlate(elements, { onWarning = () => {}, gestureTarget
     retry = null;
   }
 
+  function clearCaptureFallback() {
+    captureSettled = false;
+    captureFallback?.close();
+    captureFallback = null;
+  }
+
   function releaseScene() {
     capture?.cancel();
+    clearCaptureFallback();
     capturePoster = null;
     clearDeadline();
     disarmRetry();

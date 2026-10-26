@@ -9,7 +9,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { afterStep, planFastTake } from '../browser/v0/app/fast-export.mjs';
+import { afterStep, createFastTake, planFastTake } from '../browser/v0/app/fast-export.mjs';
 import { createVideoExport } from '../browser/v0/app/video-export-phase.mjs';
 import { fakeElement } from './_dom.mjs';
 
@@ -275,4 +275,113 @@ for (const kind of ['music', 'ambience']) test(`performance ${kind} loops use st
   });
   assert.ok(plan, 'looping performance audio must not force a realtime recording');
   assert.deepEqual(plan.cues, [cue], 'keep the authored schedule, loop length and volume');
+});
+
+// A live farm plate used to disqualify this document before codecs were asked.
+function farmJourney() {
+  return { storylang_version: 0, title: 'أصدقاء المزرعة', cast: {}, objects: Object.fromEntries(['animal_cow', 'farm_view_wide_cow'].map(slug => [slug, { svg: `pack/${slug}.svg`, height_cm: 35 }])), audio: { sfx: {}, bgm: {} },
+    scenes: [{ place: 'farm', plate: { poster: 'pack/poster.svg', video: 'pack/farm_journey_v4.mp4', resolution: [1920, 1080] }, steps: [
+      { kind: 'cmd', cmd: 'put', subjects: ['animal_cow'], objects: ['animal_cow'], position: 'center' },
+      { kind: 'cmd', cmd: 'board', cards: ['animal_cow', 'farm_view_wide_cow'], prompt: 'بقرة' },
+      { kind: 'cmd', cmd: 'pause', seconds: 1 },
+    ] }] };
+}
+
+test('a farm journey with a live plate selects stepping and encodes a native 60 fps grid despite slow frames', async () => {
+  const { compileTimeline } = await import('../browser/v0/core/timeline/compile.mjs');
+  const story = farmJourney();
+  const timeline = compileTimeline(story);
+  const timestamps = [], durations = [];
+  let wall = 0;
+  const packet = (timestamp, duration) => ({ timestamp, duration, type: 'key', byteLength: 1, copyTo: out => out.fill(1) });
+  class Encoder {
+    static async isConfigSupported() { return { supported: true }; }
+    constructor(callbacks) { this.callbacks = callbacks; this.encodeQueueSize = 0; }
+    configure() {} async flush() {} close() {}
+  }
+  const g = {
+    VideoEncoder: class extends Encoder {
+      encode(frame) {
+        timestamps.push(frame.timestamp); durations.push(frame.duration);
+        this.callbacks.output(packet(frame.timestamp, frame.duration), { decoderConfig: { description: new Uint8Array([1, 100, 0, 42]) } });
+      }
+    },
+    AudioEncoder: class extends Encoder { encode(data) { this.callbacks.output(packet(data.timestamp, data.numberOfFrames / 48000 * 1e6)); } },
+    VideoFrame: class { constructor(canvas, init) { Object.assign(this, init); } close() {} },
+    AudioData: class { constructor(init) { Object.assign(this, init); } },
+    OfflineAudioContext: class {},
+    OffscreenCanvas: class { constructor(width, height) { Object.assign(this, { width, height }); } getContext() { return { drawImage() {} }; } },
+    MessageChannel: class { constructor() { this.port1 = { close() {} }; this.port2 = { postMessage: () => queueMicrotask(() => this.port1.onmessage()) }; } },
+    Blob, performance: { now: () => wall },
+  };
+  const plan = await planFastTake({ story, timeline, size: { width: 1920, height: 1080 }, globalObject: g });
+  assert.ok(plan, 'a farm video plate must not force wall-clock MediaRecorder capture');
+  const take = createFastTake(plan, { story, canvas: { width: 1920, height: 1080 }, durationMs: 1000, tailMs: 1000, globalObject: g });
+  let origin;
+  const player = {
+    // The real story clock rounds to milliseconds. Output timing must not.
+    getState: () => ({ tMs: Math.min(1000, Math.round(take.timebase.now() - origin)), ended: take.timebase.now() - origin >= 1000 }),
+    awaitExportFrame: async () => { wall += 75; await Promise.resolve(); },
+  };
+  try {
+    const file = await take.run({ player, begin: () => { origin = take.timebase.now(); },
+      control: { failed: () => null, paused: () => false, ending: () => false } });
+    assert.ok(file.size > 0);
+    assert.equal(timestamps.length, 120, 'two seconds must contain exactly 120 frames, including the tail');
+    assert.deepEqual(timestamps.slice(0, 7), [0, 16667, 33333, 50000, 66667, 83333, 100000]);
+    for (let i = 0; i < timestamps.length; i++) {
+      assert.ok(Math.abs(timestamps[i] - i * 1000000 / 60) <= 0.5, 'timestamps use the 60 Hz grid to microsecond precision');
+      assert.ok(Math.abs(durations[i] - 1000000 / 60) <= 1);
+    }
+    assert.ok(wall > 4000, 'the fake CPU must take longer than the video');
+  } finally { take.close(); }
+});
+
+test('the farm runtime seeks and repaints its live plate before releasing each stepped frame', async (t) => {
+  const { installDom, installAudio } = await import('./_dom.mjs');
+  const { createPlayerTemplate } = await import('../browser/template.mjs');
+  const { createTimelinePlayer } = await import('../browser/v0/app/timeline-player.mjs');
+  const { StoryClock } = await import('../browser/v0/app/clock.mjs');
+  const { createBitmapCache } = await import('../browser/v0/app/assets/bitmap-cache.mjs');
+  const { createSceneLoader } = await import('../browser/v0/app/assets/scene-loader.mjs');
+  const { resolveStoryAssets } = await import('../browser/v0/app/urls.mjs');
+  const { compileTimeline } = await import('../browser/v0/core/timeline/compile.mjs');
+  const dom = installDom(), audio = installAudio();
+  t.after(() => { audio.restore(); dom.restore(); });
+  const elements = createPlayerTemplate(document.createElement('div'));
+  const video = elements.stage.video;
+  Object.assign(video, { readyState: 2, duration: 2, videoWidth: 1920, videoHeight: 1080 });
+  video.seekable = { length: 1, start: () => 0, end: () => 2 };
+  let currentTime = 0, paintedAt = null;
+  Object.defineProperty(video, 'currentTime', { get: () => currentTime, set: value => {
+    video.seeking = true;
+    queueMicrotask(() => { currentTime = value; video.seeking = false; video.dispatch('seeked'); });
+  } });
+  const context = elements.stage.canvas.getContext('2d');
+  context.fillRect = () => {};
+  const draw = context.drawImage.bind(context);
+  context.drawImage = (source, ...args) => { if (source === video) paintedAt = source.currentTime; return draw(source, ...args); };
+  const bundle = resolveStoryAssets(farmJourney(), 'https://storage.example/');
+  const timeline = compileTimeline(bundle), cache = createBitmapCache();
+  const loader = createSceneLoader({ bundle, timeline, cache });
+  const clock = new StoryClock();
+  const player = createTimelinePlayer({ elements, bundle, timeline, cache, loader, clock });
+  t.after(() => { player.destroy(); cache.destroy(); });
+  await player.prepare();
+  let now = 0, next = 0;
+  const callbacks = new Map();
+  const timebase = { now: () => now, request: cb => { callbacks.set(++next, cb); return next; }, cancel: id => callbacks.delete(id) };
+  await player.beginExport({ size: { width: 1920, height: 1080 }, output: null, timebase });
+  player.begin();
+  await player.awaitExportFrame();
+  for (const [at, seconds] of [[1000 / 60, 0.017], [2000 / 60, 0.033], [50, 0.05]]) {
+    now = at;
+    const due = [...callbacks.values()]; callbacks.clear();
+    for (const cb of due) cb(now);
+    await player.awaitExportFrame();
+    assert.equal(player.getState().tMs, Math.round(at));
+    assert.equal(video.currentTime, seconds, 'the video must be sought before encoding');
+    assert.equal(paintedAt, seconds, 'the canvas must contain that decoded video frame');
+  }
+  player.endExport();
 });

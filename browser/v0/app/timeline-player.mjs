@@ -502,6 +502,9 @@ export function createTimelinePlayer({
     }
     exporting = { size, onError, readyScene: null, sceneLoad: null, returnTo, stepped: timebase !== null, frameLoads: new Set(), frameNeedsPaint: false, frameError: null };
     const mine = exporting;
+    mine.sceneStarts = new Map(story.timeline.events.filter(event => event.source === 'stage' && event.op === 'scene')
+      .map(event => [event.scene_index, event.t_ms]));
+    plate.setStepped(timebase !== null);
     controls.lockSeeking(true);
     stage.setExportSize(size);
     frameIntervalMs = 1000 / VIDEO_FPS;
@@ -529,7 +532,7 @@ export function createTimelinePlayer({
     if (!mine?.stepped) return;
     while (!destroyed && exporting === mine) {
       if (mine.frameError) throw mine.frameError;
-      if (!mine.frameLoads.size && !mine.frameNeedsPaint) return;
+      if (!mine.frameLoads.size && !mine.frameNeedsPaint) break;
       let timer;
       try {
         await Promise.race([
@@ -540,6 +543,17 @@ export function createTimelinePlayer({
       } finally { clearTimeout(timer); }
       if (destroyed || exporting !== mine) return;
       render(clock.now());
+    }
+    if (destroyed || exporting !== mine) return;
+    if (!story.bundle?.performance && !board?.world) {
+      await Promise.race([
+        plate.seekExport(clock.now() - (mine.sceneStarts.get(sceneIndex) ?? 0)),
+        ...(stopped ? [stopped] : []),
+      ]);
+      if (destroyed || exporting !== mine) return;
+      // The earlier draw preceded the seek. Copy only the decoded frame at
+      // this instant, through the same camera/board/caption painter.
+      render(clock.now(), { force: true });
     }
   }
 
@@ -566,6 +580,7 @@ export function createTimelinePlayer({
       clock.useNow();
       frames = display;
     }
+    plate.setStepped(false);
     exporting = null;
     controls.lockSeeking(false);
     stage.setExportSize(null);
