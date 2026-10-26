@@ -10,7 +10,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
-  MP4_TYPES, createAudioTap, createRecording, fileNameFor, recordingSupport, saveVideoFile, savingSupported,
+  MP4_TYPES, VIDEO_BITRATES, VIDEO_BITS_PER_SECOND, VIDEO_FPS, VIDEO_RESOLUTIONS, VIDEO_SIZE, VIDEO_SIZES,
+  createAudioTap, createRecording, fileNameFor, recordingSupport, saveVideoFile, savingSupported,
 } from '../browser/v0/app/video-export.mjs';
 import { performanceFixture } from './_performance.mjs';
 import { fakeElement } from './_dom.mjs';
@@ -19,6 +20,22 @@ const WORLD = { layout: 'lesson-guide', guide: 'helper', world: { background: 'g
 const ANDROID_WEBVIEW = 'Mozilla/5.0 (Linux; Android 14; Pixel 8 Build/AP2A; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/141.0.0.0 Mobile Safari/537.36';
 const ANDROID_CHROME = 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Mobile Safari/537.36';
 const IPHONE = 'Mozilla/5.0 (iPhone; CPU iPhone OS 26_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148';
+
+test('the three export tiers are frozen and keep the existing HD defaults', () => {
+  assert.deepEqual(VIDEO_RESOLUTIONS, [480, 720, 1080]);
+  assert.deepEqual(VIDEO_SIZES, {
+    480: { width: 854, height: 480 },
+    720: { width: 1280, height: 720 },
+    1080: { width: 1920, height: 1080 },
+  });
+  assert.deepEqual(VIDEO_BITRATES, { 480: 3_000_000, 720: 8_000_000, 1080: 16_000_000 });
+  assert.equal(VIDEO_SIZES[720], VIDEO_SIZE);
+  assert.equal(VIDEO_BITS_PER_SECOND, 8_000_000);
+  assert.equal(VIDEO_FPS, 60);
+  for (const value of [VIDEO_RESOLUTIONS, VIDEO_SIZES, ...Object.values(VIDEO_SIZES), VIDEO_BITRATES]) {
+    assert.ok(Object.isFrozen(value));
+  }
+});
 
 test('a story drawn on the canvas can be recorded, as the best mp4 the browser makes', () => {
   const performance = performanceFixture();
