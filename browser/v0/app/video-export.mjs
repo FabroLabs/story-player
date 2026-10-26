@@ -4,7 +4,7 @@
  * where the finished file goes.
  *
  * The recording is the performance played again from its start. The stage
- * canvas is backed at `VIDEO_SIZE` and captured as it is drawn, every audio
+ * canvas is backed at the requested size and captured as it is drawn, every audio
  * element the story opens is routed through one Web Audio graph, and a
  * `MediaRecorder` writes the two together into an mp4. So it takes as long as
  * the story. The export stage composites performance scenes, lesson boards or
@@ -12,6 +12,13 @@
  */
 
 export const VIDEO_SIZE = Object.freeze({ width: 1280, height: 720 });
+export const VIDEO_RESOLUTIONS = Object.freeze([480, 720, 1080]);
+export const VIDEO_SIZES = Object.freeze({
+  // 16:9 at 480 lines, rounded to an even width for H.264.
+  480: Object.freeze({ width: 854, height: 480 }),
+  720: VIDEO_SIZE,
+  1080: Object.freeze({ width: 1920, height: 1080 }),
+});
 export const VIDEO_FPS = 60;
 // H.264 with AAC first: the pair every phone's gallery plays. Then any mp4 the
 // browser can make — a Chromium built without the licensed codecs makes VP9
@@ -27,6 +34,12 @@ export const MP4_TYPES = Object.freeze([
 // Preserve fine artwork and 60 fps motion at 720p; Full HD uses twice this rate.
 // Memory-backed takes still respect their byte budget through videoBitsFor.
 export const VIDEO_BITS_PER_SECOND = 8_000_000;
+export const VIDEO_BITRATES = Object.freeze({
+  // The smaller SD frame needs less data while keeping its 60 fps motion.
+  480: 3_000_000,
+  720: VIDEO_BITS_PER_SECOND,
+  1080: VIDEO_BITS_PER_SECOND * 2,
+});
 export const AUDIO_BITS_PER_SECOND = 96_000;
 // The recorder emits once a second. Browser files remain in bounded memory;
 // native hosts acknowledge bounded chunks without retaining the whole story.

@@ -11,12 +11,13 @@ import test from 'node:test';
 
 import { afterStep, createFastTake, planFastTake } from '../browser/v0/app/fast-export.mjs';
 import { createVideoExport } from '../browser/v0/app/video-export-phase.mjs';
+import { EXPORT_MEMORY_BYTES } from '../browser/v0/app/video-export.mjs';
 import { fakeElement } from './_dom.mjs';
 
 const settle = async () => { for (let i = 0; i < 20; i += 1) await Promise.resolve(); };
 
 function world({ plan = {}, run = null, wrote = false } = {}) {
-  const calls = { begin: [], end: 0, played: 0, recorders: 0, closed: 0, warnings: [], progress: [] };
+  const calls = { plans: [], begin: [], end: 0, played: 0, recorders: 0, closed: 0, warnings: [], progress: [] };
   const listeners = {};
   const document = {
     visibilityState: 'visible',
@@ -78,7 +79,7 @@ function world({ plan = {}, run = null, wrote = false } = {}) {
     runtime: () => player, begin: () => { calls.played += 1; }, title: () => 'Rocket', story: () => ({ performance: {} }),
     onWarning: (warning) => calls.warnings.push(warning),
     stepping: {
-      plan: async () => plan,
+      plan: async (options) => { calls.plans.push(options); return plan; },
       create: (asked, options) => { created.push({ asked, options }); return take; },
     },
     globalObject,
@@ -172,8 +173,45 @@ test('default Full HD keeps its frame and bitrate when a stepped take falls back
   assert.equal(w.calls.recorderOptions.videoBitsPerSecond, 16_000_000);
   void w.exporter.endOfStory();
   await saving;
-  for (const resolution of [0, 480, 2160, '1080', null]) {
-    await assert.rejects(w.record({ resolution }), /resolution must be 720 or 1080/);
+  for (const resolution of [0, 360, 2160, '480', '1080', null]) {
+    await assert.rejects(w.record({ resolution }), {
+      name: 'TypeError', message: 'resolution must be 480, 720 or 1080',
+    });
+  }
+});
+
+for (const [resolution, width, bitrate] of [[480, 854, 3_000_000], [720, 1280, 8_000_000]]) {
+  test(`${resolution}p keeps its frame and bitrate when a stepped take falls back to filming`, async () => {
+    const w = world({ run: async () => { throw new Error('encoder unavailable'); } });
+    const saving = w.record({ resolution });
+    await settle();
+    assert.deepEqual(w.calls.plans[0].size, { width, height: resolution });
+    assert.equal(w.calls.plans[0].bitrate, bitrate);
+    assert.equal(w.created[0].options.bitrate, bitrate);
+    assert.deepEqual(w.calls.begin.map(({ size }) => size), [
+      { width, height: resolution }, { width, height: resolution },
+    ]);
+    assert.equal(w.calls.recorderOptions.videoBitsPerSecond, bitrate);
+    void w.exporter.endOfStory();
+    await saving;
+  });
+}
+
+for (const streamed of [false, true]) test(`SD ${streamed ? 'streamed' : 'in-memory'} takes keep the full rate or fit their byte budget`, async () => {
+  for (const maxBytes of [null, 64 * 1024 * 1024]) {
+    const w = world();
+    w.state.durationMs = 640_000;
+    const saving = w.record({ resolution: 480, maxBytes, ...(streamed ? { onChunk: async () => {} } : {}) });
+    await settle();
+    const limit = maxBytes ?? (streamed ? 0 : EXPORT_MEMORY_BYTES);
+    // Include the last word's second and the same 10% reserve as every take.
+    const expected = limit ? Math.floor(limit * 0.9 * 8 / 641) - 96_000 : 3_000_000;
+    assert.deepEqual(w.calls.plans[0].size, { width: 854, height: 480 });
+    assert.equal(w.calls.plans[0].bitrate, expected);
+    assert.equal(w.created[0].options.bitrate, expected);
+    assert.deepEqual(w.calls.begin[0].size, { width: 854, height: 480 });
+    w.pending.resolve(streamed ? { size: 7 } : new Blob(['stepped']));
+    await saving;
   }
 });
 

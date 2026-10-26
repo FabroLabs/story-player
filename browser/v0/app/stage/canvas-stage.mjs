@@ -274,6 +274,7 @@ export function createCanvasStage(elements, {
       lookup,
       counter,
       scale: renderScale,
+      clearSize: exportBox,
       shadows: shadowed,
       onPainted: remember,
       onMissing: standIn,
@@ -443,7 +444,9 @@ export function createCanvasStage(elements, {
     renderScale = exportBox
       ? recordedScale(width, height, exportBox)
       : scale * Math.min(positive(globalThis.devicePixelRatio) || 1, density);
-    const pixels = [
+    // The encoder gets the requested frame even when the fitted stage lands
+    // between pixels: 16:9 at 480 lines is 853⅓ pixels wide, inside 854×480.
+    const pixels = exportBox ? [exportBox.width, exportBox.height] : [
       Math.max(1, Math.round(width * renderScale)),
       Math.max(1, Math.round(height * renderScale)),
     ];
@@ -499,15 +502,14 @@ export function createCanvasStage(elements, {
 }
 
 /**
- * The scale a recording draws the logical stage at: the whole stage inside the
- * frame, with the width landing on an even pixel. A video encoder wants even
- * sides, and an exact width keeps every frame's `clearRect` on the canvas's own
- * edge instead of a column short of it.
+ * The scale a recording draws the logical stage at. Near matches fill the frame
+ * with less than a pixel cropped, so SD has no dark edge from a partly covered
+ * column. Larger aspect differences still fit the whole stage inside it.
  */
 export function recordedScale(width, height, box) {
-  const fit = Math.min(box.width / width, box.height / height);
-  const even = Math.max(2, Math.floor((width * fit) / 2) * 2);
-  return even / width;
+  const cover = Math.max(box.width / width, box.height / height);
+  if (width * cover - box.width < 1 && height * cover - box.height < 1) return cover;
+  return Math.min(box.width / width, box.height / height);
 }
 
 /** Wrap a caption without clipping unspaced languages or long single words. */
@@ -571,6 +573,8 @@ export function sceneSheets(plan, cache, counter = null) {
  */
 export function paintDrawList(context, list, {
   lookup = () => null, scale = 1, shadows = true,
+  // A recording clears its whole frame, including pixels outside the fitted stage.
+  clearSize = null,
   // The board's counter picture, as decoded so far: `null` until it lands, and
   // the apple is drawn meanwhile. Asked once per paint, not once per counter.
   counter = () => null,
@@ -582,7 +586,7 @@ export function paintDrawList(context, list, {
 } = {}) {
   const { camera } = list;
   context.setTransform(1, 0, 0, 1, 0, 0);
-  context.clearRect(0, 0, Math.round(list.width * scale), Math.round(list.height * scale));
+  context.clearRect(0, 0, clearSize?.width ?? Math.round(list.width * scale), clearSize?.height ?? Math.round(list.height * scale));
   const magnification = camera.scale * scale;
   const offsetX = (camera.x / 100) * list.width * scale;
   const offsetY = (camera.y / 100) * list.height * scale;

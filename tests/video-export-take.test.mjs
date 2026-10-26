@@ -9,6 +9,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { createStoryPlayer } from '../browser/embed.mjs';
+import { createPlayerTemplate } from '../browser/template.mjs';
+import { createV0Player } from '../browser/v0/app/main.mjs';
 import { findByClass, installDom, virtualFrames } from './_dom.mjs';
 
 const settle = async () => {
@@ -69,6 +71,79 @@ async function mount(t, { story = fourSeconds(), options = {} } = {}) {
     start: findByClass(root, 'start-button'),
   };
 }
+
+function assertVideoResolutions(player) {
+  const first = player.videoResolutions();
+  const second = player.videoResolutions();
+  assert.deepEqual(first, [480, 720, 1080]);
+  assert.deepEqual(second, [480, 720, 1080]);
+  assert.notEqual(first, second, 'the host was handed a shared array');
+  first.splice(0, first.length, 360);
+  assert.deepEqual(player.videoResolutions(), [480, 720, 1080], 'a host changed the build’s supported resolutions');
+}
+
+for (const surface of ['embed', 'performer']) test(`${surface} advertises fresh video resolutions before ready and after destroy, without recording support`, async (t) => {
+  const dom = installDom();
+  t.after(dom.restore);
+  const host = document.createElement('div');
+  const options = { story: plateStory(), assetBase: 'https://storage.example/' };
+  const root = surface === 'performer' ? host.attachShadow({ mode: 'open' }) : null;
+  const player = surface === 'embed'
+    ? createStoryPlayer(host, options)
+    : createV0Player({ root, elements: createPlayerTemplate(root), signal: new AbortController().signal, ...options });
+  t.after(() => player.destroy());
+  let ready = false;
+  const mounted = player.ready.then(() => { ready = true; });
+  assert.equal(ready, false);
+  assert.equal(player.canRecordVideo(), false);
+  assertVideoResolutions(player);
+  await mounted;
+  assertVideoResolutions(player);
+  player.destroy();
+  assertVideoResolutions(player);
+});
+
+test('the embed advertises video resolutions even when no performer could be mounted', async (t) => {
+  const dom = installDom();
+  t.after(dom.restore);
+  const player = createStoryPlayer(document.createElement('div'), {
+    story: plateStory(), assetBase: 'https://storage.example/', download: 'yes',
+  });
+  t.after(() => player.destroy());
+  assertVideoResolutions(player);
+  await assert.rejects(player.ready, /download must be a function/);
+  assert.equal(player.canRecordVideo(), false);
+  assertVideoResolutions(player);
+  player.destroy();
+  assertVideoResolutions(player);
+});
+
+for (const [resolution, width, height, bitrate] of [
+  [undefined, 1920, 1080, 16_000_000],
+  [480, 854, 480, 3_000_000],
+  [720, 1280, 720, 8_000_000],
+  [1080, 1920, 1080, 16_000_000],
+]) test(`a filmed ${resolution ?? 'default'} take draws at its requested size and bitrate`, async (t) => {
+  const { player, browser, canvas } = await mount(t);
+  const saving = player.recordVideo({ mode: 'filmed', ...(resolution === undefined ? {} : { resolution }) });
+  const stopped = assert.rejects(saving, { name: 'AbortError' });
+  await settle();
+  assert.deepEqual([canvas.width, canvas.height], [width, height]);
+  assert.equal(browser.recorders[0].options.videoBitsPerSecond, bitrate);
+  player.cancelVideo();
+  await stopped;
+});
+
+test('unsupported resolutions are refused before a take allocates media', async (t) => {
+  const { player, browser } = await mount(t);
+  for (const resolution of [360, '480', 0, null, false, NaN, Infinity, {}, [], 2160, '1080']) {
+    await assert.rejects(player.recordVideo({ resolution }), {
+      name: 'TypeError', message: 'resolution must be 480, 720 or 1080',
+    });
+  }
+  assert.equal(browser.contexts.length, 0);
+  assert.equal(browser.recorders.length, 0);
+});
 
 test('the menu records the story from its start, muted, and offers the finished file', async (t) => {
   const take = await mount(t);

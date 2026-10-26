@@ -307,8 +307,8 @@ booleans, both off by default:
 The plain `createStoryPlayer` handle exposes `play()`, `pause()`, `toggle()`,
 `seek(milliseconds)`, `setSubtitles(boolean)`, `setFullscreen(boolean)`,
 `getState()`, `getTimeline()`, `subscribe(listener)` and `subscribeSubtitles(listener)` alongside `ready`,
-streaming methods, `recordVideo()`, `canRecordVideo()`, `cancelVideo()` and
-`getVideoExportState()` (see [saving a story
+streaming methods, `recordVideo()`, `canRecordVideo()`, `videoResolutions()`,
+`cancelVideo()` and `getVideoExportState()` (see [saving a story
 as a video](#saving-a-story-as-a-video)) and `destroy()`.
 `subscribe` immediately reports current state when available and returns an
 unsubscribe function. State is `{tMs,durationMs,playing,ended,started,sceneIndex,
@@ -947,10 +947,16 @@ the current subtitle preference. Ordinary playback retains accessible DOM
 captions.
 
 `recordVideo()` performs a complete story again at 1920×1080 / 60 fps by default;
-`recordVideo({ resolution: 720 })` explicitly selects 1280×720 / 60 fps.
-Only `720` and `1080` are accepted. The picture bitrate is 16 Mbps at Full HD and
-8 Mbps at 720p, including when a stepped take falls back to filming. The stage
-renders at the requested size directly. Files can be larger; in-memory exports
+`recordVideo({ resolution: 720 })` selects 1280×720 / 60 fps, and
+`recordVideo({ resolution: 480 })` selects SD at 854×480 / 60 fps.
+Only the numbers `480`, `720` and `1080` are accepted; anything else rejects with
+`TypeError('resolution must be 480, 720 or 1080')`. The picture bitrate is 16 Mbps
+at Full HD, 8 Mbps at 720p and 3 Mbps at 480p, including when a stepped take falls
+back to filming. The stage renders at the requested size directly. A stage with a
+different aspect ratio is fitted inside that frame and letterboxed, so the file
+keeps the requested dimensions rather than the stage's proportions. For aspects
+that almost match, filling the frame may crop less than one pixel on each axis
+to avoid a dark edge. Files can be larger; in-memory exports
 still reduce their bitrate when needed to fit the existing 128 MiB budget, while
 hosts streaming chunks retain the full target bitrate unless they supply
 `maxBytes`. That optional positive integer budgets picture plus sound over the
@@ -1039,6 +1045,13 @@ A host that records one story after another passes `audioContext`: an
 `AudioContext` it created and resumed inside its own press. Each take routes its
 sound through it and leaves it open, so a take the host starts later, with no
 press, is not recorded silent. The host closes it when its last take is over.
+
+`videoResolutions()` returns a fresh ascending array `[480, 720, 1080]` on every
+call. It describes this build's accepted resolutions, independent of the story,
+browser recording support or mount state: it works before `ready` settles and
+after `destroy()`. Older builds lack it, so hosts feature-detect with
+`typeof handle.videoResolutions === 'function'` and still check `canRecordVideo()`
+before offering a download.
 
 `canRecordVideo()` checks browser recording support and refuses unfinished
 stream mounts. For a completed stream, the host fetches its final document and

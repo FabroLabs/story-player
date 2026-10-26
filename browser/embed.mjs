@@ -1,6 +1,7 @@
 import { performerFor } from './performers.mjs';
 import { createPlayerTemplate } from './template.mjs';
 import { resolveMediaUrl } from './v0/app/urls.mjs';
+import { VIDEO_RESOLUTIONS } from './v0/app/video-export.mjs';
 
 const OWNER = Symbol('FabroStoryPlayer owner');
 
@@ -63,6 +64,7 @@ export function createStoryPlayer(container, options) {
       ? Promise.reject(new Error('this player was destroyed'))
       : performer?.recordVideo?.(options) ?? Promise.reject(new Error('this player cannot record a video'))),
     canRecordVideo: () => !destroyed && performer?.canRecordVideo?.() === true,
+    videoResolutions: () => [...VIDEO_RESOLUTIONS],
     cancelVideo: () => { if (!destroyed) performer?.cancelVideo?.(); },
     getVideoExportState: () => destroyed ? null : performer?.getVideoExportState?.() ?? null,
     destroy() {
