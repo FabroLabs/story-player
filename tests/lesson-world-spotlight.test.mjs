@@ -3,7 +3,7 @@ import test from 'node:test';
 import { requireBoardBlock } from '../browser/v0/app/urls.mjs';
 import { buildDrawList } from '../browser/v0/app/stage/draw-list.mjs';
 import { paintDrawList } from '../browser/v0/app/stage/canvas-stage.mjs';
-import { fakeContext } from './_dom.mjs';
+import { fakeContext, textCalls } from './_dom.mjs';
 
 const deck = ['a', 'b', 'c', 'd'];
 const sheets = { sheet: () => ({ url: 'bibo', grid: [1, 1] }), prop: slug => ({ url: slug }) };
@@ -97,7 +97,7 @@ test('spotlight paints the neutral raised answer last with a grounded shadow and
   const forbidden = ['#fff0b2', '#c48a12', '#d19b24', '#e8ad24', '#29998e', '#e56d59'];
   for (const call of [...context.of('fill'), ...context.of('stroke')]) assert.ok(!forbidden.includes(call.at(-1).ink));
   assert.ok(context.of('fill').some(([fill]) => String(fill.ink).startsWith('rgba(35, 47, 47,')), 'neutral soft grounding shadow');
-  assert.deepEqual(context.of('fillText').at(-1).at(-1).transform, [1, 1, 0, 0]);
+  assert.deepEqual(textCalls(context).at(-1).at(-1).transform, [1, 1, 0, 0]);
   assert.equal(context.depth(), 0); assert.equal(context.globalAlpha, 1);
 });
 

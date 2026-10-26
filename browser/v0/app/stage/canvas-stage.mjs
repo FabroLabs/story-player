@@ -21,6 +21,7 @@ import { CARD_BOARD, DEFAULT_STAGE_RESOLUTION, FLASH, HIGHLIGHT, SLATE } from '.
 import { buildDrawList } from './draw-list.mjs';
 import { choreographyCaption } from './lesson-guide-choreography.mjs';
 import { textDirection } from './text-direction.mjs';
+import { createTextCache } from './text-cache.mjs';
 import { BRAND_WIDTH, BRAND_INSET, BRAND_OPACITY } from '../../../brand.mjs';
 
 // The ink of the shadow and of the placeholder, kept here rather than in the
@@ -91,6 +92,24 @@ const PICTURE_SIDE = 2.5;
 const NUMERAL_FONT = '700 {size}px "SF Pro Rounded", ui-rounded, Nunito, Quicksand, system-ui, sans-serif';
 const numeralFont = (size) => NUMERAL_FONT.replace('{size}', String(Math.round(size)));
 
+// Per destination context: players cannot evict one another's text. Allocation
+// stays here, alongside the stage's other private canvases.
+const textCaches = new WeakMap();
+function textCache(context) {
+  let cache = textCaches.get(context);
+  if (!cache) {
+    cache = createTextCache((width, height) => {
+      if (typeof globalThis.OffscreenCanvas === 'function') return new OffscreenCanvas(width, height);
+      const owner = context.canvas?.ownerDocument ?? globalThis.document;
+      return owner?.createElement?.('canvas') ?? null;
+    });
+    textCaches.set(context, cache);
+  }
+  return cache;
+}
+const measureCachedText = (context, text, maxWidth) => textCache(context).measure(context, text, maxWidth);
+const fillCachedText = (context, text, x, y, maxWidth) => textCache(context).draw(context, text, x, y, maxWidth);
+
 // How long a character may be missing before the placeholder is shown.
 //
 // A sheet that decodes inside this is never seen as a blob: the stage draws
@@ -125,6 +144,9 @@ export function createCanvasStage(elements, {
   now = () => globalThis.performance?.now?.() ?? 0,
 } = {}) {
   const context = elements.canvas?.getContext?.('2d') ?? null;
+  const fonts = elements.canvas?.ownerDocument?.fonts ?? globalThis.document?.fonts;
+  const fontsLoaded = () => { if (context) textCaches.get(context)?.clear(); };
+  fonts?.addEventListener?.('loadingdone', fontsLoaded);
   // The last frame each character was drawn at, as a thumbnail of its own. A
   // decoded sheet cannot be held for this: the cache closes a bitmap when it
   // evicts it, which is exactly the moment this exists for.
@@ -281,11 +303,16 @@ export function createCanvasStage(elements, {
     if (subtitles() && text) {
       const font = Math.max(16, Math.round(height * 0.041));
       context.font = `600 ${font}px system-ui, sans-serif`;
+      context.fillStyle = '#ffffff';
+      context.textAlign = 'center';
+      context.textBaseline = 'middle';
+      // The whole caption decides, including wrapped lines opening on a Latin name.
+      context.direction = textDirection(text);
       const maxWidth = width * 0.76;
-      const lines = captionLines(text, maxWidth, (line) => context.measureText(line).width);
+      const lines = captionLines(text, maxWidth, (line) => measureCachedText(context, line, maxWidth).width);
       const lineHeight = font * 1.35;
       const padding = font * 0.6;
-      const boxWidth = Math.min(maxWidth, Math.max(...lines.map((line) => context.measureText(line).width))) + padding * 2;
+      const boxWidth = Math.min(maxWidth, Math.max(...lines.map((line) => measureCachedText(context, line, maxWidth).width))) + padding * 2;
       const boxHeight = lineHeight * lines.length + padding * 2;
       const x = (width - boxWidth) / 2;
       const y = choreographyCaption(board, last.state) === 'top' ? height * 0.025 : height * 0.965 - boxHeight;
@@ -296,10 +323,8 @@ export function createCanvasStage(elements, {
       context.fillStyle = '#ffffff';
       context.textAlign = 'center';
       context.textBaseline = 'middle';
-      // The whole caption decides, so a wrapped line that opens on a Latin name stays in order.
-      if (textDirection(text) === 'rtl') context.direction = 'rtl';
       for (let i = 0; i < lines.length; i += 1) {
-        context.fillText(lines[i], width / 2, y + padding + lineHeight * (i + 0.5), maxWidth);
+        fillCachedText(context, lines[i], width / 2, y + padding + lineHeight * (i + 0.5), maxWidth);
       }
     }
     context.restore();
@@ -391,6 +416,9 @@ export function createCanvasStage(elements, {
     // The remembered frames go with the stage: they are canvases of their own,
     // and a destroyed player holding a megabyte of thumbnails is the leak this
     // file is otherwise careful about.
+    fonts?.removeEventListener?.('loadingdone', fontsLoaded);
+    textCaches.get(context)?.clear();
+    textCaches.delete(context);
     memory.clear();
     missedSince.clear();
     if (!context) return;
@@ -830,7 +858,7 @@ function paintCardBoard(context, command, lookup, width, height) {
       context.font = numeralFont(Math.max(16, dw * 0.07));
       context.textAlign = 'center';
       context.textBaseline = 'middle';
-      context.fillText('image unavailable', dx + dw / 2, dy + dh / 2, dw * 0.9);
+      fillDirectedText(context, 'image unavailable', dx + dw / 2, dy + dh / 2, dw * 0.9);
     }
     if (reveal) paintRevealBadge(context, card);
     else if (focused) paintAnswerStars(context, card);
@@ -966,30 +994,26 @@ function paintTransitionBoard(context, { transition, ...base }, lookup, width, h
   }
 }
 
-/**
- * `fillText`, right to left when the text is. A left-to-right line is drawn
- * exactly as before: the context's direction is not touched at all.
- */
+/** Direction is explicit on both the measurement and the cached raster. */
 function fillDirectedText(context, text, x, y, maxWidth) {
-  if (textDirection(text) !== 'rtl') {
-    context.fillText(text, x, y, maxWidth);
-    return;
-  }
   const was = context.direction;
-  context.direction = 'rtl';
-  context.fillText(text, x, y, maxWidth);
+  context.direction = textDirection(text);
+  fillCachedText(context, text, x, y, maxWidth);
   context.direction = was;
 }
 
 function paintCardPrompt(context, prompt) {
   if (prompt.text) {
+    const was = context.direction;
+    context.direction = textDirection(prompt.text);
     context.font = numeralFont(prompt.size);
-    const measured = context.measureText(prompt.text).width;
-    if (measured > prompt.maxWidth) context.font = numeralFont(prompt.size * prompt.maxWidth / measured);
     context.textAlign = 'center';
     context.textBaseline = 'middle';
     context.fillStyle = 'rgb(51, 67, 83)';
-    fillDirectedText(context, prompt.text, prompt.cx, prompt.cy, prompt.maxWidth);
+    const measured = measureCachedText(context, prompt.text, prompt.maxWidth).width;
+    if (measured > prompt.maxWidth) context.font = numeralFont(prompt.size * prompt.maxWidth / measured);
+    fillCachedText(context, prompt.text, prompt.cx, prompt.cy, prompt.maxWidth);
+    context.direction = was;
   }
 }
 
@@ -1237,14 +1261,17 @@ function paintEquation(context, { y, h, tokens }, plateWidth) {
   context.textAlign = 'left';
   context.textBaseline = 'middle';
   const gap = size * SLATE.tokenGap;
-  const widths = tokens.map(({ text }) => context.measureText(text).width);
+  const widths = tokens.map((token) => {
+    context.fillStyle = `rgba(${SLATE_EQUATION_INKS[token.role] ?? SLATE_EQUATION_INKS.term}, 1)`;
+    return measureCachedText(context, token.text).width;
+  });
   const line = widths.reduce((total, width) => total + width, 0) + (gap * (tokens.length - 1));
   let x = (plateWidth - line) / 2;
   for (const [index, token] of tokens.entries()) {
     if (token.alpha > 0.01) {
       context.globalAlpha = token.alpha;
       context.fillStyle = `rgba(${SLATE_EQUATION_INKS[token.role] ?? SLATE_EQUATION_INKS.term}, 1)`;
-      context.fillText(token.text, x, y + (h / 2));
+      fillCachedText(context, token.text, x, y + (h / 2));
     }
     x += widths[index] + gap;
   }
