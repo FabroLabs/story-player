@@ -3,7 +3,7 @@ import test from 'node:test';
 import { requireBoardBlock } from '../browser/v0/app/urls.mjs';
 import { buildDrawList } from '../browser/v0/app/stage/draw-list.mjs';
 import { paintDrawList } from '../browser/v0/app/stage/canvas-stage.mjs';
-import { fakeContext } from './_dom.mjs';
+import { fakeContext, textCalls } from './_dom.mjs';
 
 const deck = ['a', 'b', 'c', 'd'];
 const sheets = { sheet: () => ({ url: 'bibo', grid: [1, 1] }), prop: slug => ({ url: slug }) };
@@ -105,7 +105,7 @@ test('cue paint transforms only the revealed card and restores the guide and pro
   const paint = slug => context.of('drawImage').find(args => args[0] === images[slug]).at(-1);
   assert.ok(paint('c').transform[0] > 1.05);
   for (const slug of ['a', 'b', 'd', 'bibo']) assert.deepEqual(paint(slug).transform, [1, 1, 0, 0]);
-  assert.deepEqual(context.of('fillText').at(-1).at(-1).transform, [1, 1, 0, 0]);
+  assert.deepEqual(textCalls(context).at(-1).at(-1).transform, [1, 1, 0, 0]);
   assert.ok(context.of('stroke').some(([stroke]) => stroke.ink === '#fffdf2'), 'answer badge has a clear checkmark');
   const colors = ['#e8ad24', '#29998e', '#e56d59'];
   assert.deepEqual(colors.map(color => context.of('fill').filter(([fill]) => fill.ink === color).length), [3, 3, 2],

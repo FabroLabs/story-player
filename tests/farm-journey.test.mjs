@@ -8,7 +8,7 @@ import { compileTimeline } from '../browser/v0/core/timeline/compile.mjs';
 import { stateAt } from '../browser/v0/core/state/state.mjs';
 import { createStateCursor } from '../browser/v0/core/state/cursor.mjs';
 import { paintDrawList } from '../browser/v0/app/stage/canvas-stage.mjs';
-import { fakeContext } from './_dom.mjs';
+import { fakeContext, textCalls } from './_dom.mjs';
 
 const actors = [
   {slug:'animal_cow', kind:'object', x:25, feetY:61, heightPx:240, opacity:1},
@@ -32,7 +32,7 @@ test('name label paints with the supported older canvas context',()=>{
   const ctx=fakeContext();
   assert.equal(ctx.roundRect,undefined);
   assert.doesNotThrow(()=>paintDrawList(ctx,buildDrawList(frame('wide','cow',4400),sheets),{lookup:()=>({width:1254,height:1254})}));
-  assert.ok(ctx.of('fillText').some(call=>call.includes('cow')));
+  assert.ok(textCalls(ctx).some(call=>call.includes('cow')));
 });
 test('native journey reports missing placed targets instead of a silent wide fallback',()=>{
   const marker='farm_view_wide_cow';

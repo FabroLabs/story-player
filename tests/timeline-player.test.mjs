@@ -25,6 +25,7 @@ import { chunkedStory } from './_chunked.mjs';
 import { read } from './_parity.mjs';
 import {
   downloadSession, findByClass, findByLabel, installAudio, installDom, virtualFrames,
+  textCalls, imageCalls,
 } from './_dom.mjs';
 
 const STEM = 'golden_push_dusk';
@@ -1038,9 +1039,9 @@ test('the lesson repaints on its own clock, and stops when it has landed', async
     player.frames.advanceTo(at);
     return context.calls.slice(from);
   };
-  const numerals = (calls) => calls.filter(([name]) => name === 'fillText').map(([, text]) => text);
+  const numerals = (calls) => textCalls({ calls }).map(([text]) => text);
 
-  const marks = (calls) => calls.filter(([name]) => name === 'ellipse' || name === 'fillText');
+  const marks = (calls) => [...calls.filter(([name]) => name === 'ellipse'), ...textCalls({ calls })];
 
   // The first line: somebody standing still, and no board.
   assert.deepEqual(marks(frame(1_000)), []);
@@ -1205,7 +1206,7 @@ test('a card focus and prompt change repaints a still lesson on its own', async 
   const before = player.canvas.context.calls.length;
   player.frames.advanceTo(1100);
   const painted = player.canvas.context.calls.slice(before);
-  assert.ok(painted.some(([op, text]) => op === 'fillText' && text === 'apple'));
+  assert.ok(textCalls({ calls: painted }).some(([text]) => text === 'apple'));
   assert.ok(painted.some(([op]) => op === 'stroke'));
   player.destroy();
 });
@@ -1263,8 +1264,8 @@ for (const paused of [false, true]) {
     const calls = player.canvas.context.calls.slice(before);
     assert.ok(calls.some(([op]) => op === 'drawImage'), 'the decoded card stayed hidden behind another pending image');
     const lastPaint = calls.slice(calls.findLastIndex(([op]) => op === 'clearRect'));
-    assert.equal(lastPaint.filter(([op]) => op === 'drawImage').length, 1);
-    assert.equal(lastPaint.filter(([op, text]) => op === 'fillText' && text === 'image unavailable').length, 1);
+    assert.equal(imageCalls({ calls: lastPaint }).length, 1);
+    assert.equal(textCalls({ calls: lastPaint }).filter(([text]) => text === 'image unavailable').length, 1);
     player.destroy();
   });
 }

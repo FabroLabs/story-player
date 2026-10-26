@@ -16,7 +16,7 @@ import test from 'node:test';
 import { createCanvasStage, paintDrawList, sceneSheets } from '../browser/v0/app/stage/canvas-stage.mjs';
 import { buildDrawList } from '../browser/v0/app/stage/draw-list.mjs';
 import { FLASH, SLATE } from '../browser/v0/policy.mjs';
-import { fakeContext, fakeElement, fakeStageElements, installDom } from './_dom.mjs';
+import { fakeContext, fakeElement, fakeStageElements, installDom, textCalls } from './_dom.mjs';
 
 function stageState({ actors = [], camera } = {}) {
   return {
@@ -55,7 +55,7 @@ test('saved frames carry the brand outside the camera and burn the current capti
   near(word[2], 14.4 + 89.6);
   near(word[3], 89.6);
   near(word[4], 89.6 * 84 / 325);
-  const caption = context.of('fillText').find((call) => call[0] === 'The wheel broke.');
+  const caption = textCalls(context).find((call) => call[0] === 'The wheel broke.');
   assert.ok(caption, 'the exported picture lost the caption');
   assert.deepEqual(caption.at(-1).transform, [1, 1, 0, 0]);
   assert.equal(elements.frame.classList.contains('is-exporting'), true);
@@ -662,7 +662,7 @@ test('the board is painted outside the camera, and the picture is handed back un
   // A push-in doubles what is under it; the board — and the companion kept in
   // the corner OVER the board — are drawn at the viewport alone, at the plate
   // coordinates the list gave them.
-  const numerals = context.of('fillText');
+  const numerals = textCalls(context);
   assert.deepEqual(numerals.map((call) => call[0]), ['2'], 'the equation');
   for (const call of numerals) assert.deepEqual(call.at(-1).transform, [0.5, 0.5, 0, 0]);
   assert.deepEqual(context.of('drawImage')[0].at(-1).transform, [0.5, 0.5, 0, 0], 'the companion');
@@ -708,8 +708,8 @@ test('the counters stand on the panel, each on a pad of its own', () => {
     assert.ok(pad[2] > counter.r, 'the pad is smaller than the apple it holds');
   }
   // The equation's numeral is the only text on the board.
-  assert.deepEqual(context.of('fillText').map((call) => call[0]), ['2']);
-  assert.equal(context.textBaseline, 'middle');
+  assert.deepEqual(textCalls(context).map((call) => call[0]), ['2']);
+  assert.equal(textCalls(context).at(-1).at(-1).baseline, 'middle');
 });
 
 test('the ring brightens twice across its life, and is out at both ends', () => {
@@ -819,7 +819,7 @@ test('the weak tier still draws the lesson, shadows or no shadows', () => {
 
   assert.equal(context.of('createRadialGradient').length, 0, 'the low tier painted a shadow');
   // The whole equation.
-  assert.deepEqual(context.of('fillText').map((call) => call[0]), ['1', '+', '2', '=', '3']);
+  assert.deepEqual(textCalls(context).map((call) => call[0]), ['1', '+', '2', '=', '3']);
   // The panel's edge, a stem per apple, the gold ring on the newest counter and
   // the lesson's own highlight moved onto that counter: the lesson survives a
   // device too weak for a drop shadow, because it is what the story is for.
@@ -836,7 +836,7 @@ test('a counter still at the very start of its pop is not drawn at all', () => {
   // is written either: the equation waits for the counters.
   assert.ok(context.of('fill').length > 0, 'the panel was not drawn');
   assert.deepEqual(ovals(context), []);
-  assert.deepEqual(context.of('fillText'), []);
+  assert.deepEqual(textCalls(context), []);
 });
 
 test('the addends are drawn in two colours, because that IS the lesson', () => {
@@ -872,7 +872,7 @@ test('the answer is green and the equals is red', () => {
   const context = fakeContext();
   const list = lessonList({ slate: joining(2, 3), tMs: 8_000 });
   paintDrawList(context, list, { lookup: () => bitmap(512, 512), scale: 1, shadows: false });
-  const written = context.of('fillText').map((call) => [call[0], call.at(-1).ink]);
+  const written = textCalls(context).map((call) => [call[0], call.at(-1).ink]);
 
   assert.deepEqual(written, [
     ['2', 'rgba(60, 70, 80, 1)'],
@@ -976,12 +976,13 @@ test('the equation is measured in the font the device has, and centred on the pl
   // Every token is measured before any of it is placed: the tokens carry no x,
   // because how wide a glyph is belongs to the font this device actually has.
   assert.deepEqual(context.of('measureText').map((call) => call[0]), ['2', '+', '3', '=', '5']);
-  const tokens = context.of('fillText');
+  const tokens = textCalls(context);
   assert.deepEqual(tokens.map((call) => call[0]), ['2', '+', '3', '=', '5']);
   // Centred: the line's own middle is the plate's middle, and it sits in the
   // band the list left for it.
   const left = tokens[0][1];
-  const right = tokens.at(-1)[1] + (context.measureText('5').width);
+  context.font = tokens.at(-1).at(-1).font;
+  const right = tokens.at(-1)[1] + context.measureText('5').width;
   assert.ok(Math.abs(((left + right) / 2) - (list.width / 2)) < 1);
   for (const call of tokens) assert.equal(call[2], equation.y + (equation.h / 2));
 });
@@ -1107,7 +1108,8 @@ test('the stage reads the picture off its sheets at paint time, so a late one ne
   };
   const list = stage.draw(state, { ...book(), counter: () => picture });
   assert.equal(boardOf(list).counters[0].image, true);
-  assert.equal(context.of('drawImage').length, 0, 'nothing has decoded — not the sheet, not the picture');
+  assert.equal(context.of('drawImage').filter(([source]) => !source.context).length, 0,
+    'nothing has decoded — not the sheet, not the picture');
 
   // The fetch lands. The next paint — a demotion here, the next frame in the
   // player — draws it from the same list.
@@ -1154,7 +1156,7 @@ test('a saved Arabic caption is burned in right to left, an English one exactly 
   const question = 'دورُكِ يا ليلى! متى نأكل الفطور؟';
   stage.draw({ ...stageState(), subtitle: question }, book());
   stage.setExportSize({ width: 1280, height: 720 });
-  const arabic = context.of('fillText').filter((call) => question.includes(call[0]));
+  const arabic = textCalls(context).filter((call) => question.includes(call[0]));
   assert.ok(arabic.length > 0, 'the exported picture lost the Arabic caption');
   for (const line of arabic) assert.equal(line.at(-1).direction, 'rtl');
   assert.equal(context.direction, 'ltr', 'the caption left its direction on the context');
@@ -1164,7 +1166,7 @@ test('a saved Arabic caption is burned in right to left, an English one exactly 
   const english = 'Your turn, Laila! When do we eat breakfast?';
   stage.draw({ ...stageState(), subtitle: english }, book());
   stage.setExportSize({ width: 1280, height: 720 });
-  const lines = context.of('fillText').filter((call) => english.includes(call[0]));
+  const lines = textCalls(context).filter((call) => english.includes(call[0]));
   assert.ok(lines.length > 0, 'the exported picture lost the English caption');
   for (const line of lines) assert.equal(line.at(-1).direction, 'ltr');
   stage.setExportSize(null);
@@ -1173,13 +1175,79 @@ test('a saved Arabic caption is burned in right to left, an English one exactly 
 test('a board label in Arabic is drawn right to left and the context is handed back as it was', () => {
   const context = fakeContext();
   const label = (text) => ({ op: 'farm-label', hud: true, text, opacity: 1, x: 10, y: 10, w: 300, h: 60 });
-  paintDrawList(context, {
+  const list = {
     width: 1920, height: 1080, camera: { scale: 1, x: 0, y: 0 },
     commands: [label('كم تفاحة؟'), label('How many apples?')],
-  });
-  assert.deepEqual(context.of('fillText').map((call) => [call[0], call.at(-1).direction]), [
+  };
+  paintDrawList(context, list);
+  assert.deepEqual(textCalls(context).map((call) => [call[0], call.at(-1).direction]), [
     ['كم تفاحة؟', 'rtl'],
     ['How many apples?', 'ltr'],
   ]);
   assert.equal(context.direction, 'ltr');
+  const measured = context.of('measureText').length;
+  const bitmaps = context.of('drawImage').map(([source]) => source);
+  paintDrawList(context, list);
+  assert.equal(context.of('measureText').length, measured);
+  assert.equal(context.of('fillText').length, 0, 'labels must blit, never shape on the stage');
+  assert.deepEqual(context.of('drawImage').slice(2).map(([source]) => source), bitmaps);
+  for (const bitmap of bitmaps) assert.equal(bitmap.context.of('fillText').length, 1);
+});
+
+test('Arabic and English prompts, missing pictures and export captions reuse their rasters and measurements', (t) => {
+  const { stage, context } = mounted(t);
+  for (const text of ['How many apples?', 'كم تُفّاحةً ترى يا ليلى؟']) {
+    const state = { ...stageState(), subtitle: text, tMs: 4000,
+      slate: { mode: 'cards', cards: ['missing'], focus: null, prompt: text, standing: true, sinceMs: 0 } };
+    stage.draw(state, book());
+    stage.setExportSize({ width: 1920, height: 1080 });
+    const measured = context.of('measureText').length;
+    const before = context.of('drawImage').length;
+    stage.draw(state, book());
+    stage.draw(state, book());
+    assert.equal(context.of('measureText').length, measured, 'warm frames must not measure, even when fitting prompts');
+    assert.equal(context.of('fillText').length, 0);
+    const drawnText = textCalls({ calls: context.calls.filter(([op]) => op === 'drawImage').slice(before) });
+    assert.ok(drawnText.some(([line]) => line === 'image unavailable'));
+    assert.ok(drawnText.some(([line]) => line !== 'image unavailable'));
+    for (const [source] of context.of('drawImage').slice(before)) {
+      assert.equal(source.context.of('fillText').length, 1);
+    }
+    stage.setExportSize(null);
+  }
+});
+
+test('the stage prefers OffscreenCanvas and invalidates cached fonts until destruction', (t) => {
+  const dom = installDom();
+  t.after(dom.restore);
+  const previous = globalThis.OffscreenCanvas;
+  t.after(() => {
+    if (previous === undefined) delete globalThis.OffscreenCanvas;
+    else globalThis.OffscreenCanvas = previous;
+  });
+  const surfaces = [];
+  globalThis.OffscreenCanvas = class {
+    constructor(width, height) {
+      const canvas = fakeElement('canvas');
+      surfaces.push(canvas);
+      assert.ok(width > 0 && height > 0);
+      return canvas;
+    }
+  };
+  const elements = fakeStageElements();
+  const fonts = fakeElement('fonts');
+  elements.canvas.ownerDocument.fonts = fonts;
+  const stage = createCanvasStage(elements);
+  t.after(() => stage.destroy());
+  const state = { ...stageState(), slate: counting(2), tMs: 4000 };
+  stage.draw(state, book());
+  stage.draw(state, book());
+  assert.equal(surfaces.length, 1);
+  fonts.dispatch('loadingdone');
+  stage.draw(state, book());
+  assert.equal(surfaces.length, 2, 'loaded fonts must replace fallback glyphs');
+  assert.notEqual(surfaces[0], surfaces[1]);
+  assert.equal(fonts.listenerCount('loadingdone'), 1);
+  stage.destroy();
+  assert.equal(fonts.listenerCount('loadingdone'), 0);
 });

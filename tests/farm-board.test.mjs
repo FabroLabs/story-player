@@ -8,7 +8,7 @@ import { buildDrawList } from '../browser/v0/app/stage/draw-list.mjs';
 import { createCanvasStage, paintDrawList } from '../browser/v0/app/stage/canvas-stage.mjs';
 import { sceneAssetPlan, planAssets } from '../browser/v0/app/assets/scene-loader.mjs';
 import { signatureOf } from '../browser/v0/app/timeline-player.mjs';
-import { fakeContext, fakeStageElements } from './_dom.mjs';
+import { fakeContext, fakeStageElements, imageCalls, textCalls } from './_dom.mjs';
 
 const plate = { resolution: [1920, 1080], poster: 'assets/farm.svg', video: 'assets/farm.mp4', zones: [] };
 const cards = ['farm_cow', 'farm_sheep', 'farm_duck'];
@@ -72,7 +72,7 @@ test('farm movement never fades cutout artwork or translates the habitat layer',
   paintDrawList(plain, draw(['farm_cow'], 0), { lookup: () => art });
   const context = fakeContext();
   paintDrawList(context, draw(['farm_cow', 'farm_board_lift'], 600, [animal]), { lookup: () => art });
-  const images = context.of('drawImage');
+  const images = imageCalls(context);
   assert.equal(images.length, 2, 'one scene prop plus one image on the moving board');
   assert.ok(images.every((row) => row.at(-1).alpha === 1));
   assert.deepEqual(images[0].at(-1).transform, [1, 1, 0, 0]);
@@ -128,7 +128,8 @@ test('paused resize redraws the same lift progress in both directions without a 
       resized();
       const expected = fakeContext();
       paintDrawList(expected, buildDrawList(frameState, decoded, view), { lookup: () => art, scale: Math.min(view.width / 1920, view.height / 1080) });
-      assert.deepEqual(elements.canvas.context.of('drawImage'), expected.of('drawImage'));
+      assert.deepEqual(imageCalls(elements.canvas.context), imageCalls(expected));
+      assert.deepEqual(textCalls(elements.canvas.context), textCalls(expected));
     }
   } finally {
     stage.destroy();
