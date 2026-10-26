@@ -517,15 +517,16 @@ test('a keyboard is taken into the menu and Escape gives it back to its button',
   controls.arm(STORY_MS);
   controls.show();
   const focused = [];
-  bar.menu.children[0].focus = () => focused.push('subtitles');
+  bar.menu.children[0].hidden = false;
+  bar.menu.children[0].focus = () => focused.push('save');
   bar.settings.focus = () => focused.push('settings');
   bar.frame.dispatch('keydown', { key: 'Tab' });
 
   bar.settings.dispatch('click');
-  assert.deepEqual(focused, ['subtitles'], 'the first row a keyboard can reach was not focused');
+  assert.deepEqual(focused, ['save'], 'the first row a keyboard can reach was not focused');
   bar.frame.dispatch('keydown', { key: 'Escape' });
   assert.equal(bar.menu.hidden, true);
-  assert.deepEqual(focused, ['subtitles', 'settings']);
+  assert.deepEqual(focused, ['save', 'settings']);
   assert.equal(seen.toggles, 0);
 });
 

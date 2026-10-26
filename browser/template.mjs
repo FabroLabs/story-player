@@ -10,16 +10,13 @@ const KICKER = 'a bedtime story';
 export function createPlayerTemplate(root, { stylesheet = STYLESHEET, kicker, chrome, board } = {}) {
   const document = root.ownerDocument ?? globalThis.document;
   const link = element(document, 'link', { rel: 'stylesheet', href: stylesheet });
-  // No chrome of our own above the picture: what a site embeds is a rectangle
-  // of video. The settings menu and full screen sit together at the right of the
-  // control bar, where every video player keeps them; closing and casting
-  // belong to the page that mounted us. Subtitles are a row of that menu.
+  // Subtitles are a visible dock control; closing and casting belong to the host.
   const subtitles = element(document, 'button', {
-    className: 'menu-item cc-button', type: 'button', 'aria-label': 'hide subtitles', 'aria-pressed': 'true',
+    className: 'round-button cc-button', type: 'button', 'aria-label': 'Subtitles', 'aria-pressed': 'true', hidden: '',
   }, [
     element(document, 'span', { className: 'cc-mark', text: 'cc', 'aria-hidden': 'true' }),
-    element(document, 'span', { className: 'menu-label', text: 'subtitles' }),
   ]);
+  subtitles.hidden = true;
   // Withdrawn until something can fill the screen: the host, or the browser.
   const fullscreen = element(document, 'button', {
     className: 'round-button fullscreen-button', type: 'button', 'aria-label': 'full screen', 'aria-pressed': 'false',
@@ -277,7 +274,7 @@ function createRecordingStatus(document) {
 }
 
 /**
- * The control bar: position, transport, the settings menu and full screen.
+ * The control bar: position, transport, subtitles and full screen.
  *
  * The scrub is a `div` with `role="slider"` rather than an `<input type=range>`
  * because the fill and the handle are drawn from one fraction the runtime
@@ -286,9 +283,8 @@ function createRecordingStatus(document) {
  * handlers live in `v0/app/controls.mjs`.
  *
  * The web app's watch dock: play and the two skips, the line with its times,
- * then the settings menu — subtitles, the bedtime moon, saving the story as a video —
- * and full screen; under them the bedside row, the wind-down's Stop and the
- * word the quiet after it ends on. Where they stand — one row on a big player,
+ * then CC, the bedtime moon, optional Save settings and full screen; under them
+ * the bedside row, the wind-down's Stop and the word the quiet after it ends on. Where they stand — one row on a big player,
  * two on a phone — is the stylesheet's, read off the player's own size.
  */
 function createControlBar(document, { subtitles, fullscreen }) {
@@ -316,8 +312,8 @@ function createControlBar(document, { subtitles, fullscreen }) {
     className: 'round-button skip-forward', type: 'button', 'aria-label': 'forward ten seconds',
   }, [glyph(document)]);
   const dim = element(document, 'button', {
-    className: 'menu-item dim-button', type: 'button', 'aria-pressed': 'false', hidden: '',
-  }, [glyph(document), element(document, 'span', { className: 'menu-label', text: 'dim screen' })]);
+    className: 'round-button dim-button', type: 'button', 'aria-label': 'Dim screen', 'aria-pressed': 'false', hidden: '',
+  }, [glyph(document)]);
   dim.hidden = true;
   // Withdrawn until the player knows this device can record the story and keep
   // the file (`video-export.mjs`).
@@ -327,11 +323,12 @@ function createControlBar(document, { subtitles, fullscreen }) {
   save.hidden = true;
   const settings = element(document, 'button', {
     className: 'round-button settings-button', type: 'button', 'aria-label': 'settings',
-    'aria-haspopup': 'true', 'aria-expanded': 'false',
+    'aria-haspopup': 'true', 'aria-expanded': 'false', hidden: '',
   }, [glyph(document)]);
+  settings.hidden = true;
   const menu = element(document, 'div', {
     className: 'settings-menu', role: 'group', 'aria-label': 'settings', hidden: '',
-  }, [subtitles, dim, save]);
+  }, [save]);
   menu.hidden = true;
   // The wind-down's own line and readout: it counts down a sound, not the
   // story, so nothing on it can be dragged.
@@ -356,7 +353,7 @@ function createControlBar(document, { subtitles, fullscreen }) {
         windLine,
         windTimes,
       ]),
-      element(document, 'div', { className: 'side-buttons' }, [settings, fullscreen]),
+      element(document, 'div', { className: 'side-buttons' }, [subtitles, dim, settings, fullscreen]),
     ]),
     menu,
     element(document, 'div', { className: 'bedside' }, [stop, chip]),
