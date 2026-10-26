@@ -183,12 +183,14 @@ for (const width of [1280, 390]) {
     const subtitle = await page.locator('.subtitle').boundingBox();
     const scrub = await page.locator('.scrub').boundingBox();
     expect(subtitle.y + subtitle.height).toBeLessThan(scrub.y);
-    await page.getByRole('button', { name: 'settings' }).click();
-    await page.getByRole('button', { name: 'hide subtitles', exact: true }).click();
+    const cc = page.getByRole('button', { name: 'Subtitles', exact: true });
+    await expect(cc).toHaveAttribute('aria-pressed', 'true');
+    await cc.click();
+    await expect(cc).toHaveAttribute('aria-pressed', 'false');
     await expect(page.locator('.subtitle-wrap')).toBeHidden();
     await page.evaluate(() => window.player.seek(2250));
-    await page.getByRole('button', { name: 'settings' }).click();
-    await page.getByRole('button', { name: 'show subtitles', exact: true }).click();
+    await cc.click();
+    await expect(cc).toHaveAttribute('aria-pressed', 'true');
     await expect(page.locator('.subtitle')).toHaveText('B is for ball');
     await expect(page.locator('.subtitle-wrap')).toBeVisible();
     await expect.poll(() => page.evaluate(() => window.songAudio[0].currentTime)).toBeCloseTo(2.25, 2);
