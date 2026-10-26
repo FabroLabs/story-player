@@ -57,9 +57,8 @@ export function createControls(elements, {
   listen(elements.toggle, 'click', () => live() && onToggle());
   listen(elements.back, 'click', () => live() && !seekLocked && onSkip(-SKIP_MS));
   listen(elements.forward, 'click', () => live() && !seekLocked && onSkip(SKIP_MS));
-  // Subtitles, the bedtime moon and saving the story live behind one button, so
-  // a phone's dock keeps five. Whatever is chosen in the menu closes it; the
-  // rows' own listeners have already run by the time the click gets here.
+  // Optional Save settings: its choice closes the menu after its own listener.
+  // CC and the bedtime moon are direct dock buttons.
   if (elements.settings && elements.menu) {
     listen(elements.settings, 'click', () => {
       if (!live()) return;

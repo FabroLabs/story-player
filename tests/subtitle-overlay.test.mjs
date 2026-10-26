@@ -211,7 +211,7 @@ test('turning subtitles off takes the whole subtitle area with it', async (t) =>
   const area = find(host.shadowRoot, (node) => node.className === 'subtitle-wrap');
   const subtitle = find(host.shadowRoot, (node) => node.className === 'subtitle');
   const note = find(host.shadowRoot, (node) => node.className === 'media-note');
-  const button = find(host.shadowRoot, (node) => node.getAttribute?.('aria-label') === 'hide subtitles');
+  const button = find(host.shadowRoot, (node) => node.getAttribute?.('aria-label') === 'Subtitles');
   assert.equal(subtitle.parent, area);
   assert.equal(note.parent, area);
   assert.equal(button.dispatch('click'), 1);
@@ -253,7 +253,7 @@ test('timed performance captions reuse the subtitle area and CC toggle after see
   player.seek(250);
   const area = find(host.shadowRoot, (node) => node.className === 'subtitle-wrap');
   const subtitle = find(host.shadowRoot, (node) => node.className === 'subtitle');
-  const button = find(host.shadowRoot, (node) => node.getAttribute?.('aria-label') === 'hide subtitles');
+  const button = find(host.shadowRoot, (node) => node.getAttribute?.('aria-label') === 'Subtitles');
   assert.equal(subtitle.parent, area);
   assert.equal(subtitle.textContent, 'A is for apple');
   button.dispatch('click');

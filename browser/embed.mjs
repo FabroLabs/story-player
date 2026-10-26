@@ -54,6 +54,8 @@ export function createStoryPlayer(container, options) {
     getState: () => destroyed ? null : performer?.getState?.() ?? null,
     getTimeline: () => destroyed ? null : performer?.getTimeline?.() ?? null,
     subscribe: (listener) => destroyed ? () => {} : performer?.subscribe?.(listener) ?? (() => {}),
+    // Viewer changes only: host writes through setSubtitles never echo here.
+    subscribeSubtitles: (listener) => destroyed ? () => {} : performer?.subscribeSubtitles?.(listener) ?? (() => {}),
     appendScene,
     finishStory,
     // Called from the host's own press: the recording's sound may only start
