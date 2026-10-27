@@ -1113,7 +1113,10 @@ narration is downloaded whole into memory, a minute ahead of the playhead, and
 under them (the sound part at most 20 s). When the story reaches a line that has
 not landed, or a scene cut whose sheets are not all decoded, it holds on its
 last frame—picture, voice and music together—and goes on the moment they land;
-a bed or song is waited for at most 1.5 s. A line noticed late starts at its
+a bed or song is waited for at most 1.5 s. The opening's explicitly primed lines
+are fetched even when they lie beyond the usual one-minute look-ahead, such as
+a Learn intro followed by an outro minutes later; other narration still waits
+for playback. A line noticed late starts at its
 first word, never inside it. The transport and `getState().playing` read playing through a hold,
 pause ends it, and a seek lands the same way. A small spinner shows once a hold
 passes 300 ms; one during which nothing arrives for 20 s (a missing file: at

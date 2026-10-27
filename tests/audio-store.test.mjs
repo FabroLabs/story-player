@@ -50,6 +50,48 @@ test('opening narration leaves bandwidth for pictures until the viewer begins', 
   store.destroy();
 });
 
+test('explicit opening narration beyond the look-ahead lands without waiting for playback to advance', async () => {
+  const network = manualFetch();
+  const intro = { ...cues[0], media: 'intro.m4a' };
+  const middle = { ...cues[1], media: 'middle.m4a', start_ms: 90_000 };
+  const outro = { ...cues[2], media: 'outro.m4a', start_ms: 167_938 };
+  const store = createAudioStore([intro, middle, outro], network);
+  try {
+    // Learn can have only an intro and an outro: prepare waits for both.
+    store.prime([intro, outro]);
+    assert.deepEqual(network.pending.map(p => p.source), ['intro.m4a', 'outro.m4a']);
+    const prepared = Promise.all([store.whenReady(intro), store.whenReady(outro)]);
+    network.answer('intro.m4a');
+    network.answer('outro.m4a');
+    await prepared;
+    await settle();
+    assert.equal(store.ready(outro), true);
+    assert.deepEqual(network.pending, [], 'an unprimed cue competed with opening images');
+
+    store.start(0);
+    assert.deepEqual(network.pending, [], 'normal playback lost its look-ahead after priming');
+    store.advance(40_000);
+    assert.deepEqual(network.pending.map(p => p.source), ['middle.m4a']);
+  } finally {
+    store.destroy();
+  }
+});
+
+test('distant primed lines still download only two at a time', async () => {
+  const network = manualFetch();
+  const opening = cues.slice(0, 3).map((cue, i) => ({ ...cue, start_ms: i * 90_000 }));
+  const store = createAudioStore(opening, network);
+  try {
+    store.prime(opening);
+    assert.deepEqual(network.pending.map(p => p.source), ['a.m4a', 'b.m4a']);
+    network.answer('a.m4a');
+    await settle();
+    assert.deepEqual(network.pending.map(p => p.source), ['b.m4a', 'c.m4a']);
+  } finally {
+    store.destroy();
+  }
+});
+
 test('destroy aborts active narration downloads', () => {
   const signals = [];
   const store = createAudioStore(cues, {fetchFile: (_source, {signal}) => {

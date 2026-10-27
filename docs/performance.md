@@ -144,6 +144,10 @@ the sound part waits at most 20 s, then the story opens and holds where it must.
 Only the first two narration files download before Begin. The remaining narration
 queue starts with playback (or an explicit seek), so it cannot compete with the
 opening images, and fetches a line once it is within 60 s of the playhead.
+The explicitly primed pair is not limited by that look-ahead: a Learn intro and
+outro may be minutes apart, and both must land for preparation to finish without
+its timeout. Priming still fetches at most two files concurrently and excludes
+other narration until playback begins.
 Teardown aborts outstanding narration downloads.
 Deadlines measure silence, not duration: an image or narration request is given
 up after 15 s in which nothing of it arrived, headers or body, with one retry for

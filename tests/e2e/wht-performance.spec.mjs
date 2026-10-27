@@ -111,6 +111,24 @@ test('one complete WHT JSON mounts, draws effects, plays to the end and replays'
   expect(errors).toEqual([]);
 });
 
+test('opening audio more than a minute apart becomes ready without the preparation timeout', async ({ page }) => {
+  const story = allCapabilitiesFixture();
+  story.scenes.at(-1).end_ms = 172_000;
+  story.audio = [
+    { id: 'intro', kind: 'narration', media: 'pack/intro.m4a', start_ms: 0, duration_ms: 4265 },
+    { id: 'outro', kind: 'narration', media: 'pack/outro.m4a', start_ms: 167_938, duration_ms: 3959 },
+  ];
+  story.instructions = compileTimeline(story);
+  await page.route('**/story.json', route => route.fulfill({ json: story }));
+  const requested = [];
+  page.on('request', request => requested.push(new URL(request.url()).pathname));
+  await page.goto(base);
+  await expect(page.locator('.start-button')).toBeEnabled({ timeout: 5000 });
+  await page.evaluate(() => window.ready);
+  expect(requested).toContain('/pack/intro.m4a');
+  expect(requested).toContain('/pack/outro.m4a');
+});
+
 test('host chrome uses one observable transport without empty video requests', async ({page}) => {
   const errors = [], emptyMedia = [];
   page.on('pageerror', error => errors.push(error.message));

@@ -5,6 +5,7 @@ import {
   performanceSoundsBetween,
 } from '../browser/v0/core/performance/audio.mjs';
 import { createMediaScheduler } from '../browser/v0/app/media-scheduler.mjs';
+import { createAudioStore } from '../browser/v0/app/audio-store.mjs';
 
 const story = {
   performance: { kind: 'wht' },
@@ -332,6 +333,29 @@ test('the gate waits for the first two lines in memory and the opening bed playa
     scheduler.destroy();
   } finally {
     audio.restore();
+  }
+});
+
+test('a Learn intro and distant outro prepare together without the runtime timeout', async () => {
+  const opening = [
+    { id: 'intro', kind: 'narration', media: 'pack/intro.m4a', start_ms: 0, duration_ms: 4265 },
+    { id: 'outro', kind: 'narration', media: 'pack/outro.m4a', start_ms: 167_938, duration_ms: 3959 },
+  ];
+  const fetched = [];
+  const store = createAudioStore(opening, { fetchFile: async source => {
+    fetched.push(source);
+    return `mem:${source}`;
+  } });
+  const scheduler = createMediaScheduler({ bundle: { performance: { kind: 'wht' }, audio: opening }, timeline: {}, store });
+  try {
+    let prepared = false;
+    void scheduler.prepare().then(() => { prepared = true; });
+    await settle();
+    assert.deepEqual(fetched, ['pack/intro.m4a', 'pack/outro.m4a']);
+    assert.equal(prepared, true, 'preparation still needs a playhead advance or timeout');
+  } finally {
+    scheduler.destroy();
+    store.destroy();
   }
 });
 

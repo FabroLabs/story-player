@@ -144,7 +144,8 @@ export function createAudioStore(cues, { fetchFile = fetchWhole } = {}) {
     let behind = null;
     for (const entry of entries.values()) {
       if (priming && !priming.has(entry.source)) continue;
-      if (later(entry)) continue;
+      // prepare() waits for every explicit opening cue, even a distant outro.
+      if (!priming && later(entry)) continue;
       if (entry.url !== null || entry.loading || entry.gone || entry.retryAt > now) continue;
       if (entry.endMs > playheadMs) { if (!ahead || entry.startMs < ahead.startMs) ahead = entry; }
       else if (!behind || entry.startMs < behind.startMs) behind = entry;
