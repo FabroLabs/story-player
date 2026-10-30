@@ -308,7 +308,7 @@ The plain `createStoryPlayer` handle exposes `play()`, `pause()`, `toggle()`,
 `seek(milliseconds)`, `setSubtitles(boolean)`, `setFullscreen(boolean)`,
 `getState()`, `getTimeline()`, `subscribe(listener)` and `subscribeSubtitles(listener)` alongside `ready`,
 streaming methods, `recordVideo()`, `canRecordVideo()`, `videoResolutions()`,
-`cancelVideo()` and `getVideoExportState()` (see [saving a story
+`videoFormats()`, `cancelVideo()` and `getVideoExportState()` (see [saving a story
 as a video](#saving-a-story-as-a-video)) and `destroy()`.
 `subscribe` immediately reports current state when available and returns an
 unsubscribe function. State is `{tMs,durationMs,playing,ended,started,sceneIndex,
@@ -1052,6 +1052,18 @@ browser recording support or mount state: it works before `ready` settles and
 after `destroy()`. Older builds lack it, so hosts feature-detect with
 `typeof handle.videoResolutions === 'function'` and still check `canRecordVideo()`
 before offering a download.
+
+`recordVideo({ format })` takes `'16:9'` (the default) or `'9:16'`; anything else
+is refused with a `TypeError` before media is allocated. An upright take is the
+chosen tier turned on its side (1080×1920, 720×1280 or 480×854) at the same
+bitrate. Every story is drawn wide, so nothing is cropped: the whole stage spans
+the frame's width, centred, and the bands above and below show the same instant
+enlarged, blurred and dimmed. The brand mark keeps to the picture's corner; a
+caption stands in the band under the picture (over it, for a top caption) when
+the band has room for it. The file is named `<title> (vertical).mp4`.
+`videoFormats()` returns a fresh `['16:9', '9:16']` on every call, like
+`videoResolutions()`. Older builds lack it and ignore `format`, recording wide, so
+a host offers the upright shape only when `videoFormats()` includes `'9:16'`.
 
 `canRecordVideo()` checks browser recording support and refuses unfinished
 stream mounts. For a completed stream, the host fetches its final document and

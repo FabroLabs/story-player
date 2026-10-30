@@ -215,6 +215,9 @@ button:focus-visible {
 }
 .stage-frame.is-exporting .logical-stage > .story-brand,
 .stage-frame.is-exporting .subtitle-wrap { visibility: hidden; }
+/* An upright take backs the wide stage's canvas with a tall frame: shown whole
+   on screen, as the file will be, not squashed into the stage's shape. */
+.stage-frame.is-exporting .stage-canvas { object-fit: contain; }
 
 .stage-vignette {
   z-index: 3;

@@ -10,8 +10,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
-  MP4_TYPES, VIDEO_BITRATES, VIDEO_BITS_PER_SECOND, VIDEO_FPS, VIDEO_RESOLUTIONS, VIDEO_SIZE, VIDEO_SIZES,
-  createAudioTap, createRecording, fileNameFor, recordingSupport, saveVideoFile, savingSupported,
+  MP4_TYPES, VIDEO_BITRATES, VIDEO_BITS_PER_SECOND, VIDEO_FORMATS, VIDEO_FPS, VIDEO_RESOLUTIONS, VIDEO_SIZE, VIDEO_SIZES,
+  createAudioTap, createRecording, fileNameFor, recordingSupport, saveVideoFile, savingSupported, videoSize,
 } from '../browser/v0/app/video-export.mjs';
 import { performanceFixture } from './_performance.mjs';
 import { fakeElement } from './_dom.mjs';
@@ -32,9 +32,21 @@ test('the three export tiers are frozen and keep the existing HD defaults', () =
   assert.equal(VIDEO_SIZES[720], VIDEO_SIZE);
   assert.equal(VIDEO_BITS_PER_SECOND, 8_000_000);
   assert.equal(VIDEO_FPS, 60);
-  for (const value of [VIDEO_RESOLUTIONS, VIDEO_SIZES, ...Object.values(VIDEO_SIZES), VIDEO_BITRATES]) {
+  for (const value of [VIDEO_RESOLUTIONS, VIDEO_SIZES, ...Object.values(VIDEO_SIZES), VIDEO_BITRATES, VIDEO_FORMATS]) {
     assert.ok(Object.isFrozen(value));
   }
+});
+
+test('an upright take is each tier turned on its side, and a wide one is the tier itself', () => {
+  assert.deepEqual(VIDEO_FORMATS, ['16:9', '9:16']);
+  for (const resolution of VIDEO_RESOLUTIONS) {
+    assert.equal(videoSize(resolution), VIDEO_SIZES[resolution]);
+    assert.equal(videoSize(resolution, '16:9'), VIDEO_SIZES[resolution]);
+    const upright = videoSize(resolution, '9:16');
+    assert.deepEqual(upright, { width: VIDEO_SIZES[resolution].height, height: VIDEO_SIZES[resolution].width });
+    assert.ok(Object.isFrozen(upright));
+  }
+  assert.deepEqual(videoSize(1080, '9:16'), { width: 1080, height: 1920 });
 });
 
 test('a story drawn on the canvas can be recorded, as the best mp4 the browser makes', () => {
@@ -218,6 +230,9 @@ test('the file is named after the story, as a name any device will take', () => 
   assert.equal(fileNameFor('  '), 'story.mp4');
   assert.equal(fileNameFor(undefined), 'story.mp4');
   assert.equal(fileNameFor('x'.repeat(200)).length, 84);
+  assert.equal(fileNameFor('Ruby and the Gentle Dark', '16:9'), 'Ruby and the Gentle Dark.mp4');
+  assert.equal(fileNameFor('Ruby and the Gentle Dark', '9:16'), 'Ruby and the Gentle Dark (vertical).mp4');
+  assert.equal(fileNameFor('  ', '9:16'), 'story (vertical).mp4');
 });
 
 test('the file goes to the host when it keeps videos, else to the share sheet or a download', async () => {

@@ -19,6 +19,10 @@ export const VIDEO_SIZES = Object.freeze({
   720: VIDEO_SIZE,
   1080: Object.freeze({ width: 1920, height: 1080 }),
 });
+// The frame's shape: wide, as every story is drawn, or upright for a phone's
+// feed. An upright take keeps the whole wide picture across its width and fills
+// the bands above and below it (`canvas-stage.mjs`), so nothing staged is cut.
+export const VIDEO_FORMATS = Object.freeze(['16:9', '9:16']);
 export const VIDEO_FPS = 60;
 // H.264 with AAC first: the pair every phone's gallery plays. Then any mp4 the
 // browser can make — a Chromium built without the licensed codecs makes VP9
@@ -252,8 +256,17 @@ export function createRecording(stream, {
   }
 }
 
-/** The story's title as a file name a phone and a desktop will both take. */
-export function fileNameFor(title) {
+/** The frame a take is recorded at: `resolution` lines on its short side, in `format`'s shape. */
+export function videoSize(resolution, format = '16:9') {
+  const size = VIDEO_SIZES[resolution];
+  return format === '9:16' ? Object.freeze({ width: size.height, height: size.width }) : size;
+}
+
+/**
+ * The story's title as a file name a phone and a desktop will both take. An
+ * upright take says so, so it does not land on top of the wide one.
+ */
+export function fileNameFor(title, format = '16:9') {
   const name = String(title ?? '')
     .normalize('NFKC')
     .replace(/[\\/:*?"<>|\u0000-\u001f\u007f]+/g, ' ')
@@ -261,7 +274,7 @@ export function fileNameFor(title) {
     .trim()
     .slice(0, 80)
     .trim();
-  return `${name || 'story'}.mp4`;
+  return `${name || 'story'}${format === '9:16' ? ' (vertical)' : ''}.mp4`;
 }
 
 /**

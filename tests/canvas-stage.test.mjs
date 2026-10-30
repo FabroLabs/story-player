@@ -13,7 +13,9 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
 
-import { createCanvasStage, paintDrawList, recordedScale, sceneSheets } from '../browser/v0/app/stage/canvas-stage.mjs';
+import {
+  captionTop, createCanvasStage, paintDrawList, recordedArea, recordedScale, sceneSheets,
+} from '../browser/v0/app/stage/canvas-stage.mjs';
 import { buildDrawList } from '../browser/v0/app/stage/draw-list.mjs';
 import { FLASH, SLATE } from '../browser/v0/policy.mjs';
 import { fakeContext, fakeElement, fakeStageElements, installDom, textCalls } from './_dom.mjs';
@@ -97,6 +99,71 @@ test('SD paints the full frame without an uncovered column at the right edge', (
   assert.deepEqual(painted, [854 / 1920, 0, 0, 854 / 1920, 0, 0]);
   assert.equal(1920 * painted[0], 854, 'the rightmost pixel column is not fully painted');
   assert.ok(1080 * painted[3] >= 480 && 1080 * painted[3] < 481, 'only a fraction of a pixel may be cropped');
+});
+
+test('an upright take stands the whole wide stage across the middle of its frame and hazes the bands', (t) => {
+  const { stage, elements, context } = mounted(t);
+  elements.brand = [{ naturalWidth: 650, naturalHeight: 650 }];
+  const state = { ...stageState({ camera: { scale: 2, x: -40, y: -20 } }), subtitle: 'The wheel broke.' };
+  stage.draw(state, book());
+  context.calls.length = 0;
+  stage.setExportSize({ width: 1080, height: 1920 });
+  assert.deepEqual([elements.canvas.width, elements.canvas.height], [1080, 1920]);
+  const scale = 1080 / 1920;
+  assert.equal(stage.exportScale(), scale);
+  assert.deepEqual(context.of('clearRect').at(-1), [0, 0, 1080, 1920]);
+  // The stage keeps to its own rectangle, and the camera is carried from that rectangle's corner.
+  assert.deepEqual(context.of('rect')[0], [0, 656, 1080, 1080 * scale]);
+  assert.deepEqual(context.of('setTransform').find(([a]) => a === 2 * scale),
+    [2 * scale, 0, 0, 2 * scale, -0.4 * 1920 * scale, 656 - 0.2 * 1080 * scale]);
+  // The bands, and only the bands: the frame less the picture, filled from a small copy of the picture's middle.
+  assert.deepEqual(context.of('rect').slice(1, 3), [[0, 0, 1080, 1920], [0, 656, 1080, 1080 * scale]]);
+  assert.deepEqual(context.of('clip').at(-1), ['evenodd']);
+  const hazed = context.of('drawImage').find(([source]) => source?.tag === 'canvas');
+  assert.ok(hazed, 'the bands were left empty');
+  assert.deepEqual(hazed.slice(1, 5), [0, 0, 1080, 1920]);
+  assert.deepEqual([hazed[0].width, hazed[0].height], [68, 120]);
+  const [source, sx, sy, sw, sh] = hazed[0].context.of('drawImage')[0];
+  assert.equal(source, elements.canvas);
+  const cover = 1920 / (1080 * scale);
+  assert.ok(Math.abs(sx - (1080 - 1080 / cover) / 2) < 1e-9 && sy === 656 && sw === 1080 / cover && sh === 1080 * scale);
+  // The mark at the picture's corner; the caption under the picture, as large as a wide take's.
+  const near = (actual, expected) => assert.ok(Math.abs(actual - expected) < 0.01, `${actual} is not ${expected}`);
+  const mark = context.of('drawImage').find((call) => call[0] === elements.brand[0]);
+  near(mark[1], 1080 * 0.98 - 1080 * 0.07);
+  near(mark[2], 656 + 1080 * scale * 0.02);
+  const caption = textCalls(context).find((call) => call[0] === 'The wheel broke.');
+  assert.ok(caption[2] > 656 + 1080 * scale && caption[2] < 1920 * 0.8, `the caption stands at ${caption[2]}`);
+  assert.equal(caption.at(-1).font, '600 44px system-ui, sans-serif');
+  stage.setExportSize(null);
+});
+
+test('a frame the stage covers has no bands to haze', (t) => {
+  const { stage, elements, context } = mounted(t);
+  stage.draw(stageState(), book());
+  context.calls.length = 0;
+  stage.setExportSize({ width: 1920, height: 1080 });
+  assert.deepEqual(context.of('clip'), []);
+  assert.equal(context.of('drawImage').some(([source]) => source === elements.canvas || source?.tag === 'canvas'), false);
+});
+
+test('a recorded stage stands centred on whole pixels, or at the corner of a frame it covers', () => {
+  assert.deepEqual(recordedArea(1920, 1080, { width: 1080, height: 1920 }), { x: 0, y: 656, width: 1080, height: 607.5 });
+  assert.deepEqual(recordedArea(1920, 1080, { width: 720, height: 1280 }), { x: 0, y: 438, width: 720, height: 405 });
+  assert.deepEqual(recordedArea(1920, 1080, { width: 854, height: 480 }), { x: 0, y: 0, width: 854, height: 1080 * 854 / 1920 });
+  assert.deepEqual(recordedArea(1024, 768, { width: 1280, height: 720 }), { x: 160, y: 0, width: 960, height: 720 });
+});
+
+test('a caption stands in the band beside the picture where it fits, else just inside the picture', () => {
+  const wide = { x: 0, y: 0, width: 1920, height: 1080 };
+  assert.equal(captionTop(wide, 1080, 100, false), 1080 * 0.965 - 100);
+  assert.equal(captionTop(wide, 1080, 100, true), 1080 * 0.025);
+  const upright = { x: 0, y: 656, width: 1080, height: 607.5 };
+  assert.equal(captionTop(upright, 1920, 100, false), 656 + 607.5 + 48);
+  assert.equal(captionTop(upright, 1920, 100, true), 656 - 48 - 100);
+  // A band too short for the box: the caption goes back inside the picture.
+  assert.equal(captionTop(upright, 1920, 600, false), 656 + 607.5 * 0.965 - 600);
+  assert.equal(captionTop(upright, 1920, 600, true), 656 + 607.5 * 0.025);
 });
 
 test('export rounding may crop less than one pixel on either axis, but never a whole pixel', () => {

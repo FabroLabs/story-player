@@ -110,6 +110,13 @@ function textCache(context) {
 const measureCachedText = (context, text, maxWidth) => textCache(context).measure(context, text, maxWidth);
 const fillCachedText = (context, text, x, y, maxWidth) => textCache(context).draw(context, text, x, y, maxWidth);
 
+// The bands a recording's frame leaves around the stage (an upright take of a
+// wide story): the same instant, enlarged to cover the frame, blurred from a
+// copy `shrink` times smaller — most of the blur, almost none of the cost — and
+// dimmed, so the eye stays on the picture. `bleed` keeps the blur's soft edge
+// outside the copy; `base` is what a device with no second canvas shows.
+const HAZE = Object.freeze({ shrink: 16, blur: 'blur(4px)', bleed: 10, veil: 'rgba(6, 10, 18, 0.42)', base: '#101720' });
+
 // How long a character may be missing before the placeholder is shown.
 //
 // A sheet that decodes inside this is never seen as a blob: the stage draws
@@ -160,6 +167,8 @@ export function createCanvasStage(elements, {
   // A recording's frame, `{width, height}`, while one is being made: the canvas
   // is backed at that size whatever the player measures on screen.
   let exportBox = null;
+  // The small copy the bands are blurred from, made the first time a frame has bands.
+  let haze = null;
   let last = null;
   let drawnScene = null;
   let observer = null;
@@ -270,39 +279,80 @@ export function createCanvasStage(elements, {
   }
 
   function paint(list, lookup, counter) {
+    const area = exportBox ? recordedArea(list.width, list.height, exportBox) : null;
     paintDrawList(context, list, {
       lookup,
       counter,
       scale: renderScale,
       clearSize: exportBox,
+      area,
       shadows: shadowed,
       onPainted: remember,
       onMissing: standIn,
       background: exportBox ? capturePlate() : null,
     });
-    if (exportBox) paintExportOverlay();
+    if (!area) return;
+    paintHaze(area);
+    paintExportOverlay(area);
+  }
+
+  /** The frame outside `area`, hazed from the picture inside it (`HAZE`). A frame the stage covers has none. */
+  function paintHaze(area) {
+    const [width, height] = backing;
+    if (area.width >= width - 1 && area.height >= height - 1) return;
+    haze ??= createCanvas();
+    const small = haze?.getContext?.('2d');
+    context.save();
+    context.setTransform(1, 0, 0, 1, 0, 0);
+    context.beginPath();
+    context.rect(0, 0, width, height);
+    context.rect(area.x, area.y, area.width, area.height);
+    context.clip('evenodd');
+    context.fillStyle = HAZE.base;
+    context.fillRect(0, 0, width, height);
+    if (small) {
+      const w = Math.max(1, Math.round(width / HAZE.shrink));
+      const h = Math.max(1, Math.round(height / HAZE.shrink));
+      if (haze.width !== w) haze.width = w;
+      if (haze.height !== h) haze.height = h;
+      // The middle of the picture, as much of it as covers the frame once enlarged.
+      const cover = Math.max(width / area.width, height / area.height);
+      const [sw, sh] = [width / cover, height / cover];
+      small.filter = HAZE.blur;
+      small.drawImage(
+        elements.canvas, area.x + (area.width - sw) / 2, area.y + (area.height - sh) / 2, sw, sh,
+        -HAZE.bleed, -HAZE.bleed, w + HAZE.bleed * 2, h + HAZE.bleed * 2,
+      );
+      small.filter = 'none';
+      context.drawImage(haze, 0, 0, width, height);
+    }
+    context.fillStyle = HAZE.veil;
+    context.fillRect(0, 0, width, height);
+    context.restore();
   }
 
   // Only the exported picture needs these pixels: ordinary playback keeps its
   // accessible DOM subtitle and mark, and hides them while the canvas carries them.
-  function paintExportOverlay() {
+  // The mark keeps to the picture's corner; the caption may stand in a band.
+  function paintExportOverlay(area) {
     const [width, height] = backing;
     context.save();
     context.setTransform(1, 0, 0, 1, 0, 0);
     // The mark, and the name under it: stacked at one width, each at its own shape.
-    const w = width * BRAND_WIDTH;
-    let y = height * BRAND_INSET;
+    const w = area.width * BRAND_WIDTH;
+    let y = area.y + area.height * BRAND_INSET;
     context.globalAlpha = BRAND_OPACITY;
     for (const picture of elements.brand ?? []) {
       if (!(picture.naturalWidth > 0)) break;
       const h = w * picture.naturalHeight / picture.naturalWidth;
-      context.drawImage(picture, width * (1 - BRAND_INSET) - w, y, w, h);
+      context.drawImage(picture, area.x + area.width * (1 - BRAND_INSET) - w, y, w, h);
       y += h;
     }
     context.globalAlpha = 1;
     const text = last?.state?.subtitle;
     if (subtitles() && text) {
-      const font = Math.max(16, Math.round(height * 0.041));
+      // Sized by the frame's short side: an upright caption reads as large as a wide one.
+      const font = Math.max(16, Math.round(Math.min(width, height) * 0.041));
       context.font = `600 ${font}px system-ui, sans-serif`;
       context.fillStyle = '#ffffff';
       context.textAlign = 'center';
@@ -316,7 +366,7 @@ export function createCanvasStage(elements, {
       const boxWidth = Math.min(maxWidth, Math.max(...lines.map((line) => measureCachedText(context, line, maxWidth).width))) + padding * 2;
       const boxHeight = lineHeight * lines.length + padding * 2;
       const x = (width - boxWidth) / 2;
-      const y = choreographyCaption(board, last.state) === 'top' ? height * 0.025 : height * 0.965 - boxHeight;
+      const y = captionTop(area, height, boxHeight, choreographyCaption(board, last.state) === 'top');
       context.fillStyle = 'rgba(10, 20, 27, 0.78)';
       context.beginPath();
       roundedRect(context, x, y, boxWidth, boxHeight, font * 0.35);
@@ -421,6 +471,7 @@ export function createCanvasStage(elements, {
     textCaches.get(context)?.clear();
     textCaches.delete(context);
     memory.clear();
+    haze = null;
     missedSince.clear();
     if (!context) return;
     context.setTransform(1, 0, 0, 1, 0, 0);
@@ -512,6 +563,34 @@ export function recordedScale(width, height, box) {
   return Math.min(box.width / width, box.height / height);
 }
 
+/**
+ * Where the stage stands in a recording's frame, in device pixels: at its
+ * corner when it covers the frame, otherwise centred on whole pixels — a wide
+ * story in an upright take keeps the full width, with a band above and below.
+ */
+export function recordedArea(width, height, box) {
+  const scale = recordedScale(width, height, box);
+  const [w, h] = [width * scale, height * scale];
+  return {
+    x: Math.max(0, Math.round((box.width - w) / 2)),
+    y: Math.max(0, Math.round((box.height - h) / 2)),
+    width: w, height: h,
+  };
+}
+
+/**
+ * Where a burned-in caption box `boxHeight` tall stands: just inside the
+ * picture's lower edge, or its upper one for a `top` caption — unless the frame
+ * leaves a band on that side with room for it, where it stands just outside the
+ * picture instead and covers none of it.
+ */
+export function captionTop(area, frameHeight, boxHeight, top) {
+  const margin = frameHeight * 0.025;
+  if (top) return area.y >= boxHeight + margin * 2 ? area.y - margin - boxHeight : area.y + area.height * 0.025;
+  const below = area.y + area.height;
+  return frameHeight - below >= boxHeight + margin * 2 ? below + margin : below - area.height * 0.035 - boxHeight;
+}
+
 /** Wrap a caption without clipping unspaced languages or long single words. */
 export function captionLines(text, width, measure) {
   const words = String(text).trim().split(/\s+/u);
@@ -583,13 +662,26 @@ export function paintDrawList(context, list, {
   // goldens and the draw-list tests execute it with nothing behind them.
   onMissing = () => false, onPainted = () => {},
   background = null,
+  // Where in a recording's frame the stage stands (`recordedArea`). Away from
+  // the frame's corner the stage keeps to it: what the camera overshoots is not
+  // painted into the bands around it.
+  area = null,
 } = {}) {
   const { camera } = list;
+  const originX = area?.x ?? 0;
+  const originY = area?.y ?? 0;
+  const inset = originX > 0 || originY > 0;
   context.setTransform(1, 0, 0, 1, 0, 0);
   context.clearRect(0, 0, clearSize?.width ?? Math.round(list.width * scale), clearSize?.height ?? Math.round(list.height * scale));
+  if (inset) {
+    context.save();
+    context.beginPath();
+    context.rect(originX, originY, area.width, area.height);
+    context.clip();
+  }
   const magnification = camera.scale * scale;
-  const offsetX = (camera.x / 100) * list.width * scale;
-  const offsetY = (camera.y / 100) * list.height * scale;
+  const offsetX = originX + (camera.x / 100) * list.width * scale;
+  const offsetY = originY + (camera.y / 100) * list.height * scale;
   const underCamera = () => context.setTransform(magnification, 0, 0, magnification, offsetX, offsetY);
   underCamera();
   context.imageSmoothingEnabled = true;
@@ -616,7 +708,7 @@ export function paintDrawList(context, list, {
     // the reason the word exists — a board that doubled under a push-in would
     // take the number a child is counting with it — and the companion kept in
     // the corner over that board is drawn the same way.
-    if (command.hud) context.setTransform(scale, 0, 0, scale, 0, 0);
+    if (command.hud) context.setTransform(scale, 0, 0, scale, originX, originY);
     if (command.op === 'farm-label') {
       context.save();
       context.globalAlpha = command.opacity;
@@ -707,12 +799,13 @@ export function paintDrawList(context, list, {
     onPainted(command, drawable);
   }
   if (list.transition) {
-    context.setTransform(scale, 0, 0, scale, 0, 0);
+    context.setTransform(scale, 0, 0, scale, originX, originY);
     context.globalAlpha = list.transition.opacity;
     context.fillStyle = list.transition.color;
     context.fillRect(0, 0, list.width, list.height);
     context.globalAlpha = 1;
   }
+  if (inset) context.restore();
 }
 
 function paintSprite(context, command, drawable) {
