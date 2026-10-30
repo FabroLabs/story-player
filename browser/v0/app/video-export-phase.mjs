@@ -2,7 +2,8 @@ import { NARRATION_GRACE_MS } from '../policy.mjs';
 import { clockText } from './controls.mjs';
 import { createFastTake, planFastTake } from './fast-export.mjs';
 import {
-  EXPORT_MEMORY_BYTES, VIDEO_BITRATES, VIDEO_RESOLUTIONS, VIDEO_SIZES, createAudioTap, createRecording, fileNameFor, saveVideoFile, videoBitsFor,
+  EXPORT_MEMORY_BYTES, VIDEO_BITRATES, VIDEO_FORMATS, VIDEO_RESOLUTIONS, createAudioTap, createRecording, fileNameFor, saveVideoFile, videoBitsFor,
+  videoSize,
 } from './video-export.mjs';
 
 // The story stops on its last word, and the word is let finish rather than cut
@@ -78,7 +79,7 @@ export function createVideoExport({
    */
   async function record({
     offer = false, onProgress = null, onChunk = null, signal = null, audioContext = null, mode = 'auto',
-    resolution = 1080, maxBytes = null,
+    resolution = 1080, format = '16:9', maxBytes = null,
   } = {}) {
     if (destroyed) throw new Error('this player was destroyed');
     if (signal?.aborted) throw aborted();
@@ -90,6 +91,7 @@ export function createVideoExport({
     }
     if (mode !== 'auto' && mode !== 'filmed') throw new TypeError('mode must be auto or filmed');
     if (!VIDEO_RESOLUTIONS.includes(resolution)) throw new TypeError('resolution must be 480, 720 or 1080');
+    if (!VIDEO_FORMATS.includes(format)) throw new TypeError('format must be 16:9 or 9:16');
     if (maxBytes !== null && (!Number.isSafeInteger(maxBytes) || maxBytes <= 0)) throw new TypeError('maxBytes must be a positive safe integer');
     if (!support.ok) throw new Error(support.reason);
     if (take) throw new Error('a video of this story is already being recorded');
@@ -115,7 +117,7 @@ export function createVideoExport({
       memoryLimit,
       tap, recording: null, fast: null, ending: false, failed: null, settle: null, onProgress,
       paused: false, tail: null, tailRemaining: TAIL_MS, tailStarted: 0, tailDone: null,
-      size: VIDEO_SIZES[resolution],
+      size: videoSize(resolution, format),
       bitrate: videoBitsFor((player.getState()?.durationMs ?? 0) + TAIL_MS, byteBudget,
         VIDEO_BITRATES[resolution]),
     };
@@ -133,8 +135,8 @@ export function createVideoExport({
       const blob = (mode === 'auto' ? await stepped(mine, player, { onChunk: write, signal, finished }) : null)
         ?? await filmed(mine, player, { finished, onChunk: write });
       const file = onChunk
-        ? { name: fileNameFor(title()), type: 'video/mp4', size: blob.size }
-        : new globalObject.File([blob], fileNameFor(title()), { type: 'video/mp4' });
+        ? { name: fileNameFor(title(), format), type: 'video/mp4', size: blob.size }
+        : new globalObject.File([blob], fileNameFor(title(), format), { type: 'video/mp4' });
       emit(mine, 'ready');
       if (offer) offerFile(file);
       else closeStatus();
@@ -174,7 +176,7 @@ export function createVideoExport({
     const stream = new globalObject.MediaStream([...video, ...mine.tap.stream.getAudioTracks()]);
     mine.recording = createRecording(stream, {
       // Let the encoder choose a level that supports the larger frame.
-      mimeType: mine.size.height === 1080 ? support.mimeType.replace('avc1.42E01F', 'avc1') : support.mimeType,
+      mimeType: Math.min(mine.size.width, mine.size.height) === 1080 ? support.mimeType.replace('avc1.42E01F', 'avc1') : support.mimeType,
       memoryLimit: mine.memoryLimit, bitrate: mine.bitrate, globalObject, onChunk, onError: (error) => stop(mine, error),
       durationMs: player.getState()?.durationMs ?? 0,
     });

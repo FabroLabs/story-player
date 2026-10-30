@@ -80,6 +80,11 @@ function assertVideoResolutions(player) {
   assert.notEqual(first, second, 'the host was handed a shared array');
   first.splice(0, first.length, 360);
   assert.deepEqual(player.videoResolutions(), [480, 720, 1080], 'a host changed the build’s supported resolutions');
+  const formats = player.videoFormats();
+  assert.deepEqual(formats, ['16:9', '9:16']);
+  assert.notEqual(formats, player.videoFormats(), 'the host was handed a shared array');
+  formats.pop();
+  assert.deepEqual(player.videoFormats(), ['16:9', '9:16'], 'a host changed the build’s supported formats');
 }
 
 for (const surface of ['embed', 'performer']) test(`${surface} advertises fresh video resolutions before ready and after destroy, without recording support`, async (t) => {
@@ -118,20 +123,36 @@ test('the embed advertises video resolutions even when no performer could be mou
   assertVideoResolutions(player);
 });
 
-for (const [resolution, width, height, bitrate] of [
-  [undefined, 1920, 1080, 16_000_000],
-  [480, 854, 480, 3_000_000],
-  [720, 1280, 720, 8_000_000],
-  [1080, 1920, 1080, 16_000_000],
-]) test(`a filmed ${resolution ?? 'default'} take draws at its requested size and bitrate`, async (t) => {
+for (const [resolution, format, width, height, bitrate] of [
+  [undefined, undefined, 1920, 1080, 16_000_000],
+  [480, undefined, 854, 480, 3_000_000],
+  [720, undefined, 1280, 720, 8_000_000],
+  [1080, '16:9', 1920, 1080, 16_000_000],
+  [undefined, '9:16', 1080, 1920, 16_000_000],
+  [480, '9:16', 480, 854, 3_000_000],
+  [720, '9:16', 720, 1280, 8_000_000],
+]) test(`a filmed ${resolution ?? 'default'} ${format ?? 'default'} take draws at its requested size and bitrate`, async (t) => {
   const { player, browser, canvas } = await mount(t);
-  const saving = player.recordVideo({ mode: 'filmed', ...(resolution === undefined ? {} : { resolution }) });
+  const saving = player.recordVideo({
+    mode: 'filmed', ...(resolution === undefined ? {} : { resolution }), ...(format === undefined ? {} : { format }),
+  });
   const stopped = assert.rejects(saving, { name: 'AbortError' });
   await settle();
   assert.deepEqual([canvas.width, canvas.height], [width, height]);
   assert.equal(browser.recorders[0].options.videoBitsPerSecond, bitrate);
   player.cancelVideo();
   await stopped;
+});
+
+test('unsupported formats are refused before a take allocates media', async (t) => {
+  const { player, browser } = await mount(t);
+  for (const format of ['9x16', '4:3', '16:10', 'vertical', '', 0, null, false, {}, []]) {
+    await assert.rejects(player.recordVideo({ format }), {
+      name: 'TypeError', message: 'format must be 16:9 or 9:16',
+    });
+  }
+  assert.equal(browser.contexts.length, 0);
+  assert.equal(browser.recorders.length, 0);
 });
 
 test('unsupported resolutions are refused before a take allocates media', async (t) => {

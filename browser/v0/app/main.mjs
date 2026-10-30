@@ -12,7 +12,7 @@ import { createTimelinePlayer } from './timeline-player.mjs';
 import {
   appendStoryScene, requireBoardBlock, requireCardsBlock, requirePlatesBlock, resolveMediaUrl, resolveStoryAssets,
 } from './urls.mjs';
-import { VIDEO_RESOLUTIONS, recordingSupport, savingSupported } from './video-export.mjs';
+import { VIDEO_FORMATS, VIDEO_RESOLUTIONS, recordingSupport, savingSupported } from './video-export.mjs';
 import { createVideoExport } from './video-export-phase.mjs';
 import { routeWarning } from './warning-router.mjs';
 import { readPostStory } from './wind-down.mjs';
@@ -257,6 +257,7 @@ export function createV0Player({
     recordVideo: (options) => exporter.record(options),
     canRecordVideo: () => exporter.canRecord(),
     videoResolutions: () => [...VIDEO_RESOLUTIONS],
+    videoFormats: () => [...VIDEO_FORMATS],
     cancelVideo: () => exporter.cancel(),
     getVideoExportState: () => exporter.state(),
     destroy() {
