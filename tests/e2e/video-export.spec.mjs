@@ -515,6 +515,82 @@ test('a legacy video plate, narration, captions and branding survive a streamed 
   await expect(page.locator('.save-button')).toBeHidden();
 });
 
+test('an upright take keeps the whole wide picture across its middle, hazed above and below, captioned underneath', async ({ page }, testInfo) => {
+  test.setTimeout(40_000);
+  await page.goto(base);
+  await page.evaluate(() => window.ready);
+  const take = await page.evaluate(async () => {
+    window.player.destroy();
+    const story = {
+      storylang_version: 0, title: 'A moving garden', cast: {}, objects: {}, audio: { sfx: {}, bgm: {} },
+      scenes: [{ place: 'garden', plate: { poster: 'pack/poster.svg', video: 'pack/garden.webm' }, steps: [
+        { kind: 'chunk', line: 1, text: 'Look at the garden.', duration_s: 3, audio: 'pack/line.wav' },
+      ] }],
+    };
+    window.player = FabroStoryPlayer.createStoryPlayer(document.querySelector('#player'), { story, assetBase: location.origin });
+    await window.player.ready;
+    const file = await window.player.recordVideo({ format: '9:16' });
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    let binary = '';
+    for (let i = 0; i < bytes.length; i += 8192) binary += String.fromCharCode(...bytes.subarray(i, i + 8192));
+    return { name: file.name, data: btoa(binary) };
+  });
+  expect(take.name).toBe('A moving garden (vertical).mp4');
+  const bytes = Buffer.from(take.data, 'base64');
+  const file = testInfo.outputPath('upright.mp4');
+  fs.writeFileSync(file, bytes);
+  await testInfo.attach('upright-story', { path: file, contentType: 'video/mp4' });
+  const frame = await page.evaluate(async (encoded) => {
+    const video = document.createElement('video');
+    video.muted = true;
+    video.src = URL.createObjectURL(new Blob([Uint8Array.from(atob(encoded), (c) => c.charCodeAt(0))], { type: 'video/mp4' }));
+    await new Promise((resolve, reject) => { video.onloadedmetadata = resolve; video.onerror = reject; });
+    const sought = new Promise((resolve) => { video.onseeked = resolve; });
+    video.currentTime = 0.5;
+    await sought;
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0);
+    const { data, width } = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    // Mean brightness and colourful pixels of a band of rows; brand and caption ink in their places.
+    const band = (from, to) => {
+      let light = 0, colour = 0;
+      for (let y = from; y < to; y++) for (let x = 0; x < width; x++) {
+        const p = (y * width + x) * 4;
+        const [r, g, b] = [data[p], data[p + 1], data[p + 2]];
+        light += (r + g + b) / 3;
+        if (Math.max(r, g, b) - Math.min(r, g, b) > 40) colour++;
+      }
+      return { light: light / ((to - from) * width), colour };
+    };
+    let brand = 0, caption = 0;
+    for (let y = 0; y < canvas.height; y++) for (let x = 0; x < width; x++) {
+      const p = (y * width + x) * 4;
+      const [r, g, b] = [data[p], data[p + 1], data[p + 2]];
+      if (x > width * 0.905 && x < width * 0.982 && y > 656 && y < 656 + 607 * 0.155 && g > 65 && g > r * 1.2) brand++;
+      if (y > 1264 && y < 1700 && x > width * 0.3 && x < width * 0.7 && r > 160 && g > 160 && b > 160) caption++;
+    }
+    return {
+      width: video.videoWidth, height: video.videoHeight,
+      top: band(0, 640), picture: band(672, 1248), bottom: band(1720, 1920), brand, caption,
+      png: canvas.toDataURL().split(',')[1],
+    };
+  }, take.data);
+  await testInfo.attach('upright-frame', { body: Buffer.from(frame.png, 'base64'), contentType: 'image/png' });
+  fs.writeFileSync(testInfo.outputPath('upright-frame.png'), Buffer.from(frame.png, 'base64'));
+  expect([frame.width, frame.height]).toEqual([1080, 1920]);
+  expect(frame.picture.colour).toBeGreaterThan(100_000);
+  // The bands carry the picture's own colours, softer and darker than the picture: never black bars.
+  for (const haze of [frame.top, frame.bottom]) {
+    expect(haze.colour).toBeGreaterThan(10_000);
+    expect(haze.light).toBeGreaterThan(20);
+    expect(haze.light).toBeLessThan(frame.picture.light);
+  }
+  expect(frame.brand).toBeGreaterThan(100);
+  expect(frame.caption).toBeGreaterThan(40);
+});
+
 
 test('the name sits under the mark on a player wide enough to read it, and the mark stands alone on a small one', async ({ page }) => {
   await page.goto(base);

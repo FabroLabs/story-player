@@ -232,6 +232,9 @@ export function fakeContext() {
     // The width too: a flash on the board is a ring drawn WIDER for the length
     // of its pulse, and a recorder that could not say how wide would let a
     // pulse that never swelled pass as one that did.
+    fillRect: (...args) => calls.push([
+      'fillRect', ...args, { alpha: context.globalAlpha, ink: context.fillStyle, transform: [...transform] },
+    ]),
     stroke: (...args) => calls.push([
       'stroke', ...args, {
         alpha: context.globalAlpha, transform: [...transform], ink: context.strokeStyle, width: context.lineWidth,

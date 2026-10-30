@@ -111,6 +111,18 @@ test('a story this browser can step is stepped, and never filmed', async () => {
   assert.equal(w.exporter.active(), false);
 });
 
+test('an upright take is planned, staged and named at its own frame', async () => {
+  const w = world();
+  const saving = w.record({ format: '9:16' });
+  await settle();
+  assert.deepEqual(w.calls.plans[0].size, { width: 1080, height: 1920 });
+  assert.deepEqual(w.calls.begin[0].size, { width: 1080, height: 1920 });
+  assert.equal(w.calls.plans[0].bitrate, 16_000_000, 'an upright Full HD frame has as many pixels as a wide one');
+  w.pending.handed.begin();
+  w.pending.resolve(new Blob(['stepped']));
+  assert.equal((await saving).name, 'Rocket (vertical).mp4');
+});
+
 test('a stepped take hears pause, resume and the story’s end, and a hidden tab does not stop it', async () => {
   const w = world();
   const saving = w.record();
