@@ -1,6 +1,7 @@
 import { NARRATION_GRACE_MS } from '../policy.mjs';
 import { clockText } from './controls.mjs';
 import { createFastTake, planFastTake } from './fast-export.mjs';
+import { openSting } from './sting.mjs';
 import {
   EXPORT_MEMORY_BYTES, VIDEO_BITRATES, VIDEO_FORMATS, VIDEO_RESOLUTIONS, createAudioTap, createRecording, fileNameFor, saveVideoFile, videoBitsFor,
   videoSize,
@@ -34,6 +35,8 @@ const TAIL_MS = NARRATION_GRACE_MS;
 export function createVideoExport({
   elements, support, saving, download = null, runtime, begin, title, story = () => null, timeline = () => null, board = null, hostControls = false,
   onWarning = () => {}, stepping = { plan: planFastTake, create: createFastTake }, globalObject = globalThis,
+  // A bucket path as a URL, as the story's own media resolve; without it a saved video has no sting.
+  resolveMedia = null,
 }) {
   const { status, item, canvas } = elements;
   let take = null;
@@ -199,7 +202,8 @@ export function createVideoExport({
     if (mine.failed) throw mine.failed;
     const fast = stepping.create(plan, {
       story: bundle, canvas, durationMs: player.getState()?.durationMs ?? 0, tailMs: TAIL_MS,
-      onChunk, memoryLimit: mine.memoryLimit, bitrate: mine.bitrate, signal, globalObject,
+      onChunk, memoryLimit: mine.memoryLimit, bitrate: mine.bitrate, signal, globalObject, onWarning,
+      sting: resolveMedia && ((shape, options) => openSting(shape, { ...options, resolve: resolveMedia, signal, globalObject })),
     });
     mine.fast = fast;
     try {

@@ -80,6 +80,9 @@ on every call, and still check `canRecordVideo()` before offering a download.
 picture across the frame's middle, the bands above and below filled with the same
 instant blurred and dimmed, captions under the picture, and a file named
 `<title> (vertical).mp4`. `videoFormats()` answers a fresh `['16:9', '9:16']`.
+A stepped save opens and closes with the Moony Kids sting, fetched from the shared
+story bucket in the file's shape; without it the story is saved as before
+(`docs/embedding.md`).
 The exporter also composites legacy video backgrounds. Stepped exports draw every
 60 fps output frame independently of display timing, including performance music
 and ambience loops mixed from their authored schedule; filmed exports keep that

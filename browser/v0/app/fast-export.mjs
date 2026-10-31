@@ -79,7 +79,7 @@ export async function planFastTake({ story, size, bitrate = VIDEO_BITS_PER_SECON
  */
 export function createFastTake(plan, {
   story, canvas, durationMs, tailMs, onChunk = null, memoryLimit, signal = null, globalObject = globalThis,
-  bitrate = VIDEO_BITS_PER_SECOND,
+  bitrate = VIDEO_BITS_PER_SECOND, sting = null, onWarning = () => {},
 }) {
   const g = globalObject;
   const clock = createTimebase(g);
@@ -88,6 +88,7 @@ export function createFastTake(plan, {
   let videoEncoder = null;
   let audioEncoder = null;
   let sound = null;
+  let film = null;
   let closed = false;
 
   return {
@@ -103,10 +104,29 @@ export function createFastTake(plan, {
    * `player` is the runtime, already told to export on this take's timebase.
    * `begin` starts the story; `control` says whether the take was stopped
    * (`failed()` answers the error), is paused, or has reached the story's end.
+   *
+   * With `sting`, the file opens on its intro and closes on its outro
+   * (`sting.mjs`): the story's picture and sound sit between them, untouched.
+   * A sting that cannot be had here is left out and said, never the take's failure.
    */
   async function run({ player, begin, control, onProgress = () => {} }) {
     const sheet = createSheet(canvas, g);
     sound = await openSound({ cues: plan.cues, endMs, plan, signal, globalObject: g });
+    const films = sting
+      ? await sting(sheet.height > sheet.width ? '9:16' : '16:9', { rate: sound.rate, frameMs: FRAME_MS }).catch((error) => {
+        onWarning({ type: 'export', message: `the video is saved without its sting: ${error?.message ?? error}` });
+        return null;
+      })
+      : null;
+    // The output's clock: the intro's frames, the story, then the outro's.
+    const introFrames = films?.intro.frames ?? 0;
+    const introMs = introFrames * FRAME_MS;
+    // The file's length as its header announces it, before the story's last frame is known.
+    const totalMs = introMs + endMs + (films?.outro.frames ?? 0) * FRAME_MS;
+    // Where the last frame ends: the story's end, or past the outro once it has played.
+    let outputEnd = endMs;
+    const told = { length: sound.frameOf(endMs), mix: sound.mix };
+    const mix = films ? inSequence([films.intro.sound, told, films.outro.sound]) : told.mix;
     let failure = null;
     const fail = (error) => { failure ??= error instanceof Error ? error : new Error(String(error)); };
     const check = () => {
@@ -127,7 +147,7 @@ export function createFastTake(plan, {
         video: { codec: plan.video.codec, width: sheet.width, height: sheet.height, description: described.video },
         audio: { codec: plan.audio.codec, sampleRate: sound.rate, channels: 2,
           description: described.audio ?? (plan.audio.codec === 'aac' ? aacDescription(sound.rate, 2) : null) },
-        durationMs: endMs,
+        durationMs: totalMs,
         write: sink.write,
       });
       for (const [type, held] of early.splice(0)) writer[type](held);
@@ -159,7 +179,7 @@ export function createFastTake(plan, {
     });
     videoEncoder.configure({
       ...plan.video.config, width: sheet.width, height: sheet.height, framerate: VIDEO_FPS,
-      bitrate: videoBitsFor(endMs, onChunk ? 0 : memoryLimit, bitrate), latencyMode: 'quality',
+      bitrate: videoBitsFor(totalMs, onChunk ? 0 : memoryLimit, bitrate), latencyMode: 'quality',
     });
     audioEncoder = new g.AudioEncoder({
       output(chunk, metadata) {
@@ -181,19 +201,19 @@ export function createFastTake(plan, {
     // StoryClock rounds visual time to milliseconds. The output clock is
     // instead an integer frame index: 90 kHz MP4 samples stay exactly 1500
     // ticks apart, including slow plate seeks and the held tail.
-    const encodeFrame = () => {
-      sheet.draw();
+    const encodeFrame = (paint = sheet.draw) => {
+      paint();
       const frame = new g.VideoFrame(sheet.canvas, { timestamp: Math.round(frames * 1e6 / VIDEO_FPS), duration: Math.round(1e6 / VIDEO_FPS) });
       videoEncoder.encode(frame, { keyFrame: frames % KEY_EVERY === 0 });
       frame.close();
       frames += 1;
     };
-    /** The sound up to `tMs`, mixed and handed to its encoder, and the piece of file that completes. */
-    const catchUp = async (tMs) => {
-      const to = Math.min(sound.frameOf(endMs), sound.frameOf(tMs));
+    /** The sound up to `atMs` of the output, mixed and handed to its encoder, and the piece of file that completes. */
+    const catchUp = async (atMs) => {
+      const to = sound.frameOf(atMs);
       while (soundAt < to) {
         const count = Math.min(sound.rate, to - soundAt);
-        const mixed = await sound.mix(soundAt, count);
+        const mixed = await mix(soundAt, count);
         const data = new Float32Array(count * 2);
         data.set(mixed[0], 0);
         data.set(mixed[1], count);
@@ -209,6 +229,23 @@ export function createFastTake(plan, {
       onProgress();
     };
 
+    /** A film of the sting, every frame of it, fitted to the sheet. */
+    const playFilm = async (part) => {
+      film = part.picture();
+      for (let i = 0; i < part.frames; i += 1) {
+        check();
+        const image = await film.next();
+        if (!image) throw new Error('the sting ended before its last frame');
+        encodeFrame(() => sheet.paint(image));
+        image.close();
+        if (frames % KEY_EVERY === 0) await catchUp(frames * FRAME_MS);
+        while (videoEncoder.encodeQueueSize > 4) { await turn(g); check(); }
+      }
+      film.close();
+      film = null;
+    };
+
+    if (films) await playFilm(films.intro);
     begin();
     await player.awaitExportFrame?.(control.stopped);
     check();
@@ -231,7 +268,7 @@ export function createFastTake(plan, {
         last = tMs;
         stalledSince = null;
         encodeFrame();
-        if (frames % KEY_EVERY === 0) await catchUp(tMs);
+        if (frames % KEY_EVERY === 0) await catchUp(introMs + tMs);
         while (videoEncoder.encodeQueueSize > 4) { await turn(g); check(); }
         // Downloads and decodes that landed are noticed between frames.
         if (frames % 3 === 0) await turn(g);
@@ -245,16 +282,22 @@ export function createFastTake(plan, {
       await idle(g, clock.wall, 4);
     }
     // The last picture, held while the last word finishes.
-    while (frames * FRAME_MS < endMs) {
+    while ((frames - introFrames) * FRAME_MS < endMs) {
       check();
       encodeFrame();
       while (videoEncoder.encodeQueueSize > 4) await turn(g);
     }
-    await catchUp(endMs);
+    if (films) {
+      // The story's sound runs on, silent, under its last frame, so the outro's sound starts with its picture.
+      told.length = sound.frameOf(frames * FRAME_MS - introMs);
+      await playFilm(films.outro);
+      outputEnd = frames * FRAME_MS;
+    }
+    await catchUp(outputEnd);
     await videoEncoder.flush();
     await audioEncoder.flush();
     check();
-    if (heldFrame) deliver('video', { data: heldFrame.data, key: heldFrame.key, duration: videoTicks(Math.max(1, endMs - heldFrame.timestamp / 1000)) });
+    if (heldFrame) deliver('video', { data: heldFrame.data, key: heldFrame.key, duration: videoTicks(Math.max(1, outputEnd - heldFrame.timestamp / 1000)) });
     if (!writer) throw new Error('the encoders produced nothing');
     writer.finish();
     await sink.drain(true);
@@ -269,6 +312,8 @@ export function createFastTake(plan, {
     for (const encoder of [videoEncoder, audioEncoder]) {
       try { if (encoder && encoder.state !== 'closed') encoder.close(); } catch { /* already gone */ }
     }
+    film?.close();
+    film = null;
     sound?.close();
     sound = null;
     sink.discard();
@@ -331,7 +376,34 @@ function createSheet(canvas, g) {
     ? new g.OffscreenCanvas(width, height)
     : Object.assign(g.document.createElement('canvas'), { width, height });
   const context = sheet.getContext('2d', { alpha: false });
-  return { canvas: sheet, width, height, draw: () => context.drawImage(canvas, 0, 0) };
+  return {
+    canvas: sheet, width, height,
+    draw: () => context.drawImage(canvas, 0, 0),
+    /** Another picture, scaled to cover the sheet and centred on it. */
+    paint(image) {
+      const [w, h] = [image.displayWidth ?? image.width, image.displayHeight ?? image.height];
+      const scale = Math.max(width / w, height / h);
+      context.drawImage(image, (width - w * scale) / 2, (height - h * scale) / 2, w * scale, h * scale);
+    },
+  };
+}
+
+/** Sounds one after another as a single `mix(from, count)`; each part is `{ length, mix }`. */
+function inSequence(parts) {
+  return async (from, count) => {
+    const out = [new Float32Array(count), new Float32Array(count)];
+    let start = 0;
+    for (const part of parts) {
+      const [a, b] = [Math.max(from, start), Math.min(from + count, start + part.length)];
+      if (a < b) {
+        const mixed = await part.mix(a - start, b - a);
+        out[0].set(mixed[0], a - from);
+        out[1].set(mixed[1], a - from);
+      }
+      start += part.length;
+    }
+    return out;
+  };
 }
 
 /**

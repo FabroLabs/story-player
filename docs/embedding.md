@@ -984,6 +984,17 @@ a cast on black. Intro/end cards and the long bedtime wind-down are omitted.
 Seeking is locked during the take; the viewer's prior position is restored,
 paused, afterward.
 
+A stepped take opens on the Moony Kids sting's intro and closes on its outro
+(`sting.mjs`); playback never shows it. The sting is fetched as the take starts,
+through the story's own `assetBase`, from the shared story bucket:
+`fairytale-assets/brand/sting/v1/{intro,outro}-{16x9,9x16}.mp4`, silent H.264 films
+at 60 fps with no reordered frames, in the take's frame shape, and their sound
+`{intro,outro}.m4a`. Each film is decoded a frame at a time (`VideoDecoder`, its
+frames read by `m4a-reader.mjs`), fitted to the frame and encoded before and after
+the story; its sound is cut to its picture and mixed around the story's, whose own
+picture and sound are unchanged between them. A take whose sting cannot be fetched
+or decoded is saved without it, with a warning in the log. A filmed take has none.
+
 A take is **stepped** where it can be and **filmed** otherwise. A stepped take
 (`fast-export.mjs`) does not play the story in real time: it moves the story's
 clock by hand, reads each frame off the canvas into the browser's own encoder,
