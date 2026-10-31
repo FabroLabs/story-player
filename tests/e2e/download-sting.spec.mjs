@@ -80,11 +80,13 @@ for (const format of ['16:9', '9:16']) test(`a ${format} download opens on the s
       for (let at = 0; at < data.length; at += 4) for (let c = 0; c < 3; c += 1) sum[c] += data[at + c];
       return sum.map((value) => Math.round(value / (data.length / 4)));
     };
-    const samples = (await new AudioContext().decodeAudioData(await file.arrayBuffer())).getChannelData(0);
+    // Decoded at the context's own rate, which is not 48 kHz everywhere (44.1 kHz on Linux CI).
+    const decoded = await new AudioContext().decodeAudioData(await file.arrayBuffer());
+    const [samples, rate] = [decoded.getChannelData(0), decoded.sampleRate];
     /** How many times the sound crosses zero in a second, from `from` to `to` seconds. */
     const pitch = (from, to) => {
       let crossings = 0;
-      for (let n = Math.round(from * 48000) + 1; n < to * 48000; n += 1) if ((samples[n - 1] < 0) !== (samples[n] < 0)) crossings += 1;
+      for (let n = Math.round(from * rate) + 1; n < to * rate; n += 1) if ((samples[n - 1] < 0) !== (samples[n] < 0)) crossings += 1;
       return crossings / 2 / (to - from);
     };
     const result = {
