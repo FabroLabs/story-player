@@ -16,7 +16,7 @@ import { fakeElement } from './_dom.mjs';
 
 const settle = async () => { for (let i = 0; i < 20; i += 1) await Promise.resolve(); };
 
-function world({ plan = {}, run = null, wrote = false } = {}) {
+function world({ plan = {}, run = null, wrote = false, resolveMedia = null } = {}) {
   const calls = { plans: [], begin: [], end: 0, played: 0, recorders: 0, closed: 0, warnings: [], progress: [] };
   const listeners = {};
   const document = {
@@ -83,6 +83,7 @@ function world({ plan = {}, run = null, wrote = false } = {}) {
       create: (asked, options) => { created.push({ asked, options }); return take; },
     },
     globalObject,
+    resolveMedia,
   });
   const record = (options = {}) => exporter.record({ onProgress: (snapshot) => calls.progress.push(snapshot), ...options });
   return { exporter, calls, pending, created, take, state, document, listeners, record };
@@ -109,6 +110,16 @@ test('a story this browser can step is stepped, and never filmed', async () => {
   assert.equal(w.calls.end, 1);
   assert.equal(w.calls.closed, 1);
   assert.equal(w.exporter.active(), false);
+});
+
+test('a stepped take is handed the sting where the story’s media can be resolved, and only there', async () => {
+  for (const [resolveMedia, handed] of [[null, false], [(path) => `https://storage.example/${path}`, true]]) {
+    const w = world({ resolveMedia });
+    void w.record();
+    await settle();
+    assert.equal(typeof w.created[0].options.sting === 'function', handed);
+    assert.equal(typeof w.created[0].options.onWarning, 'function', 'a sting left out is said');
+  }
 });
 
 test('an upright take is planned, staged and named at its own frame', async () => {

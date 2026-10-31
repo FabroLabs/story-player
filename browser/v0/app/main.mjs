@@ -177,6 +177,7 @@ export function createV0Player({
     story: () => runtimeStory,
     timeline: () => timeline, board: boardBlock,
     onWarning: warn,
+    resolveMedia: (media) => resolveMediaUrl(media, assetBase),
   });
   // Keep the existing Save opt-out; an empty settings menu has no button.
   elements.controls.settings.hidden = elements.controls.save.hidden;
