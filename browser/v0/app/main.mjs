@@ -14,6 +14,7 @@ import {
 } from './urls.mjs';
 import { VIDEO_FORMATS, VIDEO_RESOLUTIONS, recordingSupport, savingSupported } from './video-export.mjs';
 import { createVideoExport } from './video-export-phase.mjs';
+import { stingBase } from './sting.mjs';
 import { routeWarning } from './warning-router.mjs';
 import { readPostStory } from './wind-down.mjs';
 import { createWindDownPhase } from './wind-down-phase.mjs';
@@ -177,7 +178,7 @@ export function createV0Player({
     story: () => runtimeStory,
     timeline: () => timeline, board: boardBlock,
     onWarning: warn,
-    resolveMedia: (media) => resolveMediaUrl(media, assetBase),
+    resolveMedia: (media) => resolveMediaUrl(media, stingBase(assetBase)),
   });
   // Keep the existing Save opt-out; an empty settings menu has no button.
   elements.controls.settings.hidden = elements.controls.save.hidden;

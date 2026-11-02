@@ -9,7 +9,7 @@ import test from 'node:test';
 
 import { createFastTake, planFastTake } from '../browser/v0/app/fast-export.mjs';
 import { readM4a, readMp4Video } from '../browser/v0/app/m4a-reader.mjs';
-import { decodeInOrder, stingMedia } from '../browser/v0/app/sting.mjs';
+import { decodeInOrder, stingBase, stingMedia } from '../browser/v0/app/sting.mjs';
 
 const tinyFilm = () => fs.readFileSync(new URL('./fixtures/tiny-film.mp4', import.meta.url));
 
@@ -29,6 +29,16 @@ test('the sting is looked for in the shared bucket, in the frame’s own shape',
     picture: 'fairytale-assets/brand/sting/v1/intro-9x16.mp4', sound: 'fairytale-assets/brand/sting/v1/intro.m4a',
   });
   assert.equal(stingMedia('16:9').outro.picture, 'fairytale-assets/brand/sting/v1/outro-16x9.mp4');
+});
+
+test('a story’s asset base is the storage root; a lesson’s media folder is cut back to it', () => {
+  assert.equal(stingBase('https://app.example/api/storage'), 'https://app.example/api/storage/');
+  assert.equal(stingBase('https://cdn.example/'), 'https://cdn.example/');
+  assert.equal(
+    stingBase('https://app.example/api/storage/fairytale-assets/learn/releases/learn-7598a7b03d10/media/'),
+    'https://app.example/api/storage/',
+  );
+  assert.equal(stingBase('http://127.0.0.1:8771/fairytale-assets/learn/releases/r/media'), 'http://127.0.0.1:8771/');
 });
 
 test('frames come back in order, a few packets ahead, and the last is followed by nothing', async () => {
