@@ -986,7 +986,9 @@ paused, afterward.
 
 A stepped take opens on the Moony Kids sting's intro and closes on its outro
 (`sting.mjs`); playback never shows it. The sting is fetched as the take starts,
-through the story's own `assetBase`, from the shared story bucket:
+from the shared story bucket under the storage root the `assetBase` names (a
+lesson's `assetBase`, its own media folder inside the bucket, is cut back to
+that root):
 `fairytale-assets/brand/sting/v1/{intro,outro}-{16x9,9x16}.mp4`, silent H.264 films
 at 60 fps with no reordered frames, in the take's frame shape, and their sound
 `{intro,outro}.m4a`. Each film is decoded a frame at a time (`VideoDecoder`, its
