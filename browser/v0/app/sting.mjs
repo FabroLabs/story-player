@@ -1,4 +1,5 @@
 import { readMp4Video } from './m4a-reader.mjs';
+import { normalizeAssetBase } from './urls.mjs';
 
 /**
  * The Moony Kids sting a saved video opens with and closes on.
@@ -22,6 +23,19 @@ export function stingMedia(shape) {
   const frame = shape === '9:16' ? '9x16' : '16x9';
   const part = (name) => ({ picture: `${STING_ROOT}/${name}-${frame}.mp4`, sound: `${STING_ROOT}/${name}.m4a` });
   return { intro: part('intro'), outro: part('outro') };
+}
+
+/**
+ * The storage root the sting's bucket paths resolve under. A story's asset base
+ * is that root already; a lesson's is its own media folder inside the bucket
+ * (`<root>/fairytale-assets/learn/…/media/`), so it is cut back to the root.
+ */
+export function stingBase(assetBase) {
+  const base = new URL(normalizeAssetBase(assetBase));
+  const bucket = `/${STING_ROOT.split('/')[0]}/`;
+  const at = base.pathname.indexOf(bucket);
+  if (at >= 0) base.pathname = base.pathname.slice(0, at + 1);
+  return base.href;
 }
 
 /**
