@@ -281,6 +281,15 @@ booleans, both off by default:
   A `card` anchor docks to the themed card's actual inset rectangle. Every world
   frame follows story time, including held native animation cells, pauses and
   arbitrary seeks. Omit `world` to keep existing lesson and ordinary story layouts.
+  Optional `world.camera` frames outdoor phases: strictly increasing keyframes
+  `{at_ms, scale, cx, cy}` in absolute story milliseconds inside the world, with
+  `scale` from 1 to 2 and `(cx, cy)` the stage point shown at the frame centre.
+  The camera moves linearly between keys and holds before the first and after
+  the last; write keys every 40 ms for an eased move. The offset is clamped so the
+  background always covers the frame. The background, props, Bibo and a carried
+  prop all move under it. Teaching phases and reduced-motion viewers stay wide,
+  so a world that is pushed in when a board starts cuts to wide. Captions and the
+  logo are not under it. Omit `camera` for today's fixed framing.
 - `kicker` is the line over the story's name on the opening screen, for a host
   mounting something that is not a bedtime story—`kicker: 'a counting lesson'`.
   Anything that is not a string with words in it leaves the default,
