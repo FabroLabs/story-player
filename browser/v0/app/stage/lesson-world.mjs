@@ -113,8 +113,22 @@ function cues(input) {
   });
 }
 
+function camera(input, endMs) {
+  if (!Array.isArray(input) || !input.length) fail('camera must be a non-empty array of keyframes');
+  let previous = -1;
+  return input.map(frame => {
+    keys(frame, ['at_ms', 'scale', 'cx', 'cy'], 'camera keyframe');
+    if (!['at_ms', 'scale', 'cx', 'cy'].every(name => Number.isFinite(frame[name]))) fail('camera keyframe needs finite at_ms, scale, cx and cy');
+    if (frame.at_ms < 0 || frame.at_ms > endMs || frame.at_ms <= previous) fail('camera at_ms must rise strictly inside the world');
+    previous = frame.at_ms;
+    if (frame.scale < 1 || frame.scale > 2) fail('camera scale must be between one and two');
+    if ([frame.cx, frame.cy].some(value => value < 0 || value > 1)) fail('camera cx and cy must be stage fractions');
+    return { at_ms: frame.at_ms, scale: frame.scale, cx: frame.cx, cy: frame.cy };
+  });
+}
+
 export function requireLessonWorld(input) {
-  keys(input, ['background', 'board', 'actor_box', 'phases', 'cues'], 'recipe');
+  keys(input, ['background', 'board', 'actor_box', 'phases', 'cues', 'camera'], 'recipe');
   if (!slug(input.background)) fail('background must name a safe object slug');
   keys(input.board, ['style', 'panel', 'art', 'art_box', 'content'], 'board');
   if (!['garden', 'royal', 'camp', 'travel'].includes(input.board.style)) fail('board style must be garden, royal, camp or travel');
@@ -157,7 +171,8 @@ export function requireLessonWorld(input) {
   });
   return { background: input.background, board: { style: input.board.style, panel, ...art,
     ...(Object.hasOwn(input.board, 'content') ? { content: contentLayout(input.board.content) } : {}) }, actor_box: actorBox, phases,
-    ...(Object.hasOwn(input, 'cues') ? { cues: cues(input.cues) } : {}) };
+    ...(Object.hasOwn(input, 'cues') ? { cues: cues(input.cues) } : {}),
+    ...(Object.hasOwn(input, 'camera') ? { camera: camera(input.camera, previousEnd) } : {}) };
 }
 
 export function worldObjectSlugs(world, choreography = []) {
@@ -172,6 +187,28 @@ export function lessonWorldAt(options, tMs) {
   const phase = world.phases.find(item => tMs >= item.start_ms && tMs < item.end_ms)
     ?? (tMs < 0 ? world.phases[0] : world.phases.at(-1));
   return { world, phase, at: Math.max(0, Math.min(1, (tMs - phase.start_ms) / (phase.end_ms - phase.start_ms))) };
+}
+
+/**
+ * The authored framing at `tMs` as the plate reads it (scale, offset in percent), or null
+ * when the world has no camera. Linear between keys, held outside them; the offset is
+ * clamped so the plate always covers the frame.
+ */
+export function lessonWorldCamera(world, tMs) {
+  const frames = world.camera;
+  if (!frames) return null;
+  let low = 0, high = frames.length - 1;
+  if (tMs <= frames[0].at_ms) high = 0;
+  else if (tMs >= frames[high].at_ms) low = high;
+  while (high - low > 1) {
+    const middle = (low + high) >> 1;
+    if (frames[middle].at_ms <= tMs) low = middle; else high = middle;
+  }
+  const left = frames[low], right = frames[high];
+  const u = high === low ? 0 : (tMs - left.at_ms) / (right.at_ms - left.at_ms);
+  const scale = mix(left.scale, right.scale, u);
+  const offset = centre => Math.min(0, Math.max(1 - scale, .5 - scale * centre)) * 100;
+  return { scale, x: offset(mix(left.cx, right.cx, u)), y: offset(mix(left.cy, right.cy, u)) };
 }
 
 function segment(frames, at) {

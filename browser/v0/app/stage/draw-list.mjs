@@ -49,7 +49,7 @@
 import { frameCell } from '../../core/clips.mjs';
 import { lessonGuideBox } from './lesson-guide-layout.mjs';
 import { lessonGuideChoreography } from './lesson-guide-choreography.mjs';
-import { lessonWorldAt, lessonWorldActorBox, lessonWorldBoard, lessonWorldProps } from './lesson-world.mjs';
+import { lessonWorldAt, lessonWorldActorBox, lessonWorldBoard, lessonWorldCamera, lessonWorldProps } from './lesson-world.mjs';
 import { normaliseCardBoard } from '../../core/card-board.mjs';
 import { readOceanBoard } from '../../core/ocean-board.mjs';
 import { readFarmBoard, farmBoardMotion } from '../../core/farm-board.mjs';
@@ -108,8 +108,12 @@ export function buildDrawList(state, sheets = NO_SHEETS, viewport = null, boardO
     const [background, ...props] = lessonWorldProps(world, width, height, sheets, board);
     if (world.phase.mode === 'world') commands.shift();
     else commands.splice(1, 0, ...props);
-    return { width, height, camera: WIDE_CAMERA,
-      commands: world.phase.mode === 'world' ? [background, ...props, ...commands] : [background, ...commands] };
+    const ordered = world.phase.mode === 'world' ? [background, ...props, ...commands] : [background, ...commands];
+    const camera = world.phase.mode === 'world' && viewport?.reducedMotion !== true
+      ? lessonWorldCamera(world.world, state?.tMs ?? 0) : null;
+    // An authored camera frames the whole world picture: nothing in it stays screen-fixed.
+    return camera ? { width, height, camera: framing(camera), commands: ordered.map(({ hud, ...command }) => command) }
+      : { width, height, camera: WIDE_CAMERA, commands: ordered };
   }
   if (readFarmJourney(state?.slate)?.kind === 'journey') {
     return {width,height,camera:journeyCamera(state),commands:[
